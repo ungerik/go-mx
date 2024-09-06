@@ -1,0 +1,34 @@
+package doc
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/ungerik/go-mx"
+)
+
+var _ mx.Component = Text("")
+
+type Text string
+
+func Textf(format string, args ...any) Text {
+	return Text(fmt.Sprintf(format, args...))
+}
+
+func (text Text) RenderOpening(ctx context.Context, w io.Writer) error {
+	return RendererFromContext(ctx).RenderTextOpening(ctx, w, text)
+}
+
+func (text Text) RenderChildren(ctx context.Context, w io.Writer) error {
+	return RendererFromContext(ctx).RenderTextChildren(ctx, w, text)
+}
+
+func (text Text) RenderClosing(ctx context.Context, w io.Writer) error {
+	return RendererFromContext(ctx).RenderTextClosing(ctx, w, text)
+}
+
+func (text Text) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	w.Write([]byte(text))
+}
