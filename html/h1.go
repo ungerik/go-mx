@@ -43,7 +43,7 @@ func (h1 H1) Render(ctx context.Context, w io.Writer) error {
 }
 
 func (h1 H1) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(h1.Children), nil
+	return mx.ComponentSlice(h1.Children), ctx.Err()
 }
 
 func (h1 H1) ServeHTTP(w http.ResponseWriter, r *http.Request) {

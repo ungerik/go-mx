@@ -157,6 +157,18 @@ func patternMethod(pattern string) string {
 	return ""
 }
 
+func PathValueNames(pattern string) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, part := range strings.Split(pattern, "/") {
+		if len(part) > 0 && part[0] == '{' {
+			if i := strings.IndexByte(part, '}'); i != -1 {
+				names[part[1:i]] = struct{}{}
+			}
+		}
+	}
+	return names
+}
+
 // type ServeMuxHandler interface {
 // 	Handle(pattern string, handler http.Handler)
 // }

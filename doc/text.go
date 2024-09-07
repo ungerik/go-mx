@@ -21,10 +21,6 @@ func (text Text) Render(ctx context.Context, w io.Writer) error {
 	return RendererFromContext(ctx).RenderText(ctx, w, text)
 }
 
-func (text Text) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return nil, nil
-}
-
 func (text Text) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte(text))
 }

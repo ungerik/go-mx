@@ -19,7 +19,7 @@ func (p *Paragraph) RenderOpening(ctx context.Context, w io.Writer) error {
 }
 
 func (p *Paragraph) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(p.Children), nil
+	return mx.ComponentSlice(p.Children), ctx.Err()
 }
 
 func (p *Paragraph) RenderClosing(ctx context.Context, w io.Writer) error {

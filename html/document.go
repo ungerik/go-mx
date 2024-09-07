@@ -9,14 +9,14 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-var _ mx.Component = HTML{}
+var _ mx.Component = Document{}
 
-type HTML struct {
+type Document struct {
 	Title string
 	Body  mx.Component
 }
 
-func (html HTML) Render(ctx context.Context, w io.Writer) error {
+func (html Document) Render(ctx context.Context, w io.Writer) error {
 	_, err := fmt.Fprint(w, "<!DOCTYPE html>\n<html>\n<head>")
 	if err != nil {
 		return err
@@ -41,10 +41,10 @@ func (html HTML) Render(ctx context.Context, w io.Writer) error {
 	return err
 }
 
-func (html HTML) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(html.Body), nil
+func (html Document) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return mx.ComponentSlice(html.Body), ctx.Err()
 }
 
-func (html HTML) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (html Document) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mx.ServeComponent(w, r, contentTypeHTML, html)
 }

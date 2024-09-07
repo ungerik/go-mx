@@ -8,8 +8,8 @@ import (
 	"github.com/ungerik/go-mx/html"
 )
 
-func ExampleHTML() {
-	html.HTML{
+func ExampleDocument() {
+	html.Document{
 		Title: "Hello World",
 		Body: mx.Components{
 			html.H1Text("Hello World"),
