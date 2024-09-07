@@ -10,7 +10,7 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-var httpHeaderContentTypeHTML = http.Header{"Content-Type": []string{"text/html; charset=utf-8"}}
+var contentTypeHTML = http.Header{"Content-Type": []string{mx.ContentTypeHTML}}
 
 var htmlEscaper = strings.NewReplacer(
 	`&`, "&amp;",

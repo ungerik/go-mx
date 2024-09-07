@@ -24,5 +24,5 @@ func (text Text) Render(_ context.Context, w io.Writer) error {
 func (Text) GetChildren(context.Context) ([]mx.Component, error) { return nil, nil }
 
 func (text Text) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, text)
+	mx.ServeComponent(w, r, contentTypeHTML, text)
 }

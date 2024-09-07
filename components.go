@@ -25,7 +25,7 @@ func (cs Components) GetChildren(ctx context.Context) ([]Component, error) {
 }
 
 func (cs Components) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ServeHTTP(w, r, nil, cs)
+	ServeComponent(w, r, nil, cs)
 }
 
 func ComponentSlice(c Component) []Component {

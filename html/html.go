@@ -46,5 +46,5 @@ func (html HTML) GetChildren(ctx context.Context) ([]mx.Component, error) {
 }
 
 func (html HTML) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, html)
+	mx.ServeComponent(w, r, contentTypeHTML, html)
 }

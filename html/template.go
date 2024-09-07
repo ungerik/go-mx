@@ -27,5 +27,5 @@ func (t Template) Render(ctx context.Context, w io.Writer) error {
 func (t Template) GetChildren(ctx context.Context) ([]mx.Component, error) { return nil, nil }
 
 func (t Template) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, t)
+	mx.ServeComponent(w, r, contentTypeHTML, t)
 }

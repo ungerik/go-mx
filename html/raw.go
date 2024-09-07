@@ -25,5 +25,5 @@ func (raw Raw) Render(_ context.Context, w io.Writer) error {
 func (Raw) GetChildren(ctx context.Context) ([]mx.Component, error) { return nil, nil }
 
 func (raw Raw) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, raw)
+	mx.ServeComponent(w, r, contentTypeHTML, raw)
 }

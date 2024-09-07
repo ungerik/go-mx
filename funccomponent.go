@@ -31,5 +31,5 @@ func (f FuncComponent) GetChildren(ctx context.Context) ([]Component, error) {
 }
 
 func (f FuncComponent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ServeHTTP(w, r, nil, f)
+	ServeComponent(w, r, nil, f)
 }
