@@ -1,7 +1,6 @@
 package html
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,8 +39,7 @@ func QuoteAttribute(value string) string {
 	return `"` + attribEscaper.Replace(value) + `"`
 }
 
-func WriteStructAsStartTagWithAttribs(ctx context.Context, w io.Writer, elem string, s any) error {
-	renderer := RendererFromContext(ctx)
+func WriteStructAsStartTagWithAttribs(w io.Writer, renderer Renderer, elem string, s any) error {
 	err := renderer.OpenElement(w, elem)
 	if err != nil {
 		return err

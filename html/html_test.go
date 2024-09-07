@@ -9,7 +9,7 @@ import (
 )
 
 func ExampleHTML() {
-	mx.Render(context.Background(), os.Stdout, html.HTML{
+	html.HTML{
 		Title: "Hello World",
 		Body: mx.Components{
 			html.H1Text("Hello World"),
@@ -30,7 +30,7 @@ func ExampleHTML() {
 				return children, nil
 			}),
 		},
-	})
+	}.Render(context.Background(), os.Stdout)
 
 	// Output:
 	// <!DOCTYPE html>

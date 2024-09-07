@@ -16,7 +16,7 @@ type Template struct {
 	Data any
 }
 
-func (t Template) RenderOpening(ctx context.Context, w io.Writer) error {
+func (t Template) Render(ctx context.Context, w io.Writer) error {
 	templ, err := template.New("").ParseGlob(t.File)
 	if err != nil {
 		return err
@@ -25,7 +25,6 @@ func (t Template) RenderOpening(ctx context.Context, w io.Writer) error {
 }
 
 func (t Template) GetChildren(ctx context.Context) ([]mx.Component, error) { return nil, nil }
-func (Template) RenderClosing(ctx context.Context, w io.Writer) error      { return nil }
 
 func (t Template) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, t)

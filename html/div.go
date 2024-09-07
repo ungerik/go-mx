@@ -22,16 +22,23 @@ func DivText(text string) Div {
 	return Div{Children: Text(text)}
 }
 
-func (div Div) RenderOpening(ctx context.Context, w io.Writer) error {
-	return WriteStructAsStartTagWithAttribs(ctx, w, "div", div)
+func (div Div) Render(ctx context.Context, w io.Writer) error {
+	renderer := RendererFromContext(ctx)
+	err := WriteStructAsStartTagWithAttribs(w, renderer, "div", div)
+	if err != nil {
+		return err
+	}
+	if div.Children != nil {
+		err = div.Children.Render(ctx, w)
+		if err != nil {
+			return err
+		}
+	}
+	return renderer.EndElement(w, "div")
 }
 
 func (div Div) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(div.Children), nil
-}
-
-func (Div) RenderClosing(ctx context.Context, w io.Writer) error {
-	return RendererFromContext(ctx).EndElement(w, "div")
+	return mx.ComponentSlice(div.Children), ctx.Err()
 }
 
 func (div Div) ServeHTTP(w http.ResponseWriter, r *http.Request) {

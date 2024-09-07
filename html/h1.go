@@ -27,16 +27,23 @@ func H1Textf(textFmt string, args ...any) H1 {
 	return H1{Children: Text(fmt.Sprintf(textFmt, args...))}
 }
 
-func (h1 H1) RenderOpening(ctx context.Context, w io.Writer) error {
-	return WriteStructAsStartTagWithAttribs(ctx, w, "h1", h1)
+func (h1 H1) Render(ctx context.Context, w io.Writer) error {
+	renderer := RendererFromContext(ctx)
+	err := WriteStructAsStartTagWithAttribs(w, renderer, "h1", h1)
+	if err != nil {
+		return err
+	}
+	if h1.Children != nil {
+		err = h1.Children.Render(ctx, w)
+		if err != nil {
+			return err
+		}
+	}
+	return renderer.EndElement(w, "h1")
 }
 
 func (h1 H1) GetChildren(ctx context.Context) ([]mx.Component, error) {
 	return mx.ComponentSlice(h1.Children), nil
-}
-
-func (H1) RenderClosing(ctx context.Context, w io.Writer) error {
-	return RendererFromContext(ctx).EndElement(w, "h1")
 }
 
 func (h1 H1) ServeHTTP(w http.ResponseWriter, r *http.Request) {

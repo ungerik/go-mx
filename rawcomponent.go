@@ -6,28 +6,15 @@ import (
 	"net/http"
 )
 
-var _ Component = RawComponent{}
+var _ Component = RawComponent("")
 
-type RawComponent struct {
-	Opening  string
-	Children []Component
-	Closing  string
-}
+type RawComponent string
 
-func (raw RawComponent) RenderOpening(_ context.Context, w io.Writer) error {
-	_, err := w.Write([]byte(raw.Opening))
-	return err
-}
-
-func (raw RawComponent) GetChildren(context.Context) ([]Component, error) {
-	return raw.Children, nil
-}
-
-func (raw RawComponent) RenderClosing(_ context.Context, w io.Writer) error {
-	_, err := w.Write([]byte(raw.Closing))
+func (raw RawComponent) Render(ctx context.Context, w io.Writer) error {
+	_, err := w.Write([]byte(raw))
 	return err
 }
 
 func (raw RawComponent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ServeHTTP(w, r, nil, raw)
+	w.Write([]byte(raw))
 }

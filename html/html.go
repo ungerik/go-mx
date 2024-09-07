@@ -16,7 +16,7 @@ type HTML struct {
 	Body  mx.Component
 }
 
-func (html HTML) RenderOpening(_ context.Context, w io.Writer) error {
+func (html HTML) Render(ctx context.Context, w io.Writer) error {
 	_, err := fmt.Fprint(w, "<!DOCTYPE html>\n<html>\n<head>")
 	if err != nil {
 		return err
@@ -28,16 +28,21 @@ func (html HTML) RenderOpening(_ context.Context, w io.Writer) error {
 		}
 	}
 	_, err = fmt.Fprint(w, "\n</head>\n<body>\n")
+	if err != nil {
+		return err
+	}
+	if html.Body != nil {
+		err = html.Body.Render(ctx, w)
+		if err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprint(w, "\n</body>\n</html>")
 	return err
 }
 
 func (html HTML) GetChildren(ctx context.Context) ([]mx.Component, error) {
 	return mx.ComponentSlice(html.Body), nil
-}
-
-func (HTML) RenderClosing(ctx context.Context, w io.Writer) error {
-	_, err := fmt.Fprint(w, "\n</body>\n</html>")
-	return err
 }
 
 func (html HTML) ServeHTTP(w http.ResponseWriter, r *http.Request) {

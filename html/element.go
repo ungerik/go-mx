@@ -16,7 +16,7 @@ type Element struct {
 	Children mx.Component
 }
 
-func (e Element) RenderOpening(ctx context.Context, w io.Writer) error {
+func (e Element) Render(ctx context.Context, w io.Writer) error {
 	renderer := RendererFromContext(ctx)
 	err := renderer.OpenElement(w, e.Name)
 	if err != nil {
@@ -31,18 +31,19 @@ func (e Element) RenderOpening(ctx context.Context, w io.Writer) error {
 	if e.Children == nil {
 		return renderer.CloseVoidElement(w)
 	}
-	return renderer.CloseElement(w)
+	err = renderer.CloseElement(w)
+	if err != nil {
+		return err
+	}
+	err = e.Children.Render(ctx, w)
+	if err != nil {
+		return err
+	}
+	return renderer.EndElement(w, e.Name)
 }
 
 func (e Element) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(e.Children), nil
-}
-
-func (e Element) RenderClosing(ctx context.Context, w io.Writer) error {
-	if e.Children == nil {
-		return nil
-	}
-	return RendererFromContext(ctx).EndElement(w, e.Name)
+	return mx.ComponentSlice(e.Children), ctx.Err()
 }
 
 func (e Element) ServeHTTP(w http.ResponseWriter, r *http.Request) {

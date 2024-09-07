@@ -14,7 +14,13 @@ var _ Component = FuncComponent(nil)
 // Multiple children can be returned as Components slice.
 type FuncComponent func(ctx context.Context) (Component, error)
 
-func (FuncComponent) RenderOpening(context.Context, io.Writer) error { return nil }
+func (f FuncComponent) Render(ctx context.Context, w io.Writer) error {
+	c, err := f(ctx)
+	if err != nil {
+		return err
+	}
+	return c.Render(ctx, w)
+}
 
 func (f FuncComponent) GetChildren(ctx context.Context) ([]Component, error) {
 	c, err := f(ctx)
@@ -23,8 +29,6 @@ func (f FuncComponent) GetChildren(ctx context.Context) ([]Component, error) {
 	}
 	return ComponentSlice(c), nil
 }
-
-func (FuncComponent) RenderClosing(context.Context, io.Writer) error { return nil }
 
 func (f FuncComponent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ServeHTTP(w, r, nil, f)

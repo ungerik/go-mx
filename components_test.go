@@ -6,7 +6,7 @@ import (
 )
 
 func TestComponentSlice(t *testing.T) {
-	c := RawComponent{Opening: "Test"}
+	c := RawComponent("Test")
 	tests := []struct {
 		name string
 		c    Component
