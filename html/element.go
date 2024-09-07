@@ -34,8 +34,8 @@ func (e Element) RenderOpening(ctx context.Context, w io.Writer) error {
 	return renderer.CloseElement(w)
 }
 
-func (e Element) RenderChildren(ctx context.Context, w io.Writer) error {
-	return mx.Render(ctx, w, e.Children)
+func (e Element) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return mx.ComponentSlice(e.Children), nil
 }
 
 func (e Element) RenderClosing(ctx context.Context, w io.Writer) error {

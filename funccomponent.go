@@ -16,12 +16,12 @@ type FuncComponent func(ctx context.Context) (Component, error)
 
 func (FuncComponent) RenderOpening(context.Context, io.Writer) error { return nil }
 
-func (f FuncComponent) RenderChildren(ctx context.Context, w io.Writer) error {
+func (f FuncComponent) GetChildren(ctx context.Context) ([]Component, error) {
 	c, err := f(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return Render(ctx, w, c)
+	return ComponentSlice(c), nil
 }
 
 func (FuncComponent) RenderClosing(context.Context, io.Writer) error { return nil }

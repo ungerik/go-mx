@@ -21,8 +21,8 @@ func (text Text) RenderOpening(ctx context.Context, w io.Writer) error {
 	return RendererFromContext(ctx).RenderTextOpening(ctx, w, text)
 }
 
-func (text Text) RenderChildren(ctx context.Context, w io.Writer) error {
-	return RendererFromContext(ctx).RenderTextChildren(ctx, w, text)
+func (text Text) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return nil, nil
 }
 
 func (text Text) RenderClosing(ctx context.Context, w io.Writer) error {

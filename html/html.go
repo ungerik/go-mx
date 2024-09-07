@@ -31,8 +31,8 @@ func (html HTML) RenderOpening(_ context.Context, w io.Writer) error {
 	return err
 }
 
-func (html HTML) RenderChildren(ctx context.Context, w io.Writer) error {
-	return mx.Render(ctx, w, html.Body)
+func (html HTML) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return mx.ComponentSlice(html.Body), nil
 }
 
 func (HTML) RenderClosing(ctx context.Context, w io.Writer) error {

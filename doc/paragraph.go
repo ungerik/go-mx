@@ -18,8 +18,8 @@ func (p *Paragraph) RenderOpening(ctx context.Context, w io.Writer) error {
 	return RendererFromContext(ctx).RenderParagraphOpening(ctx, w, p)
 }
 
-func (p *Paragraph) RenderChildren(ctx context.Context, w io.Writer) error {
-	return RendererFromContext(ctx).RenderParagraphChildren(ctx, w, p)
+func (p *Paragraph) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return mx.ComponentSlice(p.Children), nil
 }
 
 func (p *Paragraph) RenderClosing(ctx context.Context, w io.Writer) error {

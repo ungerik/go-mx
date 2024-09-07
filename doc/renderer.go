@@ -7,11 +7,9 @@ import (
 
 type Renderer interface {
 	RenderParagraphOpening(context.Context, io.Writer, *Paragraph) error
-	RenderParagraphChildren(context.Context, io.Writer, *Paragraph) error
 	RenderParagraphClosing(context.Context, io.Writer, *Paragraph) error
 
 	RenderTextOpening(context.Context, io.Writer, Text) error
-	RenderTextChildren(context.Context, io.Writer, Text) error
 	RenderTextClosing(context.Context, io.Writer, Text) error
 }
 

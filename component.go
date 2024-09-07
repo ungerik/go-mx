@@ -13,7 +13,7 @@ type Component interface {
 	http.Handler
 
 	RenderOpening(context.Context, io.Writer) error
-	RenderChildren(context.Context, io.Writer) error
+	GetChildren(context.Context) ([]Component, error)
 	RenderClosing(context.Context, io.Writer) error
 }
 
@@ -28,9 +28,15 @@ func Render(ctx context.Context, w io.Writer, c Component) error {
 	if err != nil {
 		return err
 	}
-	err = c.RenderChildren(ctx, w)
+	children, err := c.GetChildren(ctx)
 	if err != nil {
 		return err
+	}
+	for _, child := range children {
+		err = Render(ctx, w, child)
+		if err != nil {
+			return err
+		}
 	}
 	return c.RenderClosing(ctx, w)
 }

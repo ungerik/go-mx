@@ -22,8 +22,8 @@ func (raw Raw) RenderOpening(_ context.Context, w io.Writer) error {
 	return err
 }
 
-func (Raw) RenderChildren(context.Context, io.Writer) error { return nil }
-func (Raw) RenderClosing(context.Context, io.Writer) error  { return nil }
+func (Raw) GetChildren(ctx context.Context) ([]mx.Component, error) { return nil, nil }
+func (Raw) RenderClosing(context.Context, io.Writer) error          { return nil }
 
 func (raw Raw) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mx.ServeHTTP(w, r, httpHeaderContentTypeHTML, raw)

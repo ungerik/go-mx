@@ -26,8 +26,8 @@ func (div Div) RenderOpening(ctx context.Context, w io.Writer) error {
 	return WriteStructAsStartTagWithAttribs(ctx, w, "div", div)
 }
 
-func (div Div) RenderChildren(ctx context.Context, w io.Writer) error {
-	return mx.Render(ctx, w, div.Children)
+func (div Div) GetChildren(ctx context.Context) ([]mx.Component, error) {
+	return mx.ComponentSlice(div.Children), nil
 }
 
 func (Div) RenderClosing(ctx context.Context, w io.Writer) error {
