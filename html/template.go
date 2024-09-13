@@ -14,10 +14,14 @@ var _ mx.Component = Template{}
 type Template struct {
 	File string
 	Data any
+	// Funcs is a map of functions that can be called from the template.
+	// For a nice collection of third party functions see:
+	// https://masterminds.github.io/sprig/
+	Funcs template.FuncMap
 }
 
 func (t Template) Render(ctx context.Context, w io.Writer) error {
-	templ, err := template.New("").ParseGlob(t.File)
+	templ, err := template.New("").Funcs(t.Funcs).ParseGlob(t.File)
 	if err != nil {
 		return err
 	}
