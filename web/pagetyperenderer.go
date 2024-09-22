@@ -7,13 +7,6 @@ import (
 	"github.com/ungerik/go-mx/html"
 )
 
-var DefaultPageRenderer = PageRendererFunc(func(ctx context.Context, page *Page) (html.Document, error) {
-	return html.Document{
-		Title: page.Title,
-		Body:  nil,
-	}, nil
-})
-
 var _ PageRenderer = &PageTypeRenderer{}
 
 type PageTypeRenderer struct {

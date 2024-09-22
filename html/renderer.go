@@ -2,17 +2,11 @@ package html
 
 import (
 	"context"
-	"fmt"
-	"io"
+
+	"github.com/ungerik/go-mx/xml"
 )
 
-type Renderer interface {
-	OpenElement(w io.Writer, elem string) error
-	Attribute(w io.Writer, name, value string) error
-	CloseElement(w io.Writer) error
-	CloseVoidElement(w io.Writer) error
-	EndElement(w io.Writer, elem string) error
-}
+type Renderer = xml.Renderer
 
 var rendererKtxKey int
 
@@ -25,39 +19,4 @@ func RendererFromContext(ctx context.Context) Renderer {
 
 func ContextWithRenderer(ctx context.Context, renderer Renderer) context.Context {
 	return context.WithValue(ctx, &rendererKtxKey, renderer)
-}
-
-type BaseRenderer struct{}
-
-func (BaseRenderer) OpenElement(w io.Writer, elem string) error {
-	_, err := fmt.Fprintf(w, "<%s", elem)
-	return err
-}
-
-func (BaseRenderer) Attribute(w io.Writer, name, value string) error {
-	_, err := fmt.Fprintf(w, ` %s="`, name)
-	if err != nil {
-		return err
-	}
-	_, err = attribEscaper.WriteString(w, value)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write([]byte{'"'})
-	return err
-}
-
-func (BaseRenderer) CloseElement(w io.Writer) error {
-	_, err := w.Write([]byte{'>'})
-	return err
-}
-
-func (BaseRenderer) CloseVoidElement(w io.Writer) error {
-	_, err := w.Write([]byte{'/', '>'})
-	return err
-}
-
-func (BaseRenderer) EndElement(w io.Writer, elem string) error {
-	_, err := fmt.Fprintf(w, "</%s>", elem)
-	return err
 }

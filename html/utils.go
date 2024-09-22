@@ -1,10 +1,8 @@
 package html
 
 import (
-	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/ungerik/go-mx"
@@ -35,37 +33,11 @@ var attribEscaper = strings.NewReplacer(
 	`"`, "&quot;",
 )
 
-func QuoteAttribute(value string) string {
-	return `"` + attribEscaper.Replace(value) + `"`
+func WriteRaw[S ~string](w io.Writer, s S) error {
+	_, err := io.WriteString(w, string(s))
+	return err
 }
 
-func WriteStructAsStartTagWithAttribs(w io.Writer, renderer Renderer, elem string, s any) error {
-	err := renderer.OpenElement(w, elem)
-	if err != nil {
-		return err
-	}
-	for field, val := range mx.FlatExportedStructFields(reflect.ValueOf(s)) {
-		if a, _ := val.Interface().(Attribs); a != nil {
-			for name, value := range a.Iter() {
-				err = renderer.Attribute(w, name, value)
-				if err != nil {
-					return err
-				}
-			}
-			continue
-		}
-		name := field.Tag.Get("attr")
-		if name == "" || name == "-" {
-			continue
-		}
-		value := fmt.Sprint(val.Interface())
-		if value == "" {
-			continue
-		}
-		err = renderer.Attribute(w, name, value)
-		if err != nil {
-			return err
-		}
-	}
-	return renderer.CloseElement(w)
+func QuoteAttribute(value string) string {
+	return `"` + attribEscaper.Replace(value) + `"`
 }

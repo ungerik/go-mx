@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/xml"
 )
 
 var _ mx.Component = Div{}
@@ -24,7 +25,7 @@ func DivText(text string) Div {
 
 func (div Div) Render(ctx context.Context, w io.Writer) error {
 	renderer := RendererFromContext(ctx)
-	err := WriteStructAsStartTagWithAttribs(w, renderer, "div", div)
+	err := xml.WriteStructAsElementStart(w, renderer, "div", div)
 	if err != nil {
 		return err
 	}
@@ -34,7 +35,7 @@ func (div Div) Render(ctx context.Context, w io.Writer) error {
 			return err
 		}
 	}
-	return renderer.EndElement(w, "div")
+	return renderer.ElementEnd(w, "div")
 }
 
 func (div Div) GetChildren(ctx context.Context) ([]mx.Component, error) {

@@ -17,8 +17,10 @@ import (
 // https://github.com/yuin/goldmark
 
 type GlobPageSource struct {
-	Pattern  string
-	PageType string
+	Dir           fs.File
+	Pattern       string
+	PageType      string
+	DefaultAuthor string
 }
 
 func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[*Page, error] {
@@ -57,6 +59,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				page := &Page{
 					ContentType: mx.ContentTypeMarkdown,
 					Type:        s.PageType,
+					Author:      s.DefaultAuthor,
 					Title:       matter.Title,
 					Created:     matter.Date,
 					LastUpdated: matter.Date,
@@ -77,6 +80,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				page := &Page{
 					ContentType: mx.ContentTypeHTML,
 					Type:        s.PageType,
+					Author:      s.DefaultAuthor,
 				}
 				// TODO parse HTML title
 				if withContent {
@@ -95,6 +99,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					ContentType: mx.ContentTypePlainText,
 					Type:        s.PageType,
 					Title:       content.Name(), // Use filename as title
+					Author:      s.DefaultAuthor,
 				}
 				if withContent {
 					page.Content, err = content.ReadAll()

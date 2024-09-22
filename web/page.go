@@ -13,6 +13,7 @@ type Page struct {
 	Author      string
 	Type        string
 	Tags        []string
+	NoIndex     bool // <meta name="robots" content="noindex, nofollow" />
 	Created     time.Time
 	LastUpdated time.Time
 	Published   time.Time // Zero time means not published

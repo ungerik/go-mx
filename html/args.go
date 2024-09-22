@@ -1,38 +1,13 @@
 package html
 
-import (
-	"iter"
+import "github.com/ungerik/go-mx/xml"
+
+type (
+	Attrib     = xml.Attrib
+	Attributes = xml.Attributes
+	Attribs    = xml.Attribs
+	Attribute  = xml.Attribute
 )
-
-type Attrib interface {
-	Get() (name, value string)
-}
-
-type Attributes interface {
-	AttribIter() iter.Seq2[string, string]
-}
-
-type Attribs []Attrib
-
-func (args Attribs) Iter() iter.Seq2[string, string] {
-	return func(yield func(string, string) bool) {
-		for _, arg := range args {
-			key, value := arg.Get()
-			if !yield(key, value) {
-				return
-			}
-		}
-	}
-}
-
-type Attribute struct {
-	Name  string
-	Value string
-}
-
-func (a Attribute) Get() (name, value string) {
-	return a.Name, a.Value
-}
 
 type ID string
 
@@ -46,9 +21,9 @@ func (a Class) Get() (name, value string) {
 	return "class", string(a)
 }
 
-type Style string
+type StyleArg string
 
-func (a Style) Get() (name, value string) {
+func (a StyleArg) Get() (name, value string) {
 	return "style", string(a)
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/xml"
 )
 
 var _ mx.Component = H1{}
@@ -29,7 +30,7 @@ func H1Textf(textFmt string, args ...any) H1 {
 
 func (h1 H1) Render(ctx context.Context, w io.Writer) error {
 	renderer := RendererFromContext(ctx)
-	err := WriteStructAsStartTagWithAttribs(w, renderer, "h1", h1)
+	err := xml.WriteStructAsElementStart(w, renderer, "h1", h1)
 	if err != nil {
 		return err
 	}
@@ -39,7 +40,7 @@ func (h1 H1) Render(ctx context.Context, w io.Writer) error {
 			return err
 		}
 	}
-	return renderer.EndElement(w, "h1")
+	return renderer.ElementEnd(w, "h1")
 }
 
 func (h1 H1) GetChildren(ctx context.Context) ([]mx.Component, error) {

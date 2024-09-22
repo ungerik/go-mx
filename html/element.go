@@ -39,7 +39,7 @@ func (e Element) Render(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return renderer.EndElement(w, e.Name)
+	return renderer.ElementEnd(w, e.Name)
 }
 
 func (e Element) GetChildren(ctx context.Context) ([]mx.Component, error) {
