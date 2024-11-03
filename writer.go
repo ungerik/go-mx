@@ -14,6 +14,7 @@ type Writer interface {
 	EndElement() error
 	Comment(text string) error
 	CDATA(text string) error
+	Newline() error
 }
 
 type WriterFactory interface {

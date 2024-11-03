@@ -6,6 +6,8 @@ import (
 
 type Attrib = mx.Attrib
 
+// See https://github.com/jozo/all-html-elements-and-attributes
+
 func Accept(value string) Attrib          { return Attrib{Name: "accept", Value: value} }
 func AcceptCharset(value string) Attrib   { return Attrib{Name: "accept-charset", Value: value} }
 func AccessKey(value string) Attrib       { return Attrib{Name: "accesskey", Value: value} }

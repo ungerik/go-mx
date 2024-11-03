@@ -40,22 +40,6 @@ func (w *CheckedWriter) currentElem() string {
 	return w.parentElems[len(w.parentElems)-1]
 }
 
-func (w *CheckedWriter) prefixIndent() error {
-	if w.prefix != "" {
-		_, err := w.Write([]byte(w.prefix))
-		if err != nil {
-			return err
-		}
-	}
-	for range len(w.parentElems) {
-		_, err := w.Write([]byte(w.indent))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (w *CheckedWriter) BeginElement(elem string) error {
 	if elem == "" {
 		return fmt.Errorf("empty element name")
@@ -70,12 +54,6 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 	}
 	w.parentElems = append(w.parentElems, elem)
 	w.writingAttribs = true
-	if w.indent != "" {
-		err := w.prefixIndent()
-		if err != nil {
-			return err
-		}
-	}
 	_, err := w.Write(append([]byte{'<'}, elem...))
 	return err
 }
@@ -133,7 +111,7 @@ func (w *CheckedWriter) CloseAndEndElement() error {
 	w.writingAttribs = false
 	_, err := w.Write([]byte{'/', '>'})
 	if err == nil && w.indent != "" {
-		_, err = w.Write([]byte{'\n'})
+		err = w.Newline()
 	}
 	return err
 }
@@ -169,7 +147,7 @@ func (w *CheckedWriter) EndElement() error {
 	w.parentElems = w.parentElems[:len(w.parentElems)-1]
 	_, err := fmt.Fprintf(w, "</%s>", elem)
 	if err == nil && w.indent != "" {
-		_, err = w.Write([]byte{'\n'})
+		err = w.Newline()
 	}
 	return err
 }
@@ -180,15 +158,9 @@ func (w *CheckedWriter) Comment(text string) error {
 	// must not start with the string "->"
 	// must not contain the string "--"
 	// must not end with a "-" character
-	if w.indent != "" {
-		err := w.prefixIndent()
-		if err != nil {
-			return err
-		}
-	}
 	_, err := fmt.Fprintf(w, "<!-- %s -->", text)
 	if err == nil && w.indent != "" {
-		_, err = w.Write([]byte{'\n'})
+		err = w.Newline()
 	}
 	return err
 }
@@ -197,15 +169,29 @@ func (w *CheckedWriter) CDATA(text string) error {
 	if strings.Contains(text, "]]>") {
 		return fmt.Errorf("CDATA text contains ']]>': %s", text)
 	}
-	if w.indent != "" {
-		err := w.prefixIndent()
+	_, err := fmt.Fprintf(w, "<![CDATA[%s]]>", text)
+	if err == nil && w.indent != "" {
+		err = w.Newline()
+	}
+	return err
+}
+
+func (w *CheckedWriter) Newline() error {
+	_, err := w.Write([]byte{'\n'})
+	if err != nil {
+		return err
+	}
+	if w.prefix != "" {
+		_, err = w.Write([]byte(w.prefix))
 		if err != nil {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w, "<![CDATA[%s]]>", text)
-	if err == nil && w.indent != "" {
-		_, err = w.Write([]byte{'\n'})
+	for range len(w.parentElems) {
+		_, err = w.Write([]byte(w.indent))
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }

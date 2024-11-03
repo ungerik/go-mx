@@ -8,6 +8,8 @@ func Textf(format string, args ...any) Text {
 	return mx.Textf(format, args...)
 }
 
+// See https://github.com/jozo/all-html-elements-and-attributes
+
 func A(attribsChildren ...any) *Element            { return NewElement("a", attribsChildren...) }
 func Abbr(attribsChildren ...any) *Element         { return NewElement("abbr", attribsChildren...) }
 func Acronym(attribsChildren ...any) *Element      { return NewElement("acronym", attribsChildren...) }

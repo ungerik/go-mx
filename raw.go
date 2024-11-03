@@ -7,6 +7,8 @@ import (
 var (
 	_ Component = Raw("")
 	_ Component = RawBytes(nil)
+	_ Component = RawNewline
+	_ Component = Newline
 )
 
 type Raw string
@@ -23,6 +25,12 @@ func (raw RawBytes) Render(_ context.Context, w Writer) error {
 	return err
 }
 
-const (
-	Newline Raw = "\n"
-)
+const RawNewline Raw = "\n"
+
+const Newline newline = 0
+
+type newline int
+
+func (newline) Render(_ context.Context, w Writer) error {
+	return w.Newline()
+}
