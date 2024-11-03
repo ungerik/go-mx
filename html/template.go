@@ -2,8 +2,6 @@ package html
 
 import (
 	"context"
-	"io"
-	"net/http"
 	"text/template"
 
 	"github.com/ungerik/go-mx"
@@ -20,14 +18,10 @@ type Template struct {
 	Funcs template.FuncMap
 }
 
-func (t Template) Render(ctx context.Context, w io.Writer) error {
+func (t Template) Render(ctx context.Context, w mx.Writer) error {
 	templ, err := template.New("").Funcs(t.Funcs).ParseGlob(t.File)
 	if err != nil {
 		return err
 	}
 	return templ.Execute(w, t.Data)
-}
-
-func (t Template) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeComponent(w, r, contentTypeHTML, t)
 }

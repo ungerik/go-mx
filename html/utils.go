@@ -27,17 +27,7 @@ func WriteEscaped[S ~string](w io.Writer, s S) error {
 	return err
 }
 
-var attribEscaper = strings.NewReplacer(
-	`&`, "&amp;",
-	`<`, "&lt;",
-	`"`, "&quot;",
-)
-
 func WriteRaw[S ~string](w io.Writer, s S) error {
 	_, err := io.WriteString(w, string(s))
 	return err
-}
-
-func QuoteAttribute(value string) string {
-	return `"` + attribEscaper.Replace(value) + `"`
 }

@@ -1,50 +1,46 @@
-package html_test
+package html
 
 import (
 	"context"
 	"os"
 
 	"github.com/ungerik/go-mx"
-	"github.com/ungerik/go-mx/html"
 )
 
 func ExampleDocument() {
-	html.Document{
+	Document{
 		Title: "Hello World",
-		Body: mx.Components{
-			html.H1Text("Hello World"),
-			html.N, // Raw "\n" for source readability
-			html.Div{
-				Class:    "content",
-				Attribs:  html.Attribs{html.Lang("en")}, // Less common attribute
-				Children: html.Text(">>Simple HTML page<<"),
-			},
-			html.Raw("\n<i>Raw</i> HTML"),
-			mx.FuncComponent(func(ctx context.Context) (mx.Component, error) {
-				var children mx.Components
+		Body: mx.AsComponents(
+			H1("Hello World"),
+			Div(Class("content"), Lang("en"), ">>Simple HTML page<<"),
+			mx.Raw("<p>Raw HTML without indentation</p>\n"),
+			func() (children mx.Components) {
 				for i := range 3 {
 					if i%2 == 0 {
-						children = append(children, html.N, html.Textf("Even number: %d", i), html.BR)
+						children = append(children, Textf("Even number: %d", i), Br())
 					}
 				}
-				return children, nil
-			}),
-		},
-	}.Render(context.Background(), os.Stdout)
+				return children
+			},
+		),
+	}.Render(
+		context.Background(),
+		mx.NewCheckedWriter(os.Stdout).WithIndet("", "  "),
+	)
 
 	// Output:
 	// <!DOCTYPE html>
 	// <html>
 	// <head>
-	// <meta charset='UTF-8'/>
-	// <title>Hello World</title>
+	//   <meta charset="UTF-8"/>
+	//   <title>Hello World</title>
 	// </head>
 	// <body>
-	// <h1>Hello World</h1>
-	// <div class="content" lang="en">&gt;&gt;Simple HTML page&lt;&lt;</div>
-	// <i>Raw</i> HTML
-	// Even number: 0<br/>
-	// Even number: 2<br/>
+	//   <h1>Hello World</h1>
+	//   <div class="content" lang="en">&gt;&gt;Simple HTML page&lt;&lt;</div>
+	// <p>Raw HTML without indentation</p>
+	// Even number: 0  <br/>
+	// Even number: 2  <br/>
 	// </body>
 	// </html>
 }

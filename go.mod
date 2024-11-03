@@ -13,6 +13,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/domonda/go-pretty v0.0.0-20240110134850-17385799142f // indirect
+	github.com/domonda/go-types v0.0.0-20241001090154-50384689aa30
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect

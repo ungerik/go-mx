@@ -3,15 +3,11 @@ package html
 import (
 	"context"
 	"fmt"
-	"io"
 	"maps"
-	"net/http"
 	"slices"
 
 	"github.com/ungerik/go-mx"
 )
-
-var _ mx.Component = Document{}
 
 type Document struct {
 	Title        string
@@ -23,14 +19,17 @@ type Document struct {
 	Body         mx.Component
 }
 
-func (html Document) Render(ctx context.Context, w io.Writer) error {
-	_, err := fmt.Fprint(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset='UTF-8'/>\n")
+func (html Document) Render(ctx context.Context, w mx.Writer) error {
+	_, err := fmt.Fprint(w, "<!DOCTYPE html>\n<html>\n<head>\n")
 	if err != nil {
 		return err
 	}
-
+	err = Meta(Charset("UTF-8")).Render(ctx, w)
+	if err != nil {
+		return err
+	}
 	if html.Title != "" {
-		_, err := fmt.Fprintf(w, "<title>%s</title>\n", Escape(html.Title))
+		err := TitleElem(html.Title).Render(ctx, w)
 		if err != nil {
 			return err
 		}
@@ -78,14 +77,6 @@ func (html Document) Render(ctx context.Context, w io.Writer) error {
 			return err
 		}
 	}
-	_, err = fmt.Fprint(w, "\n</body>\n</html>")
+	_, err = fmt.Fprint(w, "</body>\n</html>")
 	return err
-}
-
-func (html Document) GetChildren(ctx context.Context) ([]mx.Component, error) {
-	return mx.ComponentSlice(html.Body), ctx.Err()
-}
-
-func (html Document) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mx.ServeComponent(w, r, contentTypeHTML, html)
 }

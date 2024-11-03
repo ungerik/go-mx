@@ -3,40 +3,66 @@ package mx
 import (
 	"bytes"
 	"context"
-	"io"
+	"fmt"
 	"net/http"
 
 	"github.com/domonda/go-errs"
 )
 
 type Component interface {
-	http.Handler
-
-	Render(context.Context, io.Writer) error
+	Render(context.Context, Writer) error
 }
 
-type ComponentWithChildren interface {
-	Component
+type ComponentFunc func(context.Context, Writer) error
 
-	GetChildren(ctx context.Context) ([]Component, error)
+func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
+	return f(ctx, w)
 }
 
-func ServeComponent(w http.ResponseWriter, r *http.Request, h http.Header, c Component) {
-	defer func() {
-		if r := recover(); r != nil {
-			RespondError(w, errs.AsErrorWithDebugStack(r))
-		}
-	}()
-	var buf bytes.Buffer
-	err := c.Render(r.Context(), &buf)
-	if err != nil {
-		RespondError(w, err)
-		return
+func DefaultAsComponent(obj any) Component {
+	switch x := obj.(type) {
+	case nil:
+		return nil
+	case ComponentFunc:
+		return x
+	case Component:
+		return x
+	case string:
+		return Text(x)
+	case func() Component:
+		return x()
+	case func() Components:
+		return x()
+	case func(context.Context, Writer) error:
+		return ComponentFunc(x)
+	case func(Writer) error:
+		return ComponentFunc(func(_ context.Context, w Writer) error {
+			return x(w)
+		})
+	default:
+		return Text(fmt.Sprint(x))
 	}
-	for key, vals := range h {
-		for _, val := range vals {
-			w.Header().Add(key, val)
+}
+
+func ComponentHTTPHandler(comp Component, writerFactory WriterFactory, header http.Header) http.HandlerFunc {
+	return func(response http.ResponseWriter, request *http.Request) {
+		defer func() {
+			if p := recover(); p != nil {
+				RespondError(response, errs.AsErrorWithDebugStack(p))
+			}
+		}()
+		var buf bytes.Buffer
+		writer := writerFactory.NewWriter(&buf)
+		err := comp.Render(request.Context(), writer)
+		if err != nil {
+			RespondError(response, err)
+			return
 		}
+		for key, vals := range header {
+			for _, val := range vals {
+				response.Header().Add(key, val)
+			}
+		}
+		response.Write(buf.Bytes())
 	}
-	w.Write(buf.Bytes())
 }
