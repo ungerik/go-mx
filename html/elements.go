@@ -1,8 +1,14 @@
 package html
 
-import "github.com/ungerik/go-mx"
+import (
+	"github.com/ungerik/go-mx"
+)
 
-type Text = mx.Text
+type (
+	Text     = mx.Text
+	Raw      = mx.Raw
+	RawBytes = mx.RawBytes
+)
 
 func Textf(format string, args ...any) Text {
 	return mx.Textf(format, args...)
@@ -121,7 +127,7 @@ func Source(attribs ...Attrib) *Element            { return NewVoidElement("sour
 func Span(attribsChildren ...any) *Element         { return NewElement("span", attribsChildren...) }
 func Strike(attribsChildren ...any) *Element       { return NewElement("strike", attribsChildren...) }
 func Strong(attribsChildren ...any) *Element       { return NewElement("strong", attribsChildren...) }
-func StyleElem(attribsChildren ...any) *Element    { return NewElement("style", attribsChildren...) }
+func StyleElem(css string) *Element                { return NewElement("style", Raw(css)) }
 func Sub(attribsChildren ...any) *Element          { return NewElement("sub", attribsChildren...) }
 func Summary(attribsChildren ...any) *Element      { return NewElement("summary", attribsChildren...) }
 func Sup(attribsChildren ...any) *Element          { return NewElement("sup", attribsChildren...) }

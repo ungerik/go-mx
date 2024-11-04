@@ -2,7 +2,6 @@ package html
 
 import (
 	"context"
-	"fmt"
 	"maps"
 	"slices"
 
@@ -20,63 +19,32 @@ type Document struct {
 }
 
 func (html Document) Render(ctx context.Context, w mx.Writer) error {
-	_, err := fmt.Fprint(w, "<!DOCTYPE html>\n<html>\n<head>\n")
-	if err != nil {
-		return err
-	}
-	err = Meta(Charset("UTF-8")).Render(ctx, w)
-	if err != nil {
-		return err
-	}
-	if html.Title != "" {
-		err := TitleElem(html.Title).Render(ctx, w)
-		if err != nil {
-			return err
-		}
-	}
-	for _, name := range slices.Sorted(maps.Keys(html.Meta)) {
-		content := html.Meta[name]
-		_, err := fmt.Fprintf(w, "<meta name='%s' content='%s'/>\n", Escape(name), Escape(content))
-		if err != nil {
-			return err
-		}
-	}
-	for _, property := range slices.Sorted(maps.Keys(html.MetaProperty)) {
-		content := html.MetaProperty[property]
-		_, err := fmt.Fprintf(w, "<meta property='%s' content='%s'/>\n", Escape(property), Escape(content))
-		if err != nil {
-			return err
-		}
-	}
-	// <link rel="stylesheet" type="text/css" href="mystyle.css">
-	for _, href := range html.Stylesheets {
-		_, err := fmt.Fprintf(w, "<link rel='stylesheet' href='%s'/>\n", href)
-		if err != nil {
-			return err
-		}
-	}
-	if html.Style != "" {
-		_, err := fmt.Fprintf(w, "<style>%s</style>\n", html.Style)
-		if err != nil {
-			return err
-		}
-	}
-	if html.HeadCustom != nil {
-		err = html.HeadCustom.Render(ctx, w)
-		if err != nil {
-			return err
-		}
-	}
-	_, err = fmt.Fprint(w, "</head>\n<body>\n")
-	if err != nil {
-		return err
-	}
-	if html.Body != nil {
-		err = html.Body.Render(ctx, w)
-		if err != nil {
-			return err
-		}
-	}
-	_, err = fmt.Fprint(w, "</body>\n</html>")
-	return err
+	return mx.Components{
+		Raw("<!DOCTYPE html>\n<html>"),
+		Head(
+			Meta(Charset("UTF-8")),
+			If(html.Title != "", TitleElem(html.Title)),
+			ForEachSlice(slices.Sorted(maps.Keys(html.Meta)),
+				func(name string) *Element {
+					return Meta(Name(name), ContentAttr(html.Meta[name]))
+				},
+			),
+			ForEachSlice(slices.Sorted(maps.Keys(html.MetaProperty)),
+				func(property string) *Element {
+					return Meta(mx.Attrib{Name: property, Value: html.MetaProperty[property]})
+				},
+			),
+			ForEachSlice(html.Stylesheets,
+				func(href string) *Element {
+					return Link(Rel("stylesheet"), HRef(href))
+				},
+			),
+			If(html.Style != "", StyleElem(html.Style)),
+			html.HeadCustom,
+		),
+		Body(
+			html.Body,
+		),
+		Raw("\n</html>"),
+	}.Render(ctx, w)
 }

@@ -45,9 +45,9 @@ func (e *Element) Render(ctx context.Context, w mx.Writer) error {
 	}
 
 	if e.Children == nil {
-		return w.CloseAndEndElement()
+		return w.EndElement()
 	}
-	err = w.CloseElement()
+	err = w.CloseElementStartTag()
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,9 @@
 package mx
 
-import "context"
+import (
+	"context"
+	"iter"
+)
 
 func If(cond bool, comps ...Component) IfElse {
 	return IfElse{cond: cond, comps: comps}
@@ -35,4 +38,20 @@ func (i IfElse) ElseIf(cond bool, comps ...Component) IfElse {
 
 func (i IfElse) ElseIff(condFunc func() bool, comps ...Component) IfElse {
 	return IfElse{cond: condFunc(), comps: comps}
+}
+
+func ForEach[V any, C Component](values iter.Seq[V], componentForValue func(V) C) Components {
+	var comps Components
+	for val := range values {
+		comps = append(comps, componentForValue(val))
+	}
+	return comps
+}
+
+func ForEachSlice[V any, C Component](values []V, componentForValue func(V) C) Components {
+	var comps Components
+	for _, val := range values {
+		comps = append(comps, componentForValue(val))
+	}
+	return comps
 }

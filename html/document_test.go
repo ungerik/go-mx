@@ -13,11 +13,12 @@ func ExampleDocument() {
 		Body: mx.AsComponents(
 			H1("Hello World"),
 			Div(Class("content"), Lang("en"), ">>Simple HTML page<<"),
-			mx.Raw("<p>Raw HTML without indentation</p>\n"),
+			mx.Newline,
+			Raw("<p>Raw HTML</p>"),
 			func() (children mx.Components) {
 				for i := range 3 {
 					if i%2 == 0 {
-						children = append(children, Textf("Even number: %d", i), Br())
+						children = append(children, mx.Newline, Textf("Even number: %d", i), Br())
 					}
 				}
 				return children
@@ -25,7 +26,7 @@ func ExampleDocument() {
 		),
 	}.Render(
 		context.Background(),
-		mx.NewCheckedWriter(os.Stdout).WithIndet("", "  "),
+		mx.NewCheckedWriter(os.Stdout).WithIndent("", "  "),
 	)
 
 	// Output:
@@ -38,9 +39,11 @@ func ExampleDocument() {
 	// <body>
 	//   <h1>Hello World</h1>
 	//   <div class="content" lang="en">&gt;&gt;Simple HTML page&lt;&lt;</div>
-	// <p>Raw HTML without indentation</p>
-	// Even number: 0  <br/>
-	// Even number: 2  <br/>
+	//   <p>Raw HTML</p>
+	//   Even number: 0
+	//   <br/>
+	//   Even number: 2
+	//   <br/>
 	// </body>
 	// </html>
 }

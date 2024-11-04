@@ -8,8 +8,7 @@ type Writer interface {
 	io.Writer
 	BeginElement(elem string) error
 	Attribute(name, value string) error
-	CloseAndEndElement() error
-	CloseElement() error
+	CloseElementStartTag() error
 	EscapeText(text string) error
 	EndElement() error
 	Comment(text string) error
