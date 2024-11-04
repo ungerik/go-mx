@@ -7,13 +7,11 @@ import (
 	"strings"
 )
 
-const RootElementName = "ROOT_ELEMENT"
-
 func NewCheckedWriter(w io.Writer) *CheckedWriter {
 	if w == nil {
 		panic("nil io.Writer")
 	}
-	return &CheckedWriter{Writer: w, textEscaper: TextEscaper}
+	return &CheckedWriter{Writer: w, writtenAttribs: make(map[string]struct{}), textEscaper: TextEscaper}
 }
 
 type elemState struct {
@@ -23,13 +21,14 @@ type elemState struct {
 
 type CheckedWriter struct {
 	io.Writer
-	inStartTag   bool
-	singleQuote  bool
-	textEscaper  *strings.Replacer
-	elemStack    []elemState
-	allowedElems map[string]struct{}
-	prefix       string
-	indent       string
+	inStartTag     bool
+	writtenAttribs map[string]struct{}
+	singleQuote    bool
+	textEscaper    *strings.Replacer
+	elemStack      []elemState
+	allowedElems   map[string]struct{}
+	prefix         string
+	indent         string
 }
 
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
@@ -40,19 +39,13 @@ func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
 
 func (w *CheckedWriter) currentElemName() string {
 	if len(w.elemStack) == 0 {
-		return RootElementName
+		return "ROOT_ELEMENT"
 	}
 	return w.elemStack[len(w.elemStack)-1].element
 }
 
-func (w *CheckedWriter) currentElemHasNewline() bool {
-	if len(w.elemStack) == 0 {
-		return false
-	}
-	return w.elemStack[len(w.elemStack)-1].hasNewline
-}
-
 func (w *CheckedWriter) BeginElement(elem string) error {
+	// TODO regex for valid element name
 	if elem == "" {
 		return fmt.Errorf("empty element name")
 	}
@@ -95,9 +88,15 @@ func (w *CheckedWriter) Attribute(name, value string) error {
 	if !w.inStartTag {
 		return fmt.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
 	}
+	// TODO regex for valid attribute name
 	if name == "" {
 		return fmt.Errorf("empty attribute name")
 	}
+	if _, duplicate := w.writtenAttribs[name]; duplicate {
+		return fmt.Errorf("duplicate attribute %s in element %s", name, w.currentElemName())
+	}
+	w.writtenAttribs[name] = struct{}{}
+
 	var (
 		quote   = []byte{'"'}
 		escaper = doubleQuoteAttribEscaper
@@ -142,6 +141,7 @@ func (w *CheckedWriter) EndElement() (err error) {
 			return err
 		}
 	}
+	clear(w.writtenAttribs)
 	if w.inStartTag {
 		// Void element
 		w.inStartTag = false

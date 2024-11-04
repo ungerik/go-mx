@@ -1,34 +1,39 @@
-package html
+package mx
 
 import (
 	"context"
-
-	"github.com/ungerik/go-mx"
 )
 
 type Element struct {
 	Name     string
-	Attribs  []mx.Attrib
-	Children mx.Components // nil for void element, empty slice for no children
+	Attribs  []Attrib
+	Children Components // nil for void element, empty slice for no children
 }
 
 func NewElement(name string, attribsChildren ...any) *Element {
-	e := &Element{Name: name, Children: []mx.Component{}}
-	for _, x := range attribsChildren {
-		if attrib, ok := x.(mx.Attrib); ok {
-			e.Attribs = append(e.Attribs, attrib)
-		} else if x != nil {
-			e.Children = append(e.Children, mx.AsComponent(x))
+	e := &Element{Name: name, Children: []Component{}}
+	for _, ac := range attribsChildren {
+		if ac == nil {
+			continue
 		}
+		if attrib, ok := AsAttrib(ac); ok {
+			e.Attribs = append(e.Attribs, attrib)
+			continue
+		}
+		if attribs, ok := AsAttribs(ac); ok {
+			e.Attribs = append(e.Attribs, attribs...)
+			continue
+		}
+		e.Children = append(e.Children, AsComponent(ac))
 	}
 	return e
 }
 
-func NewVoidElement(name string, attribs ...mx.Attrib) *Element {
+func NewVoidElement(name string, attribs ...Attrib) *Element {
 	return &Element{Name: name, Attribs: attribs}
 }
 
-func (e *Element) Render(ctx context.Context, w mx.Writer) error {
+func (e *Element) Render(ctx context.Context, w Writer) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
