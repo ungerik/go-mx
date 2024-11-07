@@ -2,13 +2,36 @@ package mx
 
 import (
 	"errors"
+	"fmt"
 	"iter"
 	"slices"
+	"strings"
+)
+
+var (
+	doubleQuoteAttribEscaper = strings.NewReplacer(
+		`&`, "&amp;",
+		`<`, "&lt;",
+		`"`, "&quot;",
+		"\n", " ",
+		"\t", "  ",
+	)
+	singleQuoteAttribEscaper = strings.NewReplacer(
+		`&`, "&amp;",
+		`<`, "&lt;",
+		`'`, "&apos;",
+		"\n", " ",
+		"\t", "  ",
+	)
 )
 
 type Attrib struct {
 	Name  string
 	Value string
+}
+
+func (a Attrib) String() string {
+	return fmt.Sprintf("%s='%s'", a.Name, singleQuoteAttribEscaper.Replace(a.Value))
 }
 
 func (a Attrib) Validate() error {

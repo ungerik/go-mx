@@ -21,14 +21,15 @@ type elemState struct {
 
 type CheckedWriter struct {
 	io.Writer
-	inStartTag     bool
-	writtenAttribs map[string]struct{}
-	singleQuote    bool
-	textEscaper    *strings.Replacer
-	elemStack      []elemState
-	allowedElems   map[string]struct{}
-	prefix         string
-	indent         string
+	inStartTag              bool
+	writtenAttribs          map[string]struct{}
+	singleQuote             bool
+	equalNameValueSkipValue bool
+	textEscaper             *strings.Replacer
+	elemStack               []elemState
+	allowedElems            map[string]struct{}
+	prefix                  string
+	indent                  string
 }
 
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
@@ -69,22 +70,7 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 	return err
 }
 
-var (
-	doubleQuote              = []byte{'"'}
-	doubleQuoteAttribEscaper = strings.NewReplacer(
-		`&`, "&amp;",
-		`<`, "&lt;",
-		`"`, "&quot;",
-	)
-	singleQuote              = []byte{'\''}
-	singleQuoteAttribEscaper = strings.NewReplacer(
-		`&`, "&amp;",
-		`<`, "&lt;",
-		`'`, "&apos;",
-	)
-)
-
-func (w *CheckedWriter) Attribute(name, value string) error {
+func (w *CheckedWriter) Attribute(name, value string) (err error) {
 	if !w.inStartTag {
 		return fmt.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
 	}
@@ -97,23 +83,14 @@ func (w *CheckedWriter) Attribute(name, value string) error {
 	}
 	w.writtenAttribs[name] = struct{}{}
 
-	var (
-		quote   = []byte{'"'}
-		escaper = doubleQuoteAttribEscaper
-	)
-	if w.singleQuote {
-		quote = singleQuote
-		escaper = singleQuoteAttribEscaper
+	switch {
+	case w.equalNameValueSkipValue && name == value:
+		_, err = fmt.Fprintf(w, ` %s`, name)
+	case w.singleQuote:
+		_, err = fmt.Fprintf(w, ` %s='%s'`, name, singleQuoteAttribEscaper.Replace(value))
+	default:
+		_, err = fmt.Fprintf(w, ` %s="%s"`, name, doubleQuoteAttribEscaper.Replace(value))
 	}
-	_, err := fmt.Fprintf(w, ` %s=%s`, name, quote)
-	if err != nil {
-		return err
-	}
-	_, err = escaper.WriteString(w, value)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(quote)
 	return err
 }
 
@@ -145,7 +122,7 @@ func (w *CheckedWriter) EndElement() (err error) {
 	if w.inStartTag {
 		// Void element
 		w.inStartTag = false
-		_, err = w.Write([]byte{'/', '>'})
+		_, err = fmt.Fprint(w, "/>")
 	} else {
 		_, err = fmt.Fprintf(w, "</%s>", this.element)
 	}
