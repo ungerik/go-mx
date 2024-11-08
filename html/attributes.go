@@ -7,65 +7,73 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-func Attrib(name, value string) mx.Attrib {
-	return mx.Attrib{Name: name, Value: value}
+func Attrib(name, value string) mx.Attribute {
+	return mx.Attribute{Name: name, Value: value}
 }
 
-func BoolAttrib(name string) mx.Attrib {
-	return mx.Attrib{Name: name, Value: name}
+type BoolAttrib string
+
+func (a BoolAttrib) Attribute() (name, value string) {
+	return string(a), string(a)
 }
 
 // See https://github.com/jozo/all-html-elements-and-attributes
 // and https://html.spec.whatwg.org/multipage/indices.html#attributes-3
 
 func Accept(contentTypes ...string) mx.Attrib {
-	return Attrib("accept", strings.Join(contentTypes, ","))
+	return mx.NewAttrib("accept", strings.Join(contentTypes, ","))
 }
 func AcceptCharset(charsets ...string) mx.Attrib {
-	return Attrib("accept-charset", strings.Join(charsets, " "))
+	return mx.NewAttrib("accept-charset", strings.Join(charsets, " "))
 }
-func AccessKey(value string) mx.Attrib    { return Attrib("accesskey", value) }
-func Action(url string) mx.Attrib         { return Attrib("action", url) }
-func Align(value string) mx.Attrib        { return Attrib("align", value) }
-func Allow(value string) mx.Attrib        { return Attrib("allow", value) }
-func Alpha() mx.Attrib                    { return Attrib("alpha", "alpha") }
-func Alt(text string) mx.Attrib           { return Attrib("alt", text) }
-func As(value string) mx.Attrib           { return Attrib("as", value) }
-func Async() mx.Attrib                    { return Attrib("async", "async") }
-func AutoCapitalizeNone() mx.Attrib       { return Attrib("autocapitalize", "none") }
-func AutoCapitalizeSentences() mx.Attrib  { return Attrib("autocapitalize", "sentences") }
-func AutoCapitalizeWords() mx.Attrib      { return Attrib("autocapitalize", "words") }
-func AutoCapitalizeCharacters() mx.Attrib { return Attrib("autocapitalize", "characters") }
+func AccessKey(value string) mx.Attrib { return mx.NewAttrib("accesskey", value) }
+func Action(url string) mx.Attrib      { return mx.NewAttrib("action", url) }
+func Align(value string) mx.Attrib     { return mx.NewAttrib("align", value) }
+func Allow(value string) mx.Attrib     { return mx.NewAttrib("allow", value) }
+
+const Alpha = BoolAttrib("alpha")
+
+func Alt(text string) mx.Attrib { return mx.NewAttrib("alt", text) }
+func As(value string) mx.Attrib { return mx.NewAttrib("as", value) }
+
+const Async = BoolAttrib("async")
+
+func AutoCapitalizeNone() mx.Attrib       { return mx.NewAttrib("autocapitalize", "none") }
+func AutoCapitalizeSentences() mx.Attrib  { return mx.NewAttrib("autocapitalize", "sentences") }
+func AutoCapitalizeWords() mx.Attrib      { return mx.NewAttrib("autocapitalize", "words") }
+func AutoCapitalizeCharacters() mx.Attrib { return mx.NewAttrib("autocapitalize", "characters") }
 func AutoComplete(tokens ...string) mx.Attrib {
 	if len(tokens) == 0 {
 		return AutoCompleteOn()
 	}
-	return Attrib("autocomplete", strings.Join(tokens, " "))
+	return mx.NewAttrib("autocomplete", strings.Join(tokens, " "))
 }
-func AutoCompleteOn() mx.Attrib         { return Attrib("autocomplete", "on") }
-func AutoCompleteOff() mx.Attrib        { return Attrib("autocomplete", "off") }
-func AutoCorrectOn() mx.Attrib          { return Attrib("autocorrect", "on") }
-func AutoCorrectOff() mx.Attrib         { return Attrib("autocorrect", "off") }
-func AutoFocus() mx.Attrib              { return Attrib("autofocus", "autofocus") }
-func AutoPlay() mx.Attrib               { return Attrib("autoplay", "autoplay") }
-func Background(value string) mx.Attrib { return Attrib("background", value) }
-func BGColor(value string) mx.Attrib    { return Attrib("bgcolor", value) }
-func Border(value string) mx.Attrib     { return Attrib("border", value) }
-func Capture(value string) mx.Attrib    { return Attrib("capture", value) }
-func CharSet(value string) mx.Attrib    { return Attrib("charset", value) }
-func Checked() mx.Attrib                { return Attrib("checked", "checked") }
-func CiteAttr(value string) mx.Attrib   { return Attrib("cite", value) }
-func Class(classes ...string) mx.Attrib { return Attrib("class", strings.Join(classes, " ")) }
-func Color(value string) mx.Attrib      { return Attrib("color", value) }
-func Cols(numChars int) mx.Attrib       { return Attrib("cols", strconv.Itoa(numChars)) }
-func ColSpan(numCols int) mx.Attrib     { return Attrib("colspan", strconv.Itoa(numCols)) }
-func ContentAttr(text string) mx.Attrib { return Attrib("content", text) }
-func ContentEditableTrue() mx.Attrib    { return Attrib("contenteditable", "true") }
-func ContentEditableFalse() mx.Attrib   { return Attrib("contenteditable", "false") }
+func AutoCompleteOn() mx.Attrib         { return mx.NewAttrib("autocomplete", "on") }
+func AutoCompleteOff() mx.Attrib        { return mx.NewAttrib("autocomplete", "off") }
+func AutoCorrectOn() mx.Attrib          { return mx.NewAttrib("autocorrect", "on") }
+func AutoCorrectOff() mx.Attrib         { return mx.NewAttrib("autocorrect", "off") }
+func AutoFocus() mx.Attrib              { return mx.NewAttrib("autofocus", "autofocus") }
+func AutoPlay() mx.Attrib               { return mx.NewAttrib("autoplay", "autoplay") }
+func Background(style string) mx.Attrib { return mx.NewAttrib("background", style) }
+func BGColor(color string) mx.Attrib    { return mx.NewAttrib("bgcolor", color) }
+func Border(value string) mx.Attrib     { return mx.NewAttrib("border", value) }
+func Capture(value string) mx.Attrib    { return mx.NewAttrib("capture", value) }
+func CharSet(value string) mx.Attrib    { return mx.NewAttrib("charset", value) }
+
+const Checked = BoolAttrib("checked")
+
+func CiteAttr(value string) mx.Attrib   { return mx.NewAttrib("cite", value) }
+func Class(classes ...string) mx.Attrib { return mx.NewAttrib("class", strings.Join(classes, " ")) }
+func Color(value string) mx.Attrib      { return mx.NewAttrib("color", value) }
+func Cols(numChars int) mx.Attrib       { return mx.NewAttrib("cols", strconv.Itoa(numChars)) }
+func ColSpan(numCols int) mx.Attrib     { return mx.NewAttrib("colspan", strconv.Itoa(numCols)) }
+func ContentAttr(text string) mx.Attrib { return mx.NewAttrib("content", text) }
+func ContentEditableTrue() mx.Attrib    { return mx.NewAttrib("contenteditable", "true") }
+func ContentEditableFalse() mx.Attrib   { return mx.NewAttrib("contenteditable", "false") }
 func ContentEditablePlaintextOnly(value string) mx.Attrib {
-	return Attrib("contenteditable", "plaintext-only")
+	return mx.NewAttrib("contenteditable", "plaintext-only")
 }
-func Controls() mx.Attrib { return Attrib("controls", "controls") }
+func Controls() mx.Attrib { return mx.NewAttrib("controls", "controls") }
 func Coords(coords ...float64) mx.Attrib {
 	var b strings.Builder
 	for i, coord := range coords {
@@ -74,464 +82,481 @@ func Coords(coords ...float64) mx.Attrib {
 		}
 		b.WriteString(strconv.FormatFloat(coord, 'f', -1, 64))
 	}
-	return Attrib("coords", b.String())
+	return mx.NewAttrib("coords", b.String())
 }
-func CrossOriginAnonymous() mx.Attrib       { return Attrib("crossorigin", "anonymous") }
-func CrossOriginUseCredentials() mx.Attrib  { return Attrib("crossorigin", "use-credentials") }
-func CSP(value string) mx.Attrib            { return Attrib("csp", value) }
-func DataAttr(name, value string) mx.Attrib { return Attrib("data-"+name, value) }
-func Datetime(value string) mx.Attrib       { return Attrib("datetime", value) }
-func DecodingAuto() mx.Attrib               { return Attrib("decoding", "auto") }
-func DecodingAsync() mx.Attrib              { return Attrib("decoding", "async") }
-func DecodingSync() mx.Attrib               { return Attrib("decoding", "sync") }
-func Default() mx.Attrib                    { return Attrib("default", "default") }
-func Defer() mx.Attrib                      { return Attrib("defer", "defer") }
-func DirLTR() mx.Attrib                     { return Attrib("dir", "ltr") }
-func DirRTL() mx.Attrib                     { return Attrib("dir", "rtl") }
-func DirAuto() mx.Attrib                    { return Attrib("dir", "auto") }
-func DirName(name string) mx.Attrib         { return Attrib("dirname", name) }
-func Disabled() mx.Attrib                   { return Attrib("disabled", "disabled") }
-func Download(filename string) mx.Attrib    { return Attrib("download", filename) }
-func Draggable(value bool) mx.Attrib        { return Attrib("draggable", strconv.FormatBool(value)) }
+func CrossOriginAnonymous() mx.Attrib       { return mx.NewAttrib("crossorigin", "anonymous") }
+func CrossOriginUseCredentials() mx.Attrib  { return mx.NewAttrib("crossorigin", "use-credentials") }
+func CSP(value string) mx.Attrib            { return mx.NewAttrib("csp", value) }
+func DataAttr(name, value string) mx.Attrib { return mx.NewAttrib("data-"+name, value) }
+func Datetime(value string) mx.Attrib       { return mx.NewAttrib("datetime", value) }
+func DecodingAuto() mx.Attrib               { return mx.NewAttrib("decoding", "auto") }
+func DecodingAsync() mx.Attrib              { return mx.NewAttrib("decoding", "async") }
+func DecodingSync() mx.Attrib               { return mx.NewAttrib("decoding", "sync") }
+func Default() mx.Attrib                    { return mx.NewAttrib("default", "default") }
+func Defer() mx.Attrib                      { return mx.NewAttrib("defer", "defer") }
+func DirLTR() mx.Attrib                     { return mx.NewAttrib("dir", "ltr") }
+func DirRTL() mx.Attrib                     { return mx.NewAttrib("dir", "rtl") }
+func DirAuto() mx.Attrib                    { return mx.NewAttrib("dir", "auto") }
+func DirName(name string) mx.Attrib         { return mx.NewAttrib("dirname", name) }
+
+const Disabled = BoolAttrib("disabled")
+
+func Download(filename string) mx.Attrib { return mx.NewAttrib("download", filename) }
+func Draggable(value bool) mx.Attrib     { return mx.NewAttrib("draggable", strconv.FormatBool(value)) }
 func EncTypeFormURLEndoced(value string) mx.Attrib {
-	return Attrib("enctype", "application/x-www-form-urlencoded")
+	return mx.NewAttrib("enctype", "application/x-www-form-urlencoded")
 }
 func EncTypeMultipartFormData(value string) mx.Attrib {
-	return Attrib("enctype", "multipart/form-data")
+	return mx.NewAttrib("enctype", "multipart/form-data")
 }
-func EncTypeTextPlain(value string) mx.Attrib { return Attrib("enctype", "text/plain") }
-func EnterKeyHintEnter() mx.Attrib            { return Attrib("enterkeyhint", "enter") }
-func EnterKeyHintDone() mx.Attrib             { return Attrib("enterkeyhint", "done") }
-func EnterKeyHintGo() mx.Attrib               { return Attrib("enterkeyhint", "go") }
-func EnterKeyHintNext() mx.Attrib             { return Attrib("enterkeyhint", "next") }
-func EnterKeyHintPrevious() mx.Attrib         { return Attrib("enterkeyhint", "previous") }
-func EnterKeyHintSearch() mx.Attrib           { return Attrib("enterkeyhint", "search") }
-func EnterKeyHintSend() mx.Attrib             { return Attrib("enterkeyhint", "send") }
-func FetchPriorityAuto() mx.Attrib            { return Attrib("fetchpriority", "auto") }
-func FetchPriorityHigh() mx.Attrib            { return Attrib("fetchpriority", "high") }
-func FetchPriorityLow() mx.Attrib             { return Attrib("fetchpriority", "low") }
-func For(id string) mx.Attrib                 { return Attrib("for", id) }
-func FormAttr(formID string) mx.Attrib        { return Attrib("form", formID) }
-func FormAction(url string) mx.Attrib         { return Attrib("formaction", url) }
+func EncTypeTextPlain(value string) mx.Attrib { return mx.NewAttrib("enctype", "text/plain") }
+func EnterKeyHintEnter() mx.Attrib            { return mx.NewAttrib("enterkeyhint", "enter") }
+func EnterKeyHintDone() mx.Attrib             { return mx.NewAttrib("enterkeyhint", "done") }
+func EnterKeyHintGo() mx.Attrib               { return mx.NewAttrib("enterkeyhint", "go") }
+func EnterKeyHintNext() mx.Attrib             { return mx.NewAttrib("enterkeyhint", "next") }
+func EnterKeyHintPrevious() mx.Attrib         { return mx.NewAttrib("enterkeyhint", "previous") }
+func EnterKeyHintSearch() mx.Attrib           { return mx.NewAttrib("enterkeyhint", "search") }
+func EnterKeyHintSend() mx.Attrib             { return mx.NewAttrib("enterkeyhint", "send") }
+func FetchPriorityAuto() mx.Attrib            { return mx.NewAttrib("fetchpriority", "auto") }
+func FetchPriorityHigh() mx.Attrib            { return mx.NewAttrib("fetchpriority", "high") }
+func FetchPriorityLow() mx.Attrib             { return mx.NewAttrib("fetchpriority", "low") }
+func For(id string) mx.Attrib                 { return mx.NewAttrib("for", id) }
+func FormAttr(formID string) mx.Attrib        { return mx.NewAttrib("form", formID) }
+func FormAction(url string) mx.Attrib         { return mx.NewAttrib("formaction", url) }
 func FormEncTypeFormURLEndoced(value string) mx.Attrib {
-	return Attrib("formenctype", "application/x-www-form-urlencoded")
+	return mx.NewAttrib("formenctype", "application/x-www-form-urlencoded")
 }
 func FormEncTypeMultipartFormData(value string) mx.Attrib {
-	return Attrib("formenctype", "multipart/form-data")
+	return mx.NewAttrib("formenctype", "multipart/form-data")
 }
-func FormEncTypeTextPlain(value string) mx.Attrib { return Attrib("formenctype", "text/plain") }
-func FormMethodGET() mx.Attrib                    { return Attrib("formmethod", "get") }
-func FormMethodPOST() mx.Attrib                   { return Attrib("formmethod", "post") }
-func FormMethodDialog() mx.Attrib                 { return Attrib("formmethod", "dialog") }
-func FormNoValidate() mx.Attrib                   { return Attrib("formnovalidate", "formnovalidate") }
-func FormTarget(value string) mx.Attrib           { return Attrib("formtarget", value) }
+func FormEncTypeTextPlain(value string) mx.Attrib { return mx.NewAttrib("formenctype", "text/plain") }
+func FormMethodGET() mx.Attrib                    { return mx.NewAttrib("formmethod", "get") }
+func FormMethodPOST() mx.Attrib                   { return mx.NewAttrib("formmethod", "post") }
+func FormMethodDialog() mx.Attrib                 { return mx.NewAttrib("formmethod", "dialog") }
+func FormNoValidate() mx.Attrib                   { return mx.NewAttrib("formnovalidate", "formnovalidate") }
+func FormTarget(value string) mx.Attrib           { return mx.NewAttrib("formtarget", value) }
 func Headers(headerCellIDs ...string) mx.Attrib {
-	return Attrib("headers", strings.Join(headerCellIDs, " "))
+	return mx.NewAttrib("headers", strings.Join(headerCellIDs, " "))
 }
-func Height(value string) mx.Attrib { return Attrib("height", value) }
-func Hidden() mx.Attrib             { return Attrib("hidden", "hidden") }
-func HiddenUntilFound() mx.Attrib   { return Attrib("hidden", "until-found") }
+func Height(value string) mx.Attrib { return mx.NewAttrib("height", value) }
+
+const Hidden = BoolAttrib("hidden")
+
+func HiddenUntilFound() mx.Attrib { return mx.NewAttrib("hidden", "until-found") }
 func High(limit float64) mx.Attrib {
-	return Attrib("high", strconv.FormatFloat(limit, 'f', -1, 64))
+	return mx.NewAttrib("high", strconv.FormatFloat(limit, 'f', -1, 64))
 }
-func Hight(pixels int) mx.Attrib        { return Attrib("high", strconv.Itoa(pixels)) }
-func HRef(url string) mx.Attrib         { return Attrib("href", url) }
-func HRefLang(value string) mx.Attrib   { return Attrib("hreflang", value) }
-func HTTPEquivContentType() mx.Attrib   { return Attrib("http-equiv", "content-type") }
-func HTTPEquivDefaultStyle() mx.Attrib  { return Attrib("http-equiv", "default-style") }
-func HTTPEquivRefresh() mx.Attrib       { return Attrib("http-equiv", "refresh") }
-func HTTPEquivXUACompatible() mx.Attrib { return Attrib("http-equiv", "x-ua-compatible") }
+func Hight(pixels int) mx.Attrib        { return mx.NewAttrib("high", strconv.Itoa(pixels)) }
+func HRef(url string) mx.Attrib         { return mx.NewAttrib("href", url) }
+func HRefLang(value string) mx.Attrib   { return mx.NewAttrib("hreflang", value) }
+func HTTPEquivContentType() mx.Attrib   { return mx.NewAttrib("http-equiv", "content-type") }
+func HTTPEquivDefaultStyle() mx.Attrib  { return mx.NewAttrib("http-equiv", "default-style") }
+func HTTPEquivRefresh() mx.Attrib       { return mx.NewAttrib("http-equiv", "refresh") }
+func HTTPEquivXUACompatible() mx.Attrib { return mx.NewAttrib("http-equiv", "x-ua-compatible") }
 func HTTPEquivContentSecurityPolicy() mx.Attrib {
-	return Attrib("http-equiv", "content-security-policy")
+	return mx.NewAttrib("http-equiv", "content-security-policy")
 }
-func ID(value string) mx.Attrib { return Attrib("id", value) }
+func ID(value string) mx.Attrib { return mx.NewAttrib("id", value) }
 
 // imagesizes ?
 // imagesrcset ?
 
-func Inert() mx.Attrib                     { return Attrib("inert", "inert") }
-func InputModeNone() mx.Attrib             { return Attrib("inputmode", "none") }
-func InputModeText() mx.Attrib             { return Attrib("inputmode", "text") }
-func InputModeTel() mx.Attrib              { return Attrib("inputmode", "tel") }
-func InputModeEmail() mx.Attrib            { return Attrib("inputmode", "email") }
-func InputModeURL() mx.Attrib              { return Attrib("inputmode", "url") }
-func InputModeNumeric() mx.Attrib          { return Attrib("inputmode", "numeric") }
-func InputModeDecimal() mx.Attrib          { return Attrib("inputmode", "decimal") }
-func InputModeSearch() mx.Attrib           { return Attrib("inputmode", "search") }
-func Integrity(value string) mx.Attrib     { return Attrib("integrity", value) }
-func IntrinsicSize(value string) mx.Attrib { return Attrib("intrinsicsize", value) }
-func IsMap() mx.Attrib                     { return Attrib("ismap", "ismap") }
-func ItemID(url string) mx.Attrib          { return Attrib("itemid", url) }
-func ItemProp(props ...string) mx.Attrib   { return Attrib("itemprop", strings.Join(props, " ")) }
-func ItemRef(ids ...string) mx.Attrib      { return Attrib("itemref", strings.Join(ids, " ")) }
-func ItemScope() mx.Attrib                 { return Attrib("itemscope", "itemscope") }
-func ItemType(urls ...string) mx.Attrib    { return Attrib("itemtype", strings.Join(urls, " ")) }
-func KindSubtitles() mx.Attrib             { return Attrib("kind", "subtitles") }
-func KindCaptions() mx.Attrib              { return Attrib("kind", "captions") }
-func KindDescriptions() mx.Attrib          { return Attrib("kind", "descriptions") }
-func KindChapters() mx.Attrib              { return Attrib("kind", "chapters") }
-func KindMetadata() mx.Attrib              { return Attrib("kind", "metadata") }
-func LabelAttr(value string) mx.Attrib     { return Attrib("label", value) }
-func Lang(value string) mx.Attrib          { return Attrib("lang", value) }
-func Language(value string) mx.Attrib      { return Attrib("language", value) }
-func List(id string) mx.Attrib             { return Attrib("list", id) }
-func LoadingEager(value string) mx.Attrib  { return Attrib("loading", "eager") }
-func LoadingLazy(value string) mx.Attrib   { return Attrib("loading", "lazy") }
-func Loop() mx.Attrib                      { return Attrib("loop", "loop") }
-func Low(limit float64) mx.Attrib          { return Attrib("low", strconv.FormatFloat(limit, 'f', -1, 64)) }
-func Max(value string) mx.Attrib           { return Attrib("max", value) }
-func MaxLength(length int) mx.Attrib       { return Attrib("maxlength", strconv.Itoa(length)) }
+var Inert = BoolAttrib("inert")
 
-func Media(query string) mx.Attrib   { return Attrib("media", query) }
-func MethodGET() mx.Attrib           { return Attrib("method", "GET") }
-func MethodPOST() mx.Attrib          { return Attrib("method", "POST") }
-func MethodDialog() mx.Attrib        { return Attrib("method", "dialog") }
-func Min(value string) mx.Attrib     { return Attrib("min", value) }
-func MinLength(length int) mx.Attrib { return Attrib("minlength", strconv.Itoa(length)) }
-func Multiple() mx.Attrib            { return BoolAttrib("multiple") }
-func Muted() mx.Attrib               { return BoolAttrib("muted") }
-func Name(value string) mx.Attrib    { return Attrib("name", value) }
-func NoModule() mx.Attrib            { return BoolAttrib("nomodule") }
-func Nonce(value string) mx.Attrib   { return Attrib("nonce", value) }
-func NoValidate() mx.Attrib          { return BoolAttrib("novalidate") }
-func Open() mx.Attrib                { return BoolAttrib("open") }
+func InputModeNone() mx.Attrib             { return mx.NewAttrib("inputmode", "none") }
+func InputModeText() mx.Attrib             { return mx.NewAttrib("inputmode", "text") }
+func InputModeTel() mx.Attrib              { return mx.NewAttrib("inputmode", "tel") }
+func InputModeEmail() mx.Attrib            { return mx.NewAttrib("inputmode", "email") }
+func InputModeURL() mx.Attrib              { return mx.NewAttrib("inputmode", "url") }
+func InputModeNumeric() mx.Attrib          { return mx.NewAttrib("inputmode", "numeric") }
+func InputModeDecimal() mx.Attrib          { return mx.NewAttrib("inputmode", "decimal") }
+func InputModeSearch() mx.Attrib           { return mx.NewAttrib("inputmode", "search") }
+func Integrity(value string) mx.Attrib     { return mx.NewAttrib("integrity", value) }
+func IntrinsicSize(value string) mx.Attrib { return mx.NewAttrib("intrinsicsize", value) }
+
+const IsMap = BoolAttrib("ismap")
+
+func ItemID(url string) mx.Attrib        { return mx.NewAttrib("itemid", url) }
+func ItemProp(props ...string) mx.Attrib { return mx.NewAttrib("itemprop", strings.Join(props, " ")) }
+func ItemRef(ids ...string) mx.Attrib    { return mx.NewAttrib("itemref", strings.Join(ids, " ")) }
+
+const ItemScope = BoolAttrib("itemscope")
+
+func ItemType(urls ...string) mx.Attrib   { return mx.NewAttrib("itemtype", strings.Join(urls, " ")) }
+func KindSubtitles() mx.Attrib            { return mx.NewAttrib("kind", "subtitles") }
+func KindCaptions() mx.Attrib             { return mx.NewAttrib("kind", "captions") }
+func KindDescriptions() mx.Attrib         { return mx.NewAttrib("kind", "descriptions") }
+func KindChapters() mx.Attrib             { return mx.NewAttrib("kind", "chapters") }
+func KindMetadata() mx.Attrib             { return mx.NewAttrib("kind", "metadata") }
+func LabelAttr(value string) mx.Attrib    { return mx.NewAttrib("label", value) }
+func Lang(value string) mx.Attrib         { return mx.NewAttrib("lang", value) }
+func Language(value string) mx.Attrib     { return mx.NewAttrib("language", value) }
+func List(id string) mx.Attrib            { return mx.NewAttrib("list", id) }
+func LoadingEager(value string) mx.Attrib { return mx.NewAttrib("loading", "eager") }
+func LoadingLazy(value string) mx.Attrib  { return mx.NewAttrib("loading", "lazy") }
+func Loop() mx.Attrib                     { return mx.NewAttrib("loop", "loop") }
+func Low(limit float64) mx.Attrib {
+	return mx.NewAttrib("low", strconv.FormatFloat(limit, 'f', -1, 64))
+}
+func Max(value string) mx.Attrib     { return mx.NewAttrib("max", value) }
+func MaxLength(length int) mx.Attrib { return mx.NewAttrib("maxlength", strconv.Itoa(length)) }
+
+func Media(query string) mx.Attrib   { return mx.NewAttrib("media", query) }
+func MethodGET() mx.Attrib           { return mx.NewAttrib("method", "GET") }
+func MethodPOST() mx.Attrib          { return mx.NewAttrib("method", "POST") }
+func MethodDialog() mx.Attrib        { return mx.NewAttrib("method", "dialog") }
+func Min(value string) mx.Attrib     { return mx.NewAttrib("min", value) }
+func MinLength(length int) mx.Attrib { return mx.NewAttrib("minlength", strconv.Itoa(length)) }
+
+const Multiple = BoolAttrib("multiple")
+const Muted = BoolAttrib("muted")
+
+func Name(value string) mx.Attrib { return mx.NewAttrib("name", value) }
+
+const NoModule = BoolAttrib("nomodule")
+
+func Nonce(value string) mx.Attrib { return mx.NewAttrib("nonce", value) }
+
+const NoValidate = BoolAttrib("novalidate")
+const Open = BoolAttrib("open")
+
 func Optimum(value float64) mx.Attrib {
-	return Attrib("optimum", strconv.FormatFloat(value, 'f', -1, 64))
+	return mx.NewAttrib("optimum", strconv.FormatFloat(value, 'f', -1, 64))
 }
-func Pattern(value string) mx.Attrib      { return Attrib("pattern", value) }
-func Ping(value string) mx.Attrib         { return Attrib("ping", value) }
-func Placeholder(value string) mx.Attrib  { return Attrib("placeholder", value) }
-func PlaysInline(value string) mx.Attrib  { return Attrib("playsinline", value) }
-func Poster(value string) mx.Attrib       { return Attrib("poster", value) }
-func Preload(value string) mx.Attrib      { return Attrib("preload", value) }
-func Readonly(value string) mx.Attrib     { return Attrib("readonly", value) }
-func ReferrerPolicyNoReferrer() mx.Attrib { return Attrib("referrerpolicy", "no-referrer") }
+func Pattern(value string) mx.Attrib      { return mx.NewAttrib("pattern", value) }
+func Ping(value string) mx.Attrib         { return mx.NewAttrib("ping", value) }
+func Placeholder(value string) mx.Attrib  { return mx.NewAttrib("placeholder", value) }
+func PlaysInline(value string) mx.Attrib  { return mx.NewAttrib("playsinline", value) }
+func Poster(value string) mx.Attrib       { return mx.NewAttrib("poster", value) }
+func Preload(value string) mx.Attrib      { return mx.NewAttrib("preload", value) }
+func Readonly(value string) mx.Attrib     { return mx.NewAttrib("readonly", value) }
+func ReferrerPolicyNoReferrer() mx.Attrib { return mx.NewAttrib("referrerpolicy", "no-referrer") }
 func ReferrerPolicyNoReferrerWhenDowngrade() mx.Attrib {
-	return Attrib("referrerpolicy", "no-referrer-when-downgrade")
+	return mx.NewAttrib("referrerpolicy", "no-referrer-when-downgrade")
 }
-func ReferrerPolicyOrigin() mx.Attrib { return Attrib("referrerpolicy", "origin") }
+func ReferrerPolicyOrigin() mx.Attrib { return mx.NewAttrib("referrerpolicy", "origin") }
 func ReferrerPolicyOriginWhenCrossOrigin() mx.Attrib {
-	return Attrib("referrerpolicy", "origin-when-cross-origin")
+	return mx.NewAttrib("referrerpolicy", "origin-when-cross-origin")
 }
-func ReferrerPolicySameOrigin() mx.Attrib { return Attrib("referrerpolicy", "same-origin") }
+func ReferrerPolicySameOrigin() mx.Attrib { return mx.NewAttrib("referrerpolicy", "same-origin") }
 func ReferrerPolicyStrictOrigin() mx.Attrib {
-	return Attrib("referrerpolicy", "strict-origin")
+	return mx.NewAttrib("referrerpolicy", "strict-origin")
 }
 func ReferrerPolicyStrictOriginWhenCrossOrigin() mx.Attrib {
-	return Attrib("referrerpolicy", "strict-origin-when-cross-origin")
+	return mx.NewAttrib("referrerpolicy", "strict-origin-when-cross-origin")
 }
-func ReferrerPolicyUnsafeUrl() mx.Attrib { return Attrib("referrerpolicy", "unsafe-url") }
-func Rel(keywords ...string) mx.Attrib   { return Attrib("rel", strings.Join(keywords, " ")) }
-func Required(value string) mx.Attrib    { return Attrib("required", value) }
-func Reversed(value string) mx.Attrib    { return Attrib("reversed", value) }
-func Role(value string) mx.Attrib        { return Attrib("role", value) }
-func Rows(value string) mx.Attrib        { return Attrib("rows", value) }
-func RowSpan(value string) mx.Attrib     { return Attrib("rowspan", value) }
-func Sandbox(value string) mx.Attrib     { return Attrib("sandbox", value) }
-func Scope(value string) mx.Attrib       { return Attrib("scope", value) }
-func Scoped(value string) mx.Attrib      { return Attrib("scoped", value) }
-func Selected(value string) mx.Attrib    { return Attrib("selected", value) }
-func ShapeDefault() mx.Attrib            { return Attrib("shape", "default") }
-func ShapeRect() mx.Attrib               { return Attrib("shape", "rect") }
-func ShapeCircle() mx.Attrib             { return Attrib("shape", "circle") }
-func ShapePoly() mx.Attrib               { return Attrib("shape", "poly") }
-func Size(value string) mx.Attrib        { return Attrib("size", value) }
+func ReferrerPolicyUnsafeUrl() mx.Attrib { return mx.NewAttrib("referrerpolicy", "unsafe-url") }
+func Rel(keywords ...string) mx.Attrib   { return mx.NewAttrib("rel", strings.Join(keywords, " ")) }
+func Required(value string) mx.Attrib    { return mx.NewAttrib("required", value) }
+func Reversed(value string) mx.Attrib    { return mx.NewAttrib("reversed", value) }
+func Role(value string) mx.Attrib        { return mx.NewAttrib("role", value) }
+func Rows(value string) mx.Attrib        { return mx.NewAttrib("rows", value) }
+func RowSpan(value string) mx.Attrib     { return mx.NewAttrib("rowspan", value) }
+func Sandbox(value string) mx.Attrib     { return mx.NewAttrib("sandbox", value) }
+func Scope(value string) mx.Attrib       { return mx.NewAttrib("scope", value) }
+func Scoped(value string) mx.Attrib      { return mx.NewAttrib("scoped", value) }
+func Selected(value string) mx.Attrib    { return mx.NewAttrib("selected", value) }
+func ShapeDefault() mx.Attrib            { return mx.NewAttrib("shape", "default") }
+func ShapeRect() mx.Attrib               { return mx.NewAttrib("shape", "rect") }
+func ShapeCircle() mx.Attrib             { return mx.NewAttrib("shape", "circle") }
+func ShapePoly() mx.Attrib               { return mx.NewAttrib("shape", "poly") }
+func Size(value string) mx.Attrib        { return mx.NewAttrib("size", value) }
 func Sizes(sourceSizes ...string) mx.Attrib {
-	return Attrib("sizes", strings.Join(sourceSizes, ","))
+	return mx.NewAttrib("sizes", strings.Join(sourceSizes, ","))
 }
-func SlotAttr(value string) mx.Attrib   { return Attrib("slot", value) }
-func SpanAttr(value string) mx.Attrib   { return Attrib("span", value) }
-func SpellCheck(value string) mx.Attrib { return Attrib("spellcheck", value) }
-func Src(url string) mx.Attrib          { return Attrib("src", url) }
-func SrcDoc(value string) mx.Attrib     { return Attrib("srcdoc", value) }
-func SrcLang(value string) mx.Attrib    { return Attrib("srclang", value) }
+func SlotAttr(value string) mx.Attrib   { return mx.NewAttrib("slot", value) }
+func SpanAttr(value string) mx.Attrib   { return mx.NewAttrib("span", value) }
+func SpellCheck(value string) mx.Attrib { return mx.NewAttrib("spellcheck", value) }
+func Src(url string) mx.Attrib          { return mx.NewAttrib("src", url) }
+func SrcDoc(value string) mx.Attrib     { return mx.NewAttrib("srcdoc", value) }
+func SrcLang(value string) mx.Attrib    { return mx.NewAttrib("srclang", value) }
 func SrcSet(sources ...string) mx.Attrib {
-	return Attrib("srcset", strings.Join(sources, ","))
+	return mx.NewAttrib("srcset", strings.Join(sources, ","))
 }
-func Start(value string) mx.Attrib       { return Attrib("start", value) }
-func Step(value string) mx.Attrib        { return Attrib("step", value) }
-func Style(value string) mx.Attrib       { return Attrib("style", value) }
-func TabIndex(value string) mx.Attrib    { return Attrib("tabindex", value) }
-func Target(value string) mx.Attrib      { return Attrib("target", value) }
-func TargetSelf() mx.Attrib              { return Attrib("target", "_self") }
-func TargetBlank() mx.Attrib             { return Attrib("target", "_blank") }
-func TargetParent() mx.Attrib            { return Attrib("target", "_parent") }
-func TargetTop() mx.Attrib               { return Attrib("target", "_top") }
-func TargetUnfencedTop() mx.Attrib       { return Attrib("target", "_unfencedTop") }
-func Title(value string) mx.Attrib       { return Attrib("title", value) }
-func Translate(value string) mx.Attrib   { return Attrib("translate", value) }
-func Type(value string) mx.Attrib        { return Attrib("type", value) }
-func UseMap(partialURL string) mx.Attrib { return Attrib("usemap", partialURL) }
-func Value(value string) mx.Attrib       { return Attrib("value", value) }
-func Width(pixels int) mx.Attrib         { return Attrib("width", strconv.Itoa(pixels)) }
-func Wrap(value string) mx.Attrib        { return Attrib("wrap", value) }
+func Start(value string) mx.Attrib       { return mx.NewAttrib("start", value) }
+func Step(value string) mx.Attrib        { return mx.NewAttrib("step", value) }
+func Style(value string) mx.Attrib       { return mx.NewAttrib("style", value) }
+func TabIndex(value string) mx.Attrib    { return mx.NewAttrib("tabindex", value) }
+func Target(value string) mx.Attrib      { return mx.NewAttrib("target", value) }
+func TargetSelf() mx.Attrib              { return mx.NewAttrib("target", "_self") }
+func TargetBlank() mx.Attrib             { return mx.NewAttrib("target", "_blank") }
+func TargetParent() mx.Attrib            { return mx.NewAttrib("target", "_parent") }
+func TargetTop() mx.Attrib               { return mx.NewAttrib("target", "_top") }
+func TargetUnfencedTop() mx.Attrib       { return mx.NewAttrib("target", "_unfencedTop") }
+func Title(value string) mx.Attrib       { return mx.NewAttrib("title", value) }
+func Translate(value string) mx.Attrib   { return mx.NewAttrib("translate", value) }
+func Type(value string) mx.Attrib        { return mx.NewAttrib("type", value) }
+func UseMap(partialURL string) mx.Attrib { return mx.NewAttrib("usemap", partialURL) }
+func Value(value string) mx.Attrib       { return mx.NewAttrib("value", value) }
+func Width(pixels int) mx.Attrib         { return mx.NewAttrib("width", strconv.Itoa(pixels)) }
+func Wrap(value string) mx.Attrib        { return mx.NewAttrib("wrap", value) }
 
 // Event handlers, see https://html.spec.whatwg.org/multipage/indices.html#events-2
 
 // OnAfterPrint `afterprint` event handler for Window object (body element)
-func OnAfterPrint(execute string) mx.Attrib { return Attrib("onafterprint", execute) }
+func OnAfterPrint(execute string) mx.Attrib { return mx.NewAttrib("onafterprint", execute) }
 
 // OnAuxClick `auxclick` event handler (all HTML elements)
-func OnAuxClick(execute string) mx.Attrib { return Attrib("onauxclick", execute) }
+func OnAuxClick(execute string) mx.Attrib { return mx.NewAttrib("onauxclick", execute) }
 
 // OnBeforeInput `beforeinput` event handler (all HTML elements)
-func OnBeforeInput(execute string) mx.Attrib { return Attrib("onbeforeinput", execute) }
+func OnBeforeInput(execute string) mx.Attrib { return mx.NewAttrib("onbeforeinput", execute) }
 
 // OnBeforeMatch `beforematch` event handler (all HTML elements)
-func OnBeforeMatch(execute string) mx.Attrib { return Attrib("onbeforematch", execute) }
+func OnBeforeMatch(execute string) mx.Attrib { return mx.NewAttrib("onbeforematch", execute) }
 
 // OnBeforePrint `beforeprint` event handler for Window object (body element)
-func OnBeforePrint(execute string) mx.Attrib { return Attrib("onbeforeprint", execute) }
+func OnBeforePrint(execute string) mx.Attrib { return mx.NewAttrib("onbeforeprint", execute) }
 
 // OnBeforeUnload `beforeunload` event handler for Window object (body element)
-func OnBeforeUnload(execute string) mx.Attrib { return Attrib("onbeforeunload", execute) }
+func OnBeforeUnload(execute string) mx.Attrib { return mx.NewAttrib("onbeforeunload", execute) }
 
 // OnBeforeToggle `beforetoggle` event handler (all HTML elements)
-func OnBeforeToggle(execute string) mx.Attrib { return Attrib("onbeforetoggle", execute) }
+func OnBeforeToggle(execute string) mx.Attrib { return mx.NewAttrib("onbeforetoggle", execute) }
 
 // OnBlur `blur` event handler (all HTML elements)
-func OnBlur(execute string) mx.Attrib { return Attrib("onblur", execute) }
+func OnBlur(execute string) mx.Attrib { return mx.NewAttrib("onblur", execute) }
 
 // OnCancel `cancel` event handler (all HTML elements)
-func OnCancel(execute string) mx.Attrib { return Attrib("oncancel", execute) }
+func OnCancel(execute string) mx.Attrib { return mx.NewAttrib("oncancel", execute) }
 
 // OnCanplay `canplay` event handler (all HTML elements)
-func OnCanplay(execute string) mx.Attrib { return Attrib("oncanplay", execute) }
+func OnCanplay(execute string) mx.Attrib { return mx.NewAttrib("oncanplay", execute) }
 
 // OnCanPlayThrough `canplaythrough` event handler (all HTML elements)
-func OnCanPlayThrough(execute string) mx.Attrib { return Attrib("oncanplaythrough", execute) }
+func OnCanPlayThrough(execute string) mx.Attrib { return mx.NewAttrib("oncanplaythrough", execute) }
 
 // OnChange `change` event handler (all HTML elements)
-func OnChange(execute string) mx.Attrib { return Attrib("onchange", execute) }
+func OnChange(execute string) mx.Attrib { return mx.NewAttrib("onchange", execute) }
 
 // OnClick `click` event handler (all HTML elements)
-func OnClick(execute string) mx.Attrib { return Attrib("onclick", execute) }
+func OnClick(execute string) mx.Attrib { return mx.NewAttrib("onclick", execute) }
 
 // OnClose `close` event handler (all HTML elements)
-func OnClose(execute string) mx.Attrib { return Attrib("onclose", execute) }
+func OnClose(execute string) mx.Attrib { return mx.NewAttrib("onclose", execute) }
 
 // OnContextLost `contextlost` event handler (all HTML elements)
-func OnContextLost(execute string) mx.Attrib { return Attrib("oncontextlost", execute) }
+func OnContextLost(execute string) mx.Attrib { return mx.NewAttrib("oncontextlost", execute) }
 
 // OnContextMenu `contextmenu` event handler (all HTML elements)
-func OnContextMenu(execute string) mx.Attrib { return Attrib("oncontextmenu", execute) }
+func OnContextMenu(execute string) mx.Attrib { return mx.NewAttrib("oncontextmenu", execute) }
 
 // OnContextRestored `contextrestored` event handler (all HTML elements)
-func OnContextRestored(execute string) mx.Attrib { return Attrib("oncontextrestored", execute) }
+func OnContextRestored(execute string) mx.Attrib { return mx.NewAttrib("oncontextrestored", execute) }
 
 // OnCopy `copy` event handler (all HTML elements)
-func OnCopy(execute string) mx.Attrib { return Attrib("oncopy", execute) }
+func OnCopy(execute string) mx.Attrib { return mx.NewAttrib("oncopy", execute) }
 
 // OnCueChange `cuechange` event handler (all HTML elements)
-func OnCueChange(execute string) mx.Attrib { return Attrib("oncuechange", execute) }
+func OnCueChange(execute string) mx.Attrib { return mx.NewAttrib("oncuechange", execute) }
 
 // OnCut `cut` event handler (all HTML elements)
-func OnCut(execute string) mx.Attrib { return Attrib("oncut", execute) }
+func OnCut(execute string) mx.Attrib { return mx.NewAttrib("oncut", execute) }
 
 // OnDblClick `dblclick` event handler (all HTML elements)
-func OnDblClick(execute string) mx.Attrib { return Attrib("ondblclick", execute) }
+func OnDblClick(execute string) mx.Attrib { return mx.NewAttrib("ondblclick", execute) }
 
 // OnDrag `drag` event handler (all HTML elements)
-func OnDrag(execute string) mx.Attrib { return Attrib("ondrag", execute) }
+func OnDrag(execute string) mx.Attrib { return mx.NewAttrib("ondrag", execute) }
 
 // OnDragEnd `dragend` event handler (all HTML elements)
-func OnDragEnd(execute string) mx.Attrib { return Attrib("ondragend", execute) }
+func OnDragEnd(execute string) mx.Attrib { return mx.NewAttrib("ondragend", execute) }
 
 // OnDragEnter `dragenter` event handler (all HTML elements)
-func OnDragEnter(execute string) mx.Attrib { return Attrib("ondragenter", execute) }
+func OnDragEnter(execute string) mx.Attrib { return mx.NewAttrib("ondragenter", execute) }
 
 // OnDragLeave `dragleave` event handler (all HTML elements)
-func OnDragLeave(execute string) mx.Attrib { return Attrib("ondragleave", execute) }
+func OnDragLeave(execute string) mx.Attrib { return mx.NewAttrib("ondragleave", execute) }
 
 // OnDragOver `dragover` event handler (all HTML elements)
-func OnDragOver(execute string) mx.Attrib { return Attrib("ondragover", execute) }
+func OnDragOver(execute string) mx.Attrib { return mx.NewAttrib("ondragover", execute) }
 
 // OnDragStart `dragstart` event handler (all HTML elements)
-func OnDragStart(execute string) mx.Attrib { return Attrib("ondragstart", execute) }
+func OnDragStart(execute string) mx.Attrib { return mx.NewAttrib("ondragstart", execute) }
 
 // OnDrop `drop` event handler (all HTML elements)
-func OnDrop(execute string) mx.Attrib { return Attrib("ondrop", execute) }
+func OnDrop(execute string) mx.Attrib { return mx.NewAttrib("ondrop", execute) }
 
 // OnDurationChange `durationchange` event handler (all HTML elements)
-func OnDurationChange(execute string) mx.Attrib { return Attrib("ondurationchange", execute) }
+func OnDurationChange(execute string) mx.Attrib { return mx.NewAttrib("ondurationchange", execute) }
 
 // OnEmptied `emptied` event handler (all HTML elements)
-func OnEmptied(execute string) mx.Attrib { return Attrib("onemptied", execute) }
+func OnEmptied(execute string) mx.Attrib { return mx.NewAttrib("onemptied", execute) }
 
 // OnEnded `ended` event handler (all HTML elements)
-func OnEnded(execute string) mx.Attrib { return Attrib("onended", execute) }
+func OnEnded(execute string) mx.Attrib { return mx.NewAttrib("onended", execute) }
 
 // OnError `error` event handler (all HTML elements)
-func OnError(execute string) mx.Attrib { return Attrib("onerror", execute) }
+func OnError(execute string) mx.Attrib { return mx.NewAttrib("onerror", execute) }
 
 // OnFocus `focus` event handler (all HTML elements)
-func OnFocus(execute string) mx.Attrib { return Attrib("onfocus", execute) }
+func OnFocus(execute string) mx.Attrib { return mx.NewAttrib("onfocus", execute) }
 
 // OnFormData `formdata` event handler (all HTML elements)
-func OnFormData(execute string) mx.Attrib { return Attrib("onformdata", execute) }
+func OnFormData(execute string) mx.Attrib { return mx.NewAttrib("onformdata", execute) }
 
 // OnHashChange `hashchange` event handler for Window object (body element)
-func OnHashChange(execute string) mx.Attrib { return Attrib("onhashchange", execute) }
+func OnHashChange(execute string) mx.Attrib { return mx.NewAttrib("onhashchange", execute) }
 
 // OnInput `input` event handler (all HTML elements)
-func OnInput(execute string) mx.Attrib { return Attrib("oninput", execute) }
+func OnInput(execute string) mx.Attrib { return mx.NewAttrib("oninput", execute) }
 
 // OnInvalid `invalid` event handler (all HTML elements)
-func OnInvalid(execute string) mx.Attrib { return Attrib("oninvalid", execute) }
+func OnInvalid(execute string) mx.Attrib { return mx.NewAttrib("oninvalid", execute) }
 
 // OnKeyDown `keydown` event handler (all HTML elements)
-func OnKeyDown(execute string) mx.Attrib { return Attrib("onkeydown", execute) }
+func OnKeyDown(execute string) mx.Attrib { return mx.NewAttrib("onkeydown", execute) }
 
 // OnKeyPress `keypress` event handler (all HTML elements)
-func OnKeyPress(execute string) mx.Attrib { return Attrib("onkeypress", execute) }
+func OnKeyPress(execute string) mx.Attrib { return mx.NewAttrib("onkeypress", execute) }
 
 // OnKeyUp `keyup` event handler (all HTML elements)
-func OnKeyUp(execute string) mx.Attrib { return Attrib("onkeyup", execute) }
+func OnKeyUp(execute string) mx.Attrib { return mx.NewAttrib("onkeyup", execute) }
 
 // OnLanguageChange `languagechange` event handler for Window object (body element)
-func OnLanguageChange(execute string) mx.Attrib { return Attrib("onlanguagechange", execute) }
+func OnLanguageChange(execute string) mx.Attrib { return mx.NewAttrib("onlanguagechange", execute) }
 
 // OnLoad `load` event handler (all HTML elements)
-func OnLoad(execute string) mx.Attrib { return Attrib("onload", execute) }
+func OnLoad(execute string) mx.Attrib { return mx.NewAttrib("onload", execute) }
 
 // OnLoadedData `loadeddata` event handler (all HTML elements)
-func OnLoadedData(execute string) mx.Attrib { return Attrib("onloadeddata", execute) }
+func OnLoadedData(execute string) mx.Attrib { return mx.NewAttrib("onloadeddata", execute) }
 
 // OnLoadedMetadata `loadedmetadata` event handler (all HTML elements)
-func OnLoadedMetadata(execute string) mx.Attrib { return Attrib("onloadedmetadata", execute) }
+func OnLoadedMetadata(execute string) mx.Attrib { return mx.NewAttrib("onloadedmetadata", execute) }
 
 // OnLoadStart `loadstart` event handler (all HTML elements)
-func OnLoadStart(execute string) mx.Attrib { return Attrib("onloadstart", execute) }
+func OnLoadStart(execute string) mx.Attrib { return mx.NewAttrib("onloadstart", execute) }
 
 // OnMessage `message` event handler for Window object (body element)
-func OnMessage(execute string) mx.Attrib { return Attrib("onmessage", execute) }
+func OnMessage(execute string) mx.Attrib { return mx.NewAttrib("onmessage", execute) }
 
 // OnMessageError `messageerror` event handler for Window object (body element)
-func OnMessageError(execute string) mx.Attrib { return Attrib("onmessageerror", execute) }
+func OnMessageError(execute string) mx.Attrib { return mx.NewAttrib("onmessageerror", execute) }
 
 // OnMouseDown `mousedown` event handler (all HTML elements)
-func OnMouseDown(execute string) mx.Attrib { return Attrib("onmousedown", execute) }
+func OnMouseDown(execute string) mx.Attrib { return mx.NewAttrib("onmousedown", execute) }
 
 // OnMouseEnter `mouseenter` event handler (all HTML elements)
-func OnMouseEnter(execute string) mx.Attrib { return Attrib("onmouseenter", execute) }
+func OnMouseEnter(execute string) mx.Attrib { return mx.NewAttrib("onmouseenter", execute) }
 
 // OnMouseLeave `mouseleave` event handler (all HTML elements)
-func OnMouseLeave(execute string) mx.Attrib { return Attrib("onmouseleave", execute) }
+func OnMouseLeave(execute string) mx.Attrib { return mx.NewAttrib("onmouseleave", execute) }
 
 // OnMouseMove `mousemove` event handler (all HTML elements)
-func OnMouseMove(execute string) mx.Attrib { return Attrib("onmousemove", execute) }
+func OnMouseMove(execute string) mx.Attrib { return mx.NewAttrib("onmousemove", execute) }
 
 // OnMouseOut `mouseout` event handler (all HTML elements)
-func OnMouseOut(execute string) mx.Attrib { return Attrib("onmouseout", execute) }
+func OnMouseOut(execute string) mx.Attrib { return mx.NewAttrib("onmouseout", execute) }
 
 // OnMouseOver `mouseover` event handler (all HTML elements)
-func OnMouseOver(execute string) mx.Attrib { return Attrib("onmouseover", execute) }
+func OnMouseOver(execute string) mx.Attrib { return mx.NewAttrib("onmouseover", execute) }
 
 // OnMouseUp `mouseup` event handler (all HTML elements)
-func OnMouseUp(execute string) mx.Attrib { return Attrib("onmouseup", execute) }
+func OnMouseUp(execute string) mx.Attrib { return mx.NewAttrib("onmouseup", execute) }
 
 // OnOffline `offline` event handler for Window object (body element)
-func OnOffline(execute string) mx.Attrib { return Attrib("onoffline", execute) }
+func OnOffline(execute string) mx.Attrib { return mx.NewAttrib("onoffline", execute) }
 
 // OnOnline `online` event handler for Window object (body element)
-func OnOnline(execute string) mx.Attrib { return Attrib("ononline", execute) }
+func OnOnline(execute string) mx.Attrib { return mx.NewAttrib("ononline", execute) }
 
 // OnPageHide `pagehide` event handler for Window object (body element)
-func OnPageHide(execute string) mx.Attrib { return Attrib("onpagehide", execute) }
+func OnPageHide(execute string) mx.Attrib { return mx.NewAttrib("onpagehide", execute) }
 
 // OnPageReveal `pagereveal` event handler for Window object (body element)
-func OnPageReveal(execute string) mx.Attrib { return Attrib("onpagereveal", execute) }
+func OnPageReveal(execute string) mx.Attrib { return mx.NewAttrib("onpagereveal", execute) }
 
 // OnPageShow `pageshow` event handler for Window object (body element)
-func OnPageShow(execute string) mx.Attrib { return Attrib("onpageshow", execute) }
+func OnPageShow(execute string) mx.Attrib { return mx.NewAttrib("onpageshow", execute) }
 
 // OnPageSwap `pageswap` event handler for Window object (body element)
-func OnPageSwap(execute string) mx.Attrib { return Attrib("onpageswap", execute) }
+func OnPageSwap(execute string) mx.Attrib { return mx.NewAttrib("onpageswap", execute) }
 
 // OnPaste `paste` event handler (all HTML elements)
-func OnPaste(execute string) mx.Attrib { return Attrib("onpaste", execute) }
+func OnPaste(execute string) mx.Attrib { return mx.NewAttrib("onpaste", execute) }
 
 // OnPause `pause` event handler (all HTML elements)
-func OnPause(execute string) mx.Attrib { return Attrib("onpause", execute) }
+func OnPause(execute string) mx.Attrib { return mx.NewAttrib("onpause", execute) }
 
 // OnPlay `play` event handler (all HTML elements)
-func OnPlay(execute string) mx.Attrib { return Attrib("onplay", execute) }
+func OnPlay(execute string) mx.Attrib { return mx.NewAttrib("onplay", execute) }
 
 // OnPlaying `playing` event handler (all HTML elements)
-func OnPlaying(execute string) mx.Attrib { return Attrib("onplaying", execute) }
+func OnPlaying(execute string) mx.Attrib { return mx.NewAttrib("onplaying", execute) }
 
 // OnPopState `popstate` event handler for Window object (body element)
-func OnPopState(execute string) mx.Attrib { return Attrib("onpopstate", execute) }
+func OnPopState(execute string) mx.Attrib { return mx.NewAttrib("onpopstate", execute) }
 
 // OnProgress `progress` event handler (all HTML elements)
-func OnProgress(execute string) mx.Attrib { return Attrib("onprogress", execute) }
+func OnProgress(execute string) mx.Attrib { return mx.NewAttrib("onprogress", execute) }
 
 // OnRateChange `ratechange` event handler (all HTML elements)
-func OnRateChange(execute string) mx.Attrib { return Attrib("onratechange", execute) }
+func OnRateChange(execute string) mx.Attrib { return mx.NewAttrib("onratechange", execute) }
 
 // OnReset `reset` event handler (all HTML elements)
-func OnReset(execute string) mx.Attrib { return Attrib("onreset", execute) }
+func OnReset(execute string) mx.Attrib { return mx.NewAttrib("onreset", execute) }
 
 // OnResize `resize` event handler (all HTML elements)
-func OnResize(execute string) mx.Attrib { return Attrib("onresize", execute) }
+func OnResize(execute string) mx.Attrib { return mx.NewAttrib("onresize", execute) }
 
 // OnRejectionHandled `rejectionhandled` event handler for Window object (body element)
-func OnRejectionHandled(execute string) mx.Attrib { return Attrib("onrejectionhandled", execute) }
+func OnRejectionHandled(execute string) mx.Attrib { return mx.NewAttrib("onrejectionhandled", execute) }
 
 // OnScroll `scroll` event handler (all HTML elements)
-func OnScroll(execute string) mx.Attrib { return Attrib("onscroll", execute) }
+func OnScroll(execute string) mx.Attrib { return mx.NewAttrib("onscroll", execute) }
 
 // OnScrollEnd `scrollend` event handler (all HTML elements)
-func OnScrollEnd(execute string) mx.Attrib { return Attrib("onscrollend", execute) }
+func OnScrollEnd(execute string) mx.Attrib { return mx.NewAttrib("onscrollend", execute) }
 
 // OnSecurityPolicyViolation `securitypolicyviolation` event handler (all HTML elements)
 func OnSecurityPolicyViolation(execute string) mx.Attrib {
-	return Attrib("onsecuritypolicyviolation", execute)
+	return mx.NewAttrib("onsecuritypolicyviolation", execute)
 }
 
 // OnSeeked `seeked` event handler (all HTML elements)
-func OnSeeked(execute string) mx.Attrib { return Attrib("onseeked", execute) }
+func OnSeeked(execute string) mx.Attrib { return mx.NewAttrib("onseeked", execute) }
 
 // OnSeeking `seeking` event handler (all HTML elements)
-func OnSeeking(execute string) mx.Attrib { return Attrib("onseeking", execute) }
+func OnSeeking(execute string) mx.Attrib { return mx.NewAttrib("onseeking", execute) }
 
 // OnSelect `select` event handler (all HTML elements)
-func OnSelect(execute string) mx.Attrib { return Attrib("onselect", execute) }
+func OnSelect(execute string) mx.Attrib { return mx.NewAttrib("onselect", execute) }
 
 // OnSlotChange `slotchange` event handler (all HTML elements)
-func OnSlotChange(execute string) mx.Attrib { return Attrib("onslotchange", execute) }
+func OnSlotChange(execute string) mx.Attrib { return mx.NewAttrib("onslotchange", execute) }
 
 // OnStalled `stalled` event handler (all HTML elements)
-func OnStalled(execute string) mx.Attrib { return Attrib("onstalled", execute) }
+func OnStalled(execute string) mx.Attrib { return mx.NewAttrib("onstalled", execute) }
 
 // OnStorage `storage` event handler for Window object (body element)
-func OnStorage(execute string) mx.Attrib { return Attrib("onstorage", execute) }
+func OnStorage(execute string) mx.Attrib { return mx.NewAttrib("onstorage", execute) }
 
 // OnSubmit `submit` event handler (all HTML elements)
-func OnSubmit(execute string) mx.Attrib { return Attrib("onsubmit", execute) }
+func OnSubmit(execute string) mx.Attrib { return mx.NewAttrib("onsubmit", execute) }
 
 // OnSuspend `suspend` event handler (all HTML elements)
-func OnSuspend(execute string) mx.Attrib { return Attrib("onsuspend", execute) }
+func OnSuspend(execute string) mx.Attrib { return mx.NewAttrib("onsuspend", execute) }
 
 // OnTimeUpdate `timeupdate` event handler (all HTML elements)
-func OnTimeUpdate(execute string) mx.Attrib { return Attrib("ontimeupdate", execute) }
+func OnTimeUpdate(execute string) mx.Attrib { return mx.NewAttrib("ontimeupdate", execute) }
 
 // OnToggle `toggle` event handler (all HTML elements)
-func OnToggle(execute string) mx.Attrib { return Attrib("ontoggle", execute) }
+func OnToggle(execute string) mx.Attrib { return mx.NewAttrib("ontoggle", execute) }
 
 // OnUnhandledRejection `unhandledrejection` event handler for Window object (body element)
 func OnUnhandledRejection(execute string) mx.Attrib {
-	return Attrib("onunhandledrejection", execute)
+	return mx.NewAttrib("onunhandledrejection", execute)
 }
 
 // OnUnload `unload` event handler for Window object (body element)
-func OnUnload(execute string) mx.Attrib { return Attrib("onunload", execute) }
+func OnUnload(execute string) mx.Attrib { return mx.NewAttrib("onunload", execute) }
 
 // OnVolumeChange `volumechange` event handler (all HTML elements)
-func OnVolumeChange(execute string) mx.Attrib { return Attrib("onvolumechange", execute) }
+func OnVolumeChange(execute string) mx.Attrib { return mx.NewAttrib("onvolumechange", execute) }
 
 // OnWaiting `waiting` event handler (all HTML elements)
-func OnWaiting(execute string) mx.Attrib { return Attrib("onwaiting", execute) }
+func OnWaiting(execute string) mx.Attrib { return mx.NewAttrib("onwaiting", execute) }
 
 // OnWheel `wheel` event handler (all HTML elements)
-func OnWheel(execute string) mx.Attrib { return Attrib("onwheel", execute) }
+func OnWheel(execute string) mx.Attrib { return mx.NewAttrib("onwheel", execute) }

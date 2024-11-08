@@ -7,7 +7,7 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-func ExampleDocument() {
+func ExampleNewDocument() {
 	NewDocument("Hello World", // title
 		// body:
 		H1("Hello World"),

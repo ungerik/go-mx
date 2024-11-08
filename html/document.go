@@ -41,7 +41,7 @@ func (html *Document) Render(ctx context.Context, w mx.Writer) error {
 			),
 			ForEachSlice(slices.Sorted(maps.Keys(html.MetaProperty)),
 				func(property string) *mx.Element {
-					return Meta(mx.Attrib{Name: property, Value: html.MetaProperty[property]})
+					return Meta(Attrib(property, html.MetaProperty[property]))
 				},
 			),
 			ForEachSlice(html.Stylesheets,
