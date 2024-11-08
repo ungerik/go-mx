@@ -8,24 +8,21 @@ import (
 )
 
 func ExampleDocument() {
-	doc := &Document{
-		Title: "Hello World",
-		Body: mx.AsComponents(
-			H1("Hello World"),
-			Div(Class("content"), Lang("en"), ">>Simple HTML page<<"),
-			mx.Newline,
-			Raw("<p>Raw HTML</p>"),
-			func() (children mx.Components) {
-				for i := range 3 {
-					if i%2 == 0 {
-						children = append(children, mx.Newline, Textf("Even number: %d", i), Br())
-					}
+	NewDocument("Hello World", // title
+		// body:
+		H1("Hello World"),
+		Div(Class("content"), Lang("en"), ">>Simple HTML page<<"),
+		mx.Newline,
+		Raw("<p>Raw HTML</p>"),
+		func() (children mx.Components) {
+			for i := range 3 {
+				if i%2 == 0 {
+					children = append(children, mx.Newline, Textf("Even number: %d", i), Br())
 				}
-				return children
-			},
-		),
-	}
-	doc.Render(
+			}
+			return children
+		},
+	).Render(
 		context.Background(),
 		mx.NewCheckedWriter(os.Stdout).WithIndent("", "  "),
 	)
