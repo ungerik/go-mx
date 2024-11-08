@@ -5,17 +5,16 @@ import (
 )
 
 type (
-	Element  = mx.Element
 	Text     = mx.Text
 	Raw      = mx.Raw
 	RawBytes = mx.RawBytes
 )
 
-func NewElement(name string, attribsChildren ...any) *Element {
+func Element(name string, attribsChildren ...any) *mx.Element {
 	return mx.NewElement(name, attribsChildren...)
 }
 
-func NewVoidElement(name string, attribs ...mx.Attrib) *Element {
+func VoidElement(name string, attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement(name, attribs...)
 }
 
@@ -25,187 +24,207 @@ func Textf(format string, args ...any) Text {
 
 // See https://github.com/jozo/all-html-elements-and-attributes
 
-func A(attribsChildren ...any) *Element       { return mx.NewElement("a", attribsChildren...) }
-func Abbr(attribsChildren ...any) *Element    { return mx.NewElement("abbr", attribsChildren...) }
-func Acronym(attribsChildren ...any) *Element { return mx.NewElement("acronym", attribsChildren...) }
-func Address(attribsChildren ...any) *Element { return mx.NewElement("address", attribsChildren...) }
-func Area(attribs ...Attrib) *Element         { return mx.NewVoidElement("area", attribs...) }
-func Article(attribsChildren ...any) *Element { return mx.NewElement("article", attribsChildren...) }
-func Aside(attribsChildren ...any) *Element   { return mx.NewElement("aside", attribsChildren...) }
-func Audio(attribsChildren ...any) *Element   { return mx.NewElement("audio", attribsChildren...) }
-func B(attribsChildren ...any) *Element       { return mx.NewElement("b", attribsChildren...) }
-func Base(attribs ...Attrib) *Element         { return mx.NewVoidElement("base", attribs...) }
-func BDi(attribsChildren ...any) *Element     { return mx.NewElement("bdi", attribsChildren...) }
-func BDo(attribsChildren ...any) *Element     { return mx.NewElement("bdo", attribsChildren...) }
-func Big(attribsChildren ...any) *Element     { return mx.NewElement("big", attribsChildren...) }
-func Blockquote(attribsChildren ...any) *Element {
+func A(attribsChildren ...any) *mx.Element       { return Element("a", attribsChildren...) }
+func Abbr(attribsChildren ...any) *mx.Element    { return Element("abbr", attribsChildren...) }
+func Acronym(attribsChildren ...any) *mx.Element { return Element("acronym", attribsChildren...) }
+func Address(attribsChildren ...any) *mx.Element { return Element("address", attribsChildren...) }
+func Area(attribs ...mx.Attrib) *mx.Element      { return VoidElement("area", attribs...) }
+func Article(attribsChildren ...any) *mx.Element { return Element("article", attribsChildren...) }
+func Aside(attribsChildren ...any) *mx.Element   { return Element("aside", attribsChildren...) }
+func Audio(attribsChildren ...any) *mx.Element   { return Element("audio", attribsChildren...) }
+func B(attribsChildren ...any) *mx.Element       { return Element("b", attribsChildren...) }
+func Base(attribs ...mx.Attrib) *mx.Element      { return VoidElement("base", attribs...) }
+func BDi(attribsChildren ...any) *mx.Element     { return Element("bdi", attribsChildren...) }
+func BDo(attribsChildren ...any) *mx.Element     { return Element("bdo", attribsChildren...) }
+func Big(attribsChildren ...any) *mx.Element     { return Element("big", attribsChildren...) }
+func Blockquote(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("blockquote", attribsChildren...)
 }
-func Body(attribsChildren ...any) *Element     { return mx.NewElement("body", attribsChildren...) }
-func Br(attribs ...Attrib) *Element            { return mx.NewVoidElement("br", attribs...) }
-func Button(attribsChildren ...any) *Element   { return mx.NewElement("button", attribsChildren...) }
-func Canvas(attribsChildren ...any) *Element   { return mx.NewElement("canvas", attribsChildren...) }
-func Caption(attribsChildren ...any) *Element  { return mx.NewElement("caption", attribsChildren...) }
-func Center(attribsChildren ...any) *Element   { return mx.NewElement("center", attribsChildren...) }
-func Cite(attribsChildren ...any) *Element     { return mx.NewElement("cite", attribsChildren...) }
-func Code(attribsChildren ...any) *Element     { return mx.NewElement("code", attribsChildren...) }
-func Col(attribs ...Attrib) *Element           { return mx.NewVoidElement("col", attribs...) }
-func ColGroup(attribsChildren ...any) *Element { return mx.NewElement("colgroup", attribsChildren...) }
-func Content(attribsChildren ...any) *Element  { return mx.NewElement("content", attribsChildren...) }
-func Data(attribsChildren ...any) *Element     { return mx.NewElement("data", attribsChildren...) }
-func DataList(attribsChildren ...any) *Element { return mx.NewElement("datalist", attribsChildren...) }
-func DD(attribsChildren ...any) *Element       { return mx.NewElement("dd", attribsChildren...) }
-func Del(attribsChildren ...any) *Element      { return mx.NewElement("del", attribsChildren...) }
-func Details(attribsChildren ...any) *Element  { return mx.NewElement("details", attribsChildren...) }
-func Dfn(attribsChildren ...any) *Element      { return mx.NewElement("dfn", attribsChildren...) }
-func Dialog(attribsChildren ...any) *Element   { return mx.NewElement("dialog", attribsChildren...) }
-func Div(attribsChildren ...any) *Element      { return mx.NewElement("div", attribsChildren...) }
-func DL(attribsChildren ...any) *Element       { return mx.NewElement("dl", attribsChildren...) }
-func DT(attribsChildren ...any) *Element       { return mx.NewElement("dt", attribsChildren...) }
-func Em(attribsChildren ...any) *Element       { return mx.NewElement("em", attribsChildren...) }
-func Embed(attribs ...Attrib) *Element         { return mx.NewVoidElement("embed", attribs...) }
-func FieldSet(attribsChildren ...any) *Element { return mx.NewElement("fieldset", attribsChildren...) }
-func FigCaption(attribsChildren ...any) *Element {
+func Body(attribsChildren ...any) *mx.Element    { return Element("body", attribsChildren...) }
+func Br(attribs ...mx.Attrib) *mx.Element        { return VoidElement("br", attribs...) }
+func Button(attribsChildren ...any) *mx.Element  { return Element("button", attribsChildren...) }
+func Canvas(attribsChildren ...any) *mx.Element  { return Element("canvas", attribsChildren...) }
+func Caption(attribsChildren ...any) *mx.Element { return Element("caption", attribsChildren...) }
+func Center(attribsChildren ...any) *mx.Element  { return Element("center", attribsChildren...) }
+func Cite(attribsChildren ...any) *mx.Element    { return Element("cite", attribsChildren...) }
+func Code(attribsChildren ...any) *mx.Element    { return Element("code", attribsChildren...) }
+func Col(attribs ...mx.Attrib) *mx.Element       { return VoidElement("col", attribs...) }
+func ColGroup(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("colgroup", attribsChildren...)
+}
+func Content(attribsChildren ...any) *mx.Element { return Element("content", attribsChildren...) }
+func Data(attribsChildren ...any) *mx.Element    { return Element("data", attribsChildren...) }
+func DataList(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("datalist", attribsChildren...)
+}
+func DD(attribsChildren ...any) *mx.Element      { return Element("dd", attribsChildren...) }
+func Del(attribsChildren ...any) *mx.Element     { return Element("del", attribsChildren...) }
+func Details(attribsChildren ...any) *mx.Element { return Element("details", attribsChildren...) }
+func Dfn(attribsChildren ...any) *mx.Element     { return Element("dfn", attribsChildren...) }
+func Dialog(attribsChildren ...any) *mx.Element  { return Element("dialog", attribsChildren...) }
+func Div(attribsChildren ...any) *mx.Element     { return Element("div", attribsChildren...) }
+func DL(attribsChildren ...any) *mx.Element      { return Element("dl", attribsChildren...) }
+func DT(attribsChildren ...any) *mx.Element      { return Element("dt", attribsChildren...) }
+func Em(attribsChildren ...any) *mx.Element      { return Element("em", attribsChildren...) }
+func Embed(attribs ...mx.Attrib) *mx.Element     { return VoidElement("embed", attribs...) }
+func FieldSet(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("fieldset", attribsChildren...)
+}
+func FigCaption(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("figcaption", attribsChildren...)
 }
-func Figure(attribsChildren ...any) *Element   { return mx.NewElement("figure", attribsChildren...) }
-func Font(attribsChildren ...any) *Element     { return mx.NewElement("font", attribsChildren...) }
-func Footer(attribsChildren ...any) *Element   { return mx.NewElement("footer", attribsChildren...) }
-func Form(attribsChildren ...any) *Element     { return mx.NewElement("form", attribsChildren...) }
-func Frame(attribsChildren ...any) *Element    { return mx.NewElement("frame", attribsChildren...) }
-func FrameSet(attribsChildren ...any) *Element { return mx.NewElement("frameset", attribsChildren...) }
-func H1(attribsChildren ...any) *Element       { return mx.NewElement("h1", attribsChildren...) }
-func H2(attribsChildren ...any) *Element       { return mx.NewElement("h2", attribsChildren...) }
-func H3(attribsChildren ...any) *Element       { return mx.NewElement("h3", attribsChildren...) }
-func H4(attribsChildren ...any) *Element       { return mx.NewElement("h4", attribsChildren...) }
-func H5(attribsChildren ...any) *Element       { return mx.NewElement("h5", attribsChildren...) }
-func H6(attribsChildren ...any) *Element       { return mx.NewElement("h6", attribsChildren...) }
-func Head(attribsChildren ...any) *Element     { return mx.NewElement("head", attribsChildren...) }
-func Header(attribsChildren ...any) *Element   { return mx.NewElement("header", attribsChildren...) }
-func Hgroup(attribsChildren ...any) *Element   { return mx.NewElement("hgroup", attribsChildren...) }
-func HR(attribs ...Attrib) *Element            { return mx.NewVoidElement("hr", attribs...) }
-func HTML(attribsChildren ...any) *Element     { return mx.NewElement("html", attribsChildren...) }
-func I(attribsChildren ...any) *Element        { return mx.NewElement("i", attribsChildren...) }
-func IFrame(attribsChildren ...any) *Element   { return mx.NewElement("iframe", attribsChildren...) }
-func Image(attribsChildren ...any) *Element    { return mx.NewElement("image", attribsChildren...) }
-func Img(attribs ...Attrib) *Element           { return mx.NewVoidElement("img", attribs...) }
-func Input(attribs ...Attrib) *Element         { return mx.NewVoidElement("input", attribs...) }
-func ImageInput(attribs ...Attrib) *Element {
+func Figure(attribsChildren ...any) *mx.Element { return Element("figure", attribsChildren...) }
+func Font(attribsChildren ...any) *mx.Element   { return Element("font", attribsChildren...) }
+func Footer(attribsChildren ...any) *mx.Element { return Element("footer", attribsChildren...) }
+func Form(attribsChildren ...any) *mx.Element   { return Element("form", attribsChildren...) }
+func Frame(attribsChildren ...any) *mx.Element  { return Element("frame", attribsChildren...) }
+func FrameSet(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("frameset", attribsChildren...)
+}
+func H1(attribsChildren ...any) *mx.Element     { return Element("h1", attribsChildren...) }
+func H2(attribsChildren ...any) *mx.Element     { return Element("h2", attribsChildren...) }
+func H3(attribsChildren ...any) *mx.Element     { return Element("h3", attribsChildren...) }
+func H4(attribsChildren ...any) *mx.Element     { return Element("h4", attribsChildren...) }
+func H5(attribsChildren ...any) *mx.Element     { return Element("h5", attribsChildren...) }
+func H6(attribsChildren ...any) *mx.Element     { return Element("h6", attribsChildren...) }
+func Head(attribsChildren ...any) *mx.Element   { return Element("head", attribsChildren...) }
+func Header(attribsChildren ...any) *mx.Element { return Element("header", attribsChildren...) }
+func Hgroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attribsChildren...) }
+func HR(attribs ...mx.Attrib) *mx.Element       { return VoidElement("hr", attribs...) }
+func HTML(attribsChildren ...any) *mx.Element   { return Element("html", attribsChildren...) }
+func I(attribsChildren ...any) *mx.Element      { return Element("i", attribsChildren...) }
+func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
+func Image(attribsChildren ...any) *mx.Element  { return Element("image", attribsChildren...) }
+func Img(attribs ...mx.Attrib) *mx.Element      { return VoidElement("img", attribs...) }
+func Input(attribs ...mx.Attrib) *mx.Element    { return VoidElement("input", attribs...) }
+func ImageInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "image", attribs)...)
 }
-func MonthInput(attribs ...Attrib) *Element {
+func MonthInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "month", attribs)...)
 }
-func NumberInput(attribs ...Attrib) *Element {
+func NumberInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "number", attribs)...)
 }
-func PasswordInput(attribs ...Attrib) *Element {
+func PasswordInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "password", attribs)...)
 }
-func RadioInput(attribs ...Attrib) *Element {
+func RadioInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "radio", attribs)...)
 }
-func RangeInput(attribs ...Attrib) *Element {
+func RangeInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "range", attribs)...)
 }
-func ResetInput(attribs ...Attrib) *Element {
+func ResetInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "reset", attribs)...)
 }
-func SearchInput(attribs ...Attrib) *Element {
+func SearchInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "search", attribs)...)
 }
-func SubmitInput(attribs ...Attrib) *Element {
+func SubmitInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("ype=", "submit", attribs)...)
 }
-func TelInput(attribs ...Attrib) *Element {
+func TelInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "tel", attribs)...)
 }
-func TextInput(attribs ...Attrib) *Element {
+func TextInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "text", attribs)...)
 }
-func TimeInput(attribs ...Attrib) *Element {
+func TimeInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "time", attribs)...)
 }
-func URLInput(attribs ...Attrib) *Element {
+func URLInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "url", attribs)...)
 }
-func WeekInput(attribs ...Attrib) *Element {
+func WeekInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "week", attribs)...)
 }
-func Ins(attribsChildren ...any) *Element      { return mx.NewElement("ins", attribsChildren...) }
-func Kbd(attribsChildren ...any) *Element      { return mx.NewElement("kbd", attribsChildren...) }
-func Label(attribsChildren ...any) *Element    { return mx.NewElement("label", attribsChildren...) }
-func Legend(attribsChildren ...any) *Element   { return mx.NewElement("legend", attribsChildren...) }
-func LI(attribsChildren ...any) *Element       { return mx.NewElement("li", attribsChildren...) }
-func Link(attribs ...Attrib) *Element          { return mx.NewVoidElement("link", attribs...) }
-func Main(attribsChildren ...any) *Element     { return mx.NewElement("main", attribsChildren...) }
-func Map(attribsChildren ...any) *Element      { return mx.NewElement("map", attribsChildren...) }
-func Mark(attribsChildren ...any) *Element     { return mx.NewElement("mark", attribsChildren...) }
-func Marquee(attribsChildren ...any) *Element  { return mx.NewElement("marquee", attribsChildren...) }
-func Math(attribsChildren ...any) *Element     { return mx.NewElement("math", attribsChildren...) }
-func Menu(attribsChildren ...any) *Element     { return mx.NewElement("menu", attribsChildren...) }
-func MenuItem(attribsChildren ...any) *Element { return mx.NewElement("menuitem", attribsChildren...) }
-func Meta(attribs ...Attrib) *Element          { return mx.NewVoidElement("meta", attribs...) }
-func Meter(attribsChildren ...any) *Element    { return mx.NewElement("meter", attribsChildren...) }
-func Nav(attribsChildren ...any) *Element      { return mx.NewElement("nav", attribsChildren...) }
-func NoBr(attribsChildren ...any) *Element     { return mx.NewElement("nobr", attribsChildren...) }
-func NoEmbed(attribsChildren ...any) *Element  { return mx.NewElement("noembed", attribsChildren...) }
-func NoFrames(attribsChildren ...any) *Element { return mx.NewElement("noframes", attribsChildren...) }
-func NoScript(attribsChildren ...any) *Element { return mx.NewElement("noscript", attribsChildren...) }
-func Object(attribsChildren ...any) *Element   { return mx.NewElement("object", attribsChildren...) }
-func OL(attribsChildren ...any) *Element       { return mx.NewElement("ol", attribsChildren...) }
-func OptGroup(attribsChildren ...any) *Element { return mx.NewElement("optgroup", attribsChildren...) }
-func Option(attribsChildren ...any) *Element   { return mx.NewElement("option", attribsChildren...) }
-func Output(attribsChildren ...any) *Element   { return mx.NewElement("output", attribsChildren...) }
-func P(attribsChildren ...any) *Element        { return mx.NewElement("p", attribsChildren...) }
-func Picture(attribsChildren ...any) *Element  { return mx.NewElement("picture", attribsChildren...) }
-func Plaintext(attribsChildren ...any) *Element {
+func Ins(attribsChildren ...any) *mx.Element     { return Element("ins", attribsChildren...) }
+func Kbd(attribsChildren ...any) *mx.Element     { return Element("kbd", attribsChildren...) }
+func Label(attribsChildren ...any) *mx.Element   { return Element("label", attribsChildren...) }
+func Legend(attribsChildren ...any) *mx.Element  { return Element("legend", attribsChildren...) }
+func LI(attribsChildren ...any) *mx.Element      { return Element("li", attribsChildren...) }
+func Link(attribs ...mx.Attrib) *mx.Element      { return VoidElement("link", attribs...) }
+func Main(attribsChildren ...any) *mx.Element    { return Element("main", attribsChildren...) }
+func Map(attribsChildren ...any) *mx.Element     { return Element("map", attribsChildren...) }
+func Mark(attribsChildren ...any) *mx.Element    { return Element("mark", attribsChildren...) }
+func Marquee(attribsChildren ...any) *mx.Element { return Element("marquee", attribsChildren...) }
+func Math(attribsChildren ...any) *mx.Element    { return Element("math", attribsChildren...) }
+func Menu(attribsChildren ...any) *mx.Element    { return Element("menu", attribsChildren...) }
+func MenuItem(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("menuitem", attribsChildren...)
+}
+func Meta(attribs ...mx.Attrib) *mx.Element      { return VoidElement("meta", attribs...) }
+func Meter(attribsChildren ...any) *mx.Element   { return Element("meter", attribsChildren...) }
+func Nav(attribsChildren ...any) *mx.Element     { return Element("nav", attribsChildren...) }
+func NoBr(attribsChildren ...any) *mx.Element    { return Element("nobr", attribsChildren...) }
+func NoEmbed(attribsChildren ...any) *mx.Element { return Element("noembed", attribsChildren...) }
+func NoFrames(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("noframes", attribsChildren...)
+}
+func NoScript(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("noscript", attribsChildren...)
+}
+func Object(attribsChildren ...any) *mx.Element { return Element("object", attribsChildren...) }
+func OL(attribsChildren ...any) *mx.Element     { return Element("ol", attribsChildren...) }
+func OptGroup(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("optgroup", attribsChildren...)
+}
+func Option(attribsChildren ...any) *mx.Element  { return Element("option", attribsChildren...) }
+func Output(attribsChildren ...any) *mx.Element  { return Element("output", attribsChildren...) }
+func P(attribsChildren ...any) *mx.Element       { return Element("p", attribsChildren...) }
+func Picture(attribsChildren ...any) *mx.Element { return Element("picture", attribsChildren...) }
+func Plaintext(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("plaintext", attribsChildren...)
 }
-func Portal(attribsChildren ...any) *Element   { return mx.NewElement("portal", attribsChildren...) }
-func Pre(attribsChildren ...any) *Element      { return mx.NewElement("pre", attribsChildren...) }
-func Progress(attribsChildren ...any) *Element { return mx.NewElement("progress", attribsChildren...) }
-func Q(attribsChildren ...any) *Element        { return mx.NewElement("q", attribsChildren...) }
-func RB(attribsChildren ...any) *Element       { return mx.NewElement("rb", attribsChildren...) }
-func RP(attribsChildren ...any) *Element       { return mx.NewElement("rp", attribsChildren...) }
-func RT(attribsChildren ...any) *Element       { return mx.NewElement("rt", attribsChildren...) }
-func RTC(attribsChildren ...any) *Element      { return mx.NewElement("rtc", attribsChildren...) }
-func Ruby(attribsChildren ...any) *Element     { return mx.NewElement("ruby", attribsChildren...) }
-func S(attribsChildren ...any) *Element        { return mx.NewElement("s", attribsChildren...) }
-func Samp(attribsChildren ...any) *Element     { return mx.NewElement("samp", attribsChildren...) }
-func Script(attribsChildren ...any) *Element   { return mx.NewElement("script", attribsChildren...) }
-func Search(attribsChildren ...any) *Element   { return mx.NewElement("search", attribsChildren...) }
-func Section(attribsChildren ...any) *Element  { return mx.NewElement("section", attribsChildren...) }
-func Select(attribsChildren ...any) *Element   { return mx.NewElement("select", attribsChildren...) }
-func Shadow(attribsChildren ...any) *Element   { return mx.NewElement("shadow", attribsChildren...) }
-func Slot(attribsChildren ...any) *Element     { return mx.NewElement("slot", attribsChildren...) }
-func Small(attribsChildren ...any) *Element    { return mx.NewElement("small", attribsChildren...) }
-func Source(attribs ...Attrib) *Element        { return mx.NewVoidElement("source", attribs...) }
-func Span(attribsChildren ...any) *Element     { return mx.NewElement("span", attribsChildren...) }
-func Strike(attribsChildren ...any) *Element   { return mx.NewElement("strike", attribsChildren...) }
-func Strong(attribsChildren ...any) *Element   { return mx.NewElement("strong", attribsChildren...) }
-func StyleElem(css string) *Element            { return mx.NewElement("style", Raw(css)) }
-func Sub(attribsChildren ...any) *Element      { return mx.NewElement("sub", attribsChildren...) }
-func Summary(attribsChildren ...any) *Element  { return mx.NewElement("summary", attribsChildren...) }
-func Sup(attribsChildren ...any) *Element      { return mx.NewElement("sup", attribsChildren...) }
-func Svg(attribsChildren ...any) *Element      { return mx.NewElement("svg", attribsChildren...) }
-func Table(attribsChildren ...any) *Element    { return mx.NewElement("table", attribsChildren...) }
-func TBody(attribsChildren ...any) *Element    { return mx.NewElement("tbody", attribsChildren...) }
-func TD(attribsChildren ...any) *Element       { return mx.NewElement("td", attribsChildren...) }
-func TemplateElem(attribsChildren ...any) *Element {
+func Portal(attribsChildren ...any) *mx.Element { return Element("portal", attribsChildren...) }
+func Pre(attribsChildren ...any) *mx.Element    { return Element("pre", attribsChildren...) }
+func Progress(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("progress", attribsChildren...)
+}
+func Q(attribsChildren ...any) *mx.Element       { return Element("q", attribsChildren...) }
+func RB(attribsChildren ...any) *mx.Element      { return Element("rb", attribsChildren...) }
+func RP(attribsChildren ...any) *mx.Element      { return Element("rp", attribsChildren...) }
+func RT(attribsChildren ...any) *mx.Element      { return Element("rt", attribsChildren...) }
+func RTC(attribsChildren ...any) *mx.Element     { return Element("rtc", attribsChildren...) }
+func Ruby(attribsChildren ...any) *mx.Element    { return Element("ruby", attribsChildren...) }
+func S(attribsChildren ...any) *mx.Element       { return Element("s", attribsChildren...) }
+func Samp(attribsChildren ...any) *mx.Element    { return Element("samp", attribsChildren...) }
+func Script(attribsChildren ...any) *mx.Element  { return Element("script", attribsChildren...) }
+func Search(attribsChildren ...any) *mx.Element  { return Element("search", attribsChildren...) }
+func Section(attribsChildren ...any) *mx.Element { return Element("section", attribsChildren...) }
+func Select(attribsChildren ...any) *mx.Element  { return Element("select", attribsChildren...) }
+func Shadow(attribsChildren ...any) *mx.Element  { return Element("shadow", attribsChildren...) }
+func Slot(attribsChildren ...any) *mx.Element    { return Element("slot", attribsChildren...) }
+func Small(attribsChildren ...any) *mx.Element   { return Element("small", attribsChildren...) }
+func Source(attribs ...mx.Attrib) *mx.Element    { return VoidElement("source", attribs...) }
+func Span(attribsChildren ...any) *mx.Element    { return Element("span", attribsChildren...) }
+func Strike(attribsChildren ...any) *mx.Element  { return Element("strike", attribsChildren...) }
+func Strong(attribsChildren ...any) *mx.Element  { return Element("strong", attribsChildren...) }
+func StyleElem(css string) *mx.Element           { return Element("style", Raw(css)) }
+func Sub(attribsChildren ...any) *mx.Element     { return Element("sub", attribsChildren...) }
+func Summary(attribsChildren ...any) *mx.Element { return Element("summary", attribsChildren...) }
+func Sup(attribsChildren ...any) *mx.Element     { return Element("sup", attribsChildren...) }
+func Svg(attribsChildren ...any) *mx.Element     { return Element("svg", attribsChildren...) }
+func Table(attribsChildren ...any) *mx.Element   { return Element("table", attribsChildren...) }
+func TBody(attribsChildren ...any) *mx.Element   { return Element("tbody", attribsChildren...) }
+func TD(attribsChildren ...any) *mx.Element      { return Element("td", attribsChildren...) }
+func TemplateElem(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("template", attribsChildren...)
 }
-func TextArea(attribsChildren ...any) *Element  { return mx.NewElement("textarea", attribsChildren...) }
-func TFoot(attribsChildren ...any) *Element     { return mx.NewElement("tfoot", attribsChildren...) }
-func TH(attribsChildren ...any) *Element        { return mx.NewElement("th", attribsChildren...) }
-func THead(attribsChildren ...any) *Element     { return mx.NewElement("thead", attribsChildren...) }
-func Time(attribsChildren ...any) *Element      { return mx.NewElement("time", attribsChildren...) }
-func TitleElem(attribsChildren ...any) *Element { return mx.NewElement("title", attribsChildren...) }
-func TR(attribsChildren ...any) *Element        { return mx.NewElement("tr", attribsChildren...) }
-func Track(attribsChildren ...any) *Element     { return mx.NewElement("track", attribsChildren...) }
-func TT(attribsChildren ...any) *Element        { return mx.NewElement("tt", attribsChildren...) }
-func U(attribsChildren ...any) *Element         { return mx.NewElement("u", attribsChildren...) }
-func UL(attribsChildren ...any) *Element        { return mx.NewElement("ul", attribsChildren...) }
-func Var(attribsChildren ...any) *Element       { return mx.NewElement("var", attribsChildren...) }
-func Video(attribsChildren ...any) *Element     { return mx.NewElement("video", attribsChildren...) }
-func WBr(attribs ...Attrib) *Element            { return mx.NewVoidElement("wbr", attribs...) }
+func TextArea(attribsChildren ...any) *mx.Element {
+	return mx.NewElement("textarea", attribsChildren...)
+}
+func TFoot(attribsChildren ...any) *mx.Element     { return Element("tfoot", attribsChildren...) }
+func TH(attribsChildren ...any) *mx.Element        { return Element("th", attribsChildren...) }
+func THead(attribsChildren ...any) *mx.Element     { return Element("thead", attribsChildren...) }
+func Time(attribsChildren ...any) *mx.Element      { return Element("time", attribsChildren...) }
+func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", attribsChildren...) }
+func TR(attribsChildren ...any) *mx.Element        { return Element("tr", attribsChildren...) }
+func Track(attribsChildren ...any) *mx.Element     { return Element("track", attribsChildren...) }
+func TT(attribsChildren ...any) *mx.Element        { return Element("tt", attribsChildren...) }
+func U(attribsChildren ...any) *mx.Element         { return Element("u", attribsChildren...) }
+func UL(attribsChildren ...any) *mx.Element        { return Element("ul", attribsChildren...) }
+func Var(attribsChildren ...any) *mx.Element       { return Element("var", attribsChildren...) }
+func Video(attribsChildren ...any) *mx.Element     { return Element("video", attribsChildren...) }
+func WBr(attribs ...mx.Attrib) *mx.Element         { return VoidElement("wbr", attribs...) }

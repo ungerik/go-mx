@@ -8,7 +8,7 @@ import (
 )
 
 func ExampleDocument() {
-	Document{
+	doc := &Document{
 		Title: "Hello World",
 		Body: mx.AsComponents(
 			H1("Hello World"),
@@ -24,7 +24,8 @@ func ExampleDocument() {
 				return children
 			},
 		),
-	}.Render(
+	}
+	doc.Render(
 		context.Background(),
 		mx.NewCheckedWriter(os.Stdout).WithIndent("", "  "),
 	)

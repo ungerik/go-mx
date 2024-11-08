@@ -8,6 +8,8 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
+const DOCTYPE Raw = `<!DOCTYPE html>`
+
 type Document struct {
 	Title        string
 	Meta         map[string]string // name -> content
@@ -18,24 +20,32 @@ type Document struct {
 	Body         mx.Component
 }
 
-func (html Document) Render(ctx context.Context, w mx.Writer) error {
+func NewDocument(title string, body ...any) *Document {
+	return &Document{
+		Title: title,
+		Body:  mx.AsComponents(body...),
+	}
+}
+
+func (html *Document) Render(ctx context.Context, w mx.Writer) error {
 	return mx.Components{
-		Raw("<!DOCTYPE html>\n<html>"),
+		DOCTYPE,
+		Raw("\n<html>"),
 		Head(
 			Meta(CharSet("UTF-8")),
 			If(html.Title != "", TitleElem(html.Title)),
 			ForEachSlice(slices.Sorted(maps.Keys(html.Meta)),
-				func(name string) *Element {
+				func(name string) *mx.Element {
 					return Meta(Name(name), ContentAttr(html.Meta[name]))
 				},
 			),
 			ForEachSlice(slices.Sorted(maps.Keys(html.MetaProperty)),
-				func(property string) *Element {
+				func(property string) *mx.Element {
 					return Meta(mx.Attrib{Name: property, Value: html.MetaProperty[property]})
 				},
 			),
 			ForEachSlice(html.Stylesheets,
-				func(href string) *Element {
+				func(href string) *mx.Element {
 					return Link(Rel("stylesheet"), HRef(href))
 				},
 			),

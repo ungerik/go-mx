@@ -30,7 +30,7 @@ type Attrib struct {
 	Value string
 }
 
-func Attribute(name, value string) Attrib {
+func NewAttrib(name, value string) Attrib {
 	return Attrib{Name: name, Value: value}
 }
 
