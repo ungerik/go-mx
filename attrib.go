@@ -30,6 +30,18 @@ type Attrib struct {
 	Value string
 }
 
+func Attribute(name, value string) Attrib {
+	return Attrib{Name: name, Value: value}
+}
+
+func AppendAttrib(attribs []Attrib, name, value string) []Attrib {
+	return append(attribs, Attrib{Name: name, Value: value})
+}
+
+func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
+	return append([]Attrib{{Name: name, Value: value}}, attribs...)
+}
+
 func (a Attrib) String() string {
 	return fmt.Sprintf("%s='%s'", a.Name, singleQuoteAttribEscaper.Replace(a.Value))
 }

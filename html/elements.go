@@ -35,8 +35,8 @@ func Aside(attribsChildren ...any) *Element   { return mx.NewElement("aside", at
 func Audio(attribsChildren ...any) *Element   { return mx.NewElement("audio", attribsChildren...) }
 func B(attribsChildren ...any) *Element       { return mx.NewElement("b", attribsChildren...) }
 func Base(attribs ...Attrib) *Element         { return mx.NewVoidElement("base", attribs...) }
-func BDI(attribsChildren ...any) *Element     { return mx.NewElement("bdi", attribsChildren...) }
-func BDO(attribsChildren ...any) *Element     { return mx.NewElement("bdo", attribsChildren...) }
+func BDi(attribsChildren ...any) *Element     { return mx.NewElement("bdi", attribsChildren...) }
+func BDo(attribsChildren ...any) *Element     { return mx.NewElement("bdo", attribsChildren...) }
 func Big(attribsChildren ...any) *Element     { return mx.NewElement("big", attribsChildren...) }
 func Blockquote(attribsChildren ...any) *Element {
 	return mx.NewElement("blockquote", attribsChildren...)
@@ -90,6 +90,48 @@ func IFrame(attribsChildren ...any) *Element   { return mx.NewElement("iframe", 
 func Image(attribsChildren ...any) *Element    { return mx.NewElement("image", attribsChildren...) }
 func Img(attribs ...Attrib) *Element           { return mx.NewVoidElement("img", attribs...) }
 func Input(attribs ...Attrib) *Element         { return mx.NewVoidElement("input", attribs...) }
+func ImageInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "image", attribs)...)
+}
+func MonthInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "month", attribs)...)
+}
+func NumberInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "number", attribs)...)
+}
+func PasswordInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "password", attribs)...)
+}
+func RadioInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "radio", attribs)...)
+}
+func RangeInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "range", attribs)...)
+}
+func ResetInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "reset", attribs)...)
+}
+func SearchInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "search", attribs)...)
+}
+func SubmitInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("ype=", "submit", attribs)...)
+}
+func TelInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "tel", attribs)...)
+}
+func TextInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "text", attribs)...)
+}
+func TimeInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "time", attribs)...)
+}
+func URLInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "url", attribs)...)
+}
+func WeekInput(attribs ...Attrib) *Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "week", attribs)...)
+}
 func Ins(attribsChildren ...any) *Element      { return mx.NewElement("ins", attribsChildren...) }
 func Kbd(attribsChildren ...any) *Element      { return mx.NewElement("kbd", attribsChildren...) }
 func Label(attribsChildren ...any) *Element    { return mx.NewElement("label", attribsChildren...) }

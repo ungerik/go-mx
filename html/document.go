@@ -22,7 +22,7 @@ func (html Document) Render(ctx context.Context, w mx.Writer) error {
 	return mx.Components{
 		Raw("<!DOCTYPE html>\n<html>"),
 		Head(
-			Meta(Charset("UTF-8")),
+			Meta(CharSet("UTF-8")),
 			If(html.Title != "", TitleElem(html.Title)),
 			ForEachSlice(slices.Sorted(maps.Keys(html.Meta)),
 				func(name string) *Element {
