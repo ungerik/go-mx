@@ -2,7 +2,6 @@ package mx
 
 import (
 	"fmt"
-	"iter"
 	"net/url"
 	"path"
 	"reflect"
@@ -12,37 +11,6 @@ import (
 	"github.com/domonda/go-errs"
 	_ "github.com/ungerik/go-fs"
 )
-
-func FlatExportedStructFields(s reflect.Value) iter.Seq2[reflect.StructField, reflect.Value] {
-	structValue := s
-	if s.Kind() == reflect.Ptr {
-		if s.IsNil() {
-			panic("nil pointer to " + s.Type().String())
-		}
-		structValue = s.Elem()
-	}
-	structType := structValue.Type()
-	if structType.Kind() != reflect.Struct {
-		panic("need struct or pointer to struct, but got: " + s.Type().String())
-	}
-	return func(yield func(reflect.StructField, reflect.Value) bool) {
-		for i := range structType.NumField() {
-			field, val := structType.Field(i), structValue.Field(i)
-			switch {
-			case field.Anonymous:
-				for fieldA, valA := range FlatExportedStructFields(val) {
-					if !yield(fieldA, valA) {
-						return
-					}
-				}
-			case field.IsExported():
-				if !yield(field, val) {
-					return
-				}
-			}
-		}
-	}
-}
 
 func canBeNil(t reflect.Type) bool {
 	switch t.Kind() {

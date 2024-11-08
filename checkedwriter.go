@@ -38,6 +38,16 @@ func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
 	return w
 }
 
+func (w *CheckedWriter) WithSingleQuoteAttribs() *CheckedWriter {
+	w.singleQuote = true
+	return w
+}
+
+func (w *CheckedWriter) WithDoubleQuoteAttribs() *CheckedWriter {
+	w.singleQuote = false
+	return w
+}
+
 func (w *CheckedWriter) currentElemName() string {
 	if len(w.elemStack) == 0 {
 		return "ROOT_ELEMENT"

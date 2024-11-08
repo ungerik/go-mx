@@ -22,6 +22,10 @@ func Textf(format string, args ...any) Text {
 	return mx.Textf(format, args...)
 }
 
+func Hyperlink(href, text string, attribs ...mx.Attrib) *mx.Element {
+	return A(HRef(href), attribs, text)
+}
+
 // See https://github.com/jozo/all-html-elements-and-attributes
 
 func A(attribsChildren ...any) *mx.Element       { return Element("a", attribsChildren...) }

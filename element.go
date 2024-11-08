@@ -2,6 +2,7 @@ package mx
 
 import (
 	"context"
+	"strings"
 )
 
 type Element struct {
@@ -63,4 +64,13 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	}
 
 	return w.EndElement()
+}
+
+func (e *Element) String() string {
+	var b strings.Builder
+	err := e.Render(context.Background(), NewCheckedWriter(&b).WithSingleQuoteAttribs())
+	if err != nil {
+		return "mx.Element.String: " + err.Error()
+	}
+	return b.String()
 }
