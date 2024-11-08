@@ -1,11 +1,14 @@
 package mx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"iter"
 	"slices"
+	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 var (
@@ -16,6 +19,7 @@ var (
 		"\n", " ",
 		"\t", "  ",
 	)
+
 	singleQuoteAttribEscaper = strings.NewReplacer(
 		`&`, "&amp;",
 		`<`, "&lt;",
@@ -23,10 +27,12 @@ var (
 		"\n", " ",
 		"\t", "  ",
 	)
+
+	idCounter atomic.Uint64
 )
 
 type Attrib interface {
-	Attrib() (name, value string)
+	Attrib(context.Context) (name, value string)
 }
 
 func NewAttrib(name, value string) Attrib {
@@ -41,13 +47,23 @@ func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 	return append([]Attrib{Attribute{Name: name, Value: value}}, attribs...)
 }
 
+func UniqueID() Attrib {
+	return uniqueID(idCounter.Add(1))
+}
+
+type uniqueID uint64
+
+func (id uniqueID) Attrib(context.Context) (name, value string) {
+	return "id", "_" + strconv.FormatUint(uint64(id), 36)
+}
+
 // Attribute implements the Attrib interface.
 type Attribute struct {
 	Name  string
 	Value string
 }
 
-func (a Attribute) Attrib() (name, value string) {
+func (a Attribute) Attrib(context.Context) (name, value string) {
 	return a.Name, a.Value
 }
 

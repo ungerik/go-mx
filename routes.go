@@ -21,7 +21,7 @@ type Route interface {
 
 func StructRoutes(routesStruct any, parentPatterns ...string) iter.Seq2[string, http.Handler] {
 	return func(yield func(string, http.Handler) bool) {
-		for field, v := range FlatExportedStructFields(reflect.ValueOf(routesStruct)) {
+		for field, v := range FlatExportedStructFieldsAndValues(reflect.ValueOf(routesStruct)) {
 			pattern, ok := field.Tag.Lookup("route")
 			if !ok {
 				pattern = NameToPath(field.Name, "/")

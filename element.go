@@ -44,7 +44,7 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	}
 
 	for _, a := range e.Attribs {
-		err = w.Attribute(a.Attrib())
+		err = w.Attribute(a.Attrib(ctx))
 		if err != nil {
 			return err
 		}
