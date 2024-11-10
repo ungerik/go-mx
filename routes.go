@@ -39,7 +39,7 @@ func StructRoutes(routesStruct any, parentPatterns ...string) iter.Seq2[string, 
 			var handler http.Handler
 			switch {
 			case field.Type.AssignableTo(reflect.TypeFor[Route]()):
-				if canBeNil(field.Type) && v.IsNil() {
+				if canBeNil(field.Type.Kind()) && v.IsNil() {
 					panic(errs.Errorf("field %s of %T is nil", field.Name, routesStruct))
 				}
 				route := v.Interface().(Route)
@@ -55,7 +55,7 @@ func StructRoutes(routesStruct any, parentPatterns ...string) iter.Seq2[string, 
 				handler = v.Interface().(http.HandlerFunc)
 
 			case field.Type.AssignableTo(reflect.TypeFor[http.Handler]()):
-				if canBeNil(field.Type) && v.IsNil() {
+				if canBeNil(field.Type.Kind()) && v.IsNil() {
 					panic(errs.Errorf("field %s of %T is nil", field.Name, routesStruct))
 				}
 				handler = v.Interface().(http.Handler)

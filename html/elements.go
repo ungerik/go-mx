@@ -4,12 +4,6 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-type (
-	Text     = mx.Text
-	Raw      = mx.Raw
-	RawBytes = mx.RawBytes
-)
-
 func Element(name string, attribsChildren ...any) *mx.Element {
 	return mx.NewElement(name, attribsChildren...)
 }
@@ -93,7 +87,7 @@ func H5(attribsChildren ...any) *mx.Element     { return Element("h5", attribsCh
 func H6(attribsChildren ...any) *mx.Element     { return Element("h6", attribsChildren...) }
 func Head(attribsChildren ...any) *mx.Element   { return Element("head", attribsChildren...) }
 func Header(attribsChildren ...any) *mx.Element { return Element("header", attribsChildren...) }
-func Hgroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attribsChildren...) }
+func HGroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attribsChildren...) }
 func HR(attribs ...mx.Attrib) *mx.Element       { return VoidElement("hr", attribs...) }
 func HTML(attribsChildren ...any) *mx.Element   { return Element("html", attribsChildren...) }
 func I(attribsChildren ...any) *mx.Element      { return Element("i", attribsChildren...) }
@@ -126,7 +120,7 @@ func SearchInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "search", attribs)...)
 }
 func SubmitInput(attribs ...mx.Attrib) *mx.Element {
-	return mx.NewVoidElement("input", mx.PrependAttrib("ype=", "submit", attribs)...)
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "submit", attribs)...)
 }
 func TelInput(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "tel", attribs)...)

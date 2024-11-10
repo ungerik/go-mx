@@ -133,8 +133,10 @@ func FormEncTypeTextPlain(value string) mx.Attrib { return mx.NewAttrib("formenc
 func FormMethodGET() mx.Attrib                    { return mx.NewAttrib("formmethod", "get") }
 func FormMethodPOST() mx.Attrib                   { return mx.NewAttrib("formmethod", "post") }
 func FormMethodDialog() mx.Attrib                 { return mx.NewAttrib("formmethod", "dialog") }
-func FormNoValidate() mx.Attrib                   { return mx.NewAttrib("formnovalidate", "formnovalidate") }
-func FormTarget(value string) mx.Attrib           { return mx.NewAttrib("formtarget", value) }
+
+const FormNoValidate = BoolAttrib("formnovalidate")
+
+func FormTarget(value string) mx.Attrib { return mx.NewAttrib("formtarget", value) }
 func Headers(headerCellIDs ...string) mx.Attrib {
 	return mx.NewAttrib("headers", strings.Join(headerCellIDs, " "))
 }
@@ -161,7 +163,7 @@ func ID(value string) mx.Attrib { return mx.NewAttrib("id", value) }
 // imagesizes ?
 // imagesrcset ?
 
-var Inert = BoolAttrib("inert")
+const Inert = BoolAttrib("inert")
 
 func InputModeNone() mx.Attrib             { return mx.NewAttrib("inputmode", "none") }
 func InputModeText() mx.Attrib             { return mx.NewAttrib("inputmode", "text") }
@@ -247,20 +249,22 @@ func ReferrerPolicyStrictOriginWhenCrossOrigin() mx.Attrib {
 }
 func ReferrerPolicyUnsafeUrl() mx.Attrib { return mx.NewAttrib("referrerpolicy", "unsafe-url") }
 func Rel(keywords ...string) mx.Attrib   { return mx.NewAttrib("rel", strings.Join(keywords, " ")) }
-func Required(value string) mx.Attrib    { return mx.NewAttrib("required", value) }
-func Reversed(value string) mx.Attrib    { return mx.NewAttrib("reversed", value) }
-func Role(value string) mx.Attrib        { return mx.NewAttrib("role", value) }
-func Rows(value string) mx.Attrib        { return mx.NewAttrib("rows", value) }
-func RowSpan(value string) mx.Attrib     { return mx.NewAttrib("rowspan", value) }
-func Sandbox(value string) mx.Attrib     { return mx.NewAttrib("sandbox", value) }
-func Scope(value string) mx.Attrib       { return mx.NewAttrib("scope", value) }
-func Scoped(value string) mx.Attrib      { return mx.NewAttrib("scoped", value) }
-func Selected(value string) mx.Attrib    { return mx.NewAttrib("selected", value) }
-func ShapeDefault() mx.Attrib            { return mx.NewAttrib("shape", "default") }
-func ShapeRect() mx.Attrib               { return mx.NewAttrib("shape", "rect") }
-func ShapeCircle() mx.Attrib             { return mx.NewAttrib("shape", "circle") }
-func ShapePoly() mx.Attrib               { return mx.NewAttrib("shape", "poly") }
-func Size(value string) mx.Attrib        { return mx.NewAttrib("size", value) }
+
+const Required = BoolAttrib("required")
+
+func Reversed(value string) mx.Attrib { return mx.NewAttrib("reversed", value) }
+func Role(value string) mx.Attrib     { return mx.NewAttrib("role", value) }
+func Rows(value string) mx.Attrib     { return mx.NewAttrib("rows", value) }
+func RowSpan(value string) mx.Attrib  { return mx.NewAttrib("rowspan", value) }
+func Sandbox(value string) mx.Attrib  { return mx.NewAttrib("sandbox", value) }
+func Scope(value string) mx.Attrib    { return mx.NewAttrib("scope", value) }
+func Scoped(value string) mx.Attrib   { return mx.NewAttrib("scoped", value) }
+func Selected(value string) mx.Attrib { return mx.NewAttrib("selected", value) }
+func ShapeDefault() mx.Attrib         { return mx.NewAttrib("shape", "default") }
+func ShapeRect() mx.Attrib            { return mx.NewAttrib("shape", "rect") }
+func ShapeCircle() mx.Attrib          { return mx.NewAttrib("shape", "circle") }
+func ShapePoly() mx.Attrib            { return mx.NewAttrib("shape", "poly") }
+func Size(value string) mx.Attrib     { return mx.NewAttrib("size", value) }
 func Sizes(sourceSizes ...string) mx.Attrib {
 	return mx.NewAttrib("sizes", strings.Join(sourceSizes, ","))
 }

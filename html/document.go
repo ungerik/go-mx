@@ -34,17 +34,17 @@ func (html *Document) Render(ctx context.Context, w mx.Writer) error {
 		Head(
 			Meta(CharSet("UTF-8")),
 			If(html.Title != "", TitleElem(html.Title)),
-			ForEachSlice(slices.Sorted(maps.Keys(html.Meta)),
+			ForEach(slices.Sorted(maps.Keys(html.Meta)),
 				func(name string) *mx.Element {
 					return Meta(Name(name), ContentAttr(html.Meta[name]))
 				},
 			),
-			ForEachSlice(slices.Sorted(maps.Keys(html.MetaProperty)),
+			ForEach(slices.Sorted(maps.Keys(html.MetaProperty)),
 				func(property string) *mx.Element {
 					return Meta(Attrib(property, html.MetaProperty[property]))
 				},
 			),
-			ForEachSlice(html.Stylesheets,
+			ForEach(html.Stylesheets,
 				func(href string) *mx.Element {
 					return Link(Rel("stylesheet"), HRef(href))
 				},

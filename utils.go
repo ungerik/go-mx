@@ -4,21 +4,12 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"reflect"
 	"strings"
 	"unicode"
 
 	"github.com/domonda/go-errs"
 	_ "github.com/ungerik/go-fs"
 )
-
-func canBeNil(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
-		return true
-	}
-	return false
-}
 
 func JoinPath(segments []string) string {
 	if len(segments) == 0 {
