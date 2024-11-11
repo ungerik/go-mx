@@ -25,13 +25,25 @@ type ReflectFormOptionInputName func(reflect.StructField, reflect.Value) (inputN
 
 func (ReflectFormOptionInputName) FormOption() {}
 
+func (f ReflectFormOptionInputName) InputName(field reflect.StructField, val reflect.Value) (inputName string, ok bool) {
+	return f(field, val)
+}
+
 type ReflectFormOptionInputType func(reflect.StructField, reflect.Value) (inputType string, ok bool)
 
 func (ReflectFormOptionInputType) FormOption() {}
 
+func (f ReflectFormOptionInputType) InputType(field reflect.StructField, val reflect.Value) (inputType string, ok bool) {
+	return f(field, val)
+}
+
 type ReflectFormOptionInputValue func(reflect.StructField, reflect.Value) (inputValue string, ok bool)
 
 func (ReflectFormOptionInputValue) FormOption() {}
+
+func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val reflect.Value) (inputValue string, ok bool) {
+	return f(field, val)
+}
 
 func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (components mx.Components) {
 	for field, val := range mx.FlatExportedStructFieldsAndValues(reflect.ValueOf(formStruct)) {
@@ -65,8 +77,8 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 		}
 		if !hasInputName {
 			for _, option := range options {
-				if get, ok := option.(ReflectFormOptionInputName); ok {
-					if name, ok := get(field, val); ok {
+				if option, ok := option.(ReflectFormOptionInputName); ok {
+					if name, ok := option.InputName(field, val); ok {
 						inputAttribs = append(inputAttribs, Name(name))
 						hasInputName = true
 						break
@@ -79,8 +91,8 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 		}
 		if inputType == "" {
 			for _, option := range options {
-				if get, ok := option.(ReflectFormOptionInputName); ok {
-					if inputType, ok = get(field, val); ok {
+				if option, ok := option.(ReflectFormOptionInputType); ok {
+					if inputType, ok = option.InputType(field, val); ok {
 						inputAttribs = append(inputAttribs, Type(inputType))
 						break
 					}
@@ -100,8 +112,8 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 
 		hasInputValue := false
 		for _, option := range options {
-			if get, ok := option.(ReflectFormOptionInputValue); ok {
-				if value, ok := get(field, val); ok {
+			if option, ok := option.(ReflectFormOptionInputValue); ok {
+				if value, ok := option.InputValue(field, val); ok {
 					inputAttribs = append(inputAttribs, Value(value))
 					hasInputValue = true
 					break
