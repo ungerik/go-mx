@@ -66,3 +66,13 @@ func ComponentHTTPHandler(comp Component, writerFactory WriterFactory, header ht
 		response.Write(buf.Bytes())
 	}
 }
+
+type ComponentModifier interface {
+	ModifyComponent(Component) Component
+}
+
+type ComponentModifierFunc func(Component) Component
+
+func (f ComponentModifierFunc) ModifyComponent(component Component) Component {
+	return f(component)
+}

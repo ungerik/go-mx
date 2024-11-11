@@ -42,3 +42,19 @@ func AsComponents(obj ...any) Components {
 // 		return Components{x}
 // 	}
 // }
+
+type ComponentsModifier interface {
+	ModifyComponents(Components) Components
+}
+
+type ComponentsModifierFunc func(Components) Components
+
+func (f ComponentsModifierFunc) ModifyComponents(components Components) Components {
+	return f(components)
+}
+
+func ModifyOnRender(modify func(context.Context, Components) Components, obj ...any) Component {
+	return ComponentFunc(func(ctx context.Context, w Writer) error {
+		return modify(ctx, AsComponents(obj...)).Render(ctx, w)
+	})
+}

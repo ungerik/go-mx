@@ -32,7 +32,8 @@ var (
 )
 
 type Attrib interface {
-	Attrib(context.Context) (name, value string)
+	AttribName() string
+	AttribValue(context.Context) string
 }
 
 func NewAttrib(name, value string) Attrib {
@@ -53,8 +54,12 @@ func UniqueID() Attrib {
 
 type uniqueID uint64
 
-func (id uniqueID) Attrib(context.Context) (name, value string) {
-	return "id", "_" + strconv.FormatUint(uint64(id), 36)
+func (id uniqueID) AttribName() string {
+	return "id"
+}
+
+func (id uniqueID) AttribValue(context.Context) string {
+	return "_" + strconv.FormatUint(uint64(id), 36)
 }
 
 // Attribute implements the Attrib interface.
@@ -63,8 +68,12 @@ type Attribute struct {
 	Value string
 }
 
-func (a Attribute) Attrib(context.Context) (name, value string) {
-	return a.Name, a.Value
+func (a Attribute) AttribName() string {
+	return a.Name
+}
+
+func (a Attribute) AttribValue(context.Context) string {
+	return a.Value
 }
 
 func (a Attribute) String() string {

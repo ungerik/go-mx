@@ -44,7 +44,7 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	}
 
 	for _, a := range e.Attribs {
-		err = w.Attribute(a.Attrib(ctx))
+		err = w.Attribute(a.AttribName(), a.AttribValue(ctx))
 		if err != nil {
 			return err
 		}
@@ -73,4 +73,13 @@ func (e *Element) String() string {
 		return "mx.Element.String: " + err.Error()
 	}
 	return b.String()
+}
+
+func (e *Element) AttribIndex(name string) int {
+	for i, a := range e.Attribs {
+		if a.AttribName() == name {
+			return i
+		}
+	}
+	return -1
 }

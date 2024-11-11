@@ -17,7 +17,23 @@ type NamedOptionsProvider interface {
 	NamedOptions() [][2]string
 }
 
-func ReflectFormComponents(formStruct any) (comps mx.Components) {
+type ReflectFormOption interface {
+	FormOption() // Marker method
+}
+
+type ReflectFormOptionInputName func(reflect.StructField, reflect.Value) (inputName string, ok bool)
+
+func (ReflectFormOptionInputName) FormOption() {}
+
+type ReflectFormOptionInputType func(reflect.StructField, reflect.Value) (inputType string, ok bool)
+
+func (ReflectFormOptionInputType) FormOption() {}
+
+type ReflectFormOptionInputValue func(reflect.StructField, reflect.Value) (inputValue string, ok bool)
+
+func (ReflectFormOptionInputValue) FormOption() {}
+
+func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (components mx.Components) {
 	for field, val := range mx.FlatExportedStructFieldsAndValues(reflect.ValueOf(formStruct)) {
 		inputTag := field.Tag.Get("input")
 		if inputTag == "-" {
@@ -48,32 +64,51 @@ func ReflectFormComponents(formStruct any) (comps mx.Components) {
 			}
 		}
 		if !hasInputName {
+			for _, option := range options {
+				if get, ok := option.(ReflectFormOptionInputName); ok {
+					if name, ok := get(field, val); ok {
+						inputAttribs = append(inputAttribs, Name(name))
+						hasInputName = true
+						break
+					}
+				}
+			}
+		}
+		if !hasInputName {
 			inputAttribs = append(inputAttribs, Name(field.Name))
 		}
 		if inputType == "" {
-			switch {
-			case field.Type.Implements(reflect.TypeFor[OptionsProvider]()):
-				selectOptions = val.Interface().(OptionsProvider).Options()
-			case field.Type == reflect.TypeFor[time.Time]() || field.Type == reflect.TypeFor[*time.Time]():
-				inputType = "datetime-local"
-			default:
-				switch field.Type.Kind() {
-				case reflect.Bool:
-					inputType = "checkbox"
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-					inputType = "number"
-				case reflect.Float32, reflect.Float64:
-					inputType = "number"
+			for _, option := range options {
+				if get, ok := option.(ReflectFormOptionInputName); ok {
+					if inputType, ok = get(field, val); ok {
+						inputAttribs = append(inputAttribs, Type(inputType))
+						break
+					}
 				}
 			}
-			if inputType != "" {
-				inputAttribs = append(inputAttribs, Type(inputType))
+		}
+		if inputType == "" {
+			if field.Type.Implements(reflect.TypeFor[OptionsProvider]()) {
+				selectOptions = val.Interface().(OptionsProvider).Options()
+			} else {
+				inputType = defaultReflectFormInputType(field)
+				if inputType != "" {
+					inputAttribs = append(inputAttribs, Type(inputType))
+				}
 			}
 		}
 
-		// Should we check with && !mx.IsNull(val.Interface()) for non zero values that can represent NULL?
-		if !val.IsZero() {
+		hasInputValue := false
+		for _, option := range options {
+			if get, ok := option.(ReflectFormOptionInputValue); ok {
+				if value, ok := get(field, val); ok {
+					inputAttribs = append(inputAttribs, Value(value))
+					hasInputValue = true
+					break
+				}
+			}
+		}
+		if !hasInputValue && !val.IsZero() && !mx.IsNull(val.Interface()) {
 			var value string
 			switch inputType {
 			case "checkbox":
@@ -105,7 +140,7 @@ func ReflectFormComponents(formStruct any) (comps mx.Components) {
 			if !strings.HasSuffix(label, ":") {
 				label += ":"
 			}
-			comps = append(comps,
+			components = append(components,
 				Label(
 					label,
 					Select(inputAttribs,
@@ -123,18 +158,33 @@ func ReflectFormComponents(formStruct any) (comps mx.Components) {
 		switch inputType {
 		case "hidden", "submit", "image", "reset", "button":
 			// No label
-			comps = append(comps, inputElement)
+			components = append(components, inputElement)
 		case "checkbox", "radio":
 			// Postfix input with label
-			comps = append(comps, Label(inputElement, label))
+			components = append(components, Label(inputElement, label))
 		default:
 			// Prefix input with label
 			if !strings.HasSuffix(label, ":") {
 				label += ":"
 			}
-			comps = append(comps, Label(label, inputElement))
+			components = append(components, Label(label, inputElement))
 		}
-
 	}
-	return comps
+	return components
+}
+
+func defaultReflectFormInputType(field reflect.StructField) string {
+	if field.Type == reflect.TypeFor[time.Time]() || field.Type == reflect.TypeFor[*time.Time]() {
+		return "datetime-local"
+	}
+	switch field.Type.Kind() {
+	case reflect.Bool:
+		return "checkbox"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "number"
+	case reflect.Float32, reflect.Float64:
+		return "number"
+	}
+	return ""
 }
