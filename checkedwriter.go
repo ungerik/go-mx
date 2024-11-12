@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-func NewCheckedWriter(w io.Writer) *CheckedWriter {
-	if w == nil {
-		panic("nil io.Writer")
+func NewCheckedWriter(dest io.Writer) *CheckedWriter {
+	if dest == nil {
+		dest = io.Discard
 	}
-	return &CheckedWriter{Writer: w, writtenAttribs: make(map[string]struct{}), textEscaper: TextEscaper}
+	return &CheckedWriter{Writer: dest, writtenAttribs: make(map[string]struct{}), textEscaper: TextEscaper}
 }
 
 type elemState struct {
@@ -20,16 +20,35 @@ type elemState struct {
 }
 
 type CheckedWriter struct {
+	// Configuration:
 	io.Writer
-	inStartTag              bool
-	writtenAttribs          map[string]struct{}
 	singleQuote             bool
 	equalNameValueSkipValue bool
 	textEscaper             *strings.Replacer
-	elemStack               []elemState
 	allowedElems            map[string]struct{}
 	prefix                  string
 	indent                  string
+	// Render state:
+	inStartTag     bool
+	writtenAttribs map[string]struct{}
+	elemStack      []elemState
+}
+
+func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
+	return &CheckedWriter{
+		// Configuration:
+		Writer:                  dest,
+		singleQuote:             w.singleQuote,
+		equalNameValueSkipValue: w.equalNameValueSkipValue,
+		textEscaper:             w.textEscaper,
+		allowedElems:            w.allowedElems,
+		prefix:                  w.prefix,
+		indent:                  w.indent,
+		// Render state:
+		inStartTag:     false,
+		writtenAttribs: make(map[string]struct{}),
+		elemStack:      nil,
+	}
 }
 
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {

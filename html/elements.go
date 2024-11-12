@@ -50,6 +50,7 @@ func Col(attribs ...mx.Attrib) *mx.Element       { return VoidElement("col", att
 func ColGroup(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("colgroup", attribsChildren...)
 }
+func Command(attribs ...mx.Attrib) *mx.Element   { return VoidElement("command", attribs...) }
 func Content(attribsChildren ...any) *mx.Element { return Element("content", attribsChildren...) }
 func Data(attribsChildren ...any) *mx.Element    { return Element("data", attribsChildren...) }
 func DataList(attribsChildren ...any) *mx.Element {

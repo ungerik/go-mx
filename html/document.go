@@ -1,8 +1,11 @@
 package html
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"maps"
+	"net/http"
 	"slices"
 
 	"github.com/ungerik/go-mx"
@@ -27,34 +30,52 @@ func NewDocument(title string, body ...any) *Document {
 	}
 }
 
-func (html *Document) Render(ctx context.Context, w mx.Writer) error {
+func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 	return mx.Components{
 		DOCTYPE,
 		Raw("\n<html>"),
 		Head(
 			Meta(CharSet("UTF-8")),
-			If(html.Title != "", TitleElem(html.Title)),
-			ForEach(slices.Sorted(maps.Keys(html.Meta)),
+			If(d.Title != "", TitleElem(d.Title)),
+			ForEach(slices.Sorted(maps.Keys(d.Meta)),
 				func(name string) *mx.Element {
-					return Meta(Name(name), ContentAttr(html.Meta[name]))
+					return Meta(Name(name), ContentAttr(d.Meta[name]))
 				},
 			),
-			ForEach(slices.Sorted(maps.Keys(html.MetaProperty)),
+			ForEach(slices.Sorted(maps.Keys(d.MetaProperty)),
 				func(property string) *mx.Element {
-					return Meta(Attrib(property, html.MetaProperty[property]))
+					return Meta(Attrib(property, d.MetaProperty[property]))
 				},
 			),
-			ForEach(html.Stylesheets,
+			ForEach(d.Stylesheets,
 				func(href string) *mx.Element {
 					return Link(Rel("stylesheet"), HRef(href))
 				},
 			),
-			If(html.Style != "", StyleElem(html.Style)),
-			html.HeadCustom,
+			If(d.Style != "", StyleElem(d.Style)),
+			d.HeadCustom,
 		),
 		Body(
-			html.Body,
+			d.Body,
 		),
 		Raw("\n</html>"),
 	}.Render(ctx, w)
+}
+
+func (d *Document) Serve(addr string) error {
+	return Serve(addr, d)
+}
+
+func (d *Document) HandleHTTP(response http.ResponseWriter, request *http.Request) {
+	buf := bytes.NewBuffer(nil)
+	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")
+	err := d.Render(request.Context(), writer)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			http.Error(response, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	response.Header().Set("Content-Type", mx.ContentTypeHTML)
+	response.Write(buf.Bytes())
 }

@@ -18,12 +18,12 @@ type NamedOptionsProvider interface {
 }
 
 type ReflectFormOption interface {
-	FormOption() // Marker method
+	ReflectFormOption() // Marker method
 }
 
 type ReflectFormOptionInputName func(reflect.StructField, reflect.Value) (inputName string, ok bool)
 
-func (ReflectFormOptionInputName) FormOption() {}
+func (ReflectFormOptionInputName) ReflectFormOption() {}
 
 func (f ReflectFormOptionInputName) InputName(field reflect.StructField, val reflect.Value) (inputName string, ok bool) {
 	return f(field, val)
@@ -31,7 +31,7 @@ func (f ReflectFormOptionInputName) InputName(field reflect.StructField, val ref
 
 type ReflectFormOptionInputType func(reflect.StructField, reflect.Value) (inputType string, ok bool)
 
-func (ReflectFormOptionInputType) FormOption() {}
+func (ReflectFormOptionInputType) ReflectFormOption() {}
 
 func (f ReflectFormOptionInputType) InputType(field reflect.StructField, val reflect.Value) (inputType string, ok bool) {
 	return f(field, val)
@@ -39,7 +39,7 @@ func (f ReflectFormOptionInputType) InputType(field reflect.StructField, val ref
 
 type ReflectFormOptionInputValue func(reflect.StructField, reflect.Value) (inputValue string, ok bool)
 
-func (ReflectFormOptionInputValue) FormOption() {}
+func (ReflectFormOptionInputValue) ReflectFormOption() {}
 
 func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val reflect.Value) (inputValue string, ok bool) {
 	return f(field, val)
