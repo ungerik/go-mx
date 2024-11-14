@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"iter"
-	"slices"
-	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -48,20 +45,6 @@ func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 	return append([]Attrib{Attribute{Name: name, Value: value}}, attribs...)
 }
 
-func UniqueID() Attrib {
-	return uniqueID(idCounter.Add(1))
-}
-
-type uniqueID uint64
-
-func (id uniqueID) AttribName() string {
-	return "id"
-}
-
-func (id uniqueID) AttribValue(context.Context) string {
-	return "_" + strconv.FormatUint(uint64(id), 36)
-}
-
 // Attribute implements the Attrib interface.
 type Attribute struct {
 	Name  string
@@ -77,7 +60,7 @@ func (a Attribute) AttribValue(context.Context) string {
 }
 
 func (a Attribute) String() string {
-	return fmt.Sprintf("%s='%s'", a.Name, singleQuoteAttribEscaper.Replace(a.Value))
+	return AttribString(a)
 }
 
 func (a Attribute) Validate() error {
@@ -105,15 +88,6 @@ func AsAttrib(x any) (a Attrib, ok bool) {
 	}
 }
 
-func AsAttribs(x any) (a []Attrib, ok bool) {
-	switch x := x.(type) {
-	case []Attrib:
-		return x, true
-	case func() []Attrib:
-		return x(), true
-	case iter.Seq[Attrib]:
-		return slices.Collect(x), true
-	default:
-		return nil, false
-	}
+func AttribString(a Attrib) string {
+	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(a.AttribValue(context.Background())))
 }

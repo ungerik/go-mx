@@ -96,46 +96,46 @@ func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attri
 func Image(attribsChildren ...any) *mx.Element  { return Element("image", attribsChildren...) }
 func Img(attribs ...mx.Attrib) *mx.Element      { return VoidElement("img", attribs...) }
 func Input(attribs ...mx.Attrib) *mx.Element    { return VoidElement("input", attribs...) }
-func ImageInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeImage(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "image", attribs)...)
 }
-func MonthInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeMonth(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "month", attribs)...)
 }
-func NumberInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeNumber(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "number", attribs)...)
 }
-func PasswordInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypePassword(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "password", attribs)...)
 }
-func RadioInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeRadio(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "radio", attribs)...)
 }
-func RangeInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeRange(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "range", attribs)...)
 }
-func ResetInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeReset(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "reset", attribs)...)
 }
-func SearchInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeSearch(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "search", attribs)...)
 }
-func SubmitInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeSubmit(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "submit", attribs)...)
 }
-func TelInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeTel(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "tel", attribs)...)
 }
-func TextInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeText(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "text", attribs)...)
 }
-func TimeInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeTime(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "time", attribs)...)
 }
-func URLInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeURL(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "url", attribs)...)
 }
-func WeekInput(attribs ...mx.Attrib) *mx.Element {
+func InputTypeWeek(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "week", attribs)...)
 }
 func Ins(attribsChildren ...any) *mx.Element     { return Element("ins", attribsChildren...) }

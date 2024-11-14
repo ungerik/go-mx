@@ -7,6 +7,8 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
+type Attribs = mx.Attribs
+
 func Attrib(name, value string) mx.Attribute {
 	return mx.Attribute{Name: name, Value: value}
 }

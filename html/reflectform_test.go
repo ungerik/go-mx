@@ -20,7 +20,7 @@ func ExampleReflectFormComponents() {
 		ReflectFormComponents(UserDetails{
 			Name: "John Doe",
 		}),
-		SubmitInput(Value("Submit")),
+		InputTypeSubmit(Value("Submit")),
 	).Render(context.Background(), mx.NewCheckedWriter(os.Stdout).WithIndent("", "  "))
 
 	// Output:
