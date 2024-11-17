@@ -10,26 +10,25 @@ type Components []Component
 
 func (cs Components) Render(ctx context.Context, w Writer) error {
 	for _, c := range cs {
-		if c == nil {
-			continue
-		}
-		err := c.Render(ctx, w)
-		if err != nil {
-			return err
+		if c != nil {
+			err := c.Render(ctx, w)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func AsComponents(obj ...any) Components {
-	comps := make(Components, 0, len(obj))
-	for _, o := range obj {
-		comp := AsComponent(o)
-		if comp != nil {
-			comps = append(comps, comp)
+func AsComponents(cs ...any) Components {
+	components := make(Components, 0, len(cs))
+	for _, c := range cs {
+		component := AsComponent(c)
+		if component != nil {
+			components = append(components, component)
 		}
 	}
-	return comps
+	return components
 }
 
 // func ComponentsFromComponent(c Component) Components {
@@ -53,8 +52,8 @@ func (f ComponentsModifierFunc) ModifyComponents(components Components) Componen
 	return f(components)
 }
 
-func ModifyOnRender(modify func(context.Context, Components) Components, obj ...any) Component {
+func ModifyOnRender(modify func(context.Context, Components) Components, cs ...any) Component {
 	return ComponentFunc(func(ctx context.Context, w Writer) error {
-		return modify(ctx, AsComponents(obj...)).Render(ctx, w)
+		return modify(ctx, AsComponents(cs...)).Render(ctx, w)
 	})
 }

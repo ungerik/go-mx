@@ -19,28 +19,38 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 	return f(ctx, w)
 }
 
-func DefaultAsComponent(obj any) Component {
-	switch x := obj.(type) {
+func DefaultAsComponent(c any) Component {
+	switch c := c.(type) {
 	case nil:
 		return nil
-	case ComponentFunc:
-		return x
 	case Component:
-		return x
+		return c
 	case string:
-		return Text(x)
-	case func() Component:
-		return x()
-	case func() Components:
-		return x()
+		return Text(c)
 	case func(context.Context, Writer) error:
-		return ComponentFunc(x)
+		return ComponentFunc(c)
 	case func(Writer) error:
 		return ComponentFunc(func(_ context.Context, w Writer) error {
-			return x(w)
+			return c(w)
+		})
+	case func() Component:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c().Render(ctx, w)
+		})
+	case func() Components:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c().Render(ctx, w)
+		})
+	case func(context.Context) Component:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c(ctx).Render(ctx, w)
+		})
+	case func(context.Context) Components:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c(ctx).Render(ctx, w)
 		})
 	default:
-		return Text(fmt.Sprint(x))
+		return Text(fmt.Sprint(c))
 	}
 }
 
