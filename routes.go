@@ -16,12 +16,12 @@ type Route interface {
 	SetParentPatterns([]string)
 	Pattern() string
 	Methods() []string
-	Path(values map[string]any) string
+	Path(values ...map[string]any) string
 }
 
 func StructRoutes(routesStruct any, parentPatterns ...string) iter.Seq2[string, http.Handler] {
 	return func(yield func(string, http.Handler) bool) {
-		for field, v := range FlatExportedStructFieldsAndValues(reflect.ValueOf(routesStruct)) {
+		for field, v := range ReflectStructFields(reflect.ValueOf(routesStruct)) {
 			pattern, ok := field.Tag.Lookup("route")
 			if !ok {
 				pattern = NameToPath(field.Name, "/")
@@ -138,14 +138,16 @@ func (r *routeImpl) Methods() []string {
 	return r.methods
 }
 
-func (r *routeImpl) Path(values map[string]any) string {
+func (r *routeImpl) Path(values ...map[string]any) string {
 	p := JoinAbsPath(append(r.parentPatterns, r.pattern))
-	for name, value := range values {
-		valueStr, err := FormatPathValue(name, value)
-		if err != nil {
-			panic(err)
+	for _, values := range values {
+		for name, value := range values {
+			valueStr, err := FormatPathValue(name, value)
+			if err != nil {
+				panic(err)
+			}
+			p = strings.Replace(p, "{"+name+"}", valueStr, 1)
 		}
-		p = strings.Replace(p, "{"+name+"}", valueStr, 1)
 	}
 	return p
 }

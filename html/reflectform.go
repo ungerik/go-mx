@@ -46,7 +46,7 @@ func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val r
 }
 
 func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (components mx.Components) {
-	for field, val := range mx.FlatExportedStructFieldsAndValues(reflect.ValueOf(formStruct)) {
+	for field, val := range mx.ReflectStructFields(reflect.ValueOf(formStruct)) {
 		inputTag := field.Tag.Get("input")
 		if inputTag == "-" {
 			continue
