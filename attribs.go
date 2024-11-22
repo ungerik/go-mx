@@ -4,46 +4,69 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 )
 
-func AsAttribs(x any) (a []Attrib, ok bool) {
-	switch x := x.(type) {
-	case []Attrib:
-		return x, true
-	case []Attribute:
-		a = make([]Attrib, len(x))
-		for i, attribute := range x {
-			a[i] = attribute
-		}
-		return a, true
-	case func() []Attrib:
-		return x(), true
-	case func() []Attribute:
-		return AsAttribs(x())
-	case iter.Seq[Attrib]:
-		return slices.Collect(x), true
-	case iter.Seq[Attribute]:
-		attributes := slices.Collect(x)
-		a = make([]Attrib, len(attributes))
-		for i, attribute := range attributes {
-			a[i] = attribute
-		}
-		return a, true
+func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
+	switch x := maybeAttrib.(type) {
+	case Attrib:
+		return []Attrib{x}, true
+
+	case func() Attrib:
+		return []Attrib{x()}, true
+
+	case func() Attribute:
+		return []Attrib{x()}, true
+
 	case AttribProvider:
 		return x.Attribs(), true
+
+	case []Attrib:
+		return x, true
+
+	case []Attribute:
+		return toAttribSlice(x), true
+
+	case func() []Attrib:
+		return x(), true
+
+	case func() []Attribute:
+		return toAttribSlice(x()), true
+
+	case iter.Seq[Attrib]:
+		return slices.Collect(x), true
+
+	case iter.Seq[Attribute]:
+		return toAttribSlice(slices.Collect(x)), true
+
 	case map[string]any:
-		return Attribs(x).Attribs(), false
+		return Attribs(x).Attribs(), true
+
 	case map[string]string:
-		a := make(Attribs, len(x))
-		for name, value := range x {
-			a[name] = value
-		}
-		return a.Attribs(), false
-	default:
-		return nil, false
+		return AttribsFromStringMap(x).Attribs(), true
 	}
+
+	v := reflect.ValueOf(maybeAttrib)
+	for v.Kind() == reflect.Ptr && !v.IsNil() {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.Struct {
+		if a := ReflectAttribs(v, "attr"); len(a) > 0 {
+			return a, true
+		}
+	}
+
+	return nil, false
+}
+
+func toAttribSlice[T Attrib](attribs []T) []Attrib {
+	result := make([]Attrib, len(attribs))
+	for i, a := range attribs {
+		result[i] = a
+	}
+	return result
 }
 
 type AttribProvider interface {
@@ -51,6 +74,14 @@ type AttribProvider interface {
 }
 
 type Attribs map[string]any
+
+func AttribsFromStringMap(m map[string]string) Attribs {
+	attribs := make(Attribs, len(m))
+	for name, value := range m {
+		attribs[name] = value
+	}
+	return attribs
+}
 
 // Attribs returns the Attribs map as a slice of Attribs
 // sorted by name except that "id" is always first and "class" is always second
@@ -91,4 +122,21 @@ func (a Attribs) String() string {
 		b.WriteString(AttribString(attrib))
 	}
 	return b.String()
+}
+
+func ReflectAttribs(s reflect.Value, tag string) []Attrib {
+	var attribs []Attrib
+	for field, value := range ReflectStructFields(s) {
+		var name string
+		if tag != "" {
+			name = field.Tag.Get(tag)
+			if name == "" || name == "-" {
+				continue
+			}
+		} else {
+			name = strings.ToLower(field.Name)
+		}
+		attribs = AppendAttrib(attribs, name, fmt.Sprint(value))
+	}
+	return attribs
 }

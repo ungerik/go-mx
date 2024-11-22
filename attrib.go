@@ -75,19 +75,6 @@ func (a Attribute) Valid() bool {
 	return a.Validate() == nil
 }
 
-func AsAttrib(x any) (a Attrib, ok bool) {
-	switch x := x.(type) {
-	case Attrib:
-		return x, true
-	case func() Attrib:
-		return x(), true
-	case func() Attribute:
-		return x(), true
-	default:
-		return nil, false
-	}
-}
-
 func AttribString(a Attrib) string {
 	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(a.AttribValue(context.Background())))
 }

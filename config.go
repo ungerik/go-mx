@@ -18,5 +18,6 @@ var (
 		`"`, "&quot;",
 	)
 
+	AsAttribs   = DefaultAsAttribs
 	AsComponent = DefaultAsComponent
 )

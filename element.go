@@ -17,10 +17,6 @@ func NewElement(name string, attribsChildren ...any) *Element {
 		if ac == nil {
 			continue
 		}
-		if attrib, ok := AsAttrib(ac); ok {
-			e.Attribs = append(e.Attribs, attrib)
-			continue
-		}
 		if attribs, ok := AsAttribs(ac); ok {
 			e.Attribs = append(e.Attribs, attribs...)
 			continue
