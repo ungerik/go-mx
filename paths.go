@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/domonda/go-errs"
-	_ "github.com/ungerik/go-fs"
 )
 
 func JoinPath(segments []string) string {

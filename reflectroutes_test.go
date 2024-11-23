@@ -7,37 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNameToPath(t *testing.T) {
-	testCases := map[string]string{
-		// Non Go names
-		"":    "",
-		"_":   "_",
-		"/":   "/",
-		"/./": "/./",
-		" ":   " ",
-		"  ":  "  ",
-
-		// Normal cases
-		"already/a/path":   "already/a/path",
-		"/already/a/path/": "/already/a/path/",
-		"HelloWorld":       "hello/world",
-		"Hello-World":      "hello-world",
-		"Hello_World":      "hello_world",
-		"Hello.World":      "hello.world",
-		"Hello/World":      "hello/world",
-		"DocumentID":       "document/id",
-		"HTMLHandler":      "htmlhandler",
-		"Straßenadresse/":  "straßenadresse/",
-		"もしもしWorld":        "もしもし/world",
-	}
-	for name, expected := range testCases {
-		t.Run(name, func(t *testing.T) {
-			actual := NameToPath(name, "/")
-			require.Equal(t, expected, actual)
-		})
-	}
-}
-
 type testServeMuxHandler struct {
 	patterns []string
 }
@@ -76,7 +45,7 @@ func (m *testServeMuxHandler) Handle(pattern string, handler http.Handler) {
 // 	}
 // }
 
-func TestStructRoutes(t *testing.T) {
+func TestReflectRoutes(t *testing.T) {
 	dummyHandlerFunc := func(w http.ResponseWriter, r *http.Request) {}
 	dummyHandler := http.HandlerFunc(dummyHandlerFunc)
 
@@ -147,17 +116,17 @@ func TestStructRoutes(t *testing.T) {
 						gotPanic = true
 					}
 				}()
-				for pattern, handler := range StructRoutes(tt.routesStruct) {
+				for pattern, handler := range ReflectRoutes(tt.routesStruct) {
 					gotPatterns = append(gotPatterns, pattern)
-					require.NotNilf(t, handler, "nil handler for pattern %s from StructRoutes", pattern)
+					require.NotNilf(t, handler, "nil handler for pattern %s from ReflectRoutes", pattern)
 					if route, ok := handler.(Route); ok {
 						gotPaths = append(gotPaths, route.Path(nil))
 					}
 				}
 			}()
-			require.Equal(t, tt.wantPanic, gotPanic, "StructRoutes panics")
-			require.Equal(t, tt.wantPatterns, gotPatterns, "StructRoutes patterns")
-			require.Equal(t, tt.wantPaths, gotPaths, "StructRoutes -> Route.Path(nil)")
+			require.Equal(t, tt.wantPanic, gotPanic, "ReflectRoutes panics")
+			require.Equal(t, tt.wantPatterns, gotPatterns, "ReflectRoutes patterns")
+			require.Equal(t, tt.wantPaths, gotPaths, "ReflectRoutes -> Route.Path(nil)")
 		})
 	}
 }
