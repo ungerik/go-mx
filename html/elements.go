@@ -24,17 +24,17 @@ func Hyperlink(href, text string, attribs ...mx.Attrib) *mx.Element {
 
 func A(attribsChildren ...any) *mx.Element       { return Element("a", attribsChildren...) }
 func Abbr(attribsChildren ...any) *mx.Element    { return Element("abbr", attribsChildren...) }
-func Acronym(attribsChildren ...any) *mx.Element { return Element("acronym", attribsChildren...) }
 func Address(attribsChildren ...any) *mx.Element { return Element("address", attribsChildren...) }
 func Area(attribs ...mx.Attrib) *mx.Element      { return VoidElement("area", attribs...) }
 func Article(attribsChildren ...any) *mx.Element { return Element("article", attribsChildren...) }
 func Aside(attribsChildren ...any) *mx.Element   { return Element("aside", attribsChildren...) }
 func Audio(attribsChildren ...any) *mx.Element   { return Element("audio", attribsChildren...) }
-func B(attribsChildren ...any) *mx.Element       { return Element("b", attribsChildren...) }
-func Base(attribs ...mx.Attrib) *mx.Element      { return VoidElement("base", attribs...) }
-func BDi(attribsChildren ...any) *mx.Element     { return Element("bdi", attribsChildren...) }
-func BDo(attribsChildren ...any) *mx.Element     { return Element("bdo", attribsChildren...) }
-func Big(attribsChildren ...any) *mx.Element     { return Element("big", attribsChildren...) }
+
+// Use `Strong“ for semantic emphasis
+func B(attribsChildren ...any) *mx.Element   { return Element("b", attribsChildren...) }
+func Base(attribs ...mx.Attrib) *mx.Element  { return VoidElement("base", attribs...) }
+func BDi(attribsChildren ...any) *mx.Element { return Element("bdi", attribsChildren...) }
+func BDo(attribsChildren ...any) *mx.Element { return Element("bdo", attribsChildren...) }
 func Blockquote(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("blockquote", attribsChildren...)
 }
@@ -43,7 +43,6 @@ func Br(attribs ...mx.Attrib) *mx.Element        { return VoidElement("br", attr
 func Button(attribsChildren ...any) *mx.Element  { return Element("button", attribsChildren...) }
 func Canvas(attribsChildren ...any) *mx.Element  { return Element("canvas", attribsChildren...) }
 func Caption(attribsChildren ...any) *mx.Element { return Element("caption", attribsChildren...) }
-func Center(attribsChildren ...any) *mx.Element  { return Element("center", attribsChildren...) }
 func Cite(attribsChildren ...any) *mx.Element    { return Element("cite", attribsChildren...) }
 func Code(attribsChildren ...any) *mx.Element    { return Element("code", attribsChildren...) }
 func Col(attribs ...mx.Attrib) *mx.Element       { return VoidElement("col", attribs...) }
@@ -65,7 +64,9 @@ func Div(attribsChildren ...any) *mx.Element     { return Element("div", attribs
 func DL(attribsChildren ...any) *mx.Element      { return Element("dl", attribsChildren...) }
 func DT(attribsChildren ...any) *mx.Element      { return Element("dt", attribsChildren...) }
 func Em(attribsChildren ...any) *mx.Element      { return Element("em", attribsChildren...) }
-func Embed(attribs ...mx.Attrib) *mx.Element     { return VoidElement("embed", attribs...) }
+
+// Use `Object` or `IFrame` for better browser compatibility
+func Embed(attribs ...mx.Attrib) *mx.Element { return VoidElement("embed", attribs...) }
 func FieldSet(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("fieldset", attribsChildren...)
 }
@@ -73,13 +74,8 @@ func FigCaption(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("figcaption", attribsChildren...)
 }
 func Figure(attribsChildren ...any) *mx.Element { return Element("figure", attribsChildren...) }
-func Font(attribsChildren ...any) *mx.Element   { return Element("font", attribsChildren...) }
 func Footer(attribsChildren ...any) *mx.Element { return Element("footer", attribsChildren...) }
 func Form(attribsChildren ...any) *mx.Element   { return Element("form", attribsChildren...) }
-func Frame(attribsChildren ...any) *mx.Element  { return Element("frame", attribsChildren...) }
-func FrameSet(attribsChildren ...any) *mx.Element {
-	return mx.NewElement("frameset", attribsChildren...)
-}
 func H1(attribsChildren ...any) *mx.Element     { return Element("h1", attribsChildren...) }
 func H2(attribsChildren ...any) *mx.Element     { return Element("h2", attribsChildren...) }
 func H3(attribsChildren ...any) *mx.Element     { return Element("h3", attribsChildren...) }
@@ -91,6 +87,8 @@ func Header(attribsChildren ...any) *mx.Element { return Element("header", attri
 func HGroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attribsChildren...) }
 func HR(attribs ...mx.Attrib) *mx.Element       { return VoidElement("hr", attribs...) }
 func HTML(attribsChildren ...any) *mx.Element   { return Element("html", attribsChildren...) }
+
+// Use `Em“ for semantic emphasis
 func I(attribsChildren ...any) *mx.Element      { return Element("i", attribsChildren...) }
 func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
 func Image(attribsChildren ...any) *mx.Element  { return Element("image", attribsChildren...) }
@@ -147,20 +145,11 @@ func Link(attribs ...mx.Attrib) *mx.Element      { return VoidElement("link", at
 func Main(attribsChildren ...any) *mx.Element    { return Element("main", attribsChildren...) }
 func Map(attribsChildren ...any) *mx.Element     { return Element("map", attribsChildren...) }
 func Mark(attribsChildren ...any) *mx.Element    { return Element("mark", attribsChildren...) }
-func Marquee(attribsChildren ...any) *mx.Element { return Element("marquee", attribsChildren...) }
 func Math(attribsChildren ...any) *mx.Element    { return Element("math", attribsChildren...) }
-func Menu(attribsChildren ...any) *mx.Element    { return Element("menu", attribsChildren...) }
-func MenuItem(attribsChildren ...any) *mx.Element {
-	return mx.NewElement("menuitem", attribsChildren...)
-}
 func Meta(attribs ...mx.Attrib) *mx.Element      { return VoidElement("meta", attribs...) }
 func Meter(attribsChildren ...any) *mx.Element   { return Element("meter", attribsChildren...) }
 func Nav(attribsChildren ...any) *mx.Element     { return Element("nav", attribsChildren...) }
-func NoBr(attribsChildren ...any) *mx.Element    { return Element("nobr", attribsChildren...) }
 func NoEmbed(attribsChildren ...any) *mx.Element { return Element("noembed", attribsChildren...) }
-func NoFrames(attribsChildren ...any) *mx.Element {
-	return mx.NewElement("noframes", attribsChildren...)
-}
 func NoScript(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("noscript", attribsChildren...)
 }
@@ -173,11 +162,8 @@ func Option(attribsChildren ...any) *mx.Element  { return Element("option", attr
 func Output(attribsChildren ...any) *mx.Element  { return Element("output", attribsChildren...) }
 func P(attribsChildren ...any) *mx.Element       { return Element("p", attribsChildren...) }
 func Picture(attribsChildren ...any) *mx.Element { return Element("picture", attribsChildren...) }
-func Plaintext(attribsChildren ...any) *mx.Element {
-	return mx.NewElement("plaintext", attribsChildren...)
-}
-func Portal(attribsChildren ...any) *mx.Element { return Element("portal", attribsChildren...) }
-func Pre(attribsChildren ...any) *mx.Element    { return Element("pre", attribsChildren...) }
+func Portal(attribsChildren ...any) *mx.Element  { return Element("portal", attribsChildren...) }
+func Pre(attribsChildren ...any) *mx.Element     { return Element("pre", attribsChildren...) }
 func Progress(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("progress", attribsChildren...)
 }
@@ -195,10 +181,11 @@ func Section(attribsChildren ...any) *mx.Element { return Element("section", att
 func Select(attribsChildren ...any) *mx.Element  { return Element("select", attribsChildren...) }
 func Shadow(attribsChildren ...any) *mx.Element  { return Element("shadow", attribsChildren...) }
 func Slot(attribsChildren ...any) *mx.Element    { return Element("slot", attribsChildren...) }
+
+// Small is still valid in HTML5 but use CSS for better control.
 func Small(attribsChildren ...any) *mx.Element   { return Element("small", attribsChildren...) }
 func Source(attribs ...mx.Attrib) *mx.Element    { return VoidElement("source", attribs...) }
 func Span(attribsChildren ...any) *mx.Element    { return Element("span", attribsChildren...) }
-func Strike(attribsChildren ...any) *mx.Element  { return Element("strike", attribsChildren...) }
 func Strong(attribsChildren ...any) *mx.Element  { return Element("strong", attribsChildren...) }
 func StyleElem(css string) *mx.Element           { return Element("style", Raw(css)) }
 func Sub(attribsChildren ...any) *mx.Element     { return Element("sub", attribsChildren...) }
@@ -221,9 +208,33 @@ func Time(attribsChildren ...any) *mx.Element      { return Element("time", attr
 func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", attribsChildren...) }
 func TR(attribsChildren ...any) *mx.Element        { return Element("tr", attribsChildren...) }
 func Track(attribsChildren ...any) *mx.Element     { return Element("track", attribsChildren...) }
-func TT(attribsChildren ...any) *mx.Element        { return Element("tt", attribsChildren...) }
-func U(attribsChildren ...any) *mx.Element         { return Element("u", attribsChildren...) }
 func UL(attribsChildren ...any) *mx.Element        { return Element("ul", attribsChildren...) }
 func Var(attribsChildren ...any) *mx.Element       { return Element("var", attribsChildren...) }
 func Video(attribsChildren ...any) *mx.Element     { return Element("video", attribsChildren...) }
 func WBr(attribs ...mx.Attrib) *mx.Element         { return VoidElement("wbr", attribs...) }
+
+// Deprecated in HTML5:
+//
+// func Acronym(attribsChildren ...any) *mx.Element { return Element("acronym", attribsChildren...) }
+// func Big(attribsChildren ...any) *mx.Element     { return Element("big", attribsChildren...) }
+// func Center(attribsChildren ...any) *mx.Element  { return Element("center", attribsChildren...) }
+// func Font(attribsChildren ...any) *mx.Element    { return Element("font", attribsChildren...) }
+// func Frame(attribsChildren ...any) *mx.Element   { return Element("frame", attribsChildren...) }
+// func FrameSet(attribsChildren ...any) *mx.Element {
+// 	return mx.NewElement("frameset", attribsChildren...)
+// }
+// func NoFrames(attribsChildren ...any) *mx.Element {
+// 	return mx.NewElement("noframes", attribsChildren...)
+// }
+// func Marquee(attribsChildren ...any) *mx.Element { return Element("marquee", attribsChildren...) }
+// func Menu(attribsChildren ...any) *mx.Element    { return Element("menu", attribsChildren...) }
+// func MenuItem(attribsChildren ...any) *mx.Element {
+// 	return mx.NewElement("menuitem", attribsChildren...)
+// }
+// func NoBr(attribsChildren ...any) *mx.Element { return Element("nobr", attribsChildren...) }
+// func Plaintext(attribsChildren ...any) *mx.Element {
+// 	return mx.NewElement("plaintext", attribsChildren...)
+// }
+// func Strike(attribsChildren ...any) *mx.Element { return Element("strike", attribsChildren...) }
+// func TT(attribsChildren ...any) *mx.Element     { return Element("tt", attribsChildren...) }
+// func U(attribsChildren ...any) *mx.Element      { return Element("u", attribsChildren...) }
