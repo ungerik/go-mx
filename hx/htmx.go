@@ -6,13 +6,13 @@ var (
 	ScriptFromCDN = html.Script(
 		html.Src("https://unpkg.com/htmx.org@2.0.3"),
 		html.Integrity("sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"),
-		html.CrossOriginAnonymous(),
+		html.CrossOriginAnonymous,
 	)
 
 	ScriptDebugFromCDN = html.Script(
 		html.Src("https://unpkg.com/htmx.org@2.0.3/dist/htmx.js"),
 		html.Integrity("sha384-BBDmZzVt6vjz5YbQqZPtFZW82o8QotoM7RUp5xOxV3nSJ8u2pSdtzFAbGKzTlKtg"),
-		html.CrossOriginAnonymous(),
+		html.CrossOriginAnonymous,
 	)
 )
 

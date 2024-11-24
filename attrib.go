@@ -37,6 +37,10 @@ func NewAttrib(name, value string) Attrib {
 	return Attribute{Name: name, Value: value}
 }
 
+func NewAttribf(name, valueFmt string, a ...any) Attrib {
+	return Attribute{Name: name, Value: fmt.Sprintf(valueFmt, a...)}
+}
+
 func AppendAttrib(attribs []Attrib, name, value string) []Attrib {
 	return append(attribs, Attribute{Name: name, Value: value})
 }

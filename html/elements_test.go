@@ -22,7 +22,7 @@ func TestHyperlink(t *testing.T) {
 		{
 			href:    "https://example.com",
 			text:    "Example",
-			attribs: []mx.Attrib{TargetBlank()},
+			attribs: []mx.Attrib{TargetBlank},
 			want:    `<a href='https://example.com' target='_blank'>Example</a>`,
 		},
 	}
