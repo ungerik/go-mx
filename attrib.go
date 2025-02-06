@@ -49,11 +49,28 @@ func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 	return append([]Attrib{Attribute{Name: name, Value: value}}, attribs...)
 }
 
+// ConstAttrib implements the Attrib interface
+// and holds the name and value
+// as a string with the format "name=value".
+type ConstAttrib string
+
+var _ Attrib = ConstAttrib("")
+
+func (a ConstAttrib) AttribName() string {
+	return string(a)[:strings.IndexByte(string(a), '=')]
+}
+
+func (a ConstAttrib) AttribValue(context.Context) string {
+	return string(a)[strings.IndexByte(string(a), '=')+1:]
+}
+
 // Attribute implements the Attrib interface.
 type Attribute struct {
 	Name  string
 	Value string
 }
+
+var _ Attrib = Attribute{}
 
 func (a Attribute) AttribName() string {
 	return a.Name
