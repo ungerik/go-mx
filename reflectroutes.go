@@ -5,6 +5,7 @@ package mx
 // 	"net/http"
 // 	"reflect"
 // 	"strings"
+//
 
 // 	"github.com/domonda/go-errs"
 // )
@@ -59,7 +60,7 @@ package mx
 // 				}
 // 				handler = v.Interface().(http.Handler)
 
-// 			case field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct && !v.IsNil():
+// 			case field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Pointer && field.Type.Elem().Kind() == reflect.Struct && !v.IsNil():
 // 				for pattern, handler := range ReflectRoutes(v.Interface(), append(parentPatterns, pattern)...) {
 // 					if !yield(pattern, handler) {
 // 						return

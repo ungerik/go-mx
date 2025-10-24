@@ -49,7 +49,7 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 	}
 
 	v := reflect.ValueOf(maybeAttrib)
-	for v.Kind() == reflect.Ptr && !v.IsNil() {
+	for v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {

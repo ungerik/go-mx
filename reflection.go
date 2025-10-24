@@ -13,7 +13,7 @@ import (
 // The argument s must be the reflect.Value of a struct or a pointer to a struct.
 func ReflectStructFields(s reflect.Value) iter.Seq2[reflect.StructField, reflect.Value] {
 	structValue := s
-	for structValue.Kind() == reflect.Ptr {
+	for structValue.Kind() == reflect.Pointer {
 		if s.IsNil() {
 			panic("nil pointer to " + structValue.Type().String())
 		}
@@ -50,7 +50,7 @@ func ReflectStructFields(s reflect.Value) iter.Seq2[reflect.StructField, reflect
 // The argument t must be the reflect.Type of a struct or a pointer to a struct.
 func FlatExportedStructFields(t reflect.Type) iter.Seq[reflect.StructField] {
 	structType := t
-	for structType.Kind() == reflect.Ptr {
+	for structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 	if structType.Kind() != reflect.Struct {
