@@ -3,7 +3,6 @@ package html
 import (
 	"bytes"
 	"context"
-	"errors"
 	"maps"
 	"net/http"
 	"slices"
@@ -71,9 +70,7 @@ func (d *Document) HandleHTTP(response http.ResponseWriter, request *http.Reques
 	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")
 	err := d.Render(request.Context(), writer)
 	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-		}
+		mx.RespondNonContextError(response, err)
 		return
 	}
 	response.Header().Set("Content-Type", mx.ContentTypeHTML)

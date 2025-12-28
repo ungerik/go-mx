@@ -59,7 +59,7 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 			selectOptions []string
 		)
 		if inputTag != "" {
-			for _, attr := range strings.Split(inputTag, "|") {
+			for attr := range strings.SplitSeq(inputTag, "|") {
 				attrName, attrVal, _ := strings.Cut(attr, "=")
 				switch attrName {
 				case "name":
@@ -124,8 +124,10 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 			var value string
 			switch inputType {
 			case "checkbox":
-				if field.Type.Kind() == reflect.Pointer && val.Bool() {
-					value = "on" // or use the checked attribute?
+				if field.Type.Kind() == reflect.Bool && val.Bool() {
+					value = "on"
+				} else if field.Type.Kind() == reflect.Pointer && field.Type.Elem().Kind() == reflect.Bool && val.Elem().Bool() {
+					value = "on"
 				}
 			case "datetime", "datetime-local":
 				// TODO worry about format details

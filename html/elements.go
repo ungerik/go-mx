@@ -30,7 +30,7 @@ func Article(attribsChildren ...any) *mx.Element { return Element("article", att
 func Aside(attribsChildren ...any) *mx.Element   { return Element("aside", attribsChildren...) }
 func Audio(attribsChildren ...any) *mx.Element   { return Element("audio", attribsChildren...) }
 
-// Use `Strong“ for semantic emphasis
+// Use `Strong` for semantic emphasis
 func B(attribsChildren ...any) *mx.Element   { return Element("b", attribsChildren...) }
 func Base(attribs ...mx.Attrib) *mx.Element  { return VoidElement("base", attribs...) }
 func BDi(attribsChildren ...any) *mx.Element { return Element("bdi", attribsChildren...) }
@@ -49,7 +49,7 @@ func Col(attribs ...mx.Attrib) *mx.Element       { return VoidElement("col", att
 func ColGroup(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("colgroup", attribsChildren...)
 }
-func Command(attribs ...mx.Attrib) *mx.Element   { return VoidElement("command", attribs...) }
+// Command was removed from HTML spec
 func Content(attribsChildren ...any) *mx.Element { return Element("content", attribsChildren...) }
 func Data(attribsChildren ...any) *mx.Element    { return Element("data", attribsChildren...) }
 func DataList(attribsChildren ...any) *mx.Element {
@@ -88,12 +88,36 @@ func HGroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attri
 func HR(attribs ...mx.Attrib) *mx.Element       { return VoidElement("hr", attribs...) }
 func HTML(attribsChildren ...any) *mx.Element   { return Element("html", attribsChildren...) }
 
-// Use `Em“ for semantic emphasis
+// Use `Em` for semantic emphasis
 func I(attribsChildren ...any) *mx.Element      { return Element("i", attribsChildren...) }
 func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
-func Image(attribsChildren ...any) *mx.Element  { return Element("image", attribsChildren...) }
-func Img(attribs ...mx.Attrib) *mx.Element      { return VoidElement("img", attribs...) }
+// Image is SVG only, use Img for HTML
+func Img(attribs ...mx.Attrib) *mx.Element { return VoidElement("img", attribs...) }
 func Input(attribs ...mx.Attrib) *mx.Element    { return VoidElement("input", attribs...) }
+func InputTypeButton(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "button", attribs)...)
+}
+func InputTypeCheckbox(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "checkbox", attribs)...)
+}
+func InputTypeColor(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "color", attribs)...)
+}
+func InputTypeDate(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "date", attribs)...)
+}
+func InputTypeDatetimeLocal(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "datetime-local", attribs)...)
+}
+func InputTypeEmail(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "email", attribs)...)
+}
+func InputTypeFile(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "file", attribs)...)
+}
+func InputTypeHidden(attribs ...mx.Attrib) *mx.Element {
+	return mx.NewVoidElement("input", mx.PrependAttrib("type", "hidden", attribs)...)
+}
 func InputTypeImage(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "image", attribs)...)
 }
@@ -147,6 +171,7 @@ func Map(attribsChildren ...any) *mx.Element     { return Element("map", attribs
 func Mark(attribsChildren ...any) *mx.Element    { return Element("mark", attribsChildren...) }
 func Math(attribsChildren ...any) *mx.Element    { return Element("math", attribsChildren...) }
 func Meta(attribs ...mx.Attrib) *mx.Element      { return VoidElement("meta", attribs...) }
+func Menu(attribsChildren ...any) *mx.Element    { return Element("menu", attribsChildren...) }
 func Meter(attribsChildren ...any) *mx.Element   { return Element("meter", attribsChildren...) }
 func Nav(attribsChildren ...any) *mx.Element     { return Element("nav", attribsChildren...) }
 func NoEmbed(attribsChildren ...any) *mx.Element { return Element("noembed", attribsChildren...) }
@@ -207,7 +232,7 @@ func THead(attribsChildren ...any) *mx.Element     { return Element("thead", att
 func Time(attribsChildren ...any) *mx.Element      { return Element("time", attribsChildren...) }
 func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", attribsChildren...) }
 func TR(attribsChildren ...any) *mx.Element        { return Element("tr", attribsChildren...) }
-func Track(attribsChildren ...any) *mx.Element     { return Element("track", attribsChildren...) }
+func Track(attribs ...mx.Attrib) *mx.Element        { return VoidElement("track", attribs...) }
 func UL(attribsChildren ...any) *mx.Element        { return Element("ul", attribsChildren...) }
 func Var(attribsChildren ...any) *mx.Element       { return Element("var", attribsChildren...) }
 func Video(attribsChildren ...any) *mx.Element     { return Element("video", attribsChildren...) }
@@ -227,7 +252,7 @@ func WBr(attribs ...mx.Attrib) *mx.Element         { return VoidElement("wbr", a
 // 	return mx.NewElement("noframes", attribsChildren...)
 // }
 // func Marquee(attribsChildren ...any) *mx.Element { return Element("marquee", attribsChildren...) }
-// func Menu(attribsChildren ...any) *mx.Element    { return Element("menu", attribsChildren...) }
+// Menu was reinstated in HTML5 Living Standard, see active definition above
 // func MenuItem(attribsChildren ...any) *mx.Element {
 // 	return mx.NewElement("menuitem", attribsChildren...)
 // }

@@ -62,7 +62,7 @@ func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, reques
 	writer := factory.NewWriter(&body)
 	err := h.compFunc(funcArg).Render(request.Context(), writer)
 	if err != nil {
-		RespondError(response, err)
+		RespondNonContextError(response, err)
 		return
 	}
 	for _, header := range h.headers {

@@ -14,7 +14,7 @@ import (
 func ReflectStructFields(s reflect.Value) iter.Seq2[reflect.StructField, reflect.Value] {
 	structValue := s
 	for structValue.Kind() == reflect.Pointer {
-		if s.IsNil() {
+		if structValue.IsNil() {
 			panic("nil pointer to " + structValue.Type().String())
 		}
 		structValue = structValue.Elem()

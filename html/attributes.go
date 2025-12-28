@@ -207,7 +207,7 @@ func Download(filename string) mx.Attrib { return mx.NewAttrib("download", filen
 
 func Draggable(value bool) mx.Attrib { return mx.NewAttrib("draggable", strconv.FormatBool(value)) }
 
-const EncTypeFormURLEndoced = mx.ConstAttrib("enctype=application/x-www-form-urlencoded")
+const EncTypeFormURLEncoded = mx.ConstAttrib("enctype=application/x-www-form-urlencoded")
 
 const EncTypeMultipartFormData = mx.ConstAttrib("enctype=multipart/form-data")
 
@@ -239,7 +239,7 @@ func FormAttr(formID string) mx.Attrib { return mx.NewAttrib("form", formID) }
 
 func FormAction(url string) mx.Attrib { return mx.NewAttrib("formaction", url) }
 
-const FormEncTypeFormURLEndoced = mx.ConstAttrib("formenctype=application/x-www-form-urlencoded")
+const FormEncTypeFormURLEncoded = mx.ConstAttrib("formenctype=application/x-www-form-urlencoded")
 
 const FormEncTypeMultipartFormData = mx.ConstAttrib("formenctype=multipart/form-data")
 
@@ -269,6 +269,14 @@ func Heightf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("height", valueFmt, a...)
 }
 
+func HeightPx(pixels float64) mx.Attrib {
+	return Heightf("%fpx", pixels)
+}
+
+func HeightEm(ems float64) mx.Attrib {
+	return Heightf("%fem", ems)
+}
+
 const Hidden = BoolAttrib("hidden")
 
 const HiddenUntilFound = mx.ConstAttrib("hidden=until-found")
@@ -277,7 +285,7 @@ func High(limit float64) mx.Attrib {
 	return mx.NewAttrib("high", strconv.FormatFloat(limit, 'f', -1, 64))
 }
 
-func Hight(pixels int) mx.Attrib { return mx.NewAttrib("high", strconv.Itoa(pixels)) }
+func Hight(hight int) mx.Attrib { return mx.NewAttrib("hight", strconv.Itoa(hight)) }
 
 func HRef(url string) mx.Attrib { return mx.NewAttrib("href", url) }
 
@@ -380,7 +388,7 @@ const LoadingEager = mx.ConstAttrib("loading=eager")
 
 const LoadingLazy = mx.ConstAttrib("loading=lazy")
 
-const Loop = mx.ConstAttrib("loop")
+const Loop = BoolAttrib("loop")
 
 func Low(limit float64) mx.Attrib {
 	return mx.NewAttrib("low", strconv.FormatFloat(limit, 'f', -1, 64))
@@ -452,11 +460,7 @@ func Placeholderf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("placeholder", valueFmt, a...)
 }
 
-func PlaysInline(value string) mx.Attrib { return mx.NewAttrib("playsinline", value) }
-
-func PlaysInlinef(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("playsinline", valueFmt, a...)
-}
+const PlaysInline = BoolAttrib("playsinline")
 
 func Poster(value string) mx.Attrib { return mx.NewAttrib("poster", value) }
 
@@ -470,11 +474,7 @@ func Preloadf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("preload", valueFmt, a...)
 }
 
-func Readonly(value string) mx.Attrib { return mx.NewAttrib("readonly", value) }
-
-func Readonlyf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("readonly", valueFmt, a...)
-}
+const Readonly = BoolAttrib("readonly")
 
 const ReferrerPolicyNoReferrer = mx.ConstAttrib("referrerpolicy=no-referrer")
 
@@ -496,11 +496,7 @@ func Rel(keywords ...string) mx.Attrib { return mx.NewAttrib("rel", strings.Join
 
 const Required = BoolAttrib("required")
 
-func Reversed(value string) mx.Attrib { return mx.NewAttrib("reversed", value) }
-
-func Reversedf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("reversed", valueFmt, a...)
-}
+const Reversed = BoolAttrib("reversed")
 
 func Role(value string) mx.Attrib { return mx.NewAttrib("role", value) }
 
@@ -508,17 +504,9 @@ func Rolef(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("role", valueFmt, a...)
 }
 
-func Rows(value string) mx.Attrib { return mx.NewAttrib("rows", value) }
+func Rows(numChars int) mx.Attrib { return mx.NewAttrib("rows", strconv.Itoa(numChars)) }
 
-func Rowsf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("rows", valueFmt, a...)
-}
-
-func RowSpan(value string) mx.Attrib { return mx.NewAttrib("rowspan", value) }
-
-func RowSpanf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("rowspan", valueFmt, a...)
-}
+func RowSpan(numRows int) mx.Attrib { return mx.NewAttrib("rowspan", strconv.Itoa(numRows)) }
 
 func Sandbox(value string) mx.Attrib { return mx.NewAttrib("sandbox", value) }
 
@@ -532,17 +520,9 @@ func Scopef(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("scope", valueFmt, a...)
 }
 
-func Scoped(value string) mx.Attrib { return mx.NewAttrib("scoped", value) }
+// Scoped was removed from the HTML spec
 
-func Scopedf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("scoped", valueFmt, a...)
-}
-
-func Selected(value string) mx.Attrib { return mx.NewAttrib("selected", value) }
-
-func Selectedf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("selected", valueFmt, a...)
-}
+const Selected = BoolAttrib("selected")
 
 const ShapeDefault = mx.ConstAttrib("shape=default")
 
@@ -664,7 +644,19 @@ func Valuef(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("value", valueFmt, a...)
 }
 
-func Width(pixels int) mx.Attrib { return mx.NewAttrib("width", strconv.Itoa(pixels)) }
+func Width(value string) mx.Attrib { return mx.NewAttrib("width", value) }
+
+func Widthf(valueFmt string, a ...any) mx.Attrib {
+	return mx.NewAttribf("width", valueFmt, a...)
+}
+
+func WidthPx(pixels float64) mx.Attrib {
+	return Widthf("%fpx", pixels)
+}
+
+func WidthEm(ems float64) mx.Attrib {
+	return Widthf("%fem", ems)
+}
 
 func Wrap(value string) mx.Attrib { return mx.NewAttrib("wrap", value) }
 

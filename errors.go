@@ -1,6 +1,8 @@
 package mx
 
 import (
+	"context"
+	"errors"
 	"net/http"
 )
 
@@ -8,7 +10,15 @@ var (
 	RevealInternalServerErrors = true
 )
 
-func RespondError(w http.ResponseWriter, err error) {
+// RespondNonContextError responds with an internal server error,
+// unless the error is a context.Canceled or context.DeadlineExceeded,
+// in which case it does nothing because the client has disconnected.
+// If RevealInternalServerErrors is true, the error message is included
+// in the response, otherwise a generic "Internal Server Error" is used.
+func RespondNonContextError(w http.ResponseWriter, err error) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return
+	}
 	errString := "Internal Server Error"
 	if RevealInternalServerErrors {
 		errString = err.Error()
