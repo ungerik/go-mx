@@ -44,39 +44,41 @@ HTMX (`hx/`) for anything needing a server round-trip.
 
 ---
 
-## Phase 1 — Tier 1 structural (no deps, pure markup)
+## Phase 1 — Tier 1 structural (no deps, pure markup) (done)
 
 Styled HTML only; these port ~1:1 and are low-risk warm-ups.
 
-- [ ] **Separator** · Cx 1 · deps: none
+- [x] **Separator** · Cx 1 · deps: none
   `<div role="separator">` with `orientation` (horizontal/vertical).
-- [ ] **Skeleton** · Cx 1 · deps: none
+- [x] **Skeleton** · Cx 1 · deps: none
   One `<div>` with `animate-pulse rounded-md bg-accent`.
-- [ ] **Label** · Cx 1 · deps: none
+- [x] **Label** · Cx 1 · deps: none
   Styled `<label>`. Blocks **Form** later.
-- [ ] **Input** · Cx 1 · deps: none
+- [x] **Input** · Cx 1 · deps: none
   Styled `<input>`.
-- [ ] **Textarea** · Cx 1 · deps: none
+- [x] **Textarea** · Cx 1 · deps: none
   Styled `<textarea>`.
-- [ ] **AspectRatio** · Cx 1 · deps: none
-  Wrapper `<div>` using the Tailwind `aspect-*` / CSS `aspect-ratio`.
-- [ ] **Badge** · Cx 2 · deps: cva
-  `<span>` + variants; export `BadgeClasses` (mirror `ButtonClasses`).
-- [ ] **Card** · Cx 2 · deps: none
+- [x] **AspectRatio** · Cx 1 · deps: none
+  Wrapper `<div>` using the CSS `aspect-ratio` property; takes a `ratio`
+  param (width/height).
+- [x] **Badge** · Cx 2 · deps: cva
+  `<span>` + variants; exports `BadgeClasses` (mirrors `ButtonClasses`).
+- [x] **Card** · Cx 2 · deps: none
   `Card` / `CardHeader` / `CardTitle` / `CardDescription` / `CardAction` /
   `CardContent` / `CardFooter`.
-- [ ] **Table** · Cx 2 · deps: none
+- [x] **Table** · Cx 2 · deps: none
   `Table` (+ overflow wrapper) / `TableHeader` / `TableBody` /
   `TableFooter` / `TableRow` / `TableHead` / `TableCell` / `TableCaption`.
   Blocks **DataTable**.
-- [ ] **Breadcrumb** · Cx 2 · deps: none
+- [x] **Breadcrumb** · Cx 2 · deps: none
   `Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` /
-  `BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`.
-- [ ] **Avatar** · Cx 2 · deps: none
+  `BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`. The
+  separator/ellipsis default to inline lucide SVG icons (`icons.go`).
+- [x] **Avatar** · Cx 2 · deps: none
   `Avatar` / `AvatarImage` / `AvatarFallback`. React detects image-load
-  failure in JS; use `<img onerror>` to reveal the fallback, or accept the
-  broken-image degradation.
-- [ ] **Pagination** · Cx 2 · deps: **ButtonClasses** (done)
+  failure in JS; this port renders both, overlays the image (`absolute
+  inset-0`) and hides it via `<img onerror>` to reveal the fallback.
+- [x] **Pagination** · Cx 2 · deps: **ButtonClasses** (done)
   `Pagination` / `PaginationContent` / `PaginationItem` /
   `PaginationLink` / `PaginationPrevious` / `PaginationNext` /
   `PaginationEllipsis`. Links styled via `ButtonClasses(ButtonGhost, …)`.

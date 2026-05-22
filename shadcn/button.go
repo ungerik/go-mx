@@ -8,10 +8,7 @@ import (
 
 // ButtonVariant selects a button's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's button.tsx (new-york-v4, Tailwind v4).
-type ButtonVariant string
-
-// ButtonSize selects a button's size.
-type ButtonSize string
+type ButtonVariant string // TODO use go-enum
 
 const (
 	ButtonDefault     ButtonVariant = "default"
@@ -21,6 +18,9 @@ const (
 	ButtonGhost       ButtonVariant = "ghost"
 	ButtonLink        ButtonVariant = "link"
 )
+
+// ButtonSize selects a button's size.
+type ButtonSize string // TODO use go-enum
 
 const (
 	SizeDefault ButtonSize = "default"

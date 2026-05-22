@@ -8,7 +8,7 @@ import (
 
 // AlertVariant selects an alert's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's alert.tsx (new-york-v4, Tailwind v4).
-type AlertVariant string
+type AlertVariant string // TODO use go-enum
 
 const (
 	AlertDefault     AlertVariant = "default"

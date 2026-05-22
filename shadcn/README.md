@@ -1,10 +1,9 @@
 # shadcn
 
 A Go port of parts of [shadcn/ui](https://ui.shadcn.com), built on the go-mx
-`html` primitives. It contains a growing set of components (`Button`, `Alert`,
-`AlertDialog`), the thin `cn` class-merging helper, and faithful Go ports of
-the three npm packages shadcn/ui's class handling depends on — each in its own
-subpackage:
+`html` primitives. It contains a growing set of components, the thin `cn`
+class-merging helper, and faithful Go ports of the three npm packages
+shadcn/ui's class handling depends on — each in its own subpackage:
 
 - [`clsx`](clsx/) — flattens class-value arguments into one class string
 - [`twmerge`](twmerge/) — resolves Tailwind utility-class conflicts
@@ -184,6 +183,67 @@ constant, developer-chosen id — never user input.
 - `AlertDialogAction` only closes the dialog by default. For a server-side
   action, add `html.Attrib("formaction", "/url")` plus `html.FormMethodPOST`,
   or attach `html.OnClick` for a client-side action.
+
+## Tier 1 components
+
+A set of structural and styled-markup components that port ~1:1 from
+shadcn/ui. Each follows the model above — a leading typed variant where one
+exists, then `attribsChildren ...any`, returning a single `data-slot`-tagged
+element — and transcribes the new-york-v4 Tailwind classes verbatim.
+
+- **Separator** — `Separator(orientation, …)`. A `<div role="separator">`; a
+  `data-orientation` drives the sizing, a vertical separator also gets
+  `aria-orientation`. Pass `""` for the default horizontal orientation.
+- **Skeleton** — `Skeleton(…)`. A pulsing placeholder `<div>`; give it
+  sizing classes to match the content it stands in for.
+- **Label** — `Label(…)`. A styled `<label>`; link it with `html.For(id)`.
+- **Input** — `Input(…)`. A styled void `<input>`; set the type the normal
+  way with `html.Type("…")`.
+- **Textarea** — `Textarea(…)`. A styled `<textarea>`.
+- **AspectRatio** — `AspectRatio(ratio, …)`. A `<div>` holding a CSS
+  `aspect-ratio` — the native replacement for Radix's padding-bottom hack.
+  `ratio` is width/height (e.g. `16.0/9.0`); `0` selects a square.
+- **Badge** — `Badge(variant, …)`. A `<span>` plus variants
+  (`BadgeDefault`, `BadgeSecondary`, `BadgeDestructive`, `BadgeOutline`).
+  `BadgeClasses(variant)` returns just the class string, mirroring
+  `ButtonClasses`.
+- **Card** — `Card` / `CardHeader` / `CardTitle` / `CardDescription` /
+  `CardAction` / `CardContent` / `CardFooter`, all `<div>`s.
+- **Table** — `Table` / `TableHeader` / `TableBody` / `TableFooter` /
+  `TableRow` / `TableHead` / `TableCell` / `TableCaption`. `Table` renders a
+  `<table>` inside an overflow-scrolling `data-slot="table-container"` `<div>`;
+  caller attributes land on the inner `<table>`.
+- **Breadcrumb** — `Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` /
+  `BreadcrumbLink` / `BreadcrumbPage` / `BreadcrumbSeparator` /
+  `BreadcrumbEllipsis`. The separator and ellipsis default to inline lucide
+  SVG icons; pass children to override them.
+- **Avatar** — `Avatar` / `AvatarImage` / `AvatarFallback`. See the note
+  below.
+- **Pagination** — `Pagination` / `PaginationContent` / `PaginationItem` /
+  `PaginationLink(active, size, …)` / `PaginationPrevious` /
+  `PaginationNext` / `PaginationEllipsis`. Links are styled with
+  `ButtonClasses` — outline for the active page, ghost otherwise.
+
+shadcn/ui draws icons from `lucide-react`. go-mx has no icon dependency, so the
+few icons these components need by default (chevrons, ellipsis) are inlined as
+SVG path data in `icons.go`.
+
+### Avatar: revealing the fallback without JS
+
+shadcn/ui's Avatar mounts either the image or the fallback based on a
+JavaScript load check. This port renders both: `AvatarImage` is positioned
+`absolute inset-0` so it overlays `AvatarFallback`, and it carries a default
+`onerror` handler that hides the image when its `src` fails to load — revealing
+the fallback beneath it. The `absolute inset-0` is a deliberate divergence from
+shadcn's verbatim `aspect-square size-full`, the native replacement for Radix's
+mount/unmount. Pass your own `onerror` attribute to override the default.
+
+```go
+shadcn.Avatar(
+    shadcn.AvatarImage(html.Src("/avatar.png"), html.Alt("Jane Doe")),
+    shadcn.AvatarFallback("JD"),
+)
+```
 
 ## Tailwind CSS v4 is required
 
