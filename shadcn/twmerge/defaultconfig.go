@@ -1,4 +1,4 @@
-package shadcn
+package twmerge
 
 // getDefaultConfig is a faithful port of tailwind-merge v3.6.0's
 // getDefaultConfig (src/lib/default-config.ts), targeting Tailwind CSS v4.

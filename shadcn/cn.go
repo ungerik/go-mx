@@ -1,73 +1,30 @@
-// Package shadcn provides Cn, a Go port of the shadcn/ui `cn` helper.
+// Package shadcn is a Go port of shadcn/ui components, built on the go-mx html
+// primitives. It renders HTML on the server with no client runtime, so it is a
+// port, not a wrapper: markup and Tailwind classes are reproduced in Go.
 //
-// The shadcn/ui `cn` function is `clsx(inputs)` piped through
-// `tailwind-merge`'s `twMerge`. This package is a faithful port of both
-// halves against tailwind-merge v3.6.0 (targeting Tailwind CSS v4):
+// The class-handling utilities that shadcn/ui pulls in as separate npm
+// packages live in subpackages, each a faithful port of its upstream:
 //
-//   - The flatten layer (clsx): strings, nested slices and conditional
-//     maps are flattened, falsy values dropped.
-//   - The merge layer (twMerge): the full default config — every Tailwind
-//     utility class group, the class-group trie, modifier/important/postfix
-//     parsing, and the conflict tables — so a later class correctly
-//     overrides an earlier conflicting one.
+//   - clsx    — flattens class-value arguments into one class string
+//   - twmerge — resolves Tailwind utility-class conflicts
+//   - cva     — class-variance-authority, builds variant class strings
 //
-// The merge algorithm and config are transcribed from the upstream
-// TypeScript source; see merge.go, classmap.go, validators.go, parse.go
-// and defaultconfig.go.
+// [Cn] is the thin shadcn cn helper that composes clsx and twmerge.
 package shadcn
 
 import (
-	"sort"
-	"strings"
+	"github.com/ungerik/go-mx/shadcn/clsx"
+	"github.com/ungerik/go-mx/shadcn/twmerge"
 )
 
-// Cn combines Tailwind CSS classes into a single class string, removing
-// earlier classes that a later class overrides.
+// Cn is a Go port of the shadcn/ui cn helper: it flattens its arguments with
+// [clsx.Join] and resolves Tailwind class conflicts with [twmerge.Merge], so a
+// later class overrides an earlier conflicting one.
 //
-// Accepted argument kinds, matching clsx:
+//	Cn("px-2 py-1", "p-4")   // "p-4"
+//	Cn("text-sm", "text-lg") // "text-lg"
 //
-//   - string         — used as-is (may contain multiple space-separated classes)
-//   - []string       — each element used as-is
-//   - []any          — flattened recursively
-//   - map[string]bool — keys whose value is true are included
-//
-// Empty strings, nil, bools and any other kind contribute nothing, so Cn
-// can be called with conditional expressions.
-//
-// Note on maps: clsx applies object keys in insertion order, which a Go
-// map cannot reproduce, so keys from a map[string]bool are applied in
-// sorted order. For order-dependent conditional classes use a []string.
+// See [clsx.Join] for the accepted argument kinds.
 func Cn(values ...any) string {
-	var parts []string
-	flatten(values, &parts)
-	return twMerge(strings.Join(parts, " "))
-}
-
-func flatten(values []any, parts *[]string) {
-	for _, v := range values {
-		switch x := v.(type) {
-		case string:
-			if x != "" {
-				*parts = append(*parts, x)
-			}
-		case []string:
-			for _, s := range x {
-				if s != "" {
-					*parts = append(*parts, s)
-				}
-			}
-		case []any:
-			flatten(x, parts)
-		case map[string]bool:
-			keys := make([]string, 0, len(x))
-			for k, on := range x {
-				if on && k != "" {
-					keys = append(keys, k)
-				}
-			}
-			sort.Strings(keys)
-			*parts = append(*parts, keys...)
-		}
-		// nil, false, numbers and other kinds are falsy: contribute nothing.
-	}
+	return twmerge.Merge(clsx.Join(values...))
 }

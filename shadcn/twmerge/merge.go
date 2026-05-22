@@ -1,4 +1,15 @@
-package shadcn
+// Package twmerge is a Go port of tailwind-merge v3.6.0 (targeting Tailwind
+// CSS v4): [Merge] resolves Tailwind utility-class conflicts so that a later
+// class overrides an earlier conflicting one.
+//
+// It is a faithful transcription of the upstream TypeScript — the full default
+// config (every utility class group, the class-group trie, modifier /
+// important / postfix parsing and the conflict tables) is spread across
+// merge.go, classmap.go, validators.go, parse.go and defaultconfig.go.
+//
+// twmerge is the merge half of the shadcn cn helper; the flatten half is
+// package clsx. See [github.com/ungerik/go-mx/shadcn.Cn].
+package twmerge
 
 // The tailwind-merge conflict-resolution algorithm, ported from
 // tailwind-merge v3.6.0 (src/lib/merge-classlist.ts and config-utils.ts).
@@ -27,7 +38,7 @@ type classGroupEntry struct {
 }
 
 // twState is the prepared, read-only runtime state. It is built once and only
-// read afterwards, so concurrent Cn calls are safe.
+// read afterwards, so concurrent Merge calls are safe.
 type twState struct {
 	classMap                       *classPart
 	conflictingClassGroups         map[string][]string
@@ -56,9 +67,9 @@ func buildState() *twState {
 	return s
 }
 
-// twMerge merges a space-separated class list, removing earlier classes that
-// later classes override. It is the Go port of tailwind-merge's twMerge.
-func twMerge(classList string) string {
+// Merge merges a space-separated class list, removing earlier classes that a
+// later class overrides. It is the Go port of tailwind-merge's twMerge.
+func Merge(classList string) string {
 	classNames := strings.Fields(classList)
 
 	// conflictKeys is a set of `{modifierId}{classGroupId}` strings already

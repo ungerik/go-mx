@@ -1,4 +1,4 @@
-package shadcn
+package twmerge
 
 // Validators ported from tailwind-merge v3.6.0 (src/lib/validators.ts).
 // They classify a class value fragment so the class-group trie can decide

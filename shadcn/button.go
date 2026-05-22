@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/shadcn/cva"
 )
 
 // ButtonVariant selects a button's visual style. Class strings are transcribed
@@ -32,27 +33,32 @@ const (
 	SizeIconLG  ButtonSize = "icon-lg"
 )
 
-const buttonBaseClasses = "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-
-var buttonVariantClasses = map[ButtonVariant]string{
-	ButtonDefault:     "bg-primary text-primary-foreground hover:bg-primary/90",
-	ButtonDestructive: "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
-	ButtonOutline:     "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-	ButtonSecondary:   "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-	ButtonGhost:       "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-	ButtonLink:        "text-primary underline-offset-4 hover:underline",
-}
-
-var buttonSizeClasses = map[ButtonSize]string{
-	SizeDefault: "h-9 px-4 py-2 has-[>svg]:px-3",
-	SizeXS:      "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-	SizeSM:      "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-	SizeLG:      "h-10 rounded-md px-6 has-[>svg]:px-4",
-	SizeIcon:    "size-9",
-	SizeIconXS:  "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-	SizeIconSM:  "size-8",
-	SizeIconLG:  "size-10",
-}
+// buttonVariants resolves a button's base + variant + size classes, declared
+// the same way shadcn/ui's button.tsx declares them with cva.
+var buttonVariants = cva.New(cva.Config{
+	Base: "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+	Variants: map[string]map[string]string{
+		"variant": {
+			"default":     "bg-primary text-primary-foreground hover:bg-primary/90",
+			"destructive": "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
+			"outline":     "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+			"secondary":   "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+			"ghost":       "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+			"link":        "text-primary underline-offset-4 hover:underline",
+		},
+		"size": {
+			"default": "h-9 px-4 py-2 has-[>svg]:px-3",
+			"xs":      "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+			"sm":      "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
+			"lg":      "h-10 rounded-md px-6 has-[>svg]:px-4",
+			"icon":    "size-9",
+			"icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+			"icon-sm": "size-8",
+			"icon-lg": "size-10",
+		},
+	},
+	DefaultVariants: map[string]string{"variant": "default", "size": "default"},
+})
 
 // ButtonClasses returns the merged base + variant + size button class string.
 // It is the equivalent of shadcn/ui's exported buttonVariants: use it to give
@@ -62,21 +68,30 @@ var buttonSizeClasses = map[ButtonSize]string{
 // An empty variant or size resolves to the default; an unknown value falls
 // back to the default classes.
 func ButtonClasses(variant ButtonVariant, size ButtonSize) string {
-	if variant == "" {
-		variant = ButtonDefault
+	return Cn(buttonVariants(map[string]string{
+		"variant": normButtonVariant(variant),
+		"size":    normButtonSize(size),
+	}))
+}
+
+// normButtonVariant maps an empty or unknown variant to the default.
+func normButtonVariant(v ButtonVariant) string {
+	switch v {
+	case ButtonDestructive, ButtonOutline, ButtonSecondary, ButtonGhost, ButtonLink:
+		return string(v)
+	default:
+		return string(ButtonDefault)
 	}
-	if size == "" {
-		size = SizeDefault
+}
+
+// normButtonSize maps an empty or unknown size to the default.
+func normButtonSize(s ButtonSize) string {
+	switch s {
+	case SizeXS, SizeSM, SizeLG, SizeIcon, SizeIconXS, SizeIconSM, SizeIconLG:
+		return string(s)
+	default:
+		return string(SizeDefault)
 	}
-	v, ok := buttonVariantClasses[variant]
-	if !ok {
-		v = buttonVariantClasses[ButtonDefault]
-	}
-	s, ok := buttonSizeClasses[size]
-	if !ok {
-		s = buttonSizeClasses[SizeDefault]
-	}
-	return Cn(buttonBaseClasses, v, s)
 }
 
 // Button renders a shadcn/ui button. variant and size may be "" to select the

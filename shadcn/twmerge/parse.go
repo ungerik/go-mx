@@ -1,4 +1,4 @@
-package shadcn
+package twmerge
 
 // Class-name parsing and modifier sorting, ported from tailwind-merge v3.6.0
 // (src/lib/parse-class-name.ts and src/lib/sort-modifiers.ts).

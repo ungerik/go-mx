@@ -1,30 +1,57 @@
 # shadcn
 
 A Go port of parts of [shadcn/ui](https://ui.shadcn.com), built on the go-mx
-`html` primitives. It contains the `cn` class-merging utility and a growing set
-of components (`Button`, `Alert`, `AlertDialog`).
+`html` primitives. It contains a growing set of components (`Button`, `Alert`,
+`AlertDialog`), the thin `cn` class-merging helper, and faithful Go ports of
+the three npm packages shadcn/ui's class handling depends on — each in its own
+subpackage:
+
+- [`clsx`](clsx/) — flattens class-value arguments into one class string
+- [`twmerge`](twmerge/) — resolves Tailwind utility-class conflicts
+- [`cva`](cva/) — class-variance-authority, the variant builder
 
 shadcn/ui ships React components. go-mx renders HTML on the server with no
 client runtime, so this is a *port*, not a wrapper: the markup and Tailwind
 classes are reproduced in Go, and behavior that React delegates to libraries is
 re-expressed with web-platform primitives.
 
-## `Cn` — the tailwind-merge port
+## `Cn` — the class-merging helper
 
-shadcn's `cn` helper is `clsx` piped through `tailwind-merge`. `Cn` is a
-faithful Go port of both, transcribed from `tailwind-merge` v3.6.0 (Tailwind
-CSS v4). It flattens its arguments (strings, `[]string`, nested `[]any`,
-`map[string]bool` conditional classes) and resolves Tailwind conflicts so a
-later class overrides an earlier one:
+shadcn's `cn` helper is `clsx` piped through `tailwind-merge`. `Cn` is the Go
+equivalent — a one-line composition: it flattens its arguments with
+[`clsx.Join`](clsx/) and resolves Tailwind conflicts with
+[`twmerge.Merge`](twmerge/) so a later class overrides an earlier one:
 
 ```go
 shadcn.Cn("px-2 py-1", "p-4")        // "p-4"
 shadcn.Cn("text-sm", "text-lg")      // "text-lg"
 ```
 
-See the package doc comment in `cn.go` for the full contract. The merge
-algorithm and config live in `merge.go`, `classmap.go`, `validators.go`,
-`parse.go` and `defaultconfig.go`.
+`clsx.Join` accepts strings, `[]string`, nested `[]any` and `map[string]bool`
+conditional classes; see its doc comment for the contract. `twmerge.Merge` is a
+faithful port of `tailwind-merge` v3.6.0 (Tailwind CSS v4) — the merge
+algorithm and full config live in the [`twmerge`](twmerge/) subpackage
+(`merge.go`, `classmap.go`, `validators.go`, `parse.go`, `defaultconfig.go`).
+
+## `cva` — the variant builder
+
+shadcn/ui declares each component's style variants with
+[class-variance-authority](https://cva.style) (`cva`): a base class plus a
+table of variants, compound variants and defaults. The [`cva`](cva/)
+subpackage is a faithful Go port of cva v0.7.1.
+
+```go
+buttonVariants := cva.New(cva.Config{
+	Base:            "inline-flex ...",
+	Variants:        map[string]map[string]string{"variant": {/* ... */}},
+	DefaultVariants: map[string]string{"variant": "default"},
+})
+buttonVariants(map[string]string{"variant": "destructive"})
+```
+
+Like the npm package, `cva` only concatenates classes — compose it with `Cn`
+to resolve Tailwind conflicts, just as shadcn/ui composes `cva` with `cn`.
+`Button` and `Alert` declare their variants this way.
 
 ## Component model — how a React component maps to Go
 

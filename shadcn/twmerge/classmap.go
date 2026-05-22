@@ -1,4 +1,4 @@
-package shadcn
+package twmerge
 
 // Class-group resolution, ported from tailwind-merge v3.6.0
 // (src/lib/class-group-utils.ts). A trie ("class map") is built from the

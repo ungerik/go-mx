@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/shadcn/cva"
 )
 
 // AlertVariant selects an alert's visual style. Class strings are transcribed
@@ -14,28 +15,31 @@ const (
 	AlertDestructive AlertVariant = "destructive"
 )
 
-const alertBaseClasses = "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current"
-
-var alertVariantClasses = map[AlertVariant]string{
-	AlertDefault:     "bg-card text-card-foreground",
-	AlertDestructive: "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current",
-}
+// alertVariants resolves an alert's base + variant classes, declared the same
+// way shadcn/ui's alert.tsx declares them with cva.
+var alertVariants = cva.New(cva.Config{
+	Base: "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
+	Variants: map[string]map[string]string{
+		"variant": {
+			"default":     "bg-card text-card-foreground",
+			"destructive": "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current",
+		},
+	},
+	DefaultVariants: map[string]string{"variant": "default"},
+})
 
 // Alert renders a shadcn/ui alert container. variant may be "" for the
 // default. A role="alert" attribute is added unless the caller supplies a role.
 func Alert(variant AlertVariant, attribsChildren ...any) *mx.Element {
-	if variant == "" {
-		variant = AlertDefault
-	}
-	v, ok := alertVariantClasses[variant]
-	if !ok {
-		v = alertVariantClasses[AlertDefault]
-	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	return finish(e, "alert", Cn(alertBaseClasses, v))
+	v := string(AlertDefault)
+	if variant == AlertDestructive {
+		v = string(AlertDestructive)
+	}
+	return finish(e, "alert", alertVariants(map[string]string{"variant": v}))
 }
 
 // AlertTitle renders the title row of an [Alert]. shadcn/ui uses a div here
