@@ -36,7 +36,7 @@ go-mx is a Go library for generating HTML markup programmatically using a compon
 
 - **html/**: HTML5 elements and attributes - `Div()`, `Span()`, `Class()`, `ID()`, etc.
 - **hx/**: HTMX integration - `hx.Get()`, `hx.Post()`, `hx.Trigger()`, etc.
-- **shadcn/**: Tailwind CSS class merging utilities
+- **shadcn/**: `Cn` Tailwind-class merger (a faithful port of tailwind-merge v3) plus ported shadcn/ui components — `Button`, `Alert`, `AlertDialog`. See `shadcn/README.md`.
 - **web/**, **doc/**, **pdf/**: Higher-level abstractions (partially implemented)
 
 ### Key Patterns
