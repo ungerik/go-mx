@@ -95,6 +95,10 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 	}
 	w.elemStack = append(w.elemStack, elemState{element: elem})
 	w.inStartTag = true
+	// Reset duplicate-attribute tracking for this element's start tag.
+	// It must be cleared per start tag, not on EndElement: a nested child
+	// begins its start tag while its parent (and ancestors) are still open.
+	clear(w.writtenAttribs)
 	_, err := w.Write(append([]byte{'<'}, elem...))
 	return err
 }
@@ -147,7 +151,6 @@ func (w *CheckedWriter) EndElement() (err error) {
 			return err
 		}
 	}
-	clear(w.writtenAttribs)
 	if w.inStartTag {
 		// Void element
 		w.inStartTag = false
