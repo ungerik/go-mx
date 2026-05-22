@@ -19,6 +19,28 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 	return f(ctx, w)
 }
 
+// DefaultAsComponent converts an arbitrary value into a [Component].
+//
+// The markup API accepts children as ...any, so this conversion happens
+// dynamically at render-build time, not at compile time. The recognized
+// types are:
+//
+//   - nil                        -> nil (renders nothing)
+//   - Component                  -> returned unchanged
+//   - string                     -> Text (HTML-escaped on render)
+//   - the func(...) signatures
+//     in the switch below         -> wrapped as ComponentFunc
+//
+// Any other value falls back to Text(fmt.Sprint(c)). This is convenient
+// for primitives such as int or bool, but it also means a value the
+// caller intended as markup (for example a struct that does not
+// implement Component, or a *T whose method set is on T) is silently
+// stringified into escaped text instead of causing a compile-time
+// error. When a child value is not obviously one of the cases above,
+// convert it to a Component explicitly so mistakes surface.
+//
+// DefaultAsComponent is the default implementation of the package-level
+// [AsComponent] variable, which may be reassigned to customize this.
 func DefaultAsComponent(c any) Component {
 	switch c := c.(type) {
 	case nil:

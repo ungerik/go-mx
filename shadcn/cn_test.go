@@ -5,23 +5,23 @@ import "testing"
 func TestCn(t *testing.T) {
 	// TODO fix test
 	examples := []struct {
-		input    []interface{}
+		input    []any
 		expected string
 	}{
 		{
-			input:    []interface{}{"px-2 py-1", "bg-red-500"},
+			input:    []any{"px-2 py-1", "bg-red-500"},
 			expected: "px-2 py-1 bg-red-500",
 		},
 		{
-			input:    []interface{}{"px-2", "p-4"},
+			input:    []any{"px-2", "p-4"},
 			expected: "p-4",
 		},
 		{
-			input:    []interface{}{"px-2", "!px-4"},
+			input:    []any{"px-2", "!px-4"},
 			expected: "!px-4",
 		},
 		{
-			input:    []interface{}{"px-2", "", false, "py-1"},
+			input:    []any{"px-2", "", false, "py-1"},
 			expected: "px-2 py-1",
 		},
 	}

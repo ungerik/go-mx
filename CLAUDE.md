@@ -51,10 +51,16 @@ html.Img(html.Src("/img.png"), html.Alt("Image"))
 ```
 
 **Component Conversion** (`DefaultAsComponent` in `component.go`):
+Children are passed as `...any` and converted dynamically at render-build
+time, not checked at compile time.
 - `nil` → nil (renders nothing)
 - `string` → `Text` (escaped)
 - `Component` → passes through
 - Functions → wrapped as `ComponentFunc`
+- anything else → `Text(fmt.Sprint(value))` — stringified and escaped.
+  A non-`Component` value passed by mistake produces no compile error;
+  it silently renders as escaped text. Convert non-obvious children to a
+  `Component` explicitly.
 
 **Attribute Conversion** (`DefaultAsAttribs` in `attribs.go`):
 - Single `Attrib`, slices, maps, structs with `attr` tags

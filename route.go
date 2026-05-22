@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+
+	"github.com/domonda/go-errs"
 )
 
 // Route is an http.Handler with a path pattern.
@@ -41,6 +43,13 @@ func NewComponentFuncHandler[T any](compFunc func(T) Component, writerFactory Wr
 }
 
 func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	// Recover panics from reflection: a non-struct T or an unsettable
+	// field would otherwise crash the request without a response.
+	defer func() {
+		if p := recover(); p != nil {
+			RespondNonContextError(response, errs.AsErrorWithDebugStack(p))
+		}
+	}()
 	var funcArg T
 	// TODO other kinds than struct
 	for field, fieldVal := range ReflectStructFields(reflect.ValueOf(&funcArg)) {
@@ -51,8 +60,11 @@ func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, reques
 				continue
 			}
 		}
-		// TODO convert other types than string
-		fieldVal.SetString(requestVal)
+		// TODO convert types other than string. Until then non-string
+		// fields are skipped rather than panicking in reflect.SetString.
+		if fieldVal.Kind() == reflect.String && fieldVal.CanSet() {
+			fieldVal.SetString(requestVal)
+		}
 	}
 	var body bytes.Buffer
 	factory := h.writerFactory
@@ -205,7 +217,7 @@ func patternPath(pattern string) string {
 
 func PathValueNames(pattern string) map[string]struct{} {
 	names := make(map[string]struct{})
-	for _, part := range strings.Split(patternPath(pattern), "/") {
+	for part := range strings.SplitSeq(patternPath(pattern), "/") {
 		if len(part) > 0 && part[0] == '{' {
 			if i := strings.IndexByte(part, '}'); i != -1 {
 				names[part[1:i]] = struct{}{}

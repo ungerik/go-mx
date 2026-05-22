@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	RevealInternalServerErrors = true
+	RevealInternalServerErrors = false
 )
 
 // RespondNonContextError responds with an internal server error,
