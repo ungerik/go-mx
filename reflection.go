@@ -5,73 +5,45 @@ import (
 	"reflect"
 )
 
-// ReflectStructFields returns an iterator over
-// flattened struct fields with their values,
-// meaning that the fields of anonoymous embedded fields are yielded
-// as if they were at the top level of the struct.
+// ReflectStructFields returns an iterator over the exported, flattened struct
+// fields of s with their values. Fields of anonymous embedded structs are
+// yielded as if declared at the top level, in declaration order; anonymous
+// fields themselves and unexported fields are skipped, and fields shadowed by
+// outer fields with the same name are not yielded (Go's normal visibility
+// rules, courtesy of [reflect.VisibleFields]).
 //
-// The argument s must be the reflect.Value of a struct or a pointer to a struct.
+// The argument s must be the [reflect.Value] of a struct or a pointer to a
+// struct; otherwise ReflectStructFields panics. A nil pointer argument also
+// panics. A nil embedded pointer-to-struct *field* is skipped silently — its
+// promoted fields are unreachable, not an error — via [reflect.Value.FieldByIndexErr].
 func ReflectStructFields(s reflect.Value) iter.Seq2[reflect.StructField, reflect.Value] {
-	structValue := s
-	for structValue.Kind() == reflect.Pointer {
-		if structValue.IsNil() {
-			panic("nil pointer to " + structValue.Type().String())
+	sv := s
+	for sv.Kind() == reflect.Pointer {
+		if sv.IsNil() {
+			panic("nil pointer to " + sv.Type().String())
 		}
-		structValue = structValue.Elem()
+		sv = sv.Elem()
 	}
-	structType := structValue.Type()
-	if structType.Kind() != reflect.Struct {
+	if sv.Kind() != reflect.Struct {
 		panic("need struct or pointer to struct, but got: " + s.Type().String())
 	}
 	return func(yield func(reflect.StructField, reflect.Value) bool) {
-		for i := range structType.NumField() {
-			field, val := structType.Field(i), structValue.Field(i)
-			switch {
-			case field.Anonymous:
-				for fieldA, valA := range ReflectStructFields(val) {
-					if !yield(fieldA, valA) {
-						return
-					}
-				}
-			case field.IsExported():
-				if !yield(field, val) {
-					return
-				}
+		for _, f := range reflect.VisibleFields(sv.Type()) {
+			// VisibleFields includes the anonymous embed itself plus every
+			// promoted field, exported or not. Keep only the exported,
+			// non-anonymous ones to match the package's existing contract.
+			if f.Anonymous || !f.IsExported() {
+				continue
+			}
+			val, err := sv.FieldByIndexErr(f.Index)
+			if err != nil {
+				// Path crosses a nil embedded pointer-to-struct; skip the
+				// whole subtree silently rather than panicking.
+				continue
+			}
+			if !yield(f, val) {
+				return
 			}
 		}
 	}
 }
-
-/*
-// FlatExportedStructFields returns an iterator over flattened struct fields,
-// meaning that the fields of anonoymous embedded fields are yielded
-// as if they were at the top level of the struct.
-//
-// The argument t must be the reflect.Type of a struct or a pointer to a struct.
-func FlatExportedStructFields(t reflect.Type) iter.Seq[reflect.StructField] {
-	structType := t
-	for structType.Kind() == reflect.Pointer {
-		structType = structType.Elem()
-	}
-	if structType.Kind() != reflect.Struct {
-		panic("need struct or pointer to struct, but got: " + t.String())
-	}
-	return func(yield func(reflect.StructField) bool) {
-		for i := range structType.NumField() {
-			field := structType.Field(i)
-			switch {
-			case field.Anonymous:
-				for fieldA := range FlatExportedStructFields(field.Type) {
-					if !yield(fieldA) {
-						return
-					}
-				}
-			case field.IsExported():
-				if !yield(field) {
-					return
-				}
-			}
-		}
-	}
-}
-*/
