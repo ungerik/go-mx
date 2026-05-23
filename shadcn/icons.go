@@ -61,3 +61,8 @@ func iconEllipsis(extraClass string) *mx.Element {
 		svgCircle("5", "12", "1"),
 	)
 }
+
+// iconMinus is the lucide minus icon.
+func iconMinus() *mx.Element {
+	return icon("minus", "", svgPath("M5 12h14"))
+}

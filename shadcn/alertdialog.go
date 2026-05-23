@@ -16,11 +16,12 @@ import (
 // variant). See README.md for the full porting rationale.
 
 // validateID panics unless id is a non-empty string of letters, digits, '-'
-// and '_'. The id is interpolated into an onclick handler and an id
-// attribute, so it must be a safe, valid HTML id.
+// and '_'. Components in this package interpolate the id into an onclick
+// handler, an id, name, for, aria-controls or aria-labelledby attribute, so it
+// must be a safe, valid HTML id.
 func validateID(id string) {
 	if id == "" {
-		panic("shadcn: AlertDialog id must not be empty")
+		panic("shadcn: id must not be empty")
 	}
 	for _, r := range id {
 		ok := r == '-' || r == '_' ||
@@ -28,7 +29,7 @@ func validateID(id string) {
 			(r >= 'A' && r <= 'Z') ||
 			(r >= 'a' && r <= 'z')
 		if !ok {
-			panic("shadcn: AlertDialog id must contain only letters, digits, '-' and '_': " + id)
+			panic("shadcn: id must contain only letters, digits, '-' and '_': " + id)
 		}
 	}
 }

@@ -245,6 +245,137 @@ shadcn.Avatar(
 )
 ```
 
+## Tier 2 components
+
+Tier 2 covers interactive components whose behavior is carried by native form
+controls and disclosure elements. Each follows the same model as Tier 1 — one
+leading typed parameter where there is one, then `attribsChildren ...any`,
+returning a single `data-slot`-tagged element — and transcribes the shadcn/ui
+new-york-v4 Tailwind classes verbatim, with Radix's `data-[state=*]` selectors
+rewritten to native equivalents:
+
+| Radix selector                  | Native rewrite                         |
+|---------------------------------|----------------------------------------|
+| `data-[state=checked]:` (input) | `checked:`                             |
+| `data-[state=on]:` (button)     | `aria-pressed:`                        |
+| `data-[state=active]:` (button) | `aria-selected:`                       |
+| `data-[state=open]:` (details)  | `group-open:` (with `group` on parent) |
+
+- **Progress** — `Progress(value, …)`. Track + indicator with an inline
+  `transform: translateX(-N%)`; the value is known server-side. Clamped to
+  `[0, 100]`; sets `role="progressbar"` and `aria-valuemin/max/now`.
+- **Switch** — `Switch(…)`. A single styled void `<input type="checkbox"
+  role="switch">`; the thumb is drawn with a `before:` pseudo-element on the
+  `appearance-none` input (the native equivalent of Radix's child `Thumb`).
+- **Toggle** — `Toggle(variant, size, …)` plus `ToggleClasses(variant, size)`
+  (the `toggleVariants` equivalent). Variants `ToggleDefault`, `ToggleOutline`;
+  sizes `ToggleSizeDefault`, `ToggleSizeSM`, `ToggleSizeLG`. A `<button
+  aria-pressed>`; a default inline `onclick` flips `aria-pressed` (see
+  [HTMX integration](#htmx-integration) below).
+- **RadioGroup** — `RadioGroup(name, …)` + `RadioGroupItem(name, value, …)`.
+  Items are styled void `<input type="radio">`s with the dot drawn via
+  `before:`. Roving focus and exclusive selection are native to radios with a
+  shared `name`.
+- **Checkbox** — `Checkbox(…)`. Styled void `<input type="checkbox">`; the
+  check mark is a `background-image` data URL drawn when `:checked`.
+  Indeterminate is a JavaScript-only DOM property — use
+  `CheckboxIndeterminateScript(id)` to flip it after the page loads.
+- **Collapsible** — `Collapsible` / `CollapsibleTrigger` / `CollapsibleContent`.
+  Native `<details>`/`<summary>`; the root carries `group` so a caller chevron
+  can rotate via `group-open:rotate-180`.
+- **Accordion** — `Accordion` / `AccordionItem(groupName, …)` /
+  `AccordionTrigger` / `AccordionContent`. Each item is a native `<details>`;
+  **single mode** uses the same non-empty `groupName` for every item (the
+  native `<details name="…">` exclusive group, one open at a time), **multiple
+  mode** passes `""` (independent items). `AccordionTrigger` appends a default
+  chevron-down icon that rotates `group-open:rotate-180`.
+- **Tabs** — `Tabs(id, …)` / `TabsList(…)` / `TabsTrigger(tabsID, value,
+  active, …)` / `TabsContent(tabsID, value, active, …)`. Faithful
+  `role="tablist"`/`role="tab"`/`role="tabpanel"` markup; one short
+  `tabsSelect` script is emitted once per `Tabs` instance (guarded with
+  `if(!window.tabsSelect)`).
+- **ToggleGroup** — `ToggleGroup(groupType, variant, size, id, …)` +
+  `ToggleGroupItem(groupID, value, variant, size, …)`. `groupType` is
+  `ToggleGroupSingle` or `ToggleGroupMultiple`. Items are styled with
+  `ToggleClasses` plus join classes; one `toggleGroupClick` script reads the
+  parent's `data-type` at click time to handle both modes.
+- **ScrollArea** — `ScrollArea(…)`. A single overflow `<div>` with CSS-styled
+  scrollbars. shadcn's `ScrollBar` is intentionally **not exported** — in the
+  native port the scrollbar is the `::-webkit-scrollbar` pseudo-element (plus
+  Firefox's `scrollbar-width`/`scrollbar-color`), not an element, so a Go
+  `ScrollBar` would have nothing to render. (Same precedent as
+  `AlertDialogOverlay`.)
+- **Slider** — `Slider(min, max, step, values, id, …)`. `len(values)==1`
+  renders a single-thumb styled void `<input type="range">`; `len(values)==2`
+  renders a two-thumb range (two overlaid inputs + a fill `<div>` + one
+  `sliderClamp` script that keeps the fill in sync). Any other length panics.
+- **InputOTP** — `InputOTP(id, name, length, …)` + `InputOTPSeparator(…)`.
+  Renders `length` real `<input maxlength="1">` slots plus a hidden field
+  named `name` that the shared `otpAdvance` / `otpKey` script keeps in sync.
+  This is a divergence from shadcn's `input-otp` library (one hidden input +
+  fake slot `<div>`s): real inputs give a real per-slot caret and simpler
+  per-slot styling, at the cost of N inputs in the form.
+
+### CSS pseudo-element indicators on void inputs
+
+A native `<input type=checkbox|radio>` is a void element and cannot hold the
+child indicator shadcn renders for the check / dot / switch thumb. Switch,
+Checkbox and RadioGroupItem instead draw the indicator with CSS on the
+`appearance-none` input — a `before:` pseudo-element (Switch thumb,
+RadioGroup dot) or a `background-image` data URL (Checkbox check) that shows
+on `:checked`. Pseudo-elements render on checkbox/radio inputs once `appearance`
+is removed. This is a deliberate divergence from shadcn's two-element
+structure, mirroring the Avatar `absolute inset-0` note.
+
+### Inline scripts for interactive state
+
+Tabs, ToggleGroup, Slider (range mode) and InputOTP each emit one short
+`<script>` once per component instance, guarded with `if(!window.fn)`. The
+script is the native replacement for the React reducer / Radix context that
+shadcn relies on. Inline `<script>` bodies are emitted with `html.Script(mx.Raw(...))`
+— the same pattern `html.StyleElem` uses for CSS. The `Toggle` default
+`onclick` is one inline expression (no `<script>` element); same for
+`TabsTrigger` and `ToggleGroupItem`.
+
+### HTMX integration
+
+Toggle, TabsTrigger and ToggleGroupItem all check whether the caller passed
+any `hx-*` attribute (the `hasHX` helper in `component.go`). When one is
+present, the component **skips** its default `onclick` — htmx is in charge.
+The signature is unchanged; opt in by passing `hx.Post(…)` / `hx.Get(…)` /
+`hx.Swap(…)` / `hx.Target(…)` from `github.com/ungerik/go-mx/hx` alongside the
+other attribs:
+
+```go
+// Toggle posting its state to the server. The server returns the re-rendered
+// button with aria-pressed flipped.
+shadcn.Toggle("", "",
+    hx.Post("/toggle-bold"), hx.Swap("outerHTML"),
+    "Bold",
+)
+
+// Tabs whose triggers swap server-rendered panels in.
+shadcn.Tabs("settings",
+    shadcn.TabsList(
+        shadcn.TabsTrigger("settings", "account", true,
+            hx.Get("/tabs/account"), hx.Target("#settings-panel"), "Account"),
+        shadcn.TabsTrigger("settings", "billing", false,
+            hx.Get("/tabs/billing"), hx.Target("#settings-panel"), "Billing"),
+    ),
+    html.Div(html.ID("settings-panel"), html.Class("flex-1 outline-none"), "Account panel"),
+)
+```
+
+The shared `tabsSelect` / `toggleGroupClick` scripts are still emitted by the
+root (they are tiny and harmless if no trigger calls them).
+
+### Open / close animations
+
+shadcn's Radix-driven open/close height animations on `CollapsibleContent` and
+`AccordionContent` are not reproduced: a native `<details>` snaps open and
+closed. They can be brought back in plain CSS with `@starting-style` and
+`transition-behavior: allow-discrete`; this package does not emit that CSS.
+
 ## Tailwind CSS v4 is required
 
 These components emit Tailwind v4 utility classes and nothing else. The

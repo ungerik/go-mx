@@ -2,6 +2,7 @@ package shadcn
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ungerik/go-mx"
 )
@@ -51,4 +52,19 @@ func finish(e *mx.Element, slot, baseClasses string) *mx.Element {
 	}
 	e.Attribs = attribs
 	return e
+}
+
+// hasHX reports whether e carries any htmx attribute (one whose name starts
+// with "hx-"). Stateful components in this package (Toggle, TabsTrigger,
+// ToggleGroupItem) use it to skip the default inline onclick when the caller
+// wired htmx, so that hx.Post/hx.Get drives the interaction instead. Same
+// API for both paths: pass htmx attribs from the github.com/ungerik/go-mx/hx
+// package alongside the other attribs.
+func hasHX(e *mx.Element) bool {
+	for _, a := range e.Attribs {
+		if strings.HasPrefix(a.AttribName(), "hx-") {
+			return true
+		}
+	}
+	return false
 }

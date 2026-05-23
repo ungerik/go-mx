@@ -85,45 +85,41 @@ Styled HTML only; these port ~1:1 and are low-risk warm-ups.
 
 ---
 
-## Phase 2 — Tier 2 simple interactive
+## Phase 2 — Tier 2 simple interactive (done)
 
 Native form controls and disclosure elements carry most of the behavior.
+Stateful components (Toggle, Tabs, ToggleGroup) keep shadcn's ARIA markup +
+a tiny inline JS handler, with an HTMX opt-out (a caller-supplied `hx-*`
+attribute skips the default `onclick`).
 
-- [ ] **Progress** · Cx 2 · deps: none
-  `<div>` track + inner bar width from a value param (or native
-  `<progress>`).
-- [ ] **Switch** · Cx 2 · deps: none
-  Native `<input type="checkbox" role="switch">`, visual via CSS.
-- [ ] **Toggle** · Cx 2 · deps: cva
-  `<button aria-pressed>`; export `ToggleClasses` (the `toggleVariants`
-  equivalent). Pressed state flips via inline `onclick` or a checkbox.
-  Blocks **ToggleGroup**.
-- [ ] **RadioGroup** · Cx 3 · deps: none
-  `RadioGroup` (`<fieldset>`/`role=radiogroup`) + `RadioGroupItem`
-  (`<input type="radio">`); roving focus is native to radios.
-- [ ] **Checkbox** · Cx 3 · deps: none
-  Styled `<input type="checkbox">`. Note: `indeterminate` is a JS-only
-  property — needs a one-line script when used.
-- [ ] **Collapsible** · Cx 3 · deps: none
-  Native `<details>`/`<summary>`: `Collapsible` / `CollapsibleTrigger` /
-  `CollapsibleContent`. Blocks **Accordion**.
-- [ ] **Accordion** · Cx 3 · deps: **Collapsible** pattern
-  Multiple `<details>`; single-mode uses the native `<details name="">`
-  exclusive-group attribute.
-- [ ] **Tabs** · Cx 3 · deps: none
-  `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`. No-JS option:
-  radio-input + CSS sibling selectors; or HTMX panel swap.
-- [ ] **ToggleGroup** · Cx 3 · deps: **Toggle** / `ToggleClasses`
-  `ToggleGroup` / `ToggleGroupItem`, single & multiple modes.
-- [ ] **ScrollArea** · Cx 3 · deps: none
-  `<div overflow-auto>` + CSS-styled scrollbars (drop Radix's custom
-  scrollbar rendering).
-- [ ] **Slider** · Cx 4 · deps: none
-  Styled `<input type="range">`. Two-thumb range = two inputs + small
-  script.
-- [ ] **InputOTP** · Cx 4 · deps: none
-  Segmented input; needs JS for per-segment focus management. Lowest
-  priority of the phase.
+- [x] **Progress** · Cx 2 · `<div>` track + inner indicator with inline
+  `transform: translateX(-N%)`.
+- [x] **Switch** · Cx 2 · Native `<input type="checkbox" role="switch">`;
+  thumb via `before:` pseudo-element.
+- [x] **Toggle** · Cx 2 · deps: cva · `<button aria-pressed>`; exports
+  `ToggleClasses`. Default `onclick` flips `aria-pressed`; HTMX opt-out.
+- [x] **RadioGroup** · Cx 3 · `<div role="radiogroup">` + `RadioGroupItem`
+  styled void `<input type="radio">`; dot via `before:` pseudo-element.
+- [x] **Checkbox** · Cx 3 · Styled void `<input type="checkbox">`; check mark
+  via `background-image` data URL. Indeterminate via
+  `CheckboxIndeterminateScript(id)`.
+- [x] **Collapsible** · Cx 3 · Native `<details>`/`<summary>`/`<div>`; root
+  carries `group` so a chevron can rotate via `group-open:`.
+- [x] **Accordion** · Cx 3 · Multiple `<details>`; single-mode via the
+  native `<details name="">` exclusive group, multiple-mode via `""`.
+- [x] **Tabs** · Cx 3 · Faithful ARIA `tablist`/`tab`/`tabpanel` +
+  one shared `tabsSelect` inline script; HTMX opt-out on each trigger.
+- [x] **ToggleGroup** · Cx 3 · deps: **ToggleClasses** · single & multiple
+  modes via one shared `toggleGroupClick` script that reads the parent's
+  `data-type` at click time; HTMX opt-out on each item.
+- [x] **ScrollArea** · Cx 3 · Single overflow `<div>` + CSS scrollbars;
+  `ScrollBar` intentionally not exported (the native scrollbar is a
+  pseudo-element, not an element).
+- [x] **Slider** · Cx 4 · Single-thumb = native `<input type="range">`;
+  two-thumb range = two overlaid inputs + fill `<div>` + `sliderClamp`
+  script. Selected by `len(values)` (1 or 2; other panics).
+- [x] **InputOTP** · Cx 4 · N real `<input maxlength="1">` slots + hidden
+  field + `otpAdvance`/`otpKey` focus-management script.
 
 ---
 
