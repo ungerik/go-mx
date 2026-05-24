@@ -54,6 +54,16 @@ func finish(e *mx.Element, slot, baseClasses string) *mx.Element {
 	return e
 }
 
+// boolStr renders b as the literal "true" / "false" — the canonical form for
+// ARIA string attributes (aria-expanded, aria-selected, aria-pressed, etc.)
+// and the value the inline scripts in this package set with setAttribute.
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
 // hasHX reports whether e carries any htmx attribute (one whose name starts
 // with "hx-"). Stateful components in this package (Toggle, TabsTrigger,
 // ToggleGroupItem) use it to skip the default inline onclick when the caller

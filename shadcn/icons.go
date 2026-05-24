@@ -66,3 +66,22 @@ func iconEllipsis(extraClass string) *mx.Element {
 func iconMinus() *mx.Element {
 	return icon("minus", "", svgPath("M5 12h14"))
 }
+
+// iconCheck is the lucide check icon.
+func iconCheck() *mx.Element {
+	return icon("check", "", svgPath("M20 6 9 17l-5-5"))
+}
+
+// iconCircle is a small filled lucide-style dot, used as the
+// DropdownMenuRadioItem indicator (drawn as a tiny solid circle rather
+// than the lucide stroke-only circle since the indicator should be solid).
+func iconCircle() *mx.Element {
+	return html.Svg(
+		html.Attrib("xmlns", "http://www.w3.org/2000/svg"),
+		html.Width("24"), html.Height("24"),
+		html.Attrib("viewBox", "0 0 24 24"),
+		html.Attrib("fill", "currentColor"),
+		html.Class("lucide lucide-circle"),
+		html.VoidElement("circle", html.Attrib("cx", "12"), html.Attrib("cy", "12"), html.Attrib("r", "3")),
+	)
+}

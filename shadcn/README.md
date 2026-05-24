@@ -376,6 +376,124 @@ shadcn's Radix-driven open/close height animations on `CollapsibleContent` and
 closed. They can be brought back in plain CSS with `@starting-style` and
 `transition-behavior: allow-discrete`; this package does not emit that CSS.
 
+## Tier 3 components
+
+Tier 3 covers the floating components — content that opens above the page in
+the top layer and anchors to a trigger. shadcn's React components wrap Radix's
+Popper + Floating UI + Portal + DismissableLayer + FocusScope; the native port
+replaces all of that with the HTML **Popover API** (`popover` attribute +
+`popovertarget` / `popovertargetaction`) and **CSS Anchor Positioning**
+(`anchor-name` / `position-anchor` / `position-area`).
+
+| Native primitive               | What it replaces                        |
+|--------------------------------|-----------------------------------------|
+| `popover="auto"` + `popovertarget` | Radix Root / Portal / Trigger lifecycle |
+| `:popover-open` pseudo-class   | Radix `data-[state=open]:`              |
+| `position-anchor` + `position-area` | Radix Popper / Floating UI positioning |
+| `<details name="…">` (Phase 2) | (in nav scenarios where one-open-at-a-time fits without JS) |
+
+Radix `data-[state=*]` selectors are rewritten:
+
+| Native element           | Radix selector             | Native rewrite             |
+|--------------------------|----------------------------|----------------------------|
+| `[popover]`              | `data-[state=open]:`       | `[&:popover-open]:` or `:popover-open:` (Tailwind v4 variant) |
+| popover trigger button   | `data-[state=open]:`       | `aria-expanded:` (`menuOpen` script flips it on toggle) |
+
+- **Popover** — `Popover` / `PopoverTrigger(id, …)` / `PopoverContent(id, side, …)`.
+  The shared building block; everything else in Tier 3 reuses its anchor /
+  position style helpers. Sides: `PopoverTop`, `PopoverRight`, `PopoverBottom`
+  (default), `PopoverLeft`. Empty `""` selects the default.
+- **Tooltip** — `Tooltip` / `TooltipTrigger(id, …)` / `TooltipContent(id, side, …)`.
+  Default side is `PopoverTop`. The trigger is a `<span>` so any element can
+  sit inside without nesting buttons; a shared `tooltipShow` / `tooltipHide`
+  script wires `mouseover`/`mouseout`/`focusin`/`focusout` (the Popover API
+  has no declarative hover-to-open).
+- **HoverCard** — `HoverCard` / `HoverCardTrigger(id, openMs, closeMs, …)` /
+  `HoverCardContent(id, side, openMs, closeMs, …)`. Same shape as Tooltip
+  with timer-based open/close delays (defaults 700ms open, 300ms close to
+  match shadcn). Trigger and content both fire show/hide so quick
+  trigger-to-content travel doesn't close the card.
+- **Select** — `Select` / `SelectGroup(label, …)` / `SelectOption(value, …)`.
+  A native `<select>` + `<optgroup>` + `<option>` with `appearance: base-select`
+  so Chromium 130+ and Safari Tech Preview render the dropdown with the full
+  shadcn look; older browsers (and Firefox as of mid-2026) keep native chrome
+  — visually different, fully functional, a real form control. shadcn's
+  `SelectTrigger` / `SelectValue` / `SelectContent` / `SelectItem` /
+  `SelectScrollUpButton` / `SelectScrollDownButton` are Radix-only abstractions
+  that collapse to nothing here and are **not ported**.
+- **DropdownMenu** — full set: `DropdownMenu` / `Trigger(id)` / `Content(id, side)`
+  / `Item` / `Label` / `Separator` / `Group` / `CheckboxItem(checked, …)` /
+  `RadioGroup(name)` / `RadioItem(name, value, selected, …)` / `Shortcut` /
+  `Sub` / `SubTrigger(subID)` / `SubContent(subID)`. A shared `menuKeyNav`
+  inline script handles ArrowUp/Down/Home/End/typeahead/Escape and
+  ArrowRight/Left to open/close sub-menus. `menuOpen` (also shared) auto-focuses
+  the first item on open and flips the trigger's `aria-expanded` for the
+  open-state look.
+- **ContextMenu** — same item parts as DropdownMenu, but the Trigger is a
+  `<div>` wrapper with `oncontextmenu="contextMenuOpen(event, '{id}')"` and a
+  shared `contextMenuOpen` script that prevents the browser's native context
+  menu, pixel-positions the popover at the cursor (`top` / `left` in clientX /
+  clientY), and shows it. ContextMenuContent carries **no** anchor-positioning
+  — see "Cursor-positioned popovers" below.
+- **Menubar** — `Menubar` / `MenubarMenu` / `MenubarTrigger(id)` /
+  `MenubarContent(id, side)` plus all the item parts. A shared `menubarHover`
+  script implements the OS-menubar click-to-switch-without-clicking idiom:
+  hovering a trigger while a sibling menu is open closes it and opens this one.
+- **NavigationMenu** — `NavigationMenu` / `List` / `Item` / `Trigger(id)` /
+  `Content(id, side)` / `Link(active, …)`. The trigger appends a chevron-down
+  icon that rotates when the popover opens. shadcn's `NavigationMenuViewport`
+  (a shared content area shared across items) and `NavigationMenuIndicator`
+  (the arrow that tracks the active trigger) are **not ported**: each item's
+  content is its own popover, and active styling lives on each `Link` via the
+  `active` bool (which emits `data-active="true"` + `aria-current="page"`).
+
+### Anchor positioning
+
+CSS Anchor Positioning is shipped in **Chromium 125+** and **Safari 26**;
+**Firefox is in progress** as of mid-2026. In Chromium and Safari the floating
+content is positioned correctly relative to its trigger via
+`position-anchor: --{id}` + `position-area: {top|right|bottom|left}`. In
+Firefox without anchor positioning the popover still opens in the top layer
+and can be dismissed — it just renders centered in the viewport instead of
+next to the trigger. This is a deliberate tradeoff: zero JavaScript for
+positioning, perfect UX in modern browsers, functional degradation elsewhere.
+
+### Cursor-positioned popovers (`ContextMenu`)
+
+CSS Anchor Positioning is element-relative, not cursor-relative. ContextMenu
+opts out of anchor positioning entirely (`ContextMenuContent` carries no
+`position-anchor` / `position-area` style); the shared `contextMenuOpen`
+script sets `position: fixed; top: {clientY}px; left: {clientX}px; margin: 0;
+position-anchor: none` on the popover before calling `showPopover()`. This
+works in every browser that ships the Popover API.
+
+### Inline-script footprint
+
+Each component emits one short `<script>` once per instance, guarded with
+`if(!window.fn){…}`. The full list:
+
+| Script               | Components                              | Size  | Wired via |
+|----------------------|-----------------------------------------|-------|-----------|
+| `tooltipShow/Hide`   | Tooltip                                 | ~2 lines | onmouseover/onmouseout/onfocusin/onfocusout |
+| `hoverCardShow/Hide` | HoverCard                               | ~4 lines | same + setTimeout for delays |
+| `contextMenuOpen`    | ContextMenu                             | ~2 lines | oncontextmenu |
+| `menuKeyNav`         | DropdownMenu / ContextMenu / Menubar / NavigationMenu | ~25 lines | onkeydown on Content |
+| `menuOpen`           | same set                                | ~3 lines | ontoggle on Content |
+| `menubarHover`       | Menubar                                 | ~8 lines | onmouseenter on Trigger |
+
+All scripts are bundled together with their content via `html.Script(mx.Raw(…))`,
+the same pattern `html.StyleElem` uses for raw CSS. None of them are loaded
+from a CDN; everything ships inline with the rendered HTML.
+
+### HTMX integration
+
+`popovertarget` is declarative and doesn't conflict with `hx-*` attributes,
+so Popover / Tooltip / HoverCard / DropdownMenu / Menubar / NavigationMenu
+triggers don't need an HTMX opt-out — pass `hx.*` attribs as normal and they
+work alongside the popover-open behavior. For menu *items* (which fire
+actions on click), the items are plain `<div>` / `<a>` / `<button>` — pass
+`html.OnClick`, `hx.Post`, etc. however you like; no defaults to suppress.
+
 ## Tailwind CSS v4 is required
 
 These components emit Tailwind v4 utility classes and nothing else. The

@@ -123,36 +123,40 @@ attribute skips the default `onclick`).
 
 ---
 
-## Phase 3 — Tier 3 floating (Popover API + CSS anchor positioning)
+## Phase 3 — Tier 3 floating (done)
 
-**Decision first:** build a shared floating layer on the native **Popover
-API** (`popover` attribute + `popovertarget`) plus **CSS Anchor
-Positioning** (`anchor-name` / `position-anchor`) — the native replacement
-for Radix's Popper/Portal/DismissableLayer/FocusScope. Anchor positioning
-is Chromium-shipped and progressing elsewhere; gate the rollout on that.
+Built on the native **Popover API** (`popover` + `popovertarget`) plus **CSS
+Anchor Positioning** (`anchor-name` / `position-anchor` / `position-area`),
+the native replacement for Radix's Popper/Portal/DismissableLayer/FocusScope.
+Chromium 125+ and Safari 26 anchor next to the trigger; Firefox (anchor
+positioning still in progress) falls back to viewport-centered popovers —
+functional, just not anchored.
 
-- [ ] **Popover infra** · Cx 3 · deps: none
-  Shared trigger/content helpers: `popover`, `popovertarget`, anchor wiring,
-  validated ids (reuse the `validateID` pattern from `alertdialog.go`).
-- [ ] **Tooltip** · Cx 3 · deps: Popover infra
-  Hover/focus-triggered; CSS hover + `popover="hint"`.
-- [ ] **HoverCard** · Cx 3 · deps: Popover infra
-  Hover-triggered popover with open/close delay.
-- [ ] **Popover** · Cx 3 · deps: Popover infra
-  Click-triggered: `Popover` / `PopoverTrigger` / `PopoverContent`.
-  Blocks **DropdownMenu**, **Combobox**, **DatePicker**.
-- [ ] **Select** · Cx 4 · deps: Popover infra
-  Prefer the CSS-customizable native `<select>`; fall back to a
-  Popover-based listbox. Blocks **DataTable**.
-- [ ] **DropdownMenu** · Cx 4 · deps: **Popover**
-  Menu markup + roving focus (arrow-key script); submenus.
-  Blocks **ContextMenu**, **Menubar**, **DataTable**.
-- [ ] **ContextMenu** · Cx 4 · deps: **DropdownMenu**
-  Same menu behavior, opened at the cursor on `contextmenu`.
-- [ ] **Menubar** · Cx 4 · deps: **DropdownMenu**
-  Coordinated row of menus.
-- [ ] **NavigationMenu** · Cx 4 · deps: Popover infra
-  Viewport + active indicator; CSS-driven transitions.
+- [x] **Popover** · Cx 3 · `Popover` / `PopoverTrigger(id)` / `PopoverContent(id, side)`.
+  Private helpers (`popoverAnchorStyle`, `popoverContentStyle`, `mergeStyle`,
+  `PopoverSide`) live in `popover.go` and are reused by the rest of Phase 3.
+- [x] **Tooltip** · Cx 3 · `<span>` wrapper trigger + `tooltipShow`/`tooltipHide`
+  script wired via `mouseover`/`mouseout`/`focusin`/`focusout`.
+- [x] **HoverCard** · Cx 3 · Same shape as Tooltip + timer-based open/close
+  delays (`hoverCardShow`/`hoverCardHide` script; defaults 700/300ms).
+- [x] **Select** · Cx 4 · Native `<select>` + `<optgroup>` + `<option>` styled
+  with `appearance: base-select` (Chrome 130+/Safari TP); native chrome
+  fallback elsewhere. `SelectTrigger`/`SelectContent`/`SelectItem` etc.
+  intentionally not ported.
+- [x] **DropdownMenu** · Cx 4 · Full set: Trigger, Content, Item, Label,
+  Separator, Group, CheckboxItem, RadioGroup, RadioItem, Shortcut, Sub*.
+  Shared `menuKeyNav` script (ArrowUp/Down/Home/End/typeahead/Escape +
+  Sub Arrow/Right/Left) and `menuOpen` script (focus first item on open,
+  flip trigger `aria-expanded`).
+- [x] **ContextMenu** · Cx 4 · Same item parts; trigger is a `<div>` with
+  `oncontextmenu` calling `contextMenuOpen` which pixel-positions the
+  popover at the cursor. Content carries no anchor-positioning.
+- [x] **Menubar** · Cx 4 · `Menubar` / `MenubarMenu` / `MenubarTrigger` /
+  `MenubarContent` + all item parts. `menubarHover` script implements the
+  OS-menubar click-to-switch-without-clicking behavior.
+- [x] **NavigationMenu** · Cx 4 · `NavigationMenu` / `List` / `Item` /
+  `Trigger(id)` / `Content(id, side)` / `Link(active)`. Chevron rotates on
+  `[button[aria-expanded=true]>&]`. `Viewport` and `Indicator` not ported.
 
 ---
 

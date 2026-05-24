@@ -116,11 +116,3 @@ func TabsContent(tabsID, value string, active bool, attribsChildren ...any) *mx.
 	return finish(e, "tabs-content", "flex-1 outline-none")
 }
 
-// boolStr is the same "true"/"false" the JavaScript DOM uses for aria-* string
-// attributes, kept consistent with what tabsSelect sets.
-func boolStr(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
