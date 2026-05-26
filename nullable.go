@@ -9,6 +9,21 @@ type Nullable interface {
 	IsNull() bool
 }
 
+// Zeroable lets a type declare its own zero-value semantics. The
+// reflection-based [IsZero] helper falls back to [reflect.Value.IsZero]
+// for types that do not implement Zeroable.
+type Zeroable interface {
+	IsZero() bool
+}
+
+// NullSetter is implemented by nullable types whose value can be reset
+// to NULL in place. The [ReflectFormHandler] parser calls SetNull on a
+// field when the form submits the __clear sentinel for that field. The
+// method is on the pointer receiver because it must mutate the value.
+type NullSetter interface {
+	SetNull()
+}
+
 // IsNull returns true if the passed value is nil
 // or implements the Nullable interface and IsNull() returns true
 // or implements the database/sql/driver.Valuer interface and Value() returns nil and no error.

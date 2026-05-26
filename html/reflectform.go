@@ -9,13 +9,28 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-type OptionsProvider interface {
-	Options() []string
-}
+// OptionsProvider is an alias for [mx.OptionsProvider] kept for
+// backwards compatibility. New code should use mx.OptionsProvider
+// directly.
+//
+// Deprecated: use [mx.OptionsProvider]. This alias will be removed
+// after one release cycle.
+type OptionsProvider = mx.OptionsProvider
 
-type NamedOptionsProvider interface {
-	NamedOptions() [][2]string
-}
+// NamedOption is an alias for [mx.NamedOption] kept for backwards
+// compatibility. New code should use mx.NamedOption directly.
+//
+// Deprecated: use [mx.NamedOption]. This alias will be removed after
+// one release cycle.
+type NamedOption = mx.NamedOption
+
+// NamedOptionsProvider is an alias for [mx.NamedOptionsProvider] kept
+// for backwards compatibility. New code should use
+// mx.NamedOptionsProvider directly.
+//
+// Deprecated: use [mx.NamedOptionsProvider]. This alias will be
+// removed after one release cycle.
+type NamedOptionsProvider = mx.NamedOptionsProvider
 
 type ReflectFormOption interface {
 	ReflectFormOption() // Marker method

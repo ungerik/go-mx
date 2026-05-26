@@ -2,13 +2,8 @@ package html
 
 import (
 	"io"
-	"net/http"
 	"strings"
-
-	"github.com/ungerik/go-mx"
 )
-
-var contentTypeHTML = http.Header{"Content-Type": []string{mx.ContentTypeHTML}}
 
 var htmlEscaper = strings.NewReplacer(
 	`&`, "&amp;",
