@@ -441,11 +441,59 @@ func TestReflectFormHandler_ReadonlyAndClear(t *testing.T) {
 	}
 }
 
-func TestReflectFormHandler_NilLoadPanics(t *testing.T) {
+// nil load means "submit-only" — handler seeds GET/POST with new(T).
+func TestReflectFormHandler_NilLoadUsesZeroValue(t *testing.T) {
+	var captured *sampleStruct
+	onSubmit := func(ctx context.Context, s *sampleStruct) error {
+		captured = s
+		return nil
+	}
+	h := ReflectFormHandler(nil, onSubmit, newTestDecider())
+
+	// GET seeds with new(T): empty struct renders with zero values.
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status=%d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `name="Name"`) {
+		t.Errorf("expected Name input on GET: %s", body)
+	}
+	// Empty Name on the rendered form means value="" (or no value attr).
+	if strings.Contains(body, `value="Alice"`) {
+		t.Errorf("GET should not seed with prior values: %s", body)
+	}
+
+	// POST against the nil-load handler still parses into a fresh
+	// new(T) and reaches onSubmit.
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "submitted")
+	form.Set(PresentSentinelName("Age"), "1")
+	form.Set("Age", "21")
+	req := httptest.NewRequest(http.MethodPost, "/",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if captured == nil {
+		t.Fatal("onSubmit not called")
+	}
+	if captured.Name != "submitted" || captured.Age != 21 {
+		t.Errorf("captured=%+v", captured)
+	}
+}
+
+func TestReflectFormHandler_NilOnSubmitPanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("expected panic for nil load")
+			t.Errorf("expected panic for nil onSubmit")
 		}
 	}()
-	_ = ReflectFormHandler(nil, func(context.Context, *sampleStruct) error { return nil })
+	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
+	_ = ReflectFormHandler(load, nil)
 }

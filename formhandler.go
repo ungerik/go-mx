@@ -56,13 +56,17 @@ type ReflectFormConfig struct {
 // form-level message. On success the handler responds with
 // 303 See Other to cfg.Redirect or r.URL.Path when nil.
 //
+// load may be nil for submit-only forms (registration, contact, new
+// record) where there is no existing state to load: the handler then
+// seeds every GET and every POST with a fresh new(T) instead.
+//
 // The optional variadic decider, if supplied, overrides
 // [DeciderFromContext] for this specific handler.
 func ReflectFormHandler[T any](
 	load func(ctx context.Context) (*T, error),
 	onSubmit func(ctx context.Context, t *T) error,
 	decider ...FieldDecider,
-) http.Handler {
+) http.HandlerFunc {
 	return ReflectFormHandlerWith(ReflectFormConfig{}, load, onSubmit, decider...)
 }
 
@@ -74,9 +78,9 @@ func ReflectFormHandlerWith[T any](
 	load func(ctx context.Context) (*T, error),
 	onSubmit func(ctx context.Context, t *T) error,
 	decider ...FieldDecider,
-) http.Handler {
+) http.HandlerFunc {
 	if load == nil {
-		panic("mx.ReflectFormHandler: load must not be nil")
+		load = func(context.Context) (*T, error) { return new(T), nil }
 	}
 	if onSubmit == nil {
 		panic("mx.ReflectFormHandler: onSubmit must not be nil")
@@ -104,7 +108,7 @@ func ReflectFormHandlerWith[T any](
 		writeFormResponse(w, r, comp)
 	}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead:
 			target, err := load(r.Context())
@@ -155,7 +159,7 @@ func ReflectFormHandlerWith[T any](
 			w.Header().Set("Allow", "GET, HEAD, POST")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}
 }
 
 // parseAndValidate walks target, applies the form's submitted values
