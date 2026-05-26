@@ -44,23 +44,55 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`mx`** (root) — core abstractions: `Component` (anything that renders),
   `Element`, `Attrib`, `Writer`, and `CheckedWriter` (escaping, structural
   validation, optional indentation). Plus conditional rendering (`If`,
-  `ForEach`) and struct-reflection helpers.
+  `ForEach`), struct-reflection helpers, and `ReflectFormHandler` (see
+  below).
 - **`html`** — HTML5 element and attribute constructors: `html.Div`,
   `html.Span`, `html.Class`, `html.ID`, and the rest of the HTML5 surface.
-- **`hx`** — HTMX integration: `hx.Get`, `hx.Post`, `hx.Trigger`, ...
+  Provides `html.FieldDecider` for plain-HTML form rendering.
+- **`hx`** — HTMX integration: `hx.Get`, `hx.Post`, `hx.Trigger`. Provides
+  `hx.FieldDecider` that wraps `html.FieldDecider` and adds
+  `hx-trigger="change"` to live inputs.
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
-  shadcn/ui components: `Button`, `Alert`, `AlertDialog`. See
-  [shadcn/README.md](shadcn/README.md).
+  shadcn/ui components and `shadcn.FieldDecider` for Tailwind/shadcn form
+  rendering. See [shadcn/README.md](shadcn/README.md).
 - **`web`**, **`doc`**, **`pdf`** — higher-level abstractions, partially
   implemented.
+
+## Reflected forms
+
+`mx.ReflectFormHandler[T]` builds a full http.Handler for a struct
+type — rendering, parsing, validation, and load-then-apply against
+your record store, in one call:
+
+```go
+import (
+    "net/http"
+    "github.com/ungerik/go-mx"
+    "github.com/ungerik/go-mx/shadcn"
+)
+
+mux := http.NewServeMux()
+mux.Handle("/admin/profile", mx.ReflectFormHandler(loadProfile, saveProfile))
+http.ListenAndServe(":8080", mx.Middleware(shadcn.FieldDecider)(mux))
+```
+
+The decider lives in request context. A custom `FieldDecider` can be
+installed via `mx.Middleware(...)` once per route subtree, or passed
+as an optional variadic to a single handler. Validation runs a
+richest-first chain (`Normalize() []error` → `Normalize() error` →
+`Validate() error` → `Valid() bool`), per-field tags drive widget
+choice, and POST parses only the fields the form actually rendered —
+mass-assignment-safe by construction.
+
+See [`cmd/example-form`](cmd/example-form/main.go) for a complete
+worked example covering every supported field kind, section grouping,
+and the `FieldErrors` cross-field error routing path.
 
 ## To Do
 
 - [ ] ReflectMarkup()
-- [ ] Change ReflectFormComponents to general purpose ReflectComponents
 - [ ] More ReflectInputOptions
-- [ ] ReflectFormHandler
-  - validation
-  - status code / redirect
-  - custom headers
-- [ ] select options, get options from struct tag, config using radio buttons instead of select
+- [ ] Slice-of-struct fields (`form:"repeatable"`)
+- [ ] Rich file upload widget (preview, multi-file, progress)
+- [ ] HTMX OOB fragment responses
+- [ ] OptionsProvider registry sub-package (ISO 4217, ISO 639, country codes)

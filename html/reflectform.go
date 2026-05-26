@@ -60,6 +60,14 @@ func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val r
 	return f(field, val)
 }
 
+// ReflectFormComponents renders a struct as a flat list of HTML form
+// inputs based on `input:"..."` struct tags.
+//
+// Deprecated: use [mx.ReflectFormHandler] with [FieldDecider] (or
+// [hx.FieldDecider] / [shadcn.FieldDecider]) instead. The new chain
+// handles parsing, validation, sentinels, sections, and the full
+// FieldKind dispatch table — this function will be removed after one
+// release cycle.
 func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (components mx.Components) {
 	for field, val := range mx.ReflectStructFields(reflect.ValueOf(formStruct)) {
 		inputTag := field.Tag.Get("input")
