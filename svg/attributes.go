@@ -102,8 +102,14 @@ func CrossOrigin[T Value](value T) mx.Attrib {
 
 // Viewport and coordinate system
 
-// ViewBox maps the SVG viewBox attribute.
-func ViewBox[T Value](value T) mx.Attrib { return Attrib("viewBox", value) }
+// ViewBox maps the SVG viewBox attribute, whose value is always exactly the
+// four numbers min-x, min-y, width and height (width and height must be
+// non-negative). They are formatted as plain decimals, so ViewBox(0, 0, 24, 24)
+// renders viewBox="0 0 24 24".
+func ViewBox(minX, minY, width, height float64) mx.Attrib {
+	return Attrib("viewBox", attribStringValue(minX)+" "+attribStringValue(minY)+" "+
+		attribStringValue(width)+" "+attribStringValue(height))
+}
 
 // PreserveAspectRatio maps the SVG preserveAspectRatio attribute.
 func PreserveAspectRatio[T Value](value T) mx.Attrib {

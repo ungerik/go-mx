@@ -2,11 +2,10 @@
 // package maps HTML: every element is a function returning a *mx.Element and
 // every attribute is a function returning an mx.Attrib.
 //
-// The html package also provides an html.Svg constructor, but it only creates a
-// bare <svg> element for inline embedding in HTML; it does not offer the full
-// SVG element and attribute vocabulary, the xmlns namespace handling, or the
-// numeric attribute values found here. Use this package to build SVG content;
-// reach for html.Svg only as a thin inline <svg> wrapper.
+// The html package has no <svg> constructor of its own: SVG content, whether a
+// standalone document or markup embedded inline in HTML, is built here. Use
+// [Root] for a standalone document (it prepends the xmlns namespace) or [SVG]
+// for an inline <svg> embedded in an HTML page.
 //
 // Unlike HTML, SVG has no void elements, so every element constructor accepts
 // attributes and children. Attribute constructors are generic over Value, so

@@ -35,7 +35,7 @@ func TestElements(t *testing.T) {
 		{
 			name: "nested svg",
 			elem: SVG(
-				ViewBox("0 0 100 100"),
+				ViewBox(0, 0, 100, 100),
 				Rect(X("0"), Y("0"), Width("100"), Height("100"), Fill("blue")),
 			),
 			want: `<svg viewBox='0 0 100 100'><rect x='0' y='0' width='100' height='100' fill='blue'></rect></svg>`,
@@ -64,7 +64,7 @@ func TestElements(t *testing.T) {
 }
 
 func TestRoot(t *testing.T) {
-	got := Root(ViewBox("0 0 10 10"), Circle(CX("5"), CY("5"), R("4"))).String()
+	got := Root(ViewBox(0, 0, 10, 10), Circle(CX("5"), CY("5"), R("4"))).String()
 	want := `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><circle cx='5' cy='5' r='4'></circle></svg>`
 	require.Equal(t, want, got)
 }

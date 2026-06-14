@@ -8,7 +8,7 @@ every attribute is a function returning an `mx.Attrib`.
 import "github.com/ungerik/go-mx/svg"
 
 doc := svg.Root(
-    svg.ViewBox("0 0 100 100"),
+    svg.ViewBox(0, 0, 100, 100),
     svg.Circle(svg.CX(50), svg.CY(50), svg.R(40), svg.Fill("tomato")),
 )
 // <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>...
@@ -16,11 +16,11 @@ doc := svg.Root(
 
 ## Relationship to the `html` package
 
-The [`html`](../html) package has an `html.Svg` element constructor, but it only
-produces a bare `<svg>` element for inline embedding in an HTML document. It does
-not provide the SVG element/attribute vocabulary, `xmlns` namespace handling, or
-numeric attribute values offered here. Use this `svg` package to build SVG
-content; reach for `html.Svg` only as a thin inline `<svg>` wrapper.
+The [`html`](../html) package has no `<svg>` constructor of its own — it does not
+provide the SVG element/attribute vocabulary, `xmlns` namespace handling, or
+numeric attribute values. Build all SVG content with this `svg` package: use
+`svg.Root` for a standalone document (it prepends the `xmlns` namespace) or
+`svg.SVG` for an inline `<svg>` embedded in an HTML page.
 
 ## Conventions
 
@@ -35,6 +35,9 @@ content; reach for `html.Svg` only as a thin inline `<svg>` wrapper.
 - **Numbers or strings.** Attribute constructors are generic over `Value`, so a
   number literal or a string both work: `svg.CX(50)`, `svg.StrokeWidth(1.5)`,
   `svg.Width("100%")`. (`Class` stays `...string` for multiple class names.)
+  The exception is `ViewBox`, whose value is always the four numbers min-x,
+  min-y, width and height, so it takes them as `float64` args:
+  `svg.ViewBox(0, 0, 24, 24)`.
 - **Element vs. attribute name collisions** are resolved by keeping the clean
   name for the element and suffixing the attribute with `Attr`:
   `Filter`/`FilterAttr`, `Mask`/`MaskAttr`, `ClipPath`/`ClipPathAttr`,
