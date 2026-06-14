@@ -54,7 +54,7 @@ func TestToggleCallerOnClickOverridesDefault(t *testing.T) {
 }
 
 func TestToggleHXOptOut(t *testing.T) {
-	out := render(t, Toggle("", "", hx.Post("/toggle-bold"), hx.Swap("outerHTML"), "Bold"))
+	out := render(t, Toggle("", "", hx.Post("/toggle-bold"), hx.SwapOuterHTML, "Bold"))
 	for _, want := range []string{`hx-post="/toggle-bold"`, `hx-swap="outerHTML"`, `aria-pressed="false"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in %s", want, out)

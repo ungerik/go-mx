@@ -1,5 +1,7 @@
 # html
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/html.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/html)
+
 Maps HTML5 elements and attributes to go-mx: every element is a function
 returning a `*mx.Element` (`Div`, `Span`, `Img`, …) and every attribute is a
 function or constant returning an `mx.Attrib` (`Class`, `ID`, `HRef`, …). Markup

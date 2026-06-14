@@ -1,5 +1,7 @@
 # pdf
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/pdf.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/pdf)
+
 Composable PDF rendering primitives structured like the go-mx
 [`html`](../html) package, but targeting the
 [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) renderer instead of

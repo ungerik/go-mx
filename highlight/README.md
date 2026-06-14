@@ -1,5 +1,7 @@
 # highlight
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/highlight.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/highlight)
+
 A Go syntax highlighter for [go-mx](../). It tokenizes Go source with the
 standard-library `go/scanner` (no third-party dependencies) and renders it two
 ways from the same tokens:
