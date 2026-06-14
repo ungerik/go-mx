@@ -9,6 +9,7 @@ type Element struct {
 	Name     string
 	Attribs  []Attrib
 	Children Components // nil for void element, empty slice for no children
+	Err      error      // if non-nil, Render returns it instead of rendering; see NewErrElement
 }
 
 func NewElement(name string, attribsChildren ...any) *Element {
@@ -30,7 +31,19 @@ func NewVoidElement(name string, attribs ...Attrib) *Element {
 	return &Element{Name: name, Attribs: attribs}
 }
 
+// NewErrElement returns an Element that renders nothing and whose Render method
+// returns err. It defers an element-construction error to render time — the
+// element-level counterpart of ErrAttrib — so a constructor that cannot build a
+// valid element can report the failure when the element is rendered instead of
+// panicking or returning nil.
+func NewErrElement(err error) *Element {
+	return &Element{Err: err}
+}
+
 func (e *Element) Render(ctx context.Context, w Writer) error {
+	if e.Err != nil {
+		return e.Err
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
