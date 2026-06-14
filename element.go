@@ -40,7 +40,11 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	}
 
 	for _, a := range e.Attribs {
-		err = w.Attribute(a.AttribName(), a.AttribValue(ctx))
+		value, valErr := a.AttribValue(ctx)
+		if valErr != nil {
+			return valErr
+		}
+		err = w.Attribute(a.AttribName(), value)
 		if err != nil {
 			return err
 		}

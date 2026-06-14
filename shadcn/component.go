@@ -29,7 +29,8 @@ func finish(e *mx.Element, slot, baseClasses string) *mx.Element {
 	for _, a := range e.Attribs {
 		switch name := a.AttribName(); name {
 		case "class":
-			callerClasses = append(callerClasses, a.AttribValue(context.Background()))
+			value, _ := a.AttribValue(context.Background())
+			callerClasses = append(callerClasses, value)
 		case "data-slot":
 			// Component identity, not caller-configurable.
 		default:

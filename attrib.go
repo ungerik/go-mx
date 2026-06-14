@@ -28,9 +28,20 @@ var (
 	idCounter atomic.Uint64
 )
 
+// Attrib is an HTML or SVG attribute rendered as name="value".
+//
+// AttribName returns the static attribute name. AttribValue returns the value,
+// which may be produced dynamically: an implementation can derive it from the
+// passed context (request-scoped data, a lookup the context can cancel, and so
+// on), so the call may fail and therefore returns an error. A non-nil error
+// aborts rendering of the whole element; otherwise the value is rendered escaped
+// and an empty value with a nil error is a valid (empty) attribute. Simple
+// static attributes ignore the context and return their value with a nil error.
+// A constructor that detects an invalid value up front may return an ErrAttrib,
+// deferring the error to render time.
 type Attrib interface {
 	AttribName() string
-	AttribValue(context.Context) string
+	AttribValue(context.Context) (string, error)
 }
 
 func NewAttrib(name, value string) Attrib {
@@ -60,8 +71,8 @@ func (a ConstAttrib) AttribName() string {
 	return string(a)[:strings.IndexByte(string(a), '=')]
 }
 
-func (a ConstAttrib) AttribValue(context.Context) string {
-	return string(a)[strings.IndexByte(string(a), '=')+1:]
+func (a ConstAttrib) AttribValue(context.Context) (string, error) {
+	return string(a)[strings.IndexByte(string(a), '=')+1:], nil
 }
 
 // Attribute implements the Attrib interface.
@@ -76,8 +87,8 @@ func (a Attribute) AttribName() string {
 	return a.Name
 }
 
-func (a Attribute) AttribValue(context.Context) string {
-	return a.Value
+func (a Attribute) AttribValue(context.Context) (string, error) {
+	return a.Value, nil
 }
 
 func (a Attribute) String() string {
@@ -97,5 +108,34 @@ func (a Attribute) Valid() bool {
 }
 
 func AttribString(a Attrib) string {
-	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(a.AttribValue(context.Background())))
+	value, err := a.AttribValue(context.Background())
+	if err != nil {
+		value = "!ERROR: " + err.Error()
+	}
+	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value))
+}
+
+// ErrAttrib is an Attrib whose AttribValue always returns Err, deferring an
+// attribute-construction error to render time. A constructor that detects an
+// invalid value returns an ErrAttrib instead of panicking or emitting broken
+// markup, so the error surfaces — and aborts rendering — when the element
+// holding it is rendered.
+type ErrAttrib struct {
+	Name string
+	Err  error
+}
+
+var _ Attrib = ErrAttrib{}
+
+// AttribName returns the empty string: an ErrAttrib stands for a failed
+// attribute and has no usable name, and AttribValue reports Err before the name
+// is needed.
+func (a ErrAttrib) AttribName() string { return a.Name }
+
+// AttribValue always returns Err, aborting rendering of the enclosing element.
+func (a ErrAttrib) AttribValue(context.Context) (string, error) { return "", a.Err }
+
+// ErrAttribf returns an ErrAttrib wrapping a formatted error.
+func ErrAttribf(name, format string, args ...any) ErrAttrib {
+	return ErrAttrib{Name: name, Err: fmt.Errorf(format, args...)}
 }

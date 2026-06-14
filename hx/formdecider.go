@@ -77,14 +77,15 @@ func isLiveInput(e *mx.Element) bool {
 		if idx < 0 {
 			return true
 		}
-		switch e.Attribs[idx].AttribValue(context.Background()) {
+		typ, _ := e.Attribs[idx].AttribValue(context.Background())
+		switch typ {
 		case "hidden", "submit", "reset", "button":
 			return false
 		}
 		// Exclude __clear sentinel checkboxes by name pattern.
 		ni := e.AttribIndex("name")
 		if ni >= 0 {
-			name := e.Attribs[ni].AttribValue(context.Background())
+			name, _ := e.Attribs[ni].AttribValue(context.Background())
 			if len(name) > 0 && name[0] == '_' {
 				return false
 			}
@@ -93,4 +94,3 @@ func isLiveInput(e *mx.Element) bool {
 	}
 	return false
 }
-

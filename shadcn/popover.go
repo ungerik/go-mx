@@ -139,7 +139,7 @@ func mergeStyle(e *mx.Element, fragment string) {
 	if i := e.AttribIndex("style"); i >= 0 {
 		// Concatenate; finish() will not dedupe style because it's a single
 		// attribute name from the caller's perspective. We rewrite it here.
-		existing := e.Attribs[i].AttribValue(context.Background())
+		existing, _ := e.Attribs[i].AttribValue(context.Background())
 		e.Attribs[i] = html.Style(existing + "; " + fragment)
 		return
 	}
