@@ -89,8 +89,13 @@ For streaming output or serving over HTTP, render a `Component` into an
   highlighted HTML components, or as the go-mx source that builds that markup,
   plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See
   [highlight/README.md](highlight/README.md).
-- **`web`**, **`doc`**, **`pdf`** — higher-level abstractions, partially
-  implemented.
+- **`pdf`** — composable PDF rendering primitives mirroring the `html`
+  component model, but drawing into the
+  [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) renderer instead
+  of a markup writer: `pdf.Document`, text/vector/image primitives, and typed
+  enums. A separate module, so the fpdf dependency stays isolated. See
+  [pdf/README.md](pdf/README.md).
+- **`web`**, **`doc`** — higher-level abstractions, partially implemented.
 
 ## Reflected forms
 

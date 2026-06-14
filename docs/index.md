@@ -121,10 +121,11 @@ with the same name on one element), and can pretty-print with
 | `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, `hx.Swap`, …) |
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
+| `pdf`        | Composable PDF rendering primitives (a separate module) mirroring the `html` component model on [fpdf](https://codeberg.org/go-pdf/fpdf) |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
 `Writer`, `If`/`ForEach`) that the others build on. Higher-level packages
-(`web`, `doc`, `pdf`) are partially implemented.
+(`web`, `doc`) are partially implemented.
 
 ## The shadcn port
 
