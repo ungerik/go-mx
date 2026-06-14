@@ -18,6 +18,9 @@ html.Div(html.Class("card"),
 
 ## Where to go next
 
+- **[html package docs](html/)** — a tutorial, task-oriented how-to guides, and
+  the full reference for the `html` package: the core HTML vocabulary everything
+  else builds on.
 - **[Component gallery](gallery/)** — every ported shadcn/ui component, rendered
   server-side in Go and shown next to its source. A pre-rendered static copy of
   the live `cmd/shadcn-gallery` app.
@@ -141,7 +144,7 @@ documentation for four reader needs:
 
 | Need                         | Where                                            |
 |------------------------------|--------------------------------------------------|
-| **Learn** (tutorial)         | [Build your first shadcn page](shadcn/tutorial.html) |
-| **Do a task** (how-to)       | [shadcn how-to guides](shadcn/how-to.html)       |
-| **Look up** (reference)      | [shadcn component reference](shadcn/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
-| **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [shadcn design notes](shadcn/#explanation) |
+| **Learn** (tutorial)         | [Build your first page](html/tutorial.html) · [first shadcn page](shadcn/tutorial.html) |
+| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) |
+| **Look up** (reference)      | [html reference](html/#reference) · [shadcn reference](shadcn/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
+| **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [html design notes](html/#explanation) · [shadcn design notes](shadcn/#explanation) |
