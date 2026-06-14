@@ -27,6 +27,7 @@ task recipes see:
 
 - [Relationship to the `mx` package](#relationship-to-the-mx-package)
 - [Elements](#elements)
+- [Convenience constructors](#convenience-constructors)
 - [Children](#children)
 - [Attributes](#attributes)
   - [Free values](#free-values)
@@ -102,9 +103,43 @@ repeat it: `html.InputTypeEmail(html.Name("email"))` renders
 (`InputTypeText`, `InputTypeCheckbox`, `InputTypeDate`, `InputTypeFile`,
 `InputTypeNumber`, `InputTypePassword`, `InputTypeSubmit`, …).
 
+The same prepend-the-`type` pattern gives typed `<button>` and `<ol>`
+constructors. `SubmitButton`, `ResetButton`, and `ButtonButton` set
+`type="submit"`, `"reset"`, and `"button"` — handy because a bare `Button`
+defaults to submitting its form, a common gotcha. `OLDecimal`, `OLLowerAlpha`,
+`OLUpperAlpha`, `OLLowerRoman`, and `OLUpperRoman` set the ordered-list marker
+via `type="1"`, `"a"`, `"A"`, `"i"`, and `"I"`.
+
 Elements deprecated in HTML5 (`<center>`, `<font>`, `<marquee>`, …) are
 intentionally left out; they remain as commented-out source so the omission is
 explicit.
+
+## Convenience constructors
+
+The `*Button`, `OL*`, and `InputType*` families above bake a common attribute
+into an element. `shortcuts.go` extends that idea to the element-and-attribute
+pairings you write in almost every document — `<meta>`, `<script>`, `<link>`,
+and a safe new-tab `<a>` — so one call replaces the boilerplate:
+
+| Function                          | Renders                              |
+|-----------------------------------|--------------------------------------|
+| `MetaCharset(charset)`            | `<meta charset="…">`                 |
+| `MetaCharsetUTF8`                 | `<meta charset="UTF-8">` as a `Raw` constant |
+| `MetaName(name, content)`         | `<meta name="…" content="…">`        |
+| `MetaProperty(property, content)` | `<meta property="…" content="…">` (Open Graph) |
+| `MetaViewport(content)`           | `<meta name="viewport" content="…">` |
+| `ScriptSrc(url, …)`               | `<script src="…">` external classic script |
+| `ScriptModule(…)`                 | `<script type="module">` ES module   |
+| `StyleSheet(href, …)`             | `<link rel="stylesheet" href="…">`   |
+| `Icon(href, …)`                   | `<link rel="icon" href="…">` favicon |
+| `LinkPreload(href, as, …)`        | `<link rel="preload" href="…" as="…">` |
+| `BlankLink(href, text, …)`        | `<a … target="_blank" rel="noopener noreferrer">` |
+
+`LinkPreload` takes the typed `As` destination enum (`AsScript`, `AsStyle`,
+`AsFont`, …); it is named `LinkPreload` rather than `Preload` because `Preload`
+is the media-element preload attribute enum. `BlankLink` sets
+`rel="noopener noreferrer"`, which blocks reverse tabnabbing: without
+`noopener` the opened page could navigate yours through `window.opener`.
 
 ## Children
 
