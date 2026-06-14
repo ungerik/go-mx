@@ -219,10 +219,6 @@ func Sub(attribsChildren ...any) *mx.Element     { return Element("sub", attribs
 func Summary(attribsChildren ...any) *mx.Element { return Element("summary", attribsChildren...) }
 func Sup(attribsChildren ...any) *mx.Element     { return Element("sup", attribsChildren...) }
 
-// Svg creates a bare <svg> element for inline embedding in HTML.
-// For the full SVG element and attribute vocabulary, namespace handling, and
-// numeric attribute values use the svg package (github.com/ungerik/go-mx/svg).
-func Svg(attribsChildren ...any) *mx.Element   { return Element("svg", attribsChildren...) }
 func Table(attribsChildren ...any) *mx.Element { return Element("table", attribsChildren...) }
 func TBody(attribsChildren ...any) *mx.Element { return Element("tbody", attribsChildren...) }
 func TD(attribsChildren ...any) *mx.Element    { return Element("td", attribsChildren...) }
