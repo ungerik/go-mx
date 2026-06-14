@@ -6,9 +6,20 @@ import (
 	"strings"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/highlight"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn"
 )
+
+// staticHighlight selects how the Code tab is syntax-highlighted. It is set once
+// from the -static-highlight flag in main and read while rendering:
+//
+//   - false (default): the dynamic option — Go is highlighted client-side by
+//     Shiki loaded from a CDN (see shikiScript), no server-side work.
+//   - true: the static option — Go is highlighted server-side by the highlight
+//     package, so every page ships already-colored markup with no client-side
+//     JavaScript or CDN dependency for the code blocks (see staticCodeBlock).
+var staticHighlight bool
 
 // themeCSS is the shadcn/ui new-york-v4 globals.css, injected into a
 // <style type="text/tailwindcss"> block that the @tailwindcss/browser CDN build
@@ -28,22 +39,34 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 	return doc
 }
 
-// head wires up the two CDN dependencies, no build step:
+// head wires up the page <head>, no build step. Tailwind v4 is always loaded
+// via @tailwindcss/browser: the theme tokens go in a
+// <style type="text/tailwindcss"> block, and the script compiles them plus the
+// classes it finds in the live DOM.
 //
-//   - Tailwind v4 via @tailwindcss/browser: the theme tokens go in a
-//     <style type="text/tailwindcss"> block, and the script compiles them plus
-//     the classes it finds in the live DOM.
-//   - Shiki for the Code tab (see shikiScript): a deferred ESM module that
+// The Code tab's highlighting is wired here too and depends on staticHighlight:
+//
+//   - dynamic (default): Shiki (see shikiScript), a deferred ESM module that
 //     highlights every <pre><code class="language-go"> with TextMate grammars —
 //     so call sites, types and properties are colored, not just keywords and
 //     strings the way a regex highlighter manages.
+//   - static: the highlight package's theme stylesheet, which colors the
+//     <span class="hl-…"> markup staticCodeBlock already rendered server-side;
+//     no client-side script and no CDN dependency for the code blocks.
 func head() mx.Component {
-	return mx.Components{
+	comps := mx.Components{
 		html.Script(mx.Raw(themeInitScript)),
 		html.Element("style", html.Type("text/tailwindcss"), html.Raw(themeCSS)),
 		html.Script(html.Src("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")),
-		html.Script(html.Type("module"), mx.Raw(shikiScript)),
 	}
+	if staticHighlight {
+		// The code blocks render with a dark background regardless of page
+		// theme (matching the dynamic Shiki block), so the dark theme is used.
+		comps = append(comps, highlight.DarkTheme.StyleElement(""))
+	} else {
+		comps = append(comps, html.Script(html.Type("module"), mx.Raw(shikiScript)))
+	}
+	return comps
 }
 
 // themeInitScript applies the light/dark choice before the body renders, so the
@@ -167,8 +190,18 @@ func previewBlock(slug string, ex Example) mx.Component {
 	)
 }
 
-// codeBlock renders the <pre><code> for an example's source and embeds it as
-// raw HTML. The page is written with an indenting CheckedWriter that
+// codeBlock renders an example's Go source for the Code tab, dispatching on
+// staticHighlight: server-side coloring via the highlight package, or the
+// plain <pre> that Shiki paints in the browser.
+func codeBlock(source string) mx.Component {
+	if staticHighlight {
+		return staticCodeBlock(source)
+	}
+	return dynamicCodeBlock(source)
+}
+
+// dynamicCodeBlock renders the <pre><code> for an example's source and embeds
+// it as raw HTML. The page is written with an indenting CheckedWriter that
 // pretty-prints nested elements; inside a whitespace-preserving <pre> that
 // would inject the ancestor indentation as leading spaces on the first source
 // line. Rendering the block here with a non-indenting writer and inserting the
@@ -178,14 +211,33 @@ func previewBlock(slug string, ex Example) mx.Component {
 // the moment before Shiki paints; shikiScript then replaces this whole <pre>
 // with Shiki's themed output (see head). The language-go class is both Shiki's
 // selector and its language hint.
-func codeBlock(source string) mx.Component {
-	var buf strings.Builder
-	block := html.Pre(
+func dynamicCodeBlock(source string) mx.Component {
+	return rawPre(html.Pre(
 		html.Class("mt-2 overflow-x-auto rounded-md p-4 text-sm leading-relaxed bg-zinc-950 text-zinc-50"),
 		html.Code(html.Class("language-go"), source),
-	)
+	), source)
+}
+
+// staticCodeBlock highlights the source server-side with the highlight package
+// and embeds the result as raw HTML. The block's "hl" class is colored by the
+// theme stylesheet head() injects when staticHighlight is set; that rule also
+// supplies the background, padding and rounding, so only the mt-2 spacing that
+// matches the dynamic block is added here. The same non-indenting render as
+// dynamicCodeBlock keeps the <pre> layout intact.
+func staticCodeBlock(source string) mx.Component {
+	return rawPre(html.Pre(
+		html.Class(highlight.Default.BlockClass()+" mt-2"),
+		html.Code(highlight.Default.Components(highlight.TokenizeGo(source))),
+	), source)
+}
+
+// rawPre renders block with a non-indenting writer and returns it as raw HTML
+// so the page's indenting writer cannot corrupt the <pre> layout. On the
+// (unreachable for static markup) render error it falls back to plain source.
+func rawPre(block mx.Component, source string) mx.Component {
+	var buf strings.Builder
 	if err := block.Render(context.Background(), mx.NewCheckedWriter(&buf)); err != nil {
-		return html.Code(source) // fallback: never reached for static markup
+		return html.Code(source)
 	}
 	return html.Raw(buf.String())
 }

@@ -444,6 +444,8 @@ func docs() []ComponentDoc {
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
+	flag.BoolVar(&staticHighlight, "static-highlight", false,
+		"highlight the Code tab server-side with the highlight package instead of client-side Shiki")
 	flag.Parse()
 
 	reg := NewRegistry(docs())

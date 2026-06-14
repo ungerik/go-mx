@@ -63,13 +63,28 @@ Stage 2 (gallery the 35 shipped components, browser-verified) is complete.
 
 ## Syntax highlighting
 
-The Code tab is highlighted by [Shiki](https://shiki.style) loaded as a deferred
-ESM module from a CDN (`head()`), matching the no-build-step, CDN-first approach
-of the Tailwind setup. Shiki uses TextMate grammars (the same engine as VS
-Code), so call sites, types and properties are colored — not just keywords and
-strings the way a regex highlighter manages. For each
-`<pre><code class="language-go">` it produces its own themed `<pre>`
-(one-dark-pro, with inline background and token colors), onto which the layout
-classes are re-applied before swapping it in; this covers Code tabs that start
-hidden. `codeBlock`'s placeholder `<pre>` carries a dark background so the block
-looks right for the moment before Shiki paints.
+The Code tab can be highlighted two ways, selected at startup:
+
+```bash
+go run ./cmd/shadcn-gallery                    # dynamic (default): Shiki in the browser
+go run ./cmd/shadcn-gallery -static-highlight  # static: highlight package, server-side
+```
+
+**Dynamic (default).** The Code tab is highlighted by
+[Shiki](https://shiki.style) loaded as a deferred ESM module from a CDN
+(`head()`), matching the no-build-step, CDN-first approach of the Tailwind
+setup. Shiki uses TextMate grammars (the same engine as VS Code), so call sites,
+types and properties are colored — not just keywords and strings the way a regex
+highlighter manages. For each `<pre><code class="language-go">` it produces its
+own themed `<pre>` (one-dark-pro, with inline background and token colors), onto
+which the layout classes are re-applied before swapping it in; this covers Code
+tabs that start hidden. `dynamicCodeBlock`'s placeholder `<pre>` carries a dark
+background so the block looks right for the moment before Shiki paints.
+
+**Static (`-static-highlight`).** The Go source is highlighted server-side by the
+repo's own [`highlight`](../../highlight) package: `staticCodeBlock` renders the
+source to `<span class="hl-…">` markup and `head()` injects the package's dark
+theme stylesheet. Every page then ships already-colored code with no client-side
+JavaScript and no CDN dependency for the code blocks. The trade-off is a
+lexer-based highlighter (Go `go/scanner`) rather than Shiki's full TextMate
+grammar, so the coloring is a little coarser.
