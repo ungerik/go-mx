@@ -49,6 +49,7 @@ func Col(attribs ...mx.Attrib) *mx.Element       { return VoidElement("col", att
 func ColGroup(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("colgroup", attribsChildren...)
 }
+
 // Command was removed from HTML spec
 func Content(attribsChildren ...any) *mx.Element { return Element("content", attribsChildren...) }
 func Data(attribsChildren ...any) *mx.Element    { return Element("data", attribsChildren...) }
@@ -91,9 +92,10 @@ func HTML(attribsChildren ...any) *mx.Element   { return Element("html", attribs
 // Use `Em` for semantic emphasis
 func I(attribsChildren ...any) *mx.Element      { return Element("i", attribsChildren...) }
 func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
+
 // Image is SVG only, use Img for HTML
-func Img(attribs ...mx.Attrib) *mx.Element { return VoidElement("img", attribs...) }
-func Input(attribs ...mx.Attrib) *mx.Element    { return VoidElement("input", attribs...) }
+func Img(attribs ...mx.Attrib) *mx.Element   { return VoidElement("img", attribs...) }
+func Input(attribs ...mx.Attrib) *mx.Element { return VoidElement("input", attribs...) }
 func InputTypeButton(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "button", attribs)...)
 }
@@ -216,10 +218,14 @@ func StyleElem(css string) *mx.Element           { return Element("style", Raw(c
 func Sub(attribsChildren ...any) *mx.Element     { return Element("sub", attribsChildren...) }
 func Summary(attribsChildren ...any) *mx.Element { return Element("summary", attribsChildren...) }
 func Sup(attribsChildren ...any) *mx.Element     { return Element("sup", attribsChildren...) }
-func Svg(attribsChildren ...any) *mx.Element     { return Element("svg", attribsChildren...) }
-func Table(attribsChildren ...any) *mx.Element   { return Element("table", attribsChildren...) }
-func TBody(attribsChildren ...any) *mx.Element   { return Element("tbody", attribsChildren...) }
-func TD(attribsChildren ...any) *mx.Element      { return Element("td", attribsChildren...) }
+
+// Svg creates a bare <svg> element for inline embedding in HTML.
+// For the full SVG element and attribute vocabulary, namespace handling, and
+// numeric attribute values use the svg package (github.com/ungerik/go-mx/svg).
+func Svg(attribsChildren ...any) *mx.Element   { return Element("svg", attribsChildren...) }
+func Table(attribsChildren ...any) *mx.Element { return Element("table", attribsChildren...) }
+func TBody(attribsChildren ...any) *mx.Element { return Element("tbody", attribsChildren...) }
+func TD(attribsChildren ...any) *mx.Element    { return Element("td", attribsChildren...) }
 func TemplateElem(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("template", attribsChildren...)
 }
@@ -232,7 +238,7 @@ func THead(attribsChildren ...any) *mx.Element     { return Element("thead", att
 func Time(attribsChildren ...any) *mx.Element      { return Element("time", attribsChildren...) }
 func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", attribsChildren...) }
 func TR(attribsChildren ...any) *mx.Element        { return Element("tr", attribsChildren...) }
-func Track(attribs ...mx.Attrib) *mx.Element        { return VoidElement("track", attribs...) }
+func Track(attribs ...mx.Attrib) *mx.Element       { return VoidElement("track", attribs...) }
 func UL(attribsChildren ...any) *mx.Element        { return Element("ul", attribsChildren...) }
 func Var(attribsChildren ...any) *mx.Element       { return Element("var", attribsChildren...) }
 func Video(attribsChildren ...any) *mx.Element     { return Element("video", attribsChildren...) }
