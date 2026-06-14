@@ -7,6 +7,9 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
+// Serve starts an HTTP server on addr that renders component as the HTML
+// response for every request. It blocks until the server stops, returning
+// the error from http.ListenAndServe.
 func Serve(addr string, component mx.Component) error {
 	return http.ListenAndServe(addr, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		buf := bytes.NewBuffer(nil)

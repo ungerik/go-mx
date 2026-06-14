@@ -9,53 +9,51 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-// OptionsProvider is an alias for [mx.OptionsProvider] kept for
-// backwards compatibility. New code should use mx.OptionsProvider
-// directly.
-//
-// Deprecated: use [mx.OptionsProvider]. This alias will be removed
-// after one release cycle.
-type OptionsProvider = mx.OptionsProvider
-
-// NamedOption is an alias for [mx.NamedOption] kept for backwards
-// compatibility. New code should use mx.NamedOption directly.
-//
-// Deprecated: use [mx.NamedOption]. This alias will be removed after
-// one release cycle.
-type NamedOption = mx.NamedOption
-
-// NamedOptionsProvider is an alias for [mx.NamedOptionsProvider] kept
-// for backwards compatibility. New code should use
-// mx.NamedOptionsProvider directly.
-//
-// Deprecated: use [mx.NamedOptionsProvider]. This alias will be
-// removed after one release cycle.
-type NamedOptionsProvider = mx.NamedOptionsProvider
-
+// ReflectFormOption is the interface implemented by the options accepted
+// by [ReflectFormComponents]. The unexported marker method restricts
+// implementations to the ReflectFormOption* types in this package.
 type ReflectFormOption interface {
 	ReflectFormOption() // Marker method
 }
 
+// ReflectFormOptionInputName is a [ReflectFormOption] that derives the
+// name attribute of a struct field's input. Returning ok false leaves the
+// name to the next option or the field name.
 type ReflectFormOptionInputName func(reflect.StructField, reflect.Value) (inputName string, ok bool)
 
+// ReflectFormOption marks ReflectFormOptionInputName as a [ReflectFormOption].
 func (ReflectFormOptionInputName) ReflectFormOption() {}
 
+// InputName calls the function to derive the input name for the field,
+// returning ok false when it provides none.
 func (f ReflectFormOptionInputName) InputName(field reflect.StructField, val reflect.Value) (inputName string, ok bool) {
 	return f(field, val)
 }
 
+// ReflectFormOptionInputType is a [ReflectFormOption] that derives the
+// type attribute of a struct field's input. Returning ok false falls
+// through to the next option or the default type detection.
 type ReflectFormOptionInputType func(reflect.StructField, reflect.Value) (inputType string, ok bool)
 
+// ReflectFormOption marks ReflectFormOptionInputType as a [ReflectFormOption].
 func (ReflectFormOptionInputType) ReflectFormOption() {}
 
+// InputType calls the function to derive the input type for the field,
+// returning ok false when it provides none.
 func (f ReflectFormOptionInputType) InputType(field reflect.StructField, val reflect.Value) (inputType string, ok bool) {
 	return f(field, val)
 }
 
+// ReflectFormOptionInputValue is a [ReflectFormOption] that derives the
+// value attribute of a struct field's input. Returning ok false falls
+// through to the value derived from the field's contents.
 type ReflectFormOptionInputValue func(reflect.StructField, reflect.Value) (inputValue string, ok bool)
 
+// ReflectFormOption marks ReflectFormOptionInputValue as a [ReflectFormOption].
 func (ReflectFormOptionInputValue) ReflectFormOption() {}
 
+// InputValue calls the function to derive the input value for the field,
+// returning ok false when it provides none.
 func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val reflect.Value) (inputValue string, ok bool) {
 	return f(field, val)
 }
@@ -63,11 +61,8 @@ func (f ReflectFormOptionInputValue) InputValue(field reflect.StructField, val r
 // ReflectFormComponents renders a struct as a flat list of HTML form
 // inputs based on `input:"..."` struct tags.
 //
-// Deprecated: use [mx.ReflectFormHandler] with [FieldDecider] (or
-// [hx.FieldDecider] / [shadcn.FieldDecider]) instead. The new chain
-// handles parsing, validation, sentinels, sections, and the full
-// FieldKind dispatch table — this function will be removed after one
-// release cycle.
+// For parsing, validation, sentinels, sections, and the full FieldKind
+// dispatch table, see [mx.ReflectFormHandler] with [FieldDecider].
 func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (components mx.Components) {
 	for field, val := range mx.ReflectStructFields(reflect.ValueOf(formStruct)) {
 		inputTag := field.Tag.Get("input")
@@ -123,8 +118,8 @@ func ReflectFormComponents(formStruct any, options ...ReflectFormOption) (compon
 			}
 		}
 		if inputType == "" {
-			if field.Type.Implements(reflect.TypeFor[OptionsProvider]()) {
-				selectOptions = val.Interface().(OptionsProvider).Options()
+			if field.Type.Implements(reflect.TypeFor[mx.OptionsProvider]()) {
+				selectOptions = val.Interface().(mx.OptionsProvider).Options()
 			} else {
 				inputType = defaultReflectFormInputType(field)
 				if inputType != "" {

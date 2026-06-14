@@ -30,11 +30,17 @@ import (
 type AutoCapitalize string //#enum
 
 const (
-	AutoCapitalizeOff        AutoCapitalize = "off"
-	AutoCapitalizeNone       AutoCapitalize = "none"
-	AutoCapitalizeOn         AutoCapitalize = "on"
-	AutoCapitalizeSentences  AutoCapitalize = "sentences"
-	AutoCapitalizeWords      AutoCapitalize = "words"
+	// AutoCapitalizeOff disables automatic capitalization (no autocapitalization).
+	AutoCapitalizeOff AutoCapitalize = "off"
+	// AutoCapitalizeNone disables automatic capitalization (synonym of "off").
+	AutoCapitalizeNone AutoCapitalize = "none"
+	// AutoCapitalizeOn enables default platform autocapitalization (synonym of "sentences").
+	AutoCapitalizeOn AutoCapitalize = "on"
+	// AutoCapitalizeSentences autocapitalizes the first letter of each sentence.
+	AutoCapitalizeSentences AutoCapitalize = "sentences"
+	// AutoCapitalizeWords autocapitalizes the first letter of each word.
+	AutoCapitalizeWords AutoCapitalize = "words"
+	// AutoCapitalizeCharacters autocapitalizes every character.
 	AutoCapitalizeCharacters AutoCapitalize = "characters"
 )
 
@@ -90,14 +96,20 @@ func (v AutoCapitalize) String() string {
 	return string(v)
 }
 
-func (v AutoCapitalize) AttribName() string                          { return "autocapitalize" }
+// AttribName returns the "autocapitalize" attribute name.
+func (v AutoCapitalize) AttribName() string { return "autocapitalize" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v AutoCapitalize) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // AutoCorrect is the HTML autocorrect attribute.
 type AutoCorrect string //#enum
 
 const (
-	AutoCorrectOn  AutoCorrect = "on"
+	// AutoCorrectOn enables automatic spelling correction and text substitutions.
+	AutoCorrectOn AutoCorrect = "on"
+	// AutoCorrectOff disables automatic spelling correction and text substitutions.
 	AutoCorrectOff AutoCorrect = "off"
 )
 
@@ -141,15 +153,22 @@ func (v AutoCorrect) String() string {
 	return string(v)
 }
 
-func (v AutoCorrect) AttribName() string                          { return "autocorrect" }
+// AttribName returns the "autocorrect" attribute name.
+func (v AutoCorrect) AttribName() string { return "autocorrect" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v AutoCorrect) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ContentEditable is the HTML contenteditable global attribute.
 type ContentEditable string //#enum
 
 const (
-	ContentEditableTrue          ContentEditable = "true"
-	ContentEditableFalse         ContentEditable = "false"
+	// ContentEditableTrue makes the element editable, including rich text formatting.
+	ContentEditableTrue ContentEditable = "true"
+	// ContentEditableFalse makes the element not editable.
+	ContentEditableFalse ContentEditable = "false"
+	// ContentEditablePlaintextOnly makes the element editable as raw text without rich formatting.
 	ContentEditablePlaintextOnly ContentEditable = "plaintext-only"
 )
 
@@ -196,14 +215,20 @@ func (v ContentEditable) String() string {
 	return string(v)
 }
 
-func (v ContentEditable) AttribName() string                          { return "contenteditable" }
+// AttribName returns the "contenteditable" attribute name.
+func (v ContentEditable) AttribName() string { return "contenteditable" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ContentEditable) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // CrossOrigin is the HTML crossorigin attribute.
 type CrossOrigin string //#enum
 
 const (
-	CrossOriginAnonymous      CrossOrigin = "anonymous"
+	// CrossOriginAnonymous performs a CORS request without sending credentials (cookies, TLS client certs, or HTTP auth).
+	CrossOriginAnonymous CrossOrigin = "anonymous"
+	// CrossOriginUseCredentials performs a CORS request that sends credentials (cookies, TLS client certs, or HTTP auth).
 	CrossOriginUseCredentials CrossOrigin = "use-credentials"
 )
 
@@ -247,16 +272,23 @@ func (v CrossOrigin) String() string {
 	return string(v)
 }
 
-func (v CrossOrigin) AttribName() string                          { return "crossorigin" }
+// AttribName returns the "crossorigin" attribute name.
+func (v CrossOrigin) AttribName() string { return "crossorigin" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v CrossOrigin) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Decoding is the HTML decoding attribute of the img element.
 type Decoding string //#enum
 
 const (
-	DecodingAuto  Decoding = "auto"
+	// DecodingAuto lets the browser decide the best image decoding strategy (the default).
+	DecodingAuto Decoding = "auto"
+	// DecodingAsync decodes the image asynchronously to avoid blocking presentation of other content.
 	DecodingAsync Decoding = "async"
-	DecodingSync  Decoding = "sync"
+	// DecodingSync decodes the image synchronously for atomic presentation with other content.
+	DecodingSync Decoding = "sync"
 )
 
 // Valid indicates if v is any of the valid values for Decoding
@@ -302,15 +334,22 @@ func (v Decoding) String() string {
 	return string(v)
 }
 
-func (v Decoding) AttribName() string                          { return "decoding" }
+// AttribName returns the "decoding" attribute name.
+func (v Decoding) AttribName() string { return "decoding" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Decoding) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Dir is the HTML dir global attribute (text directionality).
 type Dir string //#enum
 
 const (
-	DirLTR  Dir = "ltr"
-	DirRTL  Dir = "rtl"
+	// DirLTR sets the text direction to left-to-right.
+	DirLTR Dir = "ltr"
+	// DirRTL sets the text direction to right-to-left.
+	DirRTL Dir = "rtl"
+	// DirAuto lets the user agent determine the direction from the element's content.
 	DirAuto Dir = "auto"
 )
 
@@ -357,16 +396,23 @@ func (v Dir) String() string {
 	return string(v)
 }
 
-func (v Dir) AttribName() string                          { return "dir" }
+// AttribName returns the "dir" attribute name.
+func (v Dir) AttribName() string { return "dir" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Dir) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // EncType is the HTML enctype attribute of the form element.
 type EncType string //#enum
 
 const (
-	EncTypeFormURLEncoded    EncType = "application/x-www-form-urlencoded"
+	// EncTypeFormURLEncoded URL-encodes the form data (the default form encoding).
+	EncTypeFormURLEncoded EncType = "application/x-www-form-urlencoded"
+	// EncTypeMultipartFormData sends the form as multipart data, required for file uploads.
 	EncTypeMultipartFormData EncType = "multipart/form-data"
-	EncTypeTextPlain         EncType = "text/plain"
+	// EncTypeTextPlain sends the form data as plain text without encoding (debugging only).
+	EncTypeTextPlain EncType = "text/plain"
 )
 
 // Valid indicates if v is any of the valid values for EncType
@@ -412,20 +458,31 @@ func (v EncType) String() string {
 	return string(v)
 }
 
-func (v EncType) AttribName() string                          { return "enctype" }
+// AttribName returns the "enctype" attribute name.
+func (v EncType) AttribName() string { return "enctype" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v EncType) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // EnterKeyHint is the HTML enterkeyhint global attribute.
 type EnterKeyHint string //#enum
 
 const (
-	EnterKeyHintEnter    EnterKeyHint = "enter"
-	EnterKeyHintDone     EnterKeyHint = "done"
-	EnterKeyHintGo       EnterKeyHint = "go"
-	EnterKeyHintNext     EnterKeyHint = "next"
+	// EnterKeyHintEnter hints at inserting a new line (typically a "return" key).
+	EnterKeyHintEnter EnterKeyHint = "enter"
+	// EnterKeyHintDone hints that there is nothing more to input and the input method editor closes.
+	EnterKeyHintDone EnterKeyHint = "done"
+	// EnterKeyHintGo hints at taking the user to the target of the typed text.
+	EnterKeyHintGo EnterKeyHint = "go"
+	// EnterKeyHintNext hints at moving to the next field that accepts text.
+	EnterKeyHintNext EnterKeyHint = "next"
+	// EnterKeyHintPrevious hints at moving to the previous field that accepts text.
 	EnterKeyHintPrevious EnterKeyHint = "previous"
-	EnterKeyHintSearch   EnterKeyHint = "search"
-	EnterKeyHintSend     EnterKeyHint = "send"
+	// EnterKeyHintSearch hints at taking the user to the results of searching the typed text.
+	EnterKeyHintSearch EnterKeyHint = "search"
+	// EnterKeyHintSend hints at delivering the typed text to its target.
+	EnterKeyHintSend EnterKeyHint = "send"
 )
 
 // Valid indicates if v is any of the valid values for EnterKeyHint
@@ -483,16 +540,23 @@ func (v EnterKeyHint) String() string {
 	return string(v)
 }
 
-func (v EnterKeyHint) AttribName() string                          { return "enterkeyhint" }
+// AttribName returns the "enterkeyhint" attribute name.
+func (v EnterKeyHint) AttribName() string { return "enterkeyhint" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v EnterKeyHint) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // FetchPriority is the HTML fetchpriority attribute.
 type FetchPriority string //#enum
 
 const (
+	// FetchPriorityAuto lets the browser decide the fetch priority (the default).
 	FetchPriorityAuto FetchPriority = "auto"
+	// FetchPriorityHigh fetches the resource at high priority relative to other resources of the same type.
 	FetchPriorityHigh FetchPriority = "high"
-	FetchPriorityLow  FetchPriority = "low"
+	// FetchPriorityLow fetches the resource at low priority relative to other resources of the same type.
+	FetchPriorityLow FetchPriority = "low"
 )
 
 // Valid indicates if v is any of the valid values for FetchPriority
@@ -538,16 +602,23 @@ func (v FetchPriority) String() string {
 	return string(v)
 }
 
-func (v FetchPriority) AttribName() string                          { return "fetchpriority" }
+// AttribName returns the "fetchpriority" attribute name.
+func (v FetchPriority) AttribName() string { return "fetchpriority" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FetchPriority) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // FormEncType is the HTML formenctype attribute of submit buttons.
 type FormEncType string //#enum
 
 const (
-	FormEncTypeFormURLEncoded    FormEncType = "application/x-www-form-urlencoded"
+	// FormEncTypeFormURLEncoded URL-encodes the form data, overriding the form's enctype (the default encoding).
+	FormEncTypeFormURLEncoded FormEncType = "application/x-www-form-urlencoded"
+	// FormEncTypeMultipartFormData sends the form as multipart data, overriding the form's enctype (required for file uploads).
 	FormEncTypeMultipartFormData FormEncType = "multipart/form-data"
-	FormEncTypeTextPlain         FormEncType = "text/plain"
+	// FormEncTypeTextPlain sends the form data as plain text, overriding the form's enctype (debugging only).
+	FormEncTypeTextPlain FormEncType = "text/plain"
 )
 
 // Valid indicates if v is any of the valid values for FormEncType
@@ -593,15 +664,22 @@ func (v FormEncType) String() string {
 	return string(v)
 }
 
-func (v FormEncType) AttribName() string                          { return "formenctype" }
+// AttribName returns the "formenctype" attribute name.
+func (v FormEncType) AttribName() string { return "formenctype" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FormEncType) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // FormMethod is the HTML formmethod attribute of submit buttons.
 type FormMethod string //#enum
 
 const (
-	FormMethodGET    FormMethod = "get"
-	FormMethodPOST   FormMethod = "post"
+	// FormMethodGET submits the form with the HTTP GET method, overriding the form's method.
+	FormMethodGET FormMethod = "get"
+	// FormMethodPOST submits the form with the HTTP POST method, overriding the form's method.
+	FormMethodPOST FormMethod = "post"
+	// FormMethodDialog closes the enclosing dialog and submits without sending data, overriding the form's method.
 	FormMethodDialog FormMethod = "dialog"
 )
 
@@ -648,17 +726,26 @@ func (v FormMethod) String() string {
 	return string(v)
 }
 
-func (v FormMethod) AttribName() string                          { return "formmethod" }
+// AttribName returns the "formmethod" attribute name.
+func (v FormMethod) AttribName() string { return "formmethod" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FormMethod) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // HTTPEquiv is the HTML http-equiv attribute of the meta element.
 type HTTPEquiv string //#enum
 
 const (
-	HTTPEquivContentType           HTTPEquiv = "content-type"
-	HTTPEquivDefaultStyle          HTTPEquiv = "default-style"
-	HTTPEquivRefresh               HTTPEquiv = "refresh"
-	HTTPEquivXUACompatible         HTTPEquiv = "x-ua-compatible"
+	// HTTPEquivContentType declares the document's character encoding (the content attribute must be "text/html; charset=utf-8").
+	HTTPEquivContentType HTTPEquiv = "content-type"
+	// HTTPEquivDefaultStyle sets the name of the preferred alternate style sheet.
+	HTTPEquivDefaultStyle HTTPEquiv = "default-style"
+	// HTTPEquivRefresh reloads or redirects the page after the number of seconds given in the content attribute.
+	HTTPEquivRefresh HTTPEquiv = "refresh"
+	// HTTPEquivXUACompatible selects the legacy Internet Explorer compatibility rendering mode.
+	HTTPEquivXUACompatible HTTPEquiv = "x-ua-compatible"
+	// HTTPEquivContentSecurityPolicy declares a Content Security Policy for the document.
 	HTTPEquivContentSecurityPolicy HTTPEquiv = "content-security-policy"
 )
 
@@ -711,21 +798,33 @@ func (v HTTPEquiv) String() string {
 	return string(v)
 }
 
-func (v HTTPEquiv) AttribName() string                          { return "http-equiv" }
+// AttribName returns the "http-equiv" attribute name.
+func (v HTTPEquiv) AttribName() string { return "http-equiv" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v HTTPEquiv) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // InputMode is the HTML inputmode global attribute.
 type InputMode string //#enum
 
 const (
-	InputModeNone    InputMode = "none"
-	InputModeText    InputMode = "text"
-	InputModeTel     InputMode = "tel"
-	InputModeEmail   InputMode = "email"
-	InputModeURL     InputMode = "url"
+	// InputModeNone shows no virtual keyboard, useful when the page implements its own input control.
+	InputModeNone InputMode = "none"
+	// InputModeText shows a standard text keyboard in the user's locale (the default).
+	InputModeText InputMode = "text"
+	// InputModeTel shows a telephone keypad with digits and the * and # keys.
+	InputModeTel InputMode = "tel"
+	// InputModeEmail shows a text keyboard optimized for entering email addresses.
+	InputModeEmail InputMode = "email"
+	// InputModeURL shows a text keyboard optimized for entering URLs.
+	InputModeURL InputMode = "url"
+	// InputModeNumeric shows a numeric keypad for entering digits.
 	InputModeNumeric InputMode = "numeric"
+	// InputModeDecimal shows a numeric keypad including the decimal separator.
 	InputModeDecimal InputMode = "decimal"
-	InputModeSearch  InputMode = "search"
+	// InputModeSearch shows a keyboard optimized for search, typically with a "search" action key.
+	InputModeSearch InputMode = "search"
 )
 
 // Valid indicates if v is any of the valid values for InputMode
@@ -786,18 +885,27 @@ func (v InputMode) String() string {
 	return string(v)
 }
 
-func (v InputMode) AttribName() string                          { return "inputmode" }
+// AttribName returns the "inputmode" attribute name.
+func (v InputMode) AttribName() string { return "inputmode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v InputMode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Kind is the HTML kind attribute of the track element.
 type Kind string //#enum
 
 const (
-	KindSubtitles    Kind = "subtitles"
-	KindCaptions     Kind = "captions"
+	// KindSubtitles provides a translation or transcription of dialogue, shown when audio is available but not understood.
+	KindSubtitles Kind = "subtitles"
+	// KindCaptions provides a transcription of dialogue and sound effects, suitable when audio is unavailable.
+	KindCaptions Kind = "captions"
+	// KindDescriptions provides textual descriptions of the video for synthesis when the visuals are unavailable.
 	KindDescriptions Kind = "descriptions"
-	KindChapters     Kind = "chapters"
-	KindMetadata     Kind = "metadata"
+	// KindChapters provides chapter titles used for navigating the media resource.
+	KindChapters Kind = "chapters"
+	// KindMetadata provides tracks intended for use by scripts and not displayed to the user.
+	KindMetadata Kind = "metadata"
 )
 
 // Valid indicates if v is any of the valid values for Kind
@@ -849,15 +957,21 @@ func (v Kind) String() string {
 	return string(v)
 }
 
-func (v Kind) AttribName() string                          { return "kind" }
+// AttribName returns the "kind" attribute name.
+func (v Kind) AttribName() string { return "kind" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Kind) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Loading is the HTML loading attribute of img and iframe elements.
 type Loading string //#enum
 
 const (
+	// LoadingEager loads the resource immediately, regardless of its position in the viewport (the default).
 	LoadingEager Loading = "eager"
-	LoadingLazy  Loading = "lazy"
+	// LoadingLazy defers loading the resource until it nears the viewport.
+	LoadingLazy Loading = "lazy"
 )
 
 // Valid indicates if v is any of the valid values for Loading
@@ -900,15 +1014,22 @@ func (v Loading) String() string {
 	return string(v)
 }
 
-func (v Loading) AttribName() string                          { return "loading" }
+// AttribName returns the "loading" attribute name.
+func (v Loading) AttribName() string { return "loading" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Loading) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Method is the HTML method attribute of the form element.
 type Method string //#enum
 
 const (
-	MethodGET    Method = "GET"
-	MethodPOST   Method = "POST"
+	// MethodGET submits the form with the HTTP GET method, appending the data to the action URL (the default).
+	MethodGET Method = "get"
+	// MethodPOST submits the form with the HTTP POST method, sending the data in the request body.
+	MethodPOST Method = "post"
+	// MethodDialog closes the enclosing dialog and submits without sending data.
 	MethodDialog Method = "dialog"
 )
 
@@ -944,8 +1065,8 @@ func (Method) Enums() []Method {
 // EnumStrings returns all valid values for Method as strings
 func (Method) EnumStrings() []string {
 	return []string{
-		"GET",
-		"POST",
+		"get",
+		"post",
 		"dialog",
 	}
 }
@@ -955,21 +1076,33 @@ func (v Method) String() string {
 	return string(v)
 }
 
-func (v Method) AttribName() string                          { return "method" }
+// AttribName returns the "method" attribute name.
+func (v Method) AttribName() string { return "method" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Method) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ReferrerPolicy is the HTML referrerpolicy attribute.
 type ReferrerPolicy string //#enum
 
 const (
-	ReferrerPolicyNoReferrer                  ReferrerPolicy = "no-referrer"
-	ReferrerPolicyNoReferrerWhenDowngrade     ReferrerPolicy = "no-referrer-when-downgrade"
-	ReferrerPolicyOrigin                      ReferrerPolicy = "origin"
-	ReferrerPolicyOriginWhenCrossOrigin       ReferrerPolicy = "origin-when-cross-origin"
-	ReferrerPolicySameOrigin                  ReferrerPolicy = "same-origin"
-	ReferrerPolicyStrictOrigin                ReferrerPolicy = "strict-origin"
+	// ReferrerPolicyNoReferrer never sends the Referer header.
+	ReferrerPolicyNoReferrer ReferrerPolicy = "no-referrer"
+	// ReferrerPolicyNoReferrerWhenDowngrade sends the full URL, but omits the Referer header when downgrading from HTTPS to HTTP.
+	ReferrerPolicyNoReferrerWhenDowngrade ReferrerPolicy = "no-referrer-when-downgrade"
+	// ReferrerPolicyOrigin sends only the origin (scheme, host, and port) as the referrer for all requests.
+	ReferrerPolicyOrigin ReferrerPolicy = "origin"
+	// ReferrerPolicyOriginWhenCrossOrigin sends the full URL for same-origin requests but only the origin for cross-origin requests.
+	ReferrerPolicyOriginWhenCrossOrigin ReferrerPolicy = "origin-when-cross-origin"
+	// ReferrerPolicySameOrigin sends the full URL for same-origin requests and no referrer for cross-origin requests.
+	ReferrerPolicySameOrigin ReferrerPolicy = "same-origin"
+	// ReferrerPolicyStrictOrigin sends only the origin, and nothing when downgrading from HTTPS to HTTP.
+	ReferrerPolicyStrictOrigin ReferrerPolicy = "strict-origin"
+	// ReferrerPolicyStrictOriginWhenCrossOrigin sends the full URL for same-origin requests, only the origin cross-origin, and nothing on an HTTPS-to-HTTP downgrade (the default).
 	ReferrerPolicyStrictOriginWhenCrossOrigin ReferrerPolicy = "strict-origin-when-cross-origin"
-	ReferrerPolicyUnsafeUrl                   ReferrerPolicy = "unsafe-url"
+	// ReferrerPolicyUnsafeUrl always sends the full URL, including on downgrades, which can leak data (unsafe).
+	ReferrerPolicyUnsafeUrl ReferrerPolicy = "unsafe-url"
 )
 
 // Valid indicates if v is any of the valid values for ReferrerPolicy
@@ -1030,17 +1163,25 @@ func (v ReferrerPolicy) String() string {
 	return string(v)
 }
 
-func (v ReferrerPolicy) AttribName() string                          { return "referrerpolicy" }
+// AttribName returns the "referrerpolicy" attribute name.
+func (v ReferrerPolicy) AttribName() string { return "referrerpolicy" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ReferrerPolicy) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Shape is the HTML shape attribute of the area element.
 type Shape string //#enum
 
 const (
+	// ShapeDefault makes the entire enclosing image the active area.
 	ShapeDefault Shape = "default"
-	ShapeRect    Shape = "rect"
-	ShapeCircle  Shape = "circle"
-	ShapePoly    Shape = "poly"
+	// ShapeRect defines a rectangular active area from the coords attribute.
+	ShapeRect Shape = "rect"
+	// ShapeCircle defines a circular active area from the coords attribute.
+	ShapeCircle Shape = "circle"
+	// ShapePoly defines a polygonal active area from the coords attribute.
+	ShapePoly Shape = "poly"
 )
 
 // Valid indicates if v is any of the valid values for Shape
@@ -1089,25 +1230,41 @@ func (v Shape) String() string {
 	return string(v)
 }
 
-func (v Shape) AttribName() string                          { return "shape" }
+// AttribName returns the "shape" attribute name.
+func (v Shape) AttribName() string { return "shape" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Shape) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // As is the HTML as attribute of the link element (preload destination).
 type As string //#enum
 
 const (
-	AsAudio    As = "audio"
+	// AsAudio preloads the resource as audio data, as used by an audio element.
+	AsAudio As = "audio"
+	// AsDocument preloads the resource as an HTML document for embedding in a frame or iframe.
 	AsDocument As = "document"
-	AsEmbed    As = "embed"
-	AsFetch    As = "fetch"
-	AsFont     As = "font"
-	AsImage    As = "image"
-	AsObject   As = "object"
-	AsScript   As = "script"
-	AsStyle    As = "style"
-	AsTrack    As = "track"
-	AsVideo    As = "video"
-	AsWorker   As = "worker"
+	// AsEmbed preloads the resource as content for an embed element.
+	AsEmbed As = "embed"
+	// AsFetch preloads the resource for retrieval via fetch or XHR (requires the crossorigin attribute).
+	AsFetch As = "fetch"
+	// AsFont preloads the resource as a font (requires the crossorigin attribute).
+	AsFont As = "font"
+	// AsImage preloads the resource as an image, as used by an img element.
+	AsImage As = "image"
+	// AsObject preloads the resource as content for an object element.
+	AsObject As = "object"
+	// AsScript preloads the resource as a script, as used by a script element.
+	AsScript As = "script"
+	// AsStyle preloads the resource as a style sheet, as used by a link rel=stylesheet element.
+	AsStyle As = "style"
+	// AsTrack preloads the resource as a WebVTT text track, as used by a track element.
+	AsTrack As = "track"
+	// AsVideo preloads the resource as video data, as used by a video element.
+	AsVideo As = "video"
+	// AsWorker preloads the resource as a Web Worker or Shared Worker script.
+	AsWorker As = "worker"
 )
 
 // Valid indicates if v is any of the valid values for As
@@ -1180,14 +1337,20 @@ func (v As) String() string {
 	return string(v)
 }
 
-func (v As) AttribName() string                          { return "as" }
+// AttribName returns the "as" attribute name.
+func (v As) AttribName() string { return "as" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v As) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Capture is the HTML capture attribute of file input elements.
 type Capture string //#enum
 
 const (
-	CaptureUser        Capture = "user"
+	// CaptureUser requests the user-facing camera or microphone for capture.
+	CaptureUser Capture = "user"
+	// CaptureEnvironment requests the outward-facing camera or microphone for capture.
 	CaptureEnvironment Capture = "environment"
 )
 
@@ -1231,16 +1394,23 @@ func (v Capture) String() string {
 	return string(v)
 }
 
-func (v Capture) AttribName() string                          { return "capture" }
+// AttribName returns the "capture" attribute name.
+func (v Capture) AttribName() string { return "capture" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Capture) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Preload is the HTML preload attribute of audio and video elements.
 type Preload string //#enum
 
 const (
-	PreloadNone     Preload = "none"
+	// PreloadNone hints that the media should not be preloaded, minimizing unnecessary traffic.
+	PreloadNone Preload = "none"
+	// PreloadMetadata hints that only the media metadata (such as duration) should be fetched.
 	PreloadMetadata Preload = "metadata"
-	PreloadAuto     Preload = "auto"
+	// PreloadAuto hints that the whole media file may be downloaded even if the user is not expected to use it.
+	PreloadAuto Preload = "auto"
 )
 
 // Valid indicates if v is any of the valid values for Preload
@@ -1286,16 +1456,24 @@ func (v Preload) String() string {
 	return string(v)
 }
 
-func (v Preload) AttribName() string                          { return "preload" }
+// AttribName returns the "preload" attribute name.
+func (v Preload) AttribName() string { return "preload" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Preload) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Scope is the HTML scope attribute of the th element.
 type Scope string //#enum
 
 const (
-	ScopeRow      Scope = "row"
-	ScopeCol      Scope = "col"
+	// ScopeRow marks the header as applying to the cells of its row.
+	ScopeRow Scope = "row"
+	// ScopeCol marks the header as applying to the cells of its column.
+	ScopeCol Scope = "col"
+	// ScopeRowGroup marks the header as applying to the cells of its row group.
 	ScopeRowGroup Scope = "rowgroup"
+	// ScopeColGroup marks the header as applying to the cells of its column group.
 	ScopeColGroup Scope = "colgroup"
 )
 
@@ -1345,14 +1523,20 @@ func (v Scope) String() string {
 	return string(v)
 }
 
-func (v Scope) AttribName() string                          { return "scope" }
+// AttribName returns the "scope" attribute name.
+func (v Scope) AttribName() string { return "scope" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Scope) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // SpellCheck is the HTML spellcheck global attribute.
 type SpellCheck string //#enum
 
 const (
-	SpellCheckTrue  SpellCheck = "true"
+	// SpellCheckTrue enables spelling and grammar checking for the element's content.
+	SpellCheckTrue SpellCheck = "true"
+	// SpellCheckFalse disables spelling and grammar checking for the element's content.
 	SpellCheckFalse SpellCheck = "false"
 )
 
@@ -1396,15 +1580,21 @@ func (v SpellCheck) String() string {
 	return string(v)
 }
 
-func (v SpellCheck) AttribName() string                          { return "spellcheck" }
+// AttribName returns the "spellcheck" attribute name.
+func (v SpellCheck) AttribName() string { return "spellcheck" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v SpellCheck) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Translate is the HTML translate global attribute.
 type Translate string //#enum
 
 const (
+	// TranslateYes marks the element's content as translatable (the default).
 	TranslateYes Translate = "yes"
-	TranslateNo  Translate = "no"
+	// TranslateNo marks the element's content as not to be translated.
+	TranslateNo Translate = "no"
 )
 
 // Valid indicates if v is any of the valid values for Translate
@@ -1447,14 +1637,20 @@ func (v Translate) String() string {
 	return string(v)
 }
 
-func (v Translate) AttribName() string                          { return "translate" }
+// AttribName returns the "translate" attribute name.
+func (v Translate) AttribName() string { return "translate" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Translate) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Wrap is the HTML wrap attribute of the textarea element.
 type Wrap string //#enum
 
 const (
+	// WrapSoft wraps text for display but submits it without inserted line breaks (the default).
 	WrapSoft Wrap = "soft"
+	// WrapHard inserts line breaks into the submitted text so it wraps; requires the cols attribute.
 	WrapHard Wrap = "hard"
 )
 
@@ -1498,7 +1694,11 @@ func (v Wrap) String() string {
 	return string(v)
 }
 
-func (v Wrap) AttribName() string                          { return "wrap" }
+// AttribName returns the "wrap" attribute name.
+func (v Wrap) AttribName() string { return "wrap" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Wrap) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Compile-time checks that every enum type is usable directly as an attribute.
