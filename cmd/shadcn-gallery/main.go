@@ -105,11 +105,27 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "calendar",
+			Title:       "Calendar",
+			Description: "A date field component that allows users to enter and edit date.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.CalendarDemo},
+			},
+		},
+		{
 			Slug:        "card",
 			Title:       "Card",
 			Description: "Displays a card with header, content, and footer.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.CardDemo},
+			},
+		},
+		{
+			Slug:        "carousel",
+			Title:       "Carousel",
+			Description: "A carousel with motion and swipe built using CSS scroll-snap.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.CarouselDemo},
 			},
 		},
 		{
@@ -139,11 +155,36 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "date-picker",
+			Title:       "Date Picker",
+			Description: "A date picker component with range and presets — a Popover composed with a Calendar.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.DatePickerDemo},
+			},
+		},
+		{
+			Slug:        "dialog",
+			Title:       "Dialog",
+			Description: "A window overlaid on either the primary window or another dialog window, rendering the content underneath inert.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.DialogDemo},
+			},
+		},
+		{
 			Slug:        "dropdown-menu",
 			Title:       "Dropdown Menu",
 			Description: "Displays a menu to the user — such as a set of actions or functions — triggered by a button.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.DropdownMenuDemo},
+			},
+		},
+		{
+			Slug:        "form",
+			Title:       "Form",
+			Description: "Building forms with labels, descriptions, and validation messages.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.FormDemo},
+				{Name: "With error", Func: examples.FormWithError},
 			},
 		},
 		{
@@ -231,6 +272,14 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "resizable",
+			Title:       "Resizable",
+			Description: "Accessible resizable panel groups and layouts with keyboard support.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.ResizableDemo},
+			},
+		},
+		{
 			Slug:        "scroll-area",
 			Title:       "Scroll Area",
 			Description: "Augments native scroll functionality for custom, cross-browser styling.",
@@ -252,6 +301,14 @@ func docs() []ComponentDoc {
 			Description: "Visually or semantically separates content.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.SeparatorDemo},
+			},
+		},
+		{
+			Slug:        "sheet",
+			Title:       "Sheet",
+			Description: "Extends the Dialog component to display content that complements the main content of the screen.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.SheetDemo},
 			},
 		},
 		{

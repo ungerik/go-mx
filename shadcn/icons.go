@@ -72,6 +72,11 @@ func iconCheck() *mx.Element {
 	return icon("check", "", svgPath("M20 6 9 17l-5-5"))
 }
 
+// iconX is the lucide x (close) icon, used by the Dialog and Sheet close button.
+func iconX() *mx.Element {
+	return icon("x", "", svgPath("M18 6 6 18"), svgPath("m6 6 12 12"))
+}
+
 // iconCircle is a small filled lucide-style dot, used as the
 // DropdownMenuRadioItem indicator (drawn as a tiny solid circle rather
 // than the lucide stroke-only circle since the indicator should be solid).

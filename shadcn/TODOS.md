@@ -165,14 +165,15 @@ functional, just not anchored.
 Reuse the `<dialog>` approach already proven in `alertdialog.go`
 (top layer, `::backdrop`, focus trap, Escape-to-close — no framework).
 
-- [ ] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
+- [x] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
   `Dialog` / `DialogTrigger` / `DialogContent` / `DialogHeader` /
   `DialogFooter` / `DialogTitle` / `DialogDescription` / `DialogClose`.
-  Factor the shared `<dialog>` helpers out of `alertdialog.go`.
-  Blocks **Sheet**.
-- [ ] **Sheet** · Cx 4 · deps: **Dialog**
-  `<dialog>` + slide-in `side` variants (top/right/bottom/left) via CSS.
-  Blocks **Sidebar**.
+  Native `<dialog>` like AlertDialog, plus light-dismiss (backdrop click) and a
+  built-in corner close button. Blocks **Sheet**.
+- [x] **Sheet** · Cx 4 · deps: **Dialog**
+  Native `<dialog>` pinned to an edge via per-side inset classes (top/right/
+  bottom/left); reuses Dialog's close-button helper. SheetSide type, `""` =
+  right. Blocks **Sidebar**.
 - [ ] **Drawer** · Cx 5 · deps: **Dialog**
   `<dialog>` + drag-to-dismiss and snap points — requires JS; lowest
   priority of the phase.
@@ -185,24 +186,32 @@ Each leans on a React-only library with no Go equivalent — behavior must be
 reimplemented (server-side in Go, with HTMX, or with a small script).
 Order within the phase is by dependency, then complexity.
 
-- [ ] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
-  `Form` / `FormItem` / `FormLabel` / `FormControl` / `FormDescription` /
-  `FormMessage`. Server-side validation display is natural here; consider
-  wiring into the existing `html.ReflectFormComponents`.
+- [x] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
+  `Form` (native `<form>`) / `FormItem` / `FormLabel` (error-aware via
+  `data-error`) / `FormDescription` / `FormMessage`. FormField/FormControl are
+  React context/Slot plumbing with no server equivalent, so not ported; the
+  caller wires ids/aria directly and renders FormMessage with the error.
 - [ ] **Command** · Cx 5 · deps: none
   Filterable command list (cmdk). Filter server-side via HTMX or in a
   script. Blocks **Combobox**.
 - [ ] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
   Composition recipe, not a primitive.
-- [ ] **Calendar** · Cx 5 · deps: Button
-  Date grid — generate server-side with Go's `time` package; month nav via
-  HTMX round-trip. Blocks **DatePicker**.
-- [ ] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
-  Composition recipe.
-- [ ] **Carousel** · Cx 5 · deps: Button
-  CSS `scroll-snap` covers most of it; drag/autoplay need a script.
-- [ ] **Resizable** · Cx 5 · deps: none
-  Drag handles — JS; CSS `resize` only covers trivial cases.
+- [x] **Calendar** · Cx 5 · deps: Button
+  Single-month grid generated server-side with Go's `time` package; selected
+  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
+  plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
+- [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
+  Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as
+  a gallery example, matching how shadcn ships DatePicker (copy-paste, not a
+  primitive).
+- [x] **Carousel** · Cx 5 · deps: Button
+  Native CSS `scroll-snap` track (drag/swipe/keyboard free); Previous/Next
+  scroll the track one viewport via a tiny inline onclick. Autoplay/loop/
+  orientation not ported.
+- [x] **Resizable** · Cx 5 · deps: none
+  Flex panels + a draggable handle; one shared `resizeStart` pointer-drag
+  script adjusts the adjacent panels' flex-basis (the Slider-style tradeoff).
+  `ResizeDirection` horizontal/vertical.
 - [ ] **Toast** (Sonner) · Cx 5 · deps: none
   Queue/timers/swipe — JS, or HTMX out-of-band swaps for server-pushed
   toasts.
