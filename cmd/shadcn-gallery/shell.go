@@ -89,10 +89,10 @@ func head() mx.Component {
 const themeInitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}`
 
 // shikiScript highlights every Go code block in the browser with Shiki
-// (https://shiki.style) loaded from a pinned ESM CDN, using the one-dark-pro
-// theme. Module scripts are deferred, so the DOM is parsed when it runs. For
-// each <pre><code class="language-go"> it asks Shiki for its own <pre> (which
-// carries the theme's inline background and token colors), re-applies the
+// (https://shiki.style, MIT) loaded from a pinned ESM CDN, using its bundled
+// monokai theme. Module scripts are deferred, so the DOM is parsed when it
+// runs. For each <pre><code class="language-go"> it asks Shiki for its own <pre>
+// (which carries the theme's inline background and token colors), re-applies the
 // layout classes, and swaps it in — covering Code tabs that start hidden.
 const shikiScript = /*js*/ `
 import { codeToHtml } from 'https://esm.sh/shiki@1';

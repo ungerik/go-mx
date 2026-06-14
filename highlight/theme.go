@@ -91,6 +91,11 @@ func (t Theme) StyleElement(prefix string) *mx.Element {
 	return html.StyleElem(t.CSS(prefix))
 }
 
+// The token colors of [LightTheme] and [DarkTheme] are adapted from GitHub's
+// "primer" syntax-highlighting palette (https://github.com/primer/github-vscode-theme,
+// MIT licensed). Only the color values are reused; the highlighting engine is
+// this package's own.
+
 // LightTheme is a light, GitHub-like color scheme.
 var LightTheme = Theme{
 	Name:       "light",

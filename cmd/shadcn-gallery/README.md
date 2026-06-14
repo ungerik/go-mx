@@ -96,7 +96,7 @@ go run ./cmd/shadcn-gallery -static-highlight  # static: highlight package, serv
 setup. Shiki uses TextMate grammars (the same engine as VS Code), so call sites,
 types and properties are colored — not just keywords and strings the way a regex
 highlighter manages. For each `<pre><code class="language-go">` it produces its
-own themed `<pre>` (one-dark-pro, with inline background and token colors), onto
+own themed `<pre>` (Shiki's bundled monokai theme, with inline background and token colors), onto
 which the layout classes are re-applied before swapping it in; this covers Code
 tabs that start hidden. `dynamicCodeBlock`'s placeholder `<pre>` carries a dark
 background so the block looks right for the moment before Shiki paints.
