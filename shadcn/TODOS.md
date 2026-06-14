@@ -174,9 +174,13 @@ Reuse the `<dialog>` approach already proven in `alertdialog.go`
   Native `<dialog>` pinned to an edge via per-side inset classes (top/right/
   bottom/left); reuses Dialog's close-button helper. SheetSide type, `""` =
   right. Blocks **Sidebar**.
-- [ ] **Drawer** · Cx 5 · deps: **Dialog**
-  `<dialog>` + drag-to-dismiss and snap points — requires JS; lowest
-  priority of the phase.
+- [x] **Drawer** · Cx 5 · deps: **Sheet** / **Dialog** (Option A)
+  Native bottom `<dialog>` (reuses the Dialog/Sheet modal infra — top layer,
+  ::backdrop, Escape, light-dismiss) plus one shared `drawerStart` pointer-drag
+  script: drag the grab handle down, past a ~40% threshold it closes, else
+  snaps back. The most client JS of any port, in the Slider/Resizable inline-
+  script pattern. Dropped vs Vaul: multi snap-points, momentum physics,
+  background-scale, non-bottom directions.
 
 ---
 
@@ -215,8 +219,28 @@ Order within the phase is by dependency, then complexity.
 - [ ] **Toast** (Sonner) · Cx 5 · deps: none
   Queue/timers/swipe — JS, or HTMX out-of-band swaps for server-pushed
   toasts.
-- [ ] **Chart** · Cx 6 · deps: none
-  recharts wrapper — needs a Go SVG chart generator or a JS charting lib.
+- [ ] **Chart** · Cx 6 · deps: none · **DEFERRED** (design decision pending)
+  shadcn's Chart only adds a CSS-variable theming layer over Recharts' SVG;
+  porting means generating the chart SVG ourselves. The divergence is in
+  *generation*, not runtime — every option below can stay server-side. Options:
+  - **A (recommended) — hand-rolled Go SVG generator** (bar/line/area): compute
+    linear scales, axis ticks, gridlines and shapes (`<rect>`/`<polyline>`/
+    `<path>`) in Go, colored from the theme's `--chart-1…5`. Pure server-side,
+    zero client runtime — the most native-first option and a real go-mx
+    strength. Responsive via SVG `viewBox` + `width:100%` (no resize-observer,
+    the native replacement for Recharts' ResponsiveContainer). Tooltips: native
+    `<title>` per data point by default (zero JS); optional styled JS tooltip
+    later. Cost: reimplementing a *scoped* charting lib (not Recharts parity) —
+    one of the two largest remaining builds (with DataTable).
+  - **B — a Go charting dependency** (e.g. `wcharczuk/go-chart` → SVG): less
+    code, but a dep whose styling/theming won't match shadcn.
+  - **C — a JS charting lib via CDN** (like Tailwind/Shiki): fits the gallery's
+    CDN demo pattern but reintroduces a client runtime for a package component —
+    against the native-first model.
+  Open decisions before building (A): chart types (bar/line/area, or also
+  pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
+  `ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
+  theming-wrapper API shape.
 - [ ] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
   Checkbox + **Select** + **Pagination**
   Sorting/filtering/pagination done server-side via HTMX fits go-mx well.

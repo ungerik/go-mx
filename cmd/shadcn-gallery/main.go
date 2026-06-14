@@ -171,6 +171,14 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "drawer",
+			Title:       "Drawer",
+			Description: "A drawer that slides up from the bottom and can be dragged down to dismiss.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.DrawerDemo},
+			},
+		},
+		{
 			Slug:        "dropdown-menu",
 			Title:       "Dropdown Menu",
 			Description: "Displays a menu to the user — such as a set of actions or functions — triggered by a button.",
