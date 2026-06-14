@@ -7,16 +7,16 @@ import (
 )
 
 func TextareaDefault() mx.Component {
-	return shadcn.Textarea(html.Attrib("placeholder", "Type your message here."), html.Class("max-w-sm"))
+	return shadcn.Textarea(html.Placeholder("Type your message here."), html.Class("max-w-sm"))
 }
 
 func TextareaDisabled() mx.Component {
-	return shadcn.Textarea(html.Attrib("placeholder", "Type your message here."), html.Attrib("disabled", ""), html.Class("max-w-sm"))
+	return shadcn.Textarea(html.Placeholder("Type your message here."), html.Disabled, html.Class("max-w-sm"))
 }
 
 func TextareaWithLabel() mx.Component {
 	return html.Div(html.Class("grid w-full max-w-sm gap-1.5"),
 		shadcn.Label(html.For("message"), "Your message"),
-		shadcn.Textarea(html.ID("message"), html.Attrib("placeholder", "Type your message here.")),
+		shadcn.Textarea(html.ID("message"), html.Placeholder("Type your message here.")),
 	)
 }

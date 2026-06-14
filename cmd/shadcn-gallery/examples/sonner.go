@@ -9,7 +9,7 @@ import (
 func SonnerDemo() mx.Component {
 	return html.Div(
 		shadcn.Button(shadcn.ButtonOutline, shadcn.SizeDefault,
-			html.Attrib("onclick", "toast('Event has been created', {description: 'Sunday, June 14, 2026 at 9:00 AM'})"),
+			html.OnClick("toast('Event has been created', {description: 'Sunday, June 14, 2026 at 9:00 AM'})"),
 			"Show Toast"),
 		shadcn.Toaster(),
 	)

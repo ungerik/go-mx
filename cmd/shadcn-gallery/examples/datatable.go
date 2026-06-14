@@ -24,7 +24,7 @@ func dtRow(i int, status, email, amount string, selected bool) mx.Component {
 	}
 	check := shadcn.Checkbox(html.Attrib("aria-label", "Select row"))
 	if selected {
-		check = shadcn.Checkbox(html.Attrib("aria-label", "Select row"), html.Attrib("checked", ""))
+		check = shadcn.Checkbox(html.Attrib("aria-label", "Select row"), html.Checked)
 	}
 	cells = append(cells,
 		shadcn.TableCell(check),
@@ -49,11 +49,11 @@ func dtRow(i int, status, email, amount string, selected bool) mx.Component {
 }
 
 func DataTableDemo() mx.Component {
-	return html.Div(html.Attrib("data-datatable", ""), html.Class("w-full"),
+	return html.Div(html.DataAttr("datatable", ""), html.Class("w-full"),
 		html.Script(mx.Raw(dtFilterScript)),
 		html.Div(html.Class("flex items-center gap-2 py-4"),
 			shadcn.Input(html.Class("max-w-sm"),
-				html.Attrib("placeholder", "Filter emails..."), html.Attrib("oninput", "dtFilter(this)")),
+				html.Placeholder("Filter emails..."), html.OnInput("dtFilter(this)")),
 			shadcn.DropdownMenu(html.Class("ml-auto"),
 				shadcn.DropdownMenuTrigger("dt-columns",
 					html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)),

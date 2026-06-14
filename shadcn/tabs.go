@@ -80,7 +80,7 @@ func TabsTrigger(tabsID, value string, active bool, attribsChildren ...any) *mx.
 		e.Attribs = append(e.Attribs, html.DataAttr("tabs-value", value))
 	}
 	if !active && e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	if e.AttribIndex("onclick") < 0 && !hasHX(e) {
 		e.Attribs = append(e.Attribs, html.OnClick("tabsSelect('"+tabsID+"','"+value+"')"))
@@ -108,11 +108,10 @@ func TabsContent(tabsID, value string, active bool, attribsChildren ...any) *mx.
 		e.Attribs = append(e.Attribs, html.DataAttr("tabs-value", value))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "0"))
+		e.Attribs = append(e.Attribs, html.TabIndex(0))
 	}
 	if !active && e.AttribIndex("hidden") < 0 {
 		e.Attribs = append(e.Attribs, html.Hidden)
 	}
 	return finish(e, "tabs-content", "flex-1 outline-none")
 }
-

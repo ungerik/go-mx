@@ -33,7 +33,7 @@ func ComboboxDemo() mx.Component {
 		shadcn.PopoverContent("demo-combobox", "",
 			html.Class("w-[200px] p-0"),
 			shadcn.Command(
-				shadcn.CommandInput(html.Attrib("placeholder", "Search framework...")),
+				shadcn.CommandInput(html.Placeholder("Search framework...")),
 				shadcn.CommandList(
 					shadcn.CommandEmpty("No framework found."),
 					shadcn.CommandGroup("",

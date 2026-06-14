@@ -15,7 +15,7 @@ func CardDemo() mx.Component {
 		shadcn.CardContent(
 			html.Div(html.Class("flex flex-col gap-2"),
 				shadcn.Label(html.For("name"), "Name"),
-				shadcn.Input(html.ID("name"), html.Attrib("placeholder", "Name of your project")),
+				shadcn.Input(html.ID("name"), html.Placeholder("Name of your project")),
 			),
 		),
 		shadcn.CardFooter(html.Class("flex justify-between"),

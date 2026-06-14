@@ -19,11 +19,11 @@ func SheetDemo() mx.Component {
 			html.Div(html.Class("grid flex-1 auto-rows-min gap-4 px-4"),
 				html.Div(html.Class("grid gap-2"),
 					shadcn.Label(html.For("sheet-name"), "Name"),
-					shadcn.Input(html.ID("sheet-name"), html.Attrib("value", "Ada Lovelace")),
+					shadcn.Input(html.ID("sheet-name"), html.Value("Ada Lovelace")),
 				),
 				html.Div(html.Class("grid gap-2"),
 					shadcn.Label(html.For("sheet-username"), "Username"),
-					shadcn.Input(html.ID("sheet-username"), html.Attrib("value", "@ada")),
+					shadcn.Input(html.ID("sheet-username"), html.Value("@ada")),
 				),
 			),
 			shadcn.SheetFooter(

@@ -19,11 +19,11 @@ func DialogDemo() mx.Component {
 			html.Div(html.Class("grid gap-4"),
 				html.Div(html.Class("grid gap-2"),
 					shadcn.Label(html.For("dialog-name"), "Name"),
-					shadcn.Input(html.ID("dialog-name"), html.Attrib("value", "Ada Lovelace")),
+					shadcn.Input(html.ID("dialog-name"), html.Value("Ada Lovelace")),
 				),
 				html.Div(html.Class("grid gap-2"),
 					shadcn.Label(html.For("dialog-username"), "Username"),
-					shadcn.Input(html.ID("dialog-username"), html.Attrib("value", "@ada")),
+					shadcn.Input(html.ID("dialog-username"), html.Value("@ada")),
 				),
 			),
 			shadcn.DialogFooter(

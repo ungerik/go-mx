@@ -43,5 +43,5 @@ func ButtonSizes() mx.Component {
 }
 
 func ButtonDisabled() mx.Component {
-	return shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Attrib("disabled", ""), "Disabled")
+	return shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Disabled, "Disabled")
 }

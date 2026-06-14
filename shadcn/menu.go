@@ -61,13 +61,13 @@ func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu boo
 		e.Attribs = append(e.Attribs, html.Role("menu"))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	if e.AttribIndex("onkeydown") < 0 {
 		e.Attribs = append(e.Attribs, html.OnKeyDown("menuKeyNav(event)"))
 	}
 	if e.AttribIndex("ontoggle") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("ontoggle", "menuOpen(event)"))
+		e.Attribs = append(e.Attribs, html.OnToggle("menuOpen(event)"))
 	}
 	if submenu {
 		e.Attribs = append(e.Attribs, html.DataAttr("submenu", "true"))
@@ -87,7 +87,7 @@ func menuItem(slot string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Role("menuitem"))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	return finish(e, slot, menuItemClasses)
 }
@@ -104,7 +104,7 @@ func menuCheckboxItem(slot string, checked bool, attribsChildren ...any) *mx.Ele
 		e.Attribs = append(e.Attribs, html.Attrib("aria-checked", boolStr(checked)))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	// Prepend the indicator span so it sits in the pl-8 slot.
 	indicator := html.Span(html.Class("absolute left-2 flex size-3.5 items-center justify-center"))
@@ -129,7 +129,7 @@ func menuRadioItem(slot, name, value string, selected bool, attribsChildren ...a
 		e.Attribs = append(e.Attribs, html.Attrib("aria-checked", boolStr(selected)))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	e.Attribs = append(e.Attribs,
 		html.DataAttr("radio-group", name),
@@ -194,7 +194,7 @@ func menuSubTrigger(slot, popoverID string, attribsChildren ...any) *mx.Element 
 		e.Attribs = append(e.Attribs, html.Role("menuitem"))
 	}
 	if e.AttribIndex("tabindex") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("tabindex", "-1"))
+		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	if e.AttribIndex("popovertarget") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("popovertarget", popoverID))

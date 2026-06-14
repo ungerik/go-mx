@@ -19,14 +19,14 @@ func CheckboxDemo() mx.Component {
 
 func CheckboxChecked() mx.Component {
 	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Checkbox(html.ID("checked-cb"), html.Attrib("checked", "")),
+		shadcn.Checkbox(html.ID("checked-cb"), html.Checked),
 		shadcn.Label(html.For("checked-cb"), "Subscribe to the newsletter"),
 	)
 }
 
 func CheckboxDisabled() mx.Component {
 	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Checkbox(html.ID("disabled-cb"), html.Attrib("disabled", "")),
+		shadcn.Checkbox(html.ID("disabled-cb"), html.Disabled),
 		shadcn.Label(html.For("disabled-cb"), "Disabled"),
 	)
 }

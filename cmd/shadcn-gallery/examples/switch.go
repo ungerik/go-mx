@@ -15,7 +15,7 @@ func SwitchDemo() mx.Component {
 
 func SwitchDisabled() mx.Component {
 	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Switch(html.ID("disabled-switch"), html.Attrib("disabled", "")),
+		shadcn.Switch(html.ID("disabled-switch"), html.Disabled),
 		shadcn.Label(html.For("disabled-switch"), "Disabled"),
 	)
 }

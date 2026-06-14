@@ -11,7 +11,7 @@ import (
 // global toast(message, opts) function. Place one [Toaster] on the page, then
 // trigger toasts from any onclick/script:
 //
-//	shadcn.Button("", "", html.Attrib("onclick",
+//	shadcn.Button("", "", html.OnClick(
 //	    "toast('Saved', {description: 'Your changes are saved.'})"), "Save")
 //
 // Each toast is appended to the fixed Toaster region, styled like Sonner, and

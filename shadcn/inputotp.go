@@ -57,7 +57,7 @@ func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
 		idxStr := strconv.Itoa(i)
 		slot := html.Element("input",
 			html.Type("text"),
-			html.Attrib("maxlength", "1"),
+			html.MaxLength(1),
 			html.InputModeNumeric,
 			html.ID(id+"-slot-"+idxStr),
 			html.DataAttr("otp-id", id),
@@ -67,7 +67,7 @@ func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
 		)
 		slot.Children = nil
 		if i == 0 {
-			slot.Attribs = append(slot.Attribs, html.Attrib("autocomplete", "one-time-code"))
+			slot.Attribs = append(slot.Attribs, html.AutoComplete("one-time-code"))
 		}
 		slots = append(slots, finish(slot, "input-otp-slot", inputOTPSlotClasses))
 	}

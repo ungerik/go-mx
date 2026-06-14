@@ -118,7 +118,7 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 				html.Div(html.Class("flex items-center justify-between border-b px-4 py-3"),
 					html.A(html.HRef(link("/")), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
 					shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM,
-						html.Attrib("onclick", "localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'"),
+						html.OnClick("localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'"),
 						"Theme"),
 				),
 				html.Nav(html.Class("flex-1 space-y-0.5 overflow-y-auto p-3"),

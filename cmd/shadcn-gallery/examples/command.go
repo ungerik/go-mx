@@ -8,7 +8,7 @@ import (
 
 func CommandDemo() mx.Component {
 	return shadcn.Command(html.Class("max-w-md rounded-lg border shadow-md"),
-		shadcn.CommandInput(html.Attrib("placeholder", "Type a command or search...")),
+		shadcn.CommandInput(html.Placeholder("Type a command or search...")),
 		shadcn.CommandList(
 			shadcn.CommandEmpty("No results found."),
 			shadcn.CommandGroup("Suggestions",
