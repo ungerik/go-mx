@@ -1,3 +1,7 @@
+---
+title: Why go-mx
+---
+
 # Why go-mx — server-rendered HTML, and where it fits
 
 An honest look at *why* you would render HTML on the server in Go in 2026,

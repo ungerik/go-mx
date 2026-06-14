@@ -14,6 +14,13 @@ client runtime, so this is a *port*, not a wrapper: the markup and Tailwind
 classes are reproduced in Go, and behavior that React delegates to libraries is
 re-expressed with web-platform primitives.
 
+> **New here?** Walk through the
+> [tutorial](https://ungerik.github.io/go-mx/shadcn/tutorial.html) and the
+> [how-to guides](https://ungerik.github.io/go-mx/shadcn/how-to.html), and browse
+> every component live next to its source in the
+> [gallery](https://ungerik.github.io/go-mx/gallery/). This README is the
+> component reference and the design rationale.
+
 ## `Cn` — the class-merging helper
 
 shadcn's `cn` helper is `clsx` piped through `tailwind-merge`. `Cn` is the Go
