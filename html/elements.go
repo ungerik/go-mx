@@ -38,9 +38,38 @@ func BDo(attribsChildren ...any) *mx.Element { return Element("bdo", attribsChil
 func Blockquote(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("blockquote", attribsChildren...)
 }
-func Body(attribsChildren ...any) *mx.Element    { return Element("body", attribsChildren...) }
-func Br(attribs ...mx.Attrib) *mx.Element        { return VoidElement("br", attribs...) }
-func Button(attribsChildren ...any) *mx.Element  { return Element("button", attribsChildren...) }
+func Body(attribsChildren ...any) *mx.Element { return Element("body", attribsChildren...) }
+func Br(attribs ...mx.Attrib) *mx.Element     { return VoidElement("br", attribs...) }
+
+// Button creates a <button> element without a type attribute. A missing type
+// defaults to the submit state in every context, but its effect depends on the
+// button's form association:
+//   - Inside a <form> (or associated via the form attribute) it acts as a submit
+//     button: activating it (click, or Enter while the form has focus) submits
+//     the form. This is a common gotcha for buttons meant only to run scripts.
+//   - Outside any form the submit default has nothing to submit, so the button
+//     has no default action and does something only when scripted.
+//
+// Use SubmitButton, ResetButton, or ButtonButton to set the type explicitly.
+func Button(attribsChildren ...any) *mx.Element { return Element("button", attribsChildren...) }
+
+// SubmitButton is a <button type="submit"> that submits its form when activated.
+func SubmitButton(attribsChildren ...any) *mx.Element {
+	return Element("button", append([]any{Type("submit")}, attribsChildren...)...)
+}
+
+// ResetButton is a <button type="reset"> that resets its form's controls.
+func ResetButton(attribsChildren ...any) *mx.Element {
+	return Element("button", append([]any{Type("reset")}, attribsChildren...)...)
+}
+
+// ButtonButton is a <button type="button"> with no default behavior: unlike a
+// bare Button (which defaults to type="submit") it does not submit a form, so
+// use it for buttons that only trigger scripts.
+func ButtonButton(attribsChildren ...any) *mx.Element {
+	return Element("button", append([]any{Type("button")}, attribsChildren...)...)
+}
+
 func Canvas(attribsChildren ...any) *mx.Element  { return Element("canvas", attribsChildren...) }
 func Caption(attribsChildren ...any) *mx.Element { return Element("caption", attribsChildren...) }
 func Cite(attribsChildren ...any) *mx.Element    { return Element("cite", attribsChildren...) }

@@ -33,3 +33,26 @@ func TestHyperlink(t *testing.T) {
 		})
 	}
 }
+
+func TestButtonTypeConstructors(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"submit", SubmitButton(Text("Save")).String(), `<button type='submit'>Save</button>`},
+		{"reset", ResetButton(Text("Reset")).String(), `<button type='reset'>Reset</button>`},
+		{"button", ButtonButton(Text("Toggle")).String(), `<button type='button'>Toggle</button>`},
+		{"bare defaults to submit", Button(Text("Save")).String(), `<button>Save</button>`},
+		{
+			"attribs and children mix",
+			SubmitButton(Class("primary"), ID("save"), Text("Save")).String(),
+			`<button type='submit' class='primary' id='save'>Save</button>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}
