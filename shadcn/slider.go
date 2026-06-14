@@ -51,16 +51,16 @@ func sliderSingle(min, max, step, value float64, attribsChildren ...any) *mx.Ele
 		e.Attribs = append(e.Attribs, html.Type("range"))
 	}
 	if e.AttribIndex("min") < 0 {
-		e.Attribs = append(e.Attribs, html.Min(fmtFloat(min)))
+		e.Attribs = append(e.Attribs, html.Min(min))
 	}
 	if e.AttribIndex("max") < 0 {
-		e.Attribs = append(e.Attribs, html.Max(fmtFloat(max)))
+		e.Attribs = append(e.Attribs, html.Max(max))
 	}
 	if e.AttribIndex("step") < 0 {
-		e.Attribs = append(e.Attribs, html.Step(fmtFloat(step)))
+		e.Attribs = append(e.Attribs, html.Step(step))
 	}
 	if e.AttribIndex("value") < 0 {
-		e.Attribs = append(e.Attribs, html.Value(fmtFloat(value)))
+		e.Attribs = append(e.Attribs, html.Value(value))
 	}
 	return finish(e, "slider", "w-full "+sliderInputBase)
 }
@@ -84,10 +84,10 @@ func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...a
 	mkInput := func(val float64) *mx.Element {
 		in := html.Element("input",
 			html.Type("range"),
-			html.Min(fmtFloat(min)),
-			html.Max(fmtFloat(max)),
-			html.Step(fmtFloat(step)),
-			html.Value(fmtFloat(val)),
+			html.Min(min),
+			html.Max(max),
+			html.Step(step),
+			html.Value(val),
 			html.OnInput("sliderClamp('"+id+"')"),
 			html.Class("absolute inset-0 w-full pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto "+sliderInputBase),
 		)

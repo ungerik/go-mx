@@ -22,7 +22,6 @@ func Progress(value float64, attribsChildren ...any) *mx.Element {
 	if value > 100 {
 		value = 100
 	}
-	valueStr := strconv.FormatFloat(value, 'f', -1, 64)
 	offset := strconv.FormatFloat(100-value, 'f', -1, 64)
 
 	e := html.Div(attribsChildren...)
@@ -36,7 +35,7 @@ func Progress(value float64, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-valuemax", "100"))
 	}
 	if e.AttribIndex("aria-valuenow") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-valuenow", valueStr))
+		e.Attribs = append(e.Attribs, html.Attrib("aria-valuenow", value))
 	}
 
 	indicator := finish(
