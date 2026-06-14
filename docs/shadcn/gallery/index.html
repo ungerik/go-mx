@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>shadcn · go-mx — Components</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script>try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
+  <style type="text/tailwindcss">/* shadcn/ui new-york-v4 theme tokens.
+ *
+ * This is the verbatim `globals.css` shadcn/ui ships with the new-york style on
+ * Tailwind v4: the OKLCH color tokens for light (:root) and dark (.dark), the
+ * @theme inline mapping that turns them into `--color-*` utilities, and the
+ * base layer. It is injected into a <style type="text/tailwindcss"> block that
+ * the @tailwindcss/browser CDN build compiles at runtime against the live DOM.
+ */
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>pre.hl {
+	background-color: #0d1117;
+	color: #c9d1d9;
+	padding: 1rem;
+	border-radius: 6px;
+	overflow-x: auto;
+	tab-size: 4;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+.hl-builtin { color: #ffa657 }
+.hl-comment { color: #8b949e; font-style: italic }
+.hl-constant { color: #79c0ff }
+.hl-function { color: #d2a8ff }
+.hl-ident { color: #c9d1d9 }
+.hl-keyword { color: #ff7b72 }
+.hl-number { color: #79c0ff }
+.hl-operator { color: #ff7b72 }
+.hl-punctuation { color: #c9d1d9 }
+.hl-string { color: #a5d6ff }
+.hl-type { color: #d2a8ff }
+</style>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside class="w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground">
+      <div class="sticky top-0 flex h-screen flex-col">
+        <div class="flex items-center justify-between border-b px-4 py-3">
+          <a href="/go-mx/shadcn/gallery/" class="text-sm font-semibold">shadcn · go-mx</a>
+          <button data-slot="button" onclick="localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'" type="button" data-variant="outline" data-size="sm" class="inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Theme</button>
+        </div>
+        <nav class="flex-1 space-y-0.5 overflow-y-auto p-3">
+          <a href="/go-mx/shadcn/gallery/components/accordion" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Accordion</a>
+          <a href="/go-mx/shadcn/gallery/components/alert" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert</a>
+          <a href="/go-mx/shadcn/gallery/components/alert-dialog" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert Dialog</a>
+          <a href="/go-mx/shadcn/gallery/components/aspect-ratio" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Aspect Ratio</a>
+          <a href="/go-mx/shadcn/gallery/components/avatar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Avatar</a>
+          <a href="/go-mx/shadcn/gallery/components/badge" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Badge</a>
+          <a href="/go-mx/shadcn/gallery/components/breadcrumb" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Breadcrumb</a>
+          <a href="/go-mx/shadcn/gallery/components/button" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Button</a>
+          <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
+          <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
+          <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
+          <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
+          <a href="/go-mx/shadcn/gallery/components/combobox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Combobox</a>
+          <a href="/go-mx/shadcn/gallery/components/command" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Command</a>
+          <a href="/go-mx/shadcn/gallery/components/context-menu" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Context Menu</a>
+          <a href="/go-mx/shadcn/gallery/components/data-table" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Data Table</a>
+          <a href="/go-mx/shadcn/gallery/components/date-picker" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Date Picker</a>
+          <a href="/go-mx/shadcn/gallery/components/dialog" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dialog</a>
+          <a href="/go-mx/shadcn/gallery/components/drawer" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Drawer</a>
+          <a href="/go-mx/shadcn/gallery/components/dropdown-menu" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dropdown Menu</a>
+          <a href="/go-mx/shadcn/gallery/components/form" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Form</a>
+          <a href="/go-mx/shadcn/gallery/components/hover-card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Hover Card</a>
+          <a href="/go-mx/shadcn/gallery/components/input" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input</a>
+          <a href="/go-mx/shadcn/gallery/components/input-otp" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input OTP</a>
+          <a href="/go-mx/shadcn/gallery/components/label" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Label</a>
+          <a href="/go-mx/shadcn/gallery/components/menubar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Menubar</a>
+          <a href="/go-mx/shadcn/gallery/components/navigation-menu" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Navigation Menu</a>
+          <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
+          <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
+          <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
+          <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
+          <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
+          <a href="/go-mx/shadcn/gallery/components/select" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Select</a>
+          <a href="/go-mx/shadcn/gallery/components/separator" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Separator</a>
+          <a href="/go-mx/shadcn/gallery/components/sheet" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sheet</a>
+          <a href="/go-mx/shadcn/gallery/components/sidebar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sidebar</a>
+          <a href="/go-mx/shadcn/gallery/components/skeleton" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Skeleton</a>
+          <a href="/go-mx/shadcn/gallery/components/slider" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Slider</a>
+          <a href="/go-mx/shadcn/gallery/components/sonner" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sonner</a>
+          <a href="/go-mx/shadcn/gallery/components/switch" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Switch</a>
+          <a href="/go-mx/shadcn/gallery/components/table" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Table</a>
+          <a href="/go-mx/shadcn/gallery/components/tabs" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tabs</a>
+          <a href="/go-mx/shadcn/gallery/components/textarea" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Textarea</a>
+          <a href="/go-mx/shadcn/gallery/components/toggle" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle</a>
+          <a href="/go-mx/shadcn/gallery/components/toggle-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle Group</a>
+          <a href="/go-mx/shadcn/gallery/components/tooltip" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tooltip</a>
+        </nav>
+      </div>
+    </aside>
+    <main class="min-w-0 flex-1">
+      <div class="mx-auto max-w-3xl px-8 py-10">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">Components</h1>
+          <p class="mt-2 text-lg text-muted-foreground">A go-mx rebuild of the shadcn/ui component docs — every preview is rendered server-side in Go, with its source shown alongside.</p>
+          <div class="mt-8 grid gap-4 sm:grid-cols-2">
+            <a href="/go-mx/shadcn/gallery/components/accordion" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Accordion</div>
+              <p class="mt-1 text-sm text-muted-foreground">A vertically stacked set of interactive headings that each reveal a section of content.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/alert" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Alert</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a callout for user attention.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/alert-dialog" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Alert Dialog</div>
+              <p class="mt-1 text-sm text-muted-foreground">A modal dialog that interrupts the user with important content and expects a response.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/aspect-ratio" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Aspect Ratio</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays content within a desired ratio.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/avatar" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Avatar</div>
+              <p class="mt-1 text-sm text-muted-foreground">An image element with a fallback for representing the user.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/badge" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Badge</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a badge or a component that looks like a badge.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/breadcrumb" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Breadcrumb</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays the path to the current resource using a hierarchy of links.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/button" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Button</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a button or a component that looks like a button.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/calendar" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Calendar</div>
+              <p class="mt-1 text-sm text-muted-foreground">A date field component that allows users to enter and edit date.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/card" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Card</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a card with header, content, and footer.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/carousel" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Carousel</div>
+              <p class="mt-1 text-sm text-muted-foreground">A carousel with motion and swipe built using CSS scroll-snap.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/checkbox" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Checkbox</div>
+              <p class="mt-1 text-sm text-muted-foreground">A control that allows the user to toggle between checked and not checked.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/collapsible" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Collapsible</div>
+              <p class="mt-1 text-sm text-muted-foreground">An interactive component which expands and collapses content.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/combobox" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Combobox</div>
+              <p class="mt-1 text-sm text-muted-foreground">Autocomplete input and command palette with a list of suggestions — a Popover composed with a Command.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/command" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Command</div>
+              <p class="mt-1 text-sm text-muted-foreground">Fast, composable, unstyled command menu — type to filter.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/context-menu" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Context Menu</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a menu located at the pointer, triggered by a right-click.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/data-table" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Data Table</div>
+              <p class="mt-1 text-sm text-muted-foreground">Powerful table and datagrids — Table composed with a filter, column menu and pagination.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/date-picker" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Date Picker</div>
+              <p class="mt-1 text-sm text-muted-foreground">A date picker component with range and presets — a Popover composed with a Calendar.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/dialog" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Dialog</div>
+              <p class="mt-1 text-sm text-muted-foreground">A window overlaid on either the primary window or another dialog window, rendering the content underneath inert.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/drawer" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Drawer</div>
+              <p class="mt-1 text-sm text-muted-foreground">A drawer that slides up from the bottom and can be dragged down to dismiss.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/dropdown-menu" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Dropdown Menu</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a menu to the user — such as a set of actions or functions — triggered by a button.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/form" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Form</div>
+              <p class="mt-1 text-sm text-muted-foreground">Building forms with labels, descriptions, and validation messages.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/hover-card" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Hover Card</div>
+              <p class="mt-1 text-sm text-muted-foreground">For sighted users to preview content available behind a link.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/input" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Input</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a form input field or a component that looks like an input field.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/input-otp" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Input OTP</div>
+              <p class="mt-1 text-sm text-muted-foreground">Accessible one-time password component with copy paste functionality.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/label" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Label</div>
+              <p class="mt-1 text-sm text-muted-foreground">Renders an accessible label associated with controls.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/menubar" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Menubar</div>
+              <p class="mt-1 text-sm text-muted-foreground">A visually persistent menu common in desktop applications that provides quick access to a consistent set of commands.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/navigation-menu" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Navigation Menu</div>
+              <p class="mt-1 text-sm text-muted-foreground">A collection of links for navigating websites.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/pagination" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Pagination</div>
+              <p class="mt-1 text-sm text-muted-foreground">Pagination with page navigation, next and previous links.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/popover" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Popover</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays rich content in a portal, triggered by a button.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/progress" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Progress</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays an indicator showing the completion progress of a task.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/radio-group" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Radio Group</div>
+              <p class="mt-1 text-sm text-muted-foreground">A set of checkable buttons where no more than one can be checked at a time.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/resizable" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Resizable</div>
+              <p class="mt-1 text-sm text-muted-foreground">Accessible resizable panel groups and layouts with keyboard support.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/scroll-area" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Scroll Area</div>
+              <p class="mt-1 text-sm text-muted-foreground">Augments native scroll functionality for custom, cross-browser styling.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/select" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Select</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a list of options for the user to pick from, triggered by a button.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/separator" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Separator</div>
+              <p class="mt-1 text-sm text-muted-foreground">Visually or semantically separates content.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/sheet" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Sheet</div>
+              <p class="mt-1 text-sm text-muted-foreground">Extends the Dialog component to display content that complements the main content of the screen.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/sidebar" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Sidebar</div>
+              <p class="mt-1 text-sm text-muted-foreground">A composable, themeable and customizable sidebar that collapses to icons.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/skeleton" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Skeleton</div>
+              <p class="mt-1 text-sm text-muted-foreground">Use to show a placeholder while content is loading.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/slider" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Slider</div>
+              <p class="mt-1 text-sm text-muted-foreground">An input where the user selects a value from within a given range.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/sonner" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Sonner</div>
+              <p class="mt-1 text-sm text-muted-foreground">An opinionated toast component — imperative toast() pushed into a Toaster region.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/switch" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Switch</div>
+              <p class="mt-1 text-sm text-muted-foreground">A control that allows the user to toggle between checked and not checked.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/table" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Table</div>
+              <p class="mt-1 text-sm text-muted-foreground">A responsive table component.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/tabs" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Tabs</div>
+              <p class="mt-1 text-sm text-muted-foreground">A set of layered sections of content, known as tab panels, that are displayed one at a time.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/textarea" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Textarea</div>
+              <p class="mt-1 text-sm text-muted-foreground">Displays a form textarea or a component that looks like a textarea.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/toggle" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Toggle</div>
+              <p class="mt-1 text-sm text-muted-foreground">A two-state button that can be either on or off.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/toggle-group" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Toggle Group</div>
+              <p class="mt-1 text-sm text-muted-foreground">A set of two-state buttons that can be toggled on or off.</p>
+            </a>
+            <a href="/go-mx/shadcn/gallery/components/tooltip" class="rounded-lg border p-4 transition-colors hover:bg-accent">
+              <div class="font-medium">Tooltip</div>
+              <p class="mt-1 text-sm text-muted-foreground">A popup that displays information related to an element when it receives focus or the mouse hovers over it.</p>
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

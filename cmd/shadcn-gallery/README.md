@@ -22,11 +22,11 @@ To host under a URL **sub-path** (such as a GitHub Pages project page), pass
 `-base` so every in-gallery link is prefixed:
 
 ```bash
-go run ./cmd/shadcn-gallery -out docs/gallery -base /go-mx/gallery -static-highlight
+go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
 ```
 
-This is exactly how the gallery committed under [`docs/gallery/`](../../docs/gallery/)
-(served at `https://ungerik.github.io/go-mx/gallery/`) is generated.
+This is exactly how the gallery committed under [`docs/shadcn/gallery/`](../../docs/shadcn/gallery/)
+(served at `https://ungerik.github.io/go-mx/shadcn/gallery/`) is generated.
 
 An internet connection is required: Tailwind v4 is loaded from a CDN (see below).
 
@@ -65,21 +65,12 @@ displayed source therefore come from the **same function** and cannot drift.
 
 ## Status
 
-Stage 2 in progress: galleries for the shipped `shadcn` components, added
-tier by tier with a browser visual check after each.
+The gallery covers every ported `shadcn` component — 48 in all, one page
+each, listed alphabetically like the shadcn/ui docs (see `docs()` in
+`main.go` for the catalog).
 
-- **Tier 1 done** — Alert, Alert Dialog, Aspect Ratio, Avatar, Badge,
-  Breadcrumb, Button, Card, Input, Label, Pagination, Separator, Skeleton,
-  Table, Textarea.
-- **Tier 2 done** — Accordion, Checkbox, Collapsible, Input OTP, Progress,
-  Radio Group, Scroll Area, Slider, Switch, Tabs, Toggle, Toggle Group.
-- **Tier 3 done** — Context Menu, Dropdown Menu, Hover Card, Menubar,
-  Navigation Menu, Popover, Select, Tooltip.
-- **Next** — the not-yet-ported components (Phase 4/5 in `shadcn/TODOS.md`):
-  Dialog, Sheet, Drawer, Form, Command, Combobox, Calendar, DatePicker,
-  Carousel, Resizable, Toast, Chart, DataTable, Sidebar.
-
-Stage 2 (gallery the 35 shipped components, browser-verified) is complete.
+The only shadcn/ui component without a gallery page is **Chart**, which is
+deferred (a design decision is pending; see `shadcn/TODOS.md`).
 
 ## Syntax highlighting
 

@@ -12,7 +12,7 @@ re-expressed with web-platform primitives (native `<dialog>`, the Popover API,
 CSS Anchor Positioning, native form controls).
 
 See every component rendered live next to its Go source in the
-**[component gallery](../gallery/)**.
+**[component gallery](gallery/)**.
 
 ```go
 import "github.com/ungerik/go-mx/shadcn"

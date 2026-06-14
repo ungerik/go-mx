@@ -18,6 +18,25 @@ go test -run TestFunctionName ./...
 go build ./...
 ```
 
+## Documentation site
+
+The docs site at <https://ungerik.github.io/go-mx/> is a Jekyll site served by
+GitHub Pages from `docs/` on `main`. Markdown pages (`docs/index.md`, the `html`
+and `shadcn` tutorial/how-to/reference pages) are rendered by Jekyll; the
+component gallery under `docs/shadcn/gallery/` (served at
+`/go-mx/shadcn/gallery/`) is **pre-rendered static HTML, committed to the repo**.
+
+Regenerate the gallery after changing any `shadcn` component or
+`cmd/shadcn-gallery/examples/*.go`:
+
+```bash
+go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+```
+
+The `Gallery up to date` CI job (`.github/workflows/go.yml`) runs this exact
+command and fails if the committed output drifts, so commit the regenerated
+files together with the source change.
+
 ## Project Overview
 
 go-mx is a Go library for generating HTML markup programmatically using a component-based architecture. It provides type-safe, composable HTML generation with automatic escaping and validation.

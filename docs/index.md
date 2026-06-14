@@ -21,7 +21,7 @@ html.Div(html.Class("card"),
 - **[html package docs](html/)** — a tutorial, task-oriented how-to guides, and
   the full reference for the `html` package: the core HTML vocabulary everything
   else builds on.
-- **[Component gallery](gallery/)** — every ported shadcn/ui component, rendered
+- **[Component gallery](shadcn/gallery/)** — every ported shadcn/ui component, rendered
   server-side in Go and shown next to its source. A pre-rendered static copy of
   the live `cmd/shadcn-gallery` app.
 - **[shadcn package docs](shadcn/)** — a tutorial, task-oriented how-to guides,
@@ -135,7 +135,7 @@ React delegates to Radix is re-expressed with web-platform primitives — native
 `<dialog>`, the Popover API, CSS Anchor Positioning, native form controls — so
 most components ship zero or near-zero JavaScript.
 
-See the **[component gallery](gallery/)** for every component rendered live next
+See the **[component gallery](shadcn/gallery/)** for every component rendered live next
 to its Go source, and the **[shadcn docs](shadcn/)** to start building.
 
 ## Documentation map

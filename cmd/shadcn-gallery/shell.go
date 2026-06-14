@@ -24,7 +24,7 @@ var staticHighlight bool
 // linkBase is prefixed to every in-gallery link (the sidebar logo, the sidebar
 // component links, the index cards). It is "" when serving, so links are
 // root-absolute ("/", "/components/…"); the -base flag sets it to the hosting
-// sub-path (e.g. "/go-mx/gallery") for a static export served under a GitHub
+// sub-path (e.g. "/go-mx/shadcn/gallery") for a static export served under a GitHub
 // Pages project page, where the site does not live at the domain root.
 var linkBase string
 

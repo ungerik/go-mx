@@ -14,10 +14,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
         go-version: '1.26'
 
@@ -26,3 +26,29 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+  gallery:
+    name: Gallery up to date
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.26'
+
+    # Regenerate the committed docs/shadcn/gallery and fail if it drifts from the Go
+    # source. Must match the command in docs/_config.yml byte for byte.
+    - name: Regenerate gallery
+      run: go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+
+    - name: Fail if docs/shadcn/gallery is out of date
+      run: |
+        git add -A docs/shadcn/gallery
+        if ! git diff --cached --quiet -- docs/shadcn/gallery; then
+          echo "::error::docs/shadcn/gallery is out of date. Regenerate locally and commit:"
+          echo "  go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight"
+          git diff --cached -- docs/shadcn/gallery
+          exit 1
+        fi

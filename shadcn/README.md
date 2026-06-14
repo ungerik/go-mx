@@ -20,7 +20,7 @@ re-expressed with web-platform primitives.
 > [tutorial](https://ungerik.github.io/go-mx/shadcn/tutorial.html) and the
 > [how-to guides](https://ungerik.github.io/go-mx/shadcn/how-to.html), and browse
 > every component live next to its source in the
-> [gallery](https://ungerik.github.io/go-mx/gallery/). This README is the
+> [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/). This README is the
 > component reference and the design rationale.
 
 ## `Cn` — the class-merging helper

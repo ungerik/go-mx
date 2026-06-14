@@ -160,7 +160,7 @@ functional, just not anchored.
 
 ---
 
-## Phase 4 — Tier 4 modal / overlay (native `<dialog>`)
+## Phase 4 — Tier 4 modal / overlay (native `<dialog>`) (done)
 
 Reuse the `<dialog>` approach already proven in `alertdialog.go`
 (top layer, `::backdrop`, focus trap, Escape-to-close — no framework).
@@ -184,7 +184,7 @@ Reuse the `<dialog>` approach already proven in `alertdialog.go`
 
 ---
 
-## Phase 5 — Tier 5 composite / heavy
+## Phase 5 — Tier 5 composite / heavy (done except Chart, deferred)
 
 Each leans on a React-only library with no Go equivalent — behavior must be
 reimplemented (server-side in Go, with HTMX, or with a small script).
@@ -200,8 +200,10 @@ Order within the phase is by dependency, then complexity.
   matches each item's text on input, hides non-matching items/empty groups and
   toggles CommandEmpty. Fuzzy ranking and arrow-key nav not reproduced. Blocks
   **Combobox**.
-- [ ] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
-  Composition recipe, not a primitive.
+- [x] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
+  Composition recipe (Popover trigger + filterable Command in PopoverContent) —
+  shipped as a gallery example, matching how shadcn ships Combobox (copy-paste,
+  not a primitive).
 - [x] **Calendar** · Cx 5 · deps: Button
   Single-month grid generated server-side with Go's `time` package; selected
   day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are

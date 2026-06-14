@@ -21,7 +21,7 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
   `html` and `shadcn` tutorials and how-to guides, and the rendered component
   gallery. (GitHub Pages, served from [`docs/`](docs/).)
-- **[Component gallery](https://ungerik.github.io/go-mx/gallery/)** — every
+- **[Component gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)** — every
   ported shadcn/ui component shown next to its Go source.
 - **[`html` package](html/README.md)** — the core HTML vocabulary: elements,
   attributes, typed keyword enums, and the `html/entity` character set.

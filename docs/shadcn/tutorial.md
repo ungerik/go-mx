@@ -222,7 +222,7 @@ From here:
 
 - **[How-to guides](how-to.html)** — production Tailwind setup, overriding
   classes, htmx, confirm dialogs, static export.
-- **[Component gallery](../gallery/)** — every component live next to its source,
+- **[Component gallery](gallery/)** — every component live next to its source,
   to copy from.
 - **[Component reference](https://github.com/ungerik/go-mx/blob/main/shadcn/README.md)**
   — every signature and variant.
