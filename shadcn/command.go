@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/svg"
 )
 
 // Command is a Go port of shadcn/ui's Command (cmdk). cmdk filters its list
@@ -33,7 +34,7 @@ func CommandInput(attribsChildren ...any) *mx.Element {
 	input = finish(input, "command-input",
 		"placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50")
 	return finish(html.Div(
-		icon("search", "size-4 shrink-0 opacity-50", svgCircle("11", "11", "8"), svgPath("m21 21-4.3-4.3")),
+		icon("search", "size-4 shrink-0 opacity-50", svg.Circle(svg.CX(11), svg.CY(11), svg.R(8)), svg.Path(svg.D("m21 21-4.3-4.3"))),
 		input,
 	), "command-input-wrapper", "flex h-9 items-center gap-2 border-b px-3")
 }

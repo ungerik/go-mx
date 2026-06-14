@@ -4,19 +4,20 @@ import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn"
+	"github.com/ungerik/go-mx/svg"
 )
 
 // navIcon builds a small lucide-style inline SVG from its path data.
 func navIcon(paths ...string) mx.Component {
 	shapes := []any{
-		html.Attrib("xmlns", "http://www.w3.org/2000/svg"), html.Width("16"), html.Height("16"),
-		html.Attrib("viewBox", "0 0 24 24"), html.Attrib("fill", "none"), html.Attrib("stroke", "currentColor"),
-		html.Attrib("stroke-width", "2"), html.Attrib("stroke-linecap", "round"), html.Attrib("stroke-linejoin", "round"),
+		svg.XMLNS, svg.Width(16), svg.Height(16),
+		svg.ViewBox(0, 0, 24, 24), svg.Fill("none"), svg.Stroke("currentColor"),
+		svg.StrokeWidth(2), svg.StrokeLineCap("round"), svg.StrokeLineJoin("round"),
 	}
 	for _, d := range paths {
-		shapes = append(shapes, html.VoidElement("path", html.Attrib("d", d)))
+		shapes = append(shapes, svg.Path(svg.D(d)))
 	}
-	return html.Svg(shapes...)
+	return svg.SVG(shapes...)
 }
 
 // navItem builds one SidebarMenuItem with a leading icon, label, optional badge

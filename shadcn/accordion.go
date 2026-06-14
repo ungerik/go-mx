@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/svg"
 )
 
 // Accordion renders a shadcn/ui accordion container as a <div>. It is purely
@@ -58,7 +59,7 @@ func AccordionTrigger(attribsChildren ...any) *mx.Element {
 	// Always append the chevron — shadcn's trigger always renders one.
 	chevron := icon("chevron-down",
 		"text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-180",
-		svgPath("m6 9 6 6 6-6"))
+		svg.Path(svg.D("m6 9 6 6 6-6")))
 	e.Children = append(e.Children, chevron)
 	return finish(e, "accordion-trigger", accordionTriggerClasses)
 }

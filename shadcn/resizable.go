@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/svg"
 )
 
 // ResizeDirection selects whether a [ResizablePanelGroup] lays its panels out
@@ -63,8 +64,8 @@ func ResizableHandle(attribsChildren ...any) *mx.Element {
 		e.Children = mx.Components{
 			html.Div(html.Class("bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border group-data-[direction=vertical]/resizable:h-3 group-data-[direction=vertical]/resizable:w-4 group-data-[direction=vertical]/resizable:rotate-90"),
 				icon("grip-vertical", "size-2.5",
-					svgCircle("9", "12", "1"), svgCircle("9", "5", "1"), svgCircle("9", "19", "1"),
-					svgCircle("15", "12", "1"), svgCircle("15", "5", "1"), svgCircle("15", "19", "1")),
+					svg.Circle(svg.CX(9), svg.CY(12), svg.R(1)), svg.Circle(svg.CX(9), svg.CY(5), svg.R(1)), svg.Circle(svg.CX(9), svg.CY(19), svg.R(1)),
+					svg.Circle(svg.CX(15), svg.CY(12), svg.R(1)), svg.Circle(svg.CX(15), svg.CY(5), svg.R(1)), svg.Circle(svg.CX(15), svg.CY(19), svg.R(1))),
 			),
 		}
 	}
