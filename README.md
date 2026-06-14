@@ -59,6 +59,10 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
   shadcn/ui components and `shadcn.FieldDecider` for Tailwind/shadcn form
   rendering. See [shadcn/README.md](shadcn/README.md).
+- **`highlight`** — Go syntax highlighter: tokenizes Go source and renders it as
+  highlighted HTML components, or as the go-mx source that builds that markup,
+  plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See
+  [highlight/README.md](highlight/README.md).
 - **`web`**, **`doc`**, **`pdf`** — higher-level abstractions, partially
   implemented.
 
