@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// This file is a Go port of class-variance-authority (cva) v0.7.1,
+// Copyright 2022 Joe Bell, licensed under the Apache License, Version 2.0.
+// The library has been reimplemented in Go (a modified derivative work). See
+// THIRD-PARTY-LICENSES.md for the full license text.
+
 // Package cva ports class-variance-authority (cva) to Go.
 //
 // cva compiles a [Config] — a base class string plus a table of variants,

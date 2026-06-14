@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Tests for the Go port of class-variance-authority (cva) v0.7.1,
+// Copyright 2022 Joe Bell, licensed under the Apache License, Version 2.0.
+// See the LICENSE file in this directory and ../../THIRD-PARTY-LICENSES.md.
+
 package cva
 
 import "testing"

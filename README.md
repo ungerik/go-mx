@@ -124,3 +124,15 @@ and the `FieldErrors` cross-field error routing path.
 - [ ] Rich file upload widget (preview, multi-file, progress)
 - [ ] HTMX OOB fragment responses
 - [ ] OptionsProvider registry sub-package (ISO 4217, ISO 639, country codes)
+
+## License
+
+go-mx is licensed under the [MIT License](LICENSE), with one exception: the
+[`shadcn/cva`](shadcn/cva/) subpackage is a port of
+[class-variance-authority](https://github.com/joe-bell/cva) and is licensed
+under the Apache License, Version 2.0 (see [`shadcn/cva/LICENSE`](shadcn/cva/LICENSE)).
+
+Parts of the project port or adapt other open-source work (shadcn/ui, clsx,
+tailwind-merge, and GitHub's primer syntax palette); their license texts and
+copyright notices are reproduced in
+[THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
