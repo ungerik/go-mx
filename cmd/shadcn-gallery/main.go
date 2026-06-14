@@ -8,9 +8,17 @@
 // needs no node toolchain or build step. An internet connection is required for
 // the CDN script to load.
 //
-//	go run ./cmd/shadcn-gallery
+// The same executable either serves the gallery over HTTP or writes it as static
+// HTML files:
 //
-// Then browse to http://localhost:8080.
+//	go run ./cmd/shadcn-gallery                      # serve on http://localhost:8080
+//	go run ./cmd/shadcn-gallery -out ./dist          # write static files to ./dist, then exit
+//	go run ./cmd/shadcn-gallery -static-highlight …   # either mode, highlighting the Code tab server-side
+//
+// In both modes -static-highlight chooses server-side (highlight package) over
+// client-side (Shiki) Code-tab highlighting. The static output links pages with
+// root-absolute URLs, so serve the directory from a web root (e.g.
+// `python3 -m http.server` inside it).
 package main
 
 import (
@@ -443,12 +451,21 @@ func docs() []ComponentDoc {
 }
 
 func main() {
-	addr := flag.String("addr", ":8080", "listen address")
+	addr := flag.String("addr", ":8080", "listen address when serving")
+	out := flag.String("out", "",
+		"if set, write the gallery as static HTML files into this directory and exit, instead of serving")
 	flag.BoolVar(&staticHighlight, "static-highlight", false,
 		"highlight the Code tab server-side with the highlight package instead of client-side Shiki")
 	flag.Parse()
 
 	reg := NewRegistry(docs())
+
+	if *out != "" {
+		if err := writeStatic(reg, *out); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {

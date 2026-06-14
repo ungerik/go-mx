@@ -5,9 +5,17 @@ a sidebar of every ported component, one page per component, and each example
 shown as a **live preview next to the Go source** that produced it. It doubles
 as a visual dogfood and an integration test for the `shadcn` package.
 
+The same executable either **serves** the gallery or **writes it as static
+files**:
+
 ```bash
-go run ./cmd/shadcn-gallery      # then open http://localhost:8080
+go run ./cmd/shadcn-gallery               # serve on http://localhost:8080
+go run ./cmd/shadcn-gallery -out ./dist   # write static HTML to ./dist, then exit
 ```
+
+The static output is the same pages the server serves — `dist/index.html` plus
+`dist/components/<slug>/index.html` — linked with root-absolute URLs, so serve
+the directory from a web root (e.g. `python3 -m http.server` inside `./dist`).
 
 An internet connection is required: Tailwind v4 is loaded from a CDN (see below).
 
@@ -15,7 +23,8 @@ An internet connection is required: Tailwind v4 is loaded from a CDN (see below)
 
 | File             | Responsibility                                                        |
 |------------------|-----------------------------------------------------------------------|
-| `main.go`        | The component catalog (`docs()`) and the HTTP routes.                 |
+| `main.go`        | The component catalog (`docs()`), the flags, and the HTTP routes.    |
+| `export.go`      | `-out` static-site generation: render every page to a file.          |
 | `shell.go`       | The page shell: `<head>` wiring, sidebar + main layout, Preview/Code  |
 |                  | tab blocks. Embeds `theme.css`.                                       |
 | `registry.go`    | Types (`Example`, `ComponentDoc`, `Registry`) and Go-source           |
