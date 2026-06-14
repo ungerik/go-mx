@@ -14,11 +14,13 @@
 //	go run ./cmd/shadcn-gallery                      # serve on http://localhost:8080
 //	go run ./cmd/shadcn-gallery -out ./dist          # write static files to ./dist, then exit
 //	go run ./cmd/shadcn-gallery -static-highlight …   # either mode, highlighting the Code tab server-side
+//	go run ./cmd/shadcn-gallery -out ./dist -base /go-mx/gallery   # static export for a URL sub-path
 //
 // In both modes -static-highlight chooses server-side (highlight package) over
-// client-side (Shiki) Code-tab highlighting. The static output links pages with
-// root-absolute URLs, so serve the directory from a web root (e.g.
-// `python3 -m http.server` inside it).
+// client-side (Shiki) Code-tab highlighting. The static output (-out) links pages
+// with root-absolute URLs, so serve the directory from a web root (e.g.
+// `python3 -m http.server` inside it); -base prefixes those links for hosting
+// under a URL sub-path such as a GitHub Pages project page.
 package main
 
 import (
@@ -26,6 +28,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ungerik/go-mx/cmd/shadcn-gallery/examples"
 )
@@ -454,9 +457,13 @@ func main() {
 	addr := flag.String("addr", ":8080", "listen address when serving")
 	out := flag.String("out", "",
 		"if set, write the gallery as static HTML files into this directory and exit, instead of serving")
+	base := flag.String("base", "",
+		"URL sub-path the static export (-out) is hosted under, e.g. /go-mx/gallery for a GitHub Pages project page; prefixed to every in-gallery link")
 	flag.BoolVar(&staticHighlight, "static-highlight", false,
 		"highlight the Code tab server-side with the highlight package instead of client-side Shiki")
 	flag.Parse()
+
+	linkBase = strings.TrimRight(*base, "/")
 
 	reg := NewRegistry(docs())
 

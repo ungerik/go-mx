@@ -14,8 +14,19 @@ go run ./cmd/shadcn-gallery -out ./dist   # write static HTML to ./dist, then ex
 ```
 
 The static output is the same pages the server serves — `dist/index.html` plus
-`dist/components/<slug>/index.html` — linked with root-absolute URLs, so serve
-the directory from a web root (e.g. `python3 -m http.server` inside `./dist`).
+`dist/components/<slug>/index.html`. By default the pages link to each other with
+root-absolute URLs (`/`, `/components/…`), so serve the directory from a web root
+(e.g. `python3 -m http.server` inside `./dist`).
+
+To host under a URL **sub-path** (such as a GitHub Pages project page), pass
+`-base` so every in-gallery link is prefixed:
+
+```bash
+go run ./cmd/shadcn-gallery -out docs/gallery -base /go-mx/gallery -static-highlight
+```
+
+This is exactly how the gallery committed under [`docs/gallery/`](../../docs/gallery/)
+(served at `https://ungerik.github.io/go-mx/gallery/`) is generated.
 
 An internet connection is required: Tailwind v4 is loaded from a CDN (see below).
 
