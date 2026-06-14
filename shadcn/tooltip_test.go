@@ -15,6 +15,8 @@ func TestTooltipComposition(t *testing.T) {
 		`data-slot="tooltip-trigger"`,
 		`<span `,
 		`aria-describedby="tt1"`,
+		"anchor-name: --tt1", // trigger must declare the anchor the content positions against
+
 		`onmouseover="tooltipShow(this,'tt1')"`,
 		`onmouseout="tooltipHide(this,'tt1')"`,
 		`onfocusin="tooltipShow(this,'tt1')"`,

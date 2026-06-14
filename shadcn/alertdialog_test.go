@@ -74,8 +74,8 @@ func TestAlertDialogComposition(t *testing.T) {
 		AlertDialogTrigger("d1", "Open"),
 		AlertDialogContent("d1",
 			AlertDialogHeader(
-				AlertDialogTitle("Are you sure?"),
-				AlertDialogDescription("This action cannot be undone."),
+				AlertDialogTitle("Save changes?"),
+				AlertDialogDescription("Your changes will be saved and can be edited later."),
 			),
 			AlertDialogFooter(
 				AlertDialogCancel("Cancel"),
@@ -93,7 +93,7 @@ func TestAlertDialogComposition(t *testing.T) {
 		`data-slot="alert-dialog-cancel"`,
 		"<dialog ",
 		"<h2 ",
-		"Are you sure?",
+		"Save changes?",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in composition output", want)

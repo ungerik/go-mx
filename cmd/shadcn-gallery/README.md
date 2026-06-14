@@ -1,0 +1,75 @@
+# shadcn-gallery
+
+A go-mx rebuild of the [shadcn/ui component docs](https://ui.shadcn.com/docs/components):
+a sidebar of every ported component, one page per component, and each example
+shown as a **live preview next to the Go source** that produced it. It doubles
+as a visual dogfood and an integration test for the `shadcn` package.
+
+```bash
+go run ./cmd/shadcn-gallery      # then open http://localhost:8080
+```
+
+An internet connection is required: Tailwind v4 is loaded from a CDN (see below).
+
+## How it fits together
+
+| File             | Responsibility                                                        |
+|------------------|-----------------------------------------------------------------------|
+| `main.go`        | The component catalog (`docs()`) and the HTTP routes.                 |
+| `shell.go`       | The page shell: `<head>` wiring, sidebar + main layout, Preview/Code  |
+|                  | tab blocks. Embeds `theme.css`.                                       |
+| `registry.go`    | Types (`Example`, `ComponentDoc`, `Registry`) and Go-source           |
+|                  | extraction. Embeds `examples/*.go`.                                   |
+| `examples/`      | One function per labeled preview — the live component. Their bodies   |
+|                  | are the snippets shown in the Code tab.                               |
+| `theme.css`      | shadcn/ui new-york-v4 `globals.css` theme tokens.                     |
+
+## Tailwind v4 via the browser CDN build
+
+The `shadcn` components emit only Tailwind v4 utility classes and rely on the
+shadcn CSS variables (`--background`, `--primary`, …). Rather than add a node
+toolchain to this pure-Go repo, the gallery loads
+[`@tailwindcss/browser`](https://www.npmjs.com/package/@tailwindcss/browser):
+the `theme.css` tokens go in a `<style type="text/tailwindcss">` block and the
+CDN script compiles them plus the classes it finds in the live DOM at runtime.
+Zero build step; the trade-off is a CDN dependency and a brief first-paint
+compile, which is fine for a demo. A production app would run the Tailwind v4
+CLI over the Go source instead.
+
+## Showing the source next to the preview
+
+Each preview is a `func() mx.Component` in `examples/`. The files are embedded
+and parsed once at startup (`registry.go`); each example's function body is
+extracted and shown verbatim in the Code tab. The live component and its
+displayed source therefore come from the **same function** and cannot drift.
+
+## Status
+
+Stage 2 in progress: galleries for the shipped `shadcn` components, added
+tier by tier with a browser visual check after each.
+
+- **Tier 1 done** — Alert, Alert Dialog, Aspect Ratio, Avatar, Badge,
+  Breadcrumb, Button, Card, Input, Label, Pagination, Separator, Skeleton,
+  Table, Textarea.
+- **Tier 2 done** — Accordion, Checkbox, Collapsible, Input OTP, Progress,
+  Radio Group, Scroll Area, Slider, Switch, Tabs, Toggle, Toggle Group.
+- **Tier 3 done** — Context Menu, Dropdown Menu, Hover Card, Menubar,
+  Navigation Menu, Popover, Select, Tooltip.
+- **Next** — the not-yet-ported components (Phase 4/5 in `shadcn/TODOS.md`):
+  Dialog, Sheet, Drawer, Form, Command, Combobox, Calendar, DatePicker,
+  Carousel, Resizable, Toast, Chart, DataTable, Sidebar.
+
+Stage 2 (gallery the 35 shipped components, browser-verified) is complete.
+
+## Syntax highlighting
+
+The Code tab is highlighted by [Shiki](https://shiki.style) loaded as a deferred
+ESM module from a CDN (`head()`), matching the no-build-step, CDN-first approach
+of the Tailwind setup. Shiki uses TextMate grammars (the same engine as VS
+Code), so call sites, types and properties are colored — not just keywords and
+strings the way a regex highlighter manages. For each
+`<pre><code class="language-go">` it produces its own themed `<pre>`
+(one-dark-pro, with inline background and token colors), onto which the layout
+classes are re-applied before swapping it in; this covers Code tabs that start
+hidden. `codeBlock`'s placeholder `<pre>` carries a dark background so the block
+looks right for the moment before Shiki paints.

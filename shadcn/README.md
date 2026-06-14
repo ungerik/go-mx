@@ -133,11 +133,22 @@ What this means concretely:
   `dialog.returnValue` (default `"confirm"` / `"cancel"`) so the caller can
   tell which was used.
 - **Dropped classes.** shadcn's content `class` includes Radix-only pieces:
-  `fixed top-[50%] left-[50%] translate-x/y` (a native modal `<dialog>` is
-  centered by the browser), `z-50` (the top layer is above everything), and
+  `fixed top-[50%] left-[50%] translate-x/y` (replaced by `m-auto` — see
+  below), `z-50` (the top layer is above everything), and
   `data-[state=open|closed]:animate-*` (a native `<dialog>` has no
   `data-state`). These are dropped; the box, sizing and layout classes are
   kept, plus `backdrop:bg-black/50`.
+- **Centering (`m-auto`).** A native modal `<dialog>` is centered in the top
+  layer by the user agent's `margin: auto`. Tailwind v4 Preflight (which this
+  package requires) resets every element's margin to `0`, defeating that and
+  pinning the open dialog to the top-left — so the content keeps an explicit
+  `m-auto` to restore the centering.
+- **Display (`open:grid`, not `grid`).** shadcn mounts the content only while
+  open; a native `<dialog>` is always in the DOM and stays hidden via the UA
+  rule `dialog:not([open]){display:none}`. An unconditional `grid` is an
+  author-origin style that overrides that rule and leaks the closed dialog onto
+  the page, so the display utility is scoped to `open:` (the `[open]` attribute
+  `showModal()` sets).
 
 `AlertDialogTrigger` renders a `<button>`, so pass it content and styling, not
 a nested `Button` (a `<button>` inside a `<button>` is invalid HTML). Use
@@ -145,14 +156,14 @@ a nested `Button` (a `<button>` inside a `<button>` is invalid HTML). Use
 
 ```go
 shadcn.AlertDialog(
-    shadcn.AlertDialogTrigger("confirm-delete",
+    shadcn.AlertDialogTrigger("confirm-remove",
         html.Class(shadcn.ButtonClasses(shadcn.ButtonDestructive, shadcn.SizeDefault)),
-        "Delete"),
-    shadcn.AlertDialogContent("confirm-delete",
+        "Remove"),
+    shadcn.AlertDialogContent("confirm-remove",
         shadcn.AlertDialogHeader(
-            shadcn.AlertDialogTitle("Are you absolutely sure?"),
+            shadcn.AlertDialogTitle("Remove this item?"),
             shadcn.AlertDialogDescription(
-                "This permanently deletes your account."),
+                "It will be moved to the archive and can be restored later."),
         ),
         shadcn.AlertDialogFooter(
             shadcn.AlertDialogCancel("Cancel"),

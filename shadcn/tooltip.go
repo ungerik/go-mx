@@ -36,10 +36,11 @@ func Tooltip(attribsChildren ...any) *mx.Element {
 // put any element (a button, a piece of text, an icon) inside without
 // nesting a button-in-a-button. tooltipID is validated.
 //
-// Defaults (overridable): aria-describedby={tooltipID}, plus the four event
+// Defaults (overridable): aria-describedby={tooltipID}, the four event
 // handlers (onmouseover/onmouseout/onfocusin/onfocusout) wired to the shared
-// tooltipShow/tooltipHide script. focusin/focusout (not focus/blur) are used
-// because they bubble — so any descendant getting focus opens the tooltip.
+// tooltipShow/tooltipHide script, and the anchor-name style that TooltipContent
+// anchors to. focusin/focusout (not focus/blur) are used because they bubble —
+// so any descendant getting focus opens the tooltip.
 func TooltipTrigger(tooltipID string, attribsChildren ...any) *mx.Element {
 	validateID(tooltipID)
 	e := html.Span(attribsChildren...)
@@ -58,6 +59,9 @@ func TooltipTrigger(tooltipID string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onfocusout") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("onfocusout", "tooltipHide(this,'"+tooltipID+"')"))
 	}
+	// Name the trigger as the CSS anchor for TooltipContent's position-anchor;
+	// without it the content has no anchor and falls back to the viewport corner.
+	mergeStyle(e, popoverAnchorStyle(tooltipID))
 	return finish(e, "tooltip-trigger", "")
 }
 
