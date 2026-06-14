@@ -45,13 +45,13 @@ package main
 import (
 	"fmt"
 
-	"github.com/ungerik/go-mx/html"
+	. "github.com/ungerik/go-mx/html"
 )
 
 func main() {
-	page := html.Div(html.Class("greeting"),
-		html.H1("Hello, world"),
-		html.P("Built with go-mx."),
+	page := Div(Class("greeting"),
+		H1("Hello, world"),
+		P("Built with go-mx."),
 	)
 	fmt.Println(page) // *mx.Element implements fmt.Stringer
 }
