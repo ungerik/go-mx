@@ -281,9 +281,15 @@ common. The full set:
 `Raw` is the trusted-HTML escape hatch: never pass user input to it. A bare
 `string` child is always escaped, so the safe path is the default.
 
-Named HTML entities are available as `Raw` constants: `NonBreakingSpace`,
-`Copyright`, `Trademark`, `Euro`, `Pound`, `Yen`, `Cent`, `LessThan`,
-`GreaterThan`, `Ampersand`, `DoubleQuote`, `SingleQuote`.
+Named HTML character references live in the [`html/entity`](entity) subpackage
+as `mx.Raw` constants, kept out of `html` so their short names don't collide
+with element and attribute constructors. It covers markup characters, spaces,
+currency signs, legal marks (`Copyright` ©, `Registered` ®, `Trademark` ™),
+punctuation, quotation marks, math and comparison signs, arrows, and card suits:
+
+```go
+html.P("Total: ", entity.Euro, "9.99 ", entity.Copyright, " 2026")
+```
 
 ## Conditional rendering and iteration
 
