@@ -10,7 +10,7 @@
 // Unlike HTML, SVG has no void elements, so every element constructor accepts
 // attributes and children. Each attribute constructor is typed for the value
 // its SVG attribute can take: a number (float64 or int), a number list
-// (...float64), a number-or-string (generic over [Value]), or a plain string;
+// (...float64), a number-or-string (generic over [AttribValue]), or a plain string;
 // strict keyword attributes are typed enums (see enums.go). For example
 // svg.CX(50), svg.ViewBox(0, 0, 24, 24) and svg.Fill("tomato").
 package svg

@@ -26,5 +26,5 @@ func ToggleSizes() mx.Component {
 
 func ToggleDisabled() mx.Component {
 	return shadcn.Toggle(shadcn.ToggleDefault, shadcn.ToggleSizeDefault,
-		html.Attrib("disabled", ""), "Disabled")
+		html.Disabled, "Disabled")
 }

@@ -121,8 +121,8 @@ func TestReflectFormHandler_GetRenders(t *testing.T) {
 	if !strings.Contains(body, `name="__present__Name"`) {
 		t.Errorf("missing __present sentinel: %q", body)
 	}
-	if !strings.Contains(body, `method="POST"`) {
-		t.Errorf("missing method=POST: %q", body)
+	if !strings.Contains(body, `method="post"`) {
+		t.Errorf("missing method=post: %q", body)
 	}
 }
 

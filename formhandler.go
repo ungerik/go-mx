@@ -284,7 +284,7 @@ func isEffectivelyEmpty(value reflect.Value) bool {
 
 // buildFormComponent constructs the top-level form Component.
 //
-// The handler emits the surrounding <form> element with method=POST
+// The handler emits the surrounding <form> element with method=post
 // and enctype=multipart/form-data, then asks the decider to render
 // each field (in walk order, grouped by section). A submit button is
 // appended so the form is usable out of the box; renderers can layer
@@ -342,7 +342,7 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	children = append(children, submitButton(submitLabel))
 
 	formAttribs := []any{
-		Attribute{Name: "method", Value: "POST"},
+		Attribute{Name: "method", Value: "post"},
 		Attribute{Name: "enctype", Value: "multipart/form-data"},
 	}
 	all := append(formAttribs, children...)

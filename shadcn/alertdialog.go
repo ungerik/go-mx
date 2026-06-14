@@ -133,7 +133,7 @@ func AlertDialogMedia(attribsChildren ...any) *mx.Element {
 // styled with the default [Button] variant; inside the dialog's
 // <form method="dialog"> it closes the dialog and sets returnValue to its
 // value (default "confirm"). Attach a real side effect with html.OnClick, or
-// html.Attrib("formaction", ...) plus html.FormMethodPOST for a server action.
+// html.FormAction(...) plus html.FormMethodPOST for a server action.
 func AlertDialogAction(attribsChildren ...any) *mx.Element {
 	return alertDialogButton(attribsChildren, "alert-dialog-action", ButtonDefault, "confirm")
 }

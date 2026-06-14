@@ -12,7 +12,7 @@ import (
 // can be passed as element attributes.
 type Attribs = mx.Attribs
 
-// Value is the type set accepted by the mixed-type attribute constructors in
+// AttribValue is the type set accepted by the mixed-type attribute constructors in
 // this package — those whose SVG value may be either a number or a string,
 // because the spec allows a bare number as well as a length with a unit, a
 // percentage, or a keyword. Strings pass through unchanged; numbers are
@@ -23,30 +23,20 @@ type Attribs = mx.Attribs
 //   - always a single plain number → float64 (e.g. StrokeMiterLimit), or int
 //     for integer-only attributes (e.g. NumOctaves)
 //   - a list of plain numbers → ...float64, rendered space-separated like ViewBox
-//   - number or string (length/percentage/unit/keyword) → generic over Value
+//   - number or string (length/percentage/unit/keyword) → generic over AttribValue
 //   - never numeric (keyword, color, URL, path data, transform, timing) → string
-type Value interface {
+type AttribValue interface {
 	~string |
 		~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
 		~float32 | ~float64
 }
 
-// Attrib creates an attribute with the given name and value. The value may be a
-// string or any number type (see Value), so svg.Width("100%") and svg.Width(100)
-// both work. Strings pass through unchanged; float values are formatted as plain
-// decimals (never scientific notation like "1e-07") to stay canonical across SVG
-// processors. It also serves as an escape hatch for attributes not covered by a
-// dedicated constructor.
-func Attrib[T Value](name string, value T) mx.Attribute {
-	return mx.Attribute{Name: name, Value: attribStringValue(value)}
-}
-
-// attribStringValue formats an attribute value as a string. Strings pass through
+// attribValueString formats an attribute value as a string. Strings pass through
 // and integer types go through fmt.Sprint, but floats use strconv.FormatFloat
 // with the 'f' format so small or large magnitudes render as plain decimals
 // instead of fmt's scientific notation (e.g. 0.00005 not "5e-05").
-func attribStringValue(value any) string {
+func attribValueString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v
@@ -57,6 +47,16 @@ func attribStringValue(value any) string {
 	default:
 		return fmt.Sprint(value)
 	}
+}
+
+// Attrib creates an attribute with the given name and value. The value may be a
+// string or any number type (see Value), so svg.Width("100%") and svg.Width(100)
+// both work. Strings pass through unchanged; float values are formatted as plain
+// decimals (never scientific notation like "1e-07") to stay canonical across SVG
+// processors. It also serves as an escape hatch for attributes not covered by a
+// dedicated constructor.
+func Attrib[T AttribValue](name string, value T) mx.Attribute {
+	return mx.Attribute{Name: name, Value: attribValueString(value)}
 }
 
 // joinNums formats the numbers as plain decimals joined by sep. The buffer is
@@ -150,58 +150,58 @@ func PreserveAspectRatio(value string) mx.Attrib {
 // the string side of the generic Value.
 
 // X maps the SVG x attribute.
-func X[T Value](value T) mx.Attrib { return Attrib("x", value) }
+func X[T AttribValue](value T) mx.Attrib { return Attrib("x", value) }
 
 // Y maps the SVG y attribute.
-func Y[T Value](value T) mx.Attrib { return Attrib("y", value) }
+func Y[T AttribValue](value T) mx.Attrib { return Attrib("y", value) }
 
 // X1 maps the SVG x1 attribute.
-func X1[T Value](value T) mx.Attrib { return Attrib("x1", value) }
+func X1[T AttribValue](value T) mx.Attrib { return Attrib("x1", value) }
 
 // Y1 maps the SVG y1 attribute.
-func Y1[T Value](value T) mx.Attrib { return Attrib("y1", value) }
+func Y1[T AttribValue](value T) mx.Attrib { return Attrib("y1", value) }
 
 // X2 maps the SVG x2 attribute.
-func X2[T Value](value T) mx.Attrib { return Attrib("x2", value) }
+func X2[T AttribValue](value T) mx.Attrib { return Attrib("x2", value) }
 
 // Y2 maps the SVG y2 attribute.
-func Y2[T Value](value T) mx.Attrib { return Attrib("y2", value) }
+func Y2[T AttribValue](value T) mx.Attrib { return Attrib("y2", value) }
 
 // CX maps the SVG cx attribute.
-func CX[T Value](value T) mx.Attrib { return Attrib("cx", value) }
+func CX[T AttribValue](value T) mx.Attrib { return Attrib("cx", value) }
 
 // CY maps the SVG cy attribute.
-func CY[T Value](value T) mx.Attrib { return Attrib("cy", value) }
+func CY[T AttribValue](value T) mx.Attrib { return Attrib("cy", value) }
 
 // R maps the SVG r attribute.
-func R[T Value](value T) mx.Attrib { return Attrib("r", value) }
+func R[T AttribValue](value T) mx.Attrib { return Attrib("r", value) }
 
 // RX maps the SVG rx attribute.
-func RX[T Value](value T) mx.Attrib { return Attrib("rx", value) }
+func RX[T AttribValue](value T) mx.Attrib { return Attrib("rx", value) }
 
 // RY maps the SVG ry attribute.
-func RY[T Value](value T) mx.Attrib { return Attrib("ry", value) }
+func RY[T AttribValue](value T) mx.Attrib { return Attrib("ry", value) }
 
 // FX maps the SVG fx attribute.
-func FX[T Value](value T) mx.Attrib { return Attrib("fx", value) }
+func FX[T AttribValue](value T) mx.Attrib { return Attrib("fx", value) }
 
 // FY maps the SVG fy attribute.
-func FY[T Value](value T) mx.Attrib { return Attrib("fy", value) }
+func FY[T AttribValue](value T) mx.Attrib { return Attrib("fy", value) }
 
 // FR maps the SVG fr attribute.
-func FR[T Value](value T) mx.Attrib { return Attrib("fr", value) }
+func FR[T AttribValue](value T) mx.Attrib { return Attrib("fr", value) }
 
 // Width maps the SVG width attribute.
-func Width[T Value](value T) mx.Attrib { return Attrib("width", value) }
+func Width[T AttribValue](value T) mx.Attrib { return Attrib("width", value) }
 
 // Height maps the SVG height attribute.
-func Height[T Value](value T) mx.Attrib { return Attrib("height", value) }
+func Height[T AttribValue](value T) mx.Attrib { return Attrib("height", value) }
 
 // DX maps the SVG dx attribute.
-func DX[T Value](value T) mx.Attrib { return Attrib("dx", value) }
+func DX[T AttribValue](value T) mx.Attrib { return Attrib("dx", value) }
 
 // DY maps the SVG dy attribute.
-func DY[T Value](value T) mx.Attrib { return Attrib("dy", value) }
+func DY[T AttribValue](value T) mx.Attrib { return Attrib("dy", value) }
 
 // D maps the SVG d attribute (path data).
 func D(value string) mx.Attrib { return Attrib("d", value) }
@@ -214,7 +214,7 @@ func Points(coords ...float64) mx.Attrib { return numListAttrib("points", coords
 // Rotate maps the SVG rotate attribute. On <text>/<tspan> it is a list of
 // per-glyph angles (Rotate(45) or, as a list, Rotate("0 90 180")); on
 // <animateMotion> it is a number or the keyword "auto"/"auto-reverse".
-func Rotate[T Value](value T) mx.Attrib { return Attrib("rotate", value) }
+func Rotate[T AttribValue](value T) mx.Attrib { return Attrib("rotate", value) }
 
 // PathLength maps the SVG pathLength attribute.
 func PathLength(value float64) mx.Attrib { return Attrib("pathLength", value) }
@@ -225,23 +225,23 @@ func PathLength(value float64) mx.Attrib { return Attrib("pathLength", value) }
 func Fill(value string) mx.Attrib { return Attrib("fill", value) }
 
 // FillOpacity maps the SVG fill-opacity attribute (a number or a percentage).
-func FillOpacity[T Value](value T) mx.Attrib { return Attrib("fill-opacity", value) }
+func FillOpacity[T AttribValue](value T) mx.Attrib { return Attrib("fill-opacity", value) }
 
 // Stroke maps the SVG stroke attribute (a paint: color, url() or keyword).
 func Stroke(value string) mx.Attrib { return Attrib("stroke", value) }
 
 // StrokeWidth maps the SVG stroke-width attribute (a <length-percentage>).
-func StrokeWidth[T Value](value T) mx.Attrib { return Attrib("stroke-width", value) }
+func StrokeWidth[T AttribValue](value T) mx.Attrib { return Attrib("stroke-width", value) }
 
 // StrokeOpacity maps the SVG stroke-opacity attribute (a number or a percentage).
-func StrokeOpacity[T Value](value T) mx.Attrib { return Attrib("stroke-opacity", value) }
+func StrokeOpacity[T AttribValue](value T) mx.Attrib { return Attrib("stroke-opacity", value) }
 
 // StrokeDashArray maps the SVG stroke-dasharray attribute: a list of lengths or
 // percentages, or the keyword "none" (e.g. "4 2" or "none").
 func StrokeDashArray(value string) mx.Attrib { return Attrib("stroke-dasharray", value) }
 
 // StrokeDashOffset maps the SVG stroke-dashoffset attribute (a <length-percentage>).
-func StrokeDashOffset[T Value](value T) mx.Attrib { return Attrib("stroke-dashoffset", value) }
+func StrokeDashOffset[T AttribValue](value T) mx.Attrib { return Attrib("stroke-dashoffset", value) }
 
 // StrokeMiterLimit maps the SVG stroke-miterlimit attribute.
 func StrokeMiterLimit(value float64) mx.Attrib { return Attrib("stroke-miterlimit", value) }
@@ -249,7 +249,7 @@ func StrokeMiterLimit(value float64) mx.Attrib { return Attrib("stroke-miterlimi
 // General presentation
 
 // Opacity maps the SVG opacity attribute (a number or a percentage).
-func Opacity[T Value](value T) mx.Attrib { return Attrib("opacity", value) }
+func Opacity[T AttribValue](value T) mx.Attrib { return Attrib("opacity", value) }
 
 // Color maps the SVG color attribute.
 func Color(value string) mx.Attrib { return Attrib("color", value) }
@@ -296,22 +296,22 @@ func MarkerMid(value string) mx.Attrib { return Attrib("marker-mid", value) }
 func MarkerEnd(value string) mx.Attrib { return Attrib("marker-end", value) }
 
 // MarkerWidth maps the SVG markerWidth attribute (a <length-percentage>).
-func MarkerWidth[T Value](value T) mx.Attrib { return Attrib("markerWidth", value) }
+func MarkerWidth[T AttribValue](value T) mx.Attrib { return Attrib("markerWidth", value) }
 
 // MarkerHeight maps the SVG markerHeight attribute (a <length-percentage>).
-func MarkerHeight[T Value](value T) mx.Attrib { return Attrib("markerHeight", value) }
+func MarkerHeight[T AttribValue](value T) mx.Attrib { return Attrib("markerHeight", value) }
 
 // RefX maps the SVG refX attribute (a <length-percentage> or a keyword such as
 // "left"/"center"/"right").
-func RefX[T Value](value T) mx.Attrib { return Attrib("refX", value) }
+func RefX[T AttribValue](value T) mx.Attrib { return Attrib("refX", value) }
 
 // RefY maps the SVG refY attribute (a <length-percentage> or a keyword such as
 // "top"/"center"/"bottom").
-func RefY[T Value](value T) mx.Attrib { return Attrib("refY", value) }
+func RefY[T AttribValue](value T) mx.Attrib { return Attrib("refY", value) }
 
 // Orient maps the SVG orient attribute (a number/angle or the keyword
 // "auto"/"auto-start-reverse").
-func Orient[T Value](value T) mx.Attrib { return Attrib("orient", value) }
+func Orient[T AttribValue](value T) mx.Attrib { return Attrib("orient", value) }
 
 // Text and fonts
 
@@ -320,11 +320,11 @@ func FontFamily(value string) mx.Attrib { return Attrib("font-family", value) }
 
 // FontSize maps the SVG font-size attribute (a <length-percentage> or a keyword
 // such as "medium"/"larger").
-func FontSize[T Value](value T) mx.Attrib { return Attrib("font-size", value) }
+func FontSize[T AttribValue](value T) mx.Attrib { return Attrib("font-size", value) }
 
 // FontSizeAdjust maps the SVG font-size-adjust attribute (a number or the
 // keyword "none").
-func FontSizeAdjust[T Value](value T) mx.Attrib { return Attrib("font-size-adjust", value) }
+func FontSizeAdjust[T AttribValue](value T) mx.Attrib { return Attrib("font-size-adjust", value) }
 
 // FontStretch maps the SVG font-stretch attribute (a keyword such as
 // "condensed" or a percentage like "75%").
@@ -335,28 +335,28 @@ func FontVariant(value string) mx.Attrib { return Attrib("font-variant", value) 
 
 // FontWeight maps the SVG font-weight attribute (a number 1–1000 or a keyword
 // such as "bold"/"normal").
-func FontWeight[T Value](value T) mx.Attrib { return Attrib("font-weight", value) }
+func FontWeight[T AttribValue](value T) mx.Attrib { return Attrib("font-weight", value) }
 
 // BaselineShift maps the SVG baseline-shift attribute (a <length-percentage> or
 // a keyword such as "sub"/"super").
-func BaselineShift[T Value](value T) mx.Attrib { return Attrib("baseline-shift", value) }
+func BaselineShift[T AttribValue](value T) mx.Attrib { return Attrib("baseline-shift", value) }
 
 // LetterSpacing maps the SVG letter-spacing attribute (a <length> or the keyword
 // "normal").
-func LetterSpacing[T Value](value T) mx.Attrib { return Attrib("letter-spacing", value) }
+func LetterSpacing[T AttribValue](value T) mx.Attrib { return Attrib("letter-spacing", value) }
 
 // WordSpacing maps the SVG word-spacing attribute (a <length> or the keyword
 // "normal").
-func WordSpacing[T Value](value T) mx.Attrib { return Attrib("word-spacing", value) }
+func WordSpacing[T AttribValue](value T) mx.Attrib { return Attrib("word-spacing", value) }
 
 // TextDecoration maps the SVG text-decoration attribute.
 func TextDecoration(value string) mx.Attrib { return Attrib("text-decoration", value) }
 
 // TextLength maps the SVG textLength attribute (a <length-percentage>).
-func TextLength[T Value](value T) mx.Attrib { return Attrib("textLength", value) }
+func TextLength[T AttribValue](value T) mx.Attrib { return Attrib("textLength", value) }
 
 // StartOffset maps the SVG startOffset attribute (a <length-percentage>).
-func StartOffset[T Value](value T) mx.Attrib { return Attrib("startOffset", value) }
+func StartOffset[T AttribValue](value T) mx.Attrib { return Attrib("startOffset", value) }
 
 // Gradients and patterns
 
@@ -367,13 +367,13 @@ func GradientTransform(value string) mx.Attrib {
 
 // Offset maps the SVG offset attribute of a gradient <stop> (a number or a
 // percentage).
-func Offset[T Value](value T) mx.Attrib { return Attrib("offset", value) }
+func Offset[T AttribValue](value T) mx.Attrib { return Attrib("offset", value) }
 
 // StopColor maps the SVG stop-color attribute.
 func StopColor(value string) mx.Attrib { return Attrib("stop-color", value) }
 
 // StopOpacity maps the SVG stop-opacity attribute (a number or a percentage).
-func StopOpacity[T Value](value T) mx.Attrib { return Attrib("stop-opacity", value) }
+func StopOpacity[T AttribValue](value T) mx.Attrib { return Attrib("stop-opacity", value) }
 
 // PatternTransform maps the SVG patternTransform attribute (a transform-list).
 func PatternTransform(value string) mx.Attrib {
@@ -526,7 +526,7 @@ func Exponent(value float64) mx.Attrib { return Attrib("exponent", value) }
 func FloodColor(value string) mx.Attrib { return Attrib("flood-color", value) }
 
 // FloodOpacity maps the SVG flood-opacity attribute (a number or a percentage).
-func FloodOpacity[T Value](value T) mx.Attrib { return Attrib("flood-opacity", value) }
+func FloodOpacity[T AttribValue](value T) mx.Attrib { return Attrib("flood-opacity", value) }
 
 // LightingColor maps the SVG lighting-color attribute.
 func LightingColor(value string) mx.Attrib {
@@ -558,7 +558,7 @@ func By(value string) mx.Attrib { return Attrib("by", value) }
 
 // RepeatCount maps the SVG repeatCount attribute (a number or the keyword
 // "indefinite").
-func RepeatCount[T Value](value T) mx.Attrib { return Attrib("repeatCount", value) }
+func RepeatCount[T AttribValue](value T) mx.Attrib { return Attrib("repeatCount", value) }
 
 // RepeatDur maps the SVG repeatDur attribute (a clock-value or "indefinite").
 func RepeatDur(value string) mx.Attrib { return Attrib("repeatDur", value) }

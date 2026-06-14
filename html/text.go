@@ -3,22 +3,17 @@ package html
 import "github.com/ungerik/go-mx"
 
 type (
-	Text     = mx.Text
-	Raw      = mx.Raw
+	// Text is a string rendered as HTML text content with special
+	// characters escaped. Alias for [mx.Text].
+	Text = mx.Text
+	// Raw is a string rendered verbatim without HTML escaping; the caller
+	// is responsible for its safety. Alias for [mx.Raw].
+	Raw = mx.Raw
+	// RawBytes is a byte slice rendered verbatim without HTML escaping;
+	// the caller is responsible for its safety. Alias for [mx.RawBytes].
 	RawBytes = mx.RawBytes
 )
 
-const (
-	LessThan         Raw = `&lt;`
-	GreaterThan      Raw = `&gt;`
-	NonBreakingSpace Raw = `&nbsp;`
-	Ampersand        Raw = `&amp;`
-	DoubleQuote      Raw = `&quot;`
-	SingleQuote      Raw = `&apos;`
-	Cent             Raw = `&cent;`
-	Pound            Raw = `&pound;`
-	Yen              Raw = `&yen;`
-	Euro             Raw = `&euro;`
-	Copyright        Raw = `&copy;`
-	Trademark        Raw = `&reg;`
-)
+// HTML named character references such as Copyright (©) and NonBreakingSpace
+// have moved to the html/entity subpackage to keep this package's namespace
+// free of collisions with element and attribute constructors.

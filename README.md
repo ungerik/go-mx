@@ -19,10 +19,12 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 ## Documentation
 
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
-  `shadcn` tutorial and how-to guides, and the rendered component gallery.
-  (GitHub Pages, served from [`docs/`](docs/).)
+  `html` and `shadcn` tutorials and how-to guides, and the rendered component
+  gallery. (GitHub Pages, served from [`docs/`](docs/).)
 - **[Component gallery](https://ungerik.github.io/go-mx/gallery/)** — every
   ported shadcn/ui component shown next to its Go source.
+- **[`html` package](html/README.md)** — the core HTML vocabulary: elements,
+  attributes, typed keyword enums, and the `html/entity` character set.
 - **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
   reference and design notes.
 - **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
@@ -67,8 +69,12 @@ For streaming output or serving over HTTP, render a `Component` into an
   `ForEach`), struct-reflection helpers, and `ReflectFormHandler` (see
   below).
 - **`html`** — HTML5 element and attribute constructors: `html.Div`,
-  `html.Span`, `html.Class`, `html.ID`, and the rest of the HTML5 surface.
-  Provides `html.FieldDecider` for plain-HTML form rendering.
+  `html.Span`, `html.Class`, `html.ID`, and the rest of the HTML5 surface,
+  with typed keyword enums that validate at render time and numeric
+  attribute constructors that format Go values for you. Provides
+  `html.FieldDecider` for plain-HTML form rendering. The
+  [`html/entity`](html/entity) subpackage adds named character references
+  (`entity.Copyright`, `entity.Heart`, …).
 - **`svg`** — SVG element and attribute constructors, mapped the same way as
   `html`: `xmlns` namespace handling, spec-typed numeric attribute values, and
   typed keyword enums. Use `svg.Root` for a standalone document or `svg.SVG`

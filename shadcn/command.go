@@ -26,7 +26,7 @@ func Command(attribsChildren ...any) *mx.Element {
 }
 
 // CommandInput renders the search box (with a leading search icon) that filters
-// the list on input. Pass html.Attrib("placeholder", "…") and other input
+// the list on input. Pass html.Placeholder("…") and other input
 // attributes; they land on the <input>.
 func CommandInput(attribsChildren ...any) *mx.Element {
 	input := html.Element("input", append([]any{html.Type("text"), html.OnInput("commandFilter(this)")}, attribsChildren...)...)
@@ -49,7 +49,7 @@ func CommandList(attribsChildren ...any) *mx.Element {
 func CommandEmpty(attribsChildren ...any) *mx.Element {
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("hidden") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("hidden", ""))
+		e.Attribs = append(e.Attribs, html.Hidden)
 	}
 	return finish(e, "command-empty", "py-6 text-center text-sm")
 }

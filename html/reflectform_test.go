@@ -24,7 +24,7 @@ func ExampleReflectFormComponents() {
 	).Render(context.Background(), mx.NewCheckedWriter(os.Stdout).WithIndent("", "  "))
 
 	// Output:
-	// <form action="/submit" method="POST">
+	// <form action="/submit" method="post">
 	//   <label>Name:
 	//     <input name="name" value="John Doe"/>
 	//   </label>

@@ -9,7 +9,7 @@ import (
 func RadioGroupDemo() mx.Component {
 	return shadcn.RadioGroup("plan",
 		html.Div(html.Class("flex items-center gap-2"),
-			shadcn.RadioGroupItem("plan", "default", html.ID("r1"), html.Attrib("checked", "")),
+			shadcn.RadioGroupItem("plan", "default", html.ID("r1"), html.Checked),
 			shadcn.Label(html.For("r1"), "Default"),
 		),
 		html.Div(html.Class("flex items-center gap-2"),

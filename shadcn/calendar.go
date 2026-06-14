@@ -42,7 +42,7 @@ func Calendar(month, selected time.Time, attribsChildren ...any) *mx.Element {
 			if day.Month() != first.Month() {
 				cls += " text-muted-foreground opacity-50"
 			}
-			btn := html.Button(html.Type("button"), html.Class(cls), strconv.Itoa(day.Day()))
+			btn := html.ButtonButton(html.Class(cls), strconv.Itoa(day.Day()))
 			if hasSel && day.Year() == selY && day.Month() == selM && day.Day() == selD {
 				btn.Attribs = append(btn.Attribs, html.Attrib("aria-selected", "true"))
 			}
@@ -54,11 +54,11 @@ func Calendar(month, selected time.Time, attribsChildren ...any) *mx.Element {
 	}
 
 	nav := html.Div(html.Class("flex items-center justify-between pb-2"),
-		finish(html.Button(html.Type("button"),
+		finish(html.ButtonButton(
 			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
 			iconChevronLeft()), "calendar-prev", ""),
 		html.Div(html.Class("text-sm font-medium"), month.Format("January 2006")),
-		finish(html.Button(html.Type("button"),
+		finish(html.ButtonButton(
 			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
 			iconChevronRight()), "calendar-next", ""),
 	)

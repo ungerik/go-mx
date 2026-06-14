@@ -53,7 +53,7 @@ const dialogCloseClasses = "ring-offset-background focus:ring-ring absolute top-
 // DialogContent renders the modal <dialog id=dialogID>. Its children are placed
 // directly inside, followed by a built-in close button (top-right X). The
 // dialog light-dismisses: clicking the backdrop (a click whose target is the
-// dialog itself) closes it. Pass html.Attrib("onclick", "") semantics are not
+// dialog itself) closes it. Pass html.OnClick("") semantics are not
 // special-cased — supply your own onclick to override the light-dismiss.
 func DialogContent(dialogID string, attribsChildren ...any) *mx.Element {
 	validateID(dialogID)

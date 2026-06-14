@@ -7,11 +7,11 @@ import (
 )
 
 func InputDefault() mx.Component {
-	return shadcn.Input(html.Type("email"), html.Attrib("placeholder", "Email"), html.Class("max-w-sm"))
+	return shadcn.Input(html.Type("email"), html.Placeholder("Email"), html.Class("max-w-sm"))
 }
 
 func InputDisabled() mx.Component {
-	return shadcn.Input(html.Type("email"), html.Attrib("placeholder", "Email"), html.Attrib("disabled", ""), html.Class("max-w-sm"))
+	return shadcn.Input(html.Type("email"), html.Placeholder("Email"), html.Disabled, html.Class("max-w-sm"))
 }
 
 func InputFile() mx.Component {
@@ -21,6 +21,6 @@ func InputFile() mx.Component {
 func InputWithLabel() mx.Component {
 	return html.Div(html.Class("grid w-full max-w-sm items-center gap-1.5"),
 		shadcn.Label(html.For("email"), "Email"),
-		shadcn.Input(html.Type("email"), html.ID("email"), html.Attrib("placeholder", "Email")),
+		shadcn.Input(html.Type("email"), html.ID("email"), html.Placeholder("Email")),
 	)
 }
