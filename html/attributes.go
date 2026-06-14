@@ -67,19 +67,7 @@ func Alt(text string) mx.Attrib { return mx.NewAttrib("alt", text) }
 
 func Altf(textFmt string, a ...any) mx.Attrib { return mx.NewAttribf("alt", textFmt, a...) }
 
-func As(value string) mx.Attrib { return mx.NewAttrib("as", value) }
-
-func Asf(valueFmt string, a ...any) mx.Attrib { return mx.NewAttribf("as", valueFmt, a...) }
-
 const Async = BoolAttrib("async")
-
-const AutoCapitalizeNone = mx.ConstAttrib("autocapitalize=none")
-
-const AutoCapitalizeSentences = mx.ConstAttrib("autocapitalize=sentences")
-
-const AutoCapitalizeWords = mx.ConstAttrib("autocapitalize=words")
-
-const AutoCapitalizeCharacters = mx.ConstAttrib("autocapitalize=characters")
 
 func AutoComplete(tokens ...string) mx.Attrib {
 	if len(tokens) == 0 {
@@ -91,10 +79,6 @@ func AutoComplete(tokens ...string) mx.Attrib {
 const AutoCompleteOn = mx.ConstAttrib("autocomplete=on")
 
 const AutoCompleteOff = mx.ConstAttrib("autocomplete=off")
-
-const AutoCorrectOn = mx.ConstAttrib("autocorrect=on")
-
-const AutoCorrectOff = mx.ConstAttrib("autocorrect=off")
 
 const AutoFocus = BoolAttrib("autofocus")
 
@@ -108,12 +92,6 @@ func Border(value string) mx.Attrib { return mx.NewAttrib("border", value) }
 
 func Borderf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("border", valueFmt, a...)
-}
-
-func Capture(value string) mx.Attrib { return mx.NewAttrib("capture", value) }
-
-func Capturef(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("capture", valueFmt, a...)
 }
 
 func CharSet(value string) mx.Attrib { return mx.NewAttrib("charset", value) }
@@ -142,12 +120,6 @@ func ColSpan(numCols int) mx.Attrib { return mx.NewAttrib("colspan", strconv.Ito
 
 func ContentAttr(text string) mx.Attrib { return mx.NewAttrib("content", text) }
 
-const ContentEditableTrue = mx.ConstAttrib("contenteditable=true")
-
-const ContentEditableFalse = mx.ConstAttrib("contenteditable=false")
-
-const ContentEditablePlaintextOnly = mx.ConstAttrib("contenteditable=plaintext-only")
-
 const Controls = BoolAttrib("controls")
 
 func Coords(coords ...float64) mx.Attrib {
@@ -160,10 +132,6 @@ func Coords(coords ...float64) mx.Attrib {
 	}
 	return mx.NewAttrib("coords", b.String())
 }
-
-const CrossOriginAnonymous = mx.ConstAttrib("crossorigin=anonymous")
-
-const CrossOriginUseCredentials = mx.ConstAttrib("crossorigin=use-credentials")
 
 func CSP(value string) mx.Attrib { return mx.NewAttrib("csp", value) }
 
@@ -183,21 +151,9 @@ func Datetimef(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("datetime", valueFmt, a...)
 }
 
-const DecodingAuto = mx.ConstAttrib("decoding=auto")
-
-const DecodingAsync = mx.ConstAttrib("decoding=async")
-
-const DecodingSync = mx.ConstAttrib("decoding=sync")
-
 const Default = BoolAttrib("default")
 
 const Defer = BoolAttrib("defer")
-
-const DirLTR = mx.ConstAttrib("dir=ltr")
-
-const DirRTL = mx.ConstAttrib("dir=rtl")
-
-const DirAuto = mx.ConstAttrib("dir=auto")
 
 func DirName(name string) mx.Attrib { return mx.NewAttrib("dirname", name) }
 
@@ -207,49 +163,11 @@ func Download(filename string) mx.Attrib { return mx.NewAttrib("download", filen
 
 func Draggable(value bool) mx.Attrib { return mx.NewAttrib("draggable", strconv.FormatBool(value)) }
 
-const EncTypeFormURLEncoded = mx.ConstAttrib("enctype=application/x-www-form-urlencoded")
-
-const EncTypeMultipartFormData = mx.ConstAttrib("enctype=multipart/form-data")
-
-const EncTypeTextPlain = mx.ConstAttrib("enctype=text/plain")
-
-const EnterKeyHintEnter = mx.ConstAttrib("enterkeyhint=enter")
-
-const EnterKeyHintDone = mx.ConstAttrib("enterkeyhint=done")
-
-const EnterKeyHintGo = mx.ConstAttrib("enterkeyhint=go")
-
-const EnterKeyHintNext = mx.ConstAttrib("enterkeyhint=next")
-
-const EnterKeyHintPrevious = mx.ConstAttrib("enterkeyhint=previous")
-
-const EnterKeyHintSearch = mx.ConstAttrib("enterkeyhint=search")
-
-const EnterKeyHintSend = mx.ConstAttrib("enterkeyhint=send")
-
-const FetchPriorityAuto = mx.ConstAttrib("fetchpriority=auto")
-
-const FetchPriorityHigh = mx.ConstAttrib("fetchpriority=high")
-
-const FetchPriorityLow = mx.ConstAttrib("fetchpriority=low")
-
 func For(id string) mx.Attrib { return mx.NewAttrib("for", id) }
 
 func FormAttr(formID string) mx.Attrib { return mx.NewAttrib("form", formID) }
 
 func FormAction(url string) mx.Attrib { return mx.NewAttrib("formaction", url) }
-
-const FormEncTypeFormURLEncoded = mx.ConstAttrib("formenctype=application/x-www-form-urlencoded")
-
-const FormEncTypeMultipartFormData = mx.ConstAttrib("formenctype=multipart/form-data")
-
-const FormEncTypeTextPlain = mx.ConstAttrib("formenctype=text/plain")
-
-const FormMethodGET = mx.ConstAttrib("formmethod=get")
-
-const FormMethodPOST = mx.ConstAttrib("formmethod=post")
-
-const FormMethodDialog = mx.ConstAttrib("formmethod=dialog")
 
 const FormNoValidate = BoolAttrib("formnovalidate")
 
@@ -295,16 +213,6 @@ func HRefLangf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("hreflang", valueFmt, a...)
 }
 
-const HTTPEquivContentType = mx.ConstAttrib("http-equiv=content-type")
-
-const HTTPEquivDefaultStyle = mx.ConstAttrib("http-equiv=default-style")
-
-const HTTPEquivRefresh = mx.ConstAttrib("http-equiv=refresh")
-
-const HTTPEquivXUACompatible = mx.ConstAttrib("http-equiv=x-ua-compatible")
-
-const HTTPEquivContentSecurityPolicy = mx.ConstAttrib("http-equiv=content-security-policy")
-
 func ID(value string) mx.Attrib { return mx.NewAttrib("id", value) }
 
 func IDf(valueFmt string, a ...any) mx.Attrib { return mx.NewAttribf("id", valueFmt, a...) }
@@ -313,22 +221,6 @@ func IDf(valueFmt string, a ...any) mx.Attrib { return mx.NewAttribf("id", value
 // imagesrcset ?
 
 const Inert = BoolAttrib("inert")
-
-const InputModeNone = mx.ConstAttrib("inputmode=none")
-
-const InputModeText = mx.ConstAttrib("inputmode=text")
-
-const InputModeTel = mx.ConstAttrib("inputmode=tel")
-
-const InputModeEmail = mx.ConstAttrib("inputmode=email")
-
-const InputModeURL = mx.ConstAttrib("inputmode=url")
-
-const InputModeNumeric = mx.ConstAttrib("inputmode=numeric")
-
-const InputModeDecimal = mx.ConstAttrib("inputmode=decimal")
-
-const InputModeSearch = mx.ConstAttrib("inputmode=search")
 
 func Integrity(value string) mx.Attrib { return mx.NewAttrib("integrity", value) }
 
@@ -354,16 +246,6 @@ const ItemScope = BoolAttrib("itemscope")
 
 func ItemType(urls ...string) mx.Attrib { return mx.NewAttrib("itemtype", strings.Join(urls, " ")) }
 
-const KindSubtitles = mx.ConstAttrib("kind=subtitles")
-
-const KindCaptions = mx.ConstAttrib("kind=captions")
-
-const KindDescriptions = mx.ConstAttrib("kind=descriptions")
-
-const KindChapters = mx.ConstAttrib("kind=chapters")
-
-const KindMetadata = mx.ConstAttrib("kind=metadata")
-
 func LabelAttr(value string) mx.Attrib { return mx.NewAttrib("label", value) }
 
 func LabelAttrf(valueFmt string, a ...any) mx.Attrib {
@@ -384,10 +266,6 @@ func Languagef(valueFmt string, a ...any) mx.Attrib {
 
 func List(id string) mx.Attrib { return mx.NewAttrib("list", id) }
 
-const LoadingEager = mx.ConstAttrib("loading=eager")
-
-const LoadingLazy = mx.ConstAttrib("loading=lazy")
-
 const Loop = BoolAttrib("loop")
 
 func Low(limit float64) mx.Attrib {
@@ -403,12 +281,6 @@ func Maxf(valueFmt string, a ...any) mx.Attrib {
 func MaxLength(length int) mx.Attrib { return mx.NewAttrib("maxlength", strconv.Itoa(length)) }
 
 func Media(query string) mx.Attrib { return mx.NewAttrib("media", query) }
-
-const MethodGET = mx.ConstAttrib("method=GET")
-
-const MethodPOST = mx.ConstAttrib("method=POST")
-
-const MethodDialog = mx.ConstAttrib("method=dialog")
 
 func Min(value string) mx.Attrib { return mx.NewAttrib("min", value) }
 
@@ -468,29 +340,7 @@ func Posterf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("poster", valueFmt, a...)
 }
 
-func Preload(value string) mx.Attrib { return mx.NewAttrib("preload", value) }
-
-func Preloadf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("preload", valueFmt, a...)
-}
-
 const Readonly = BoolAttrib("readonly")
-
-const ReferrerPolicyNoReferrer = mx.ConstAttrib("referrerpolicy=no-referrer")
-
-const ReferrerPolicyNoReferrerWhenDowngrade = mx.ConstAttrib("referrerpolicy=no-referrer-when-downgrade")
-
-const ReferrerPolicyOrigin = mx.ConstAttrib("referrerpolicy=origin")
-
-const ReferrerPolicyOriginWhenCrossOrigin = mx.ConstAttrib("referrerpolicy=origin-when-cross-origin")
-
-const ReferrerPolicySameOrigin = mx.ConstAttrib("referrerpolicy=same-origin")
-
-const ReferrerPolicyStrictOrigin = mx.ConstAttrib("referrerpolicy=strict-origin")
-
-const ReferrerPolicyStrictOriginWhenCrossOrigin = mx.ConstAttrib("referrerpolicy=strict-origin-when-cross-origin")
-
-const ReferrerPolicyUnsafeUrl = mx.ConstAttrib("referrerpolicy=unsafe-url")
 
 func Rel(keywords ...string) mx.Attrib { return mx.NewAttrib("rel", strings.Join(keywords, " ")) }
 
@@ -514,23 +364,9 @@ func Sandboxf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("sandbox", valueFmt, a...)
 }
 
-func Scope(value string) mx.Attrib { return mx.NewAttrib("scope", value) }
-
-func Scopef(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("scope", valueFmt, a...)
-}
-
 // Scoped was removed from the HTML spec
 
 const Selected = BoolAttrib("selected")
-
-const ShapeDefault = mx.ConstAttrib("shape=default")
-
-const ShapeRect = mx.ConstAttrib("shape=rect")
-
-const ShapeCircle = mx.ConstAttrib("shape=circle")
-
-const ShapePoly = mx.ConstAttrib("shape=poly")
 
 func Size(value string) mx.Attrib { return mx.NewAttrib("size", value) }
 
@@ -552,12 +388,6 @@ func SpanAttr(value string) mx.Attrib { return mx.NewAttrib("span", value) }
 
 func SpanAttrf(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("span", valueFmt, a...)
-}
-
-func SpellCheck(value string) mx.Attrib { return mx.NewAttrib("spellcheck", value) }
-
-func SpellCheckf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("spellcheck", valueFmt, a...)
 }
 
 func Src(url string) mx.Attrib { return mx.NewAttrib("src", url) }
@@ -624,12 +454,6 @@ func Titlef(valueFmt string, a ...any) mx.Attrib {
 	return mx.NewAttribf("title", valueFmt, a...)
 }
 
-func Translate(value string) mx.Attrib { return mx.NewAttrib("translate", value) }
-
-func Translatef(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("translate", valueFmt, a...)
-}
-
 func Type(value string) mx.Attrib { return mx.NewAttrib("type", value) }
 
 func Typef(valueFmt string, a ...any) mx.Attrib {
@@ -656,12 +480,6 @@ func WidthPx(pixels float64) mx.Attrib {
 
 func WidthEm(ems float64) mx.Attrib {
 	return Widthf("%fem", ems)
-}
-
-func Wrap(value string) mx.Attrib { return mx.NewAttrib("wrap", value) }
-
-func Wrapf(valueFmt string, a ...any) mx.Attrib {
-	return mx.NewAttribf("wrap", valueFmt, a...)
 }
 
 // Event handlers, see https://html.spec.whatwg.org/multipage/indices.html#events-2
