@@ -7,6 +7,10 @@ escaping text and attribute values and checking structural validity as it goes.
 No templates and no separate template language: markup is ordinary Go, so it
 composes and refactors with the rest of your code.
 
+For the *why* — server-rendered HTML versus the SPA default, an honest
+advantages-vs-disadvantages overview, and the use cases go-mx is built for —
+see [docs/why-go-mx.md](docs/why-go-mx.md).
+
 ## Install
 
 ```sh
