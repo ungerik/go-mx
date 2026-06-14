@@ -70,6 +70,9 @@ func HoverCardTrigger(hoverCardID string, openDelayMs, closeDelayMs int, attribs
 	if e.AttribIndex("onfocusout") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("onfocusout", "hoverCardHide(this,'"+hoverCardID+"',"+closeStr+")"))
 	}
+	// Name the trigger as the CSS anchor for HoverCardContent's position-anchor;
+	// without it the content has no anchor and falls back to the viewport corner.
+	mergeStyle(e, popoverAnchorStyle(hoverCardID))
 	return finish(e, "hover-card-trigger", "")
 }
 

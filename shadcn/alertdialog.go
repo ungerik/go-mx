@@ -63,7 +63,20 @@ func AlertDialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 // (data-[state=*]) and duration classes removed, and `backdrop:bg-black/50`
 // added. A native modal <dialog> is centered in the top layer by the user
 // agent and has no data-state attribute.
-const alertDialogContentClasses = "group/alert-dialog-content grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg backdrop:bg-black/50 data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg"
+//
+// The display utility is `open:grid`, not `grid`: shadcn renders the content
+// only while the Radix dialog is open, but a native <dialog> is always in the
+// DOM and relies on the user-agent rule `dialog:not([open]){display:none}` to
+// stay hidden. An unconditional `grid` is an author-origin style that would
+// override that UA rule and leak the closed dialog onto the page; scoping it to
+// `open:` (the `[open]` attribute set by showModal()) keeps the closed dialog
+// hidden and still lays the open one out as a grid.
+//
+// `m-auto` restores the user-agent's `margin: auto` that centers a modal
+// <dialog> in the top layer. Tailwind v4 Preflight (required by this package)
+// resets every element's margin to 0, which otherwise defeats that centering
+// and pins the open dialog to the top-left.
+const alertDialogContentClasses = "group/alert-dialog-content open:grid m-auto w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg backdrop:bg-black/50 data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg"
 
 // AlertDialogContent renders the modal <dialog id=dialogID>. Its children are
 // placed inside a <form method="dialog"> so that the submit buttons produced

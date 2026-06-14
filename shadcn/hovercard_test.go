@@ -15,6 +15,8 @@ func TestHoverCardComposition(t *testing.T) {
 		`data-slot="hover-card-trigger"`,
 		`<span `,
 		`aria-describedby="hc1"`,
+		"anchor-name: --hc1", // trigger must declare the anchor the content positions against
+
 		`onmouseover="hoverCardShow(this,'hc1',700)"`, // default open delay
 		`onmouseout="hoverCardHide(this,'hc1',300)"`,  // default close delay
 		`onfocusin="hoverCardShow(this,'hc1',700)"`,

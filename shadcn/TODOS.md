@@ -165,17 +165,22 @@ functional, just not anchored.
 Reuse the `<dialog>` approach already proven in `alertdialog.go`
 (top layer, `::backdrop`, focus trap, Escape-to-close — no framework).
 
-- [ ] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
+- [x] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
   `Dialog` / `DialogTrigger` / `DialogContent` / `DialogHeader` /
   `DialogFooter` / `DialogTitle` / `DialogDescription` / `DialogClose`.
-  Factor the shared `<dialog>` helpers out of `alertdialog.go`.
-  Blocks **Sheet**.
-- [ ] **Sheet** · Cx 4 · deps: **Dialog**
-  `<dialog>` + slide-in `side` variants (top/right/bottom/left) via CSS.
-  Blocks **Sidebar**.
-- [ ] **Drawer** · Cx 5 · deps: **Dialog**
-  `<dialog>` + drag-to-dismiss and snap points — requires JS; lowest
-  priority of the phase.
+  Native `<dialog>` like AlertDialog, plus light-dismiss (backdrop click) and a
+  built-in corner close button. Blocks **Sheet**.
+- [x] **Sheet** · Cx 4 · deps: **Dialog**
+  Native `<dialog>` pinned to an edge via per-side inset classes (top/right/
+  bottom/left); reuses Dialog's close-button helper. SheetSide type, `""` =
+  right. Blocks **Sidebar**.
+- [x] **Drawer** · Cx 5 · deps: **Sheet** / **Dialog** (Option A)
+  Native bottom `<dialog>` (reuses the Dialog/Sheet modal infra — top layer,
+  ::backdrop, Escape, light-dismiss) plus one shared `drawerStart` pointer-drag
+  script: drag the grab handle down, past a ~40% threshold it closes, else
+  snaps back. The most client JS of any port, in the Slider/Resizable inline-
+  script pattern. Dropped vs Vaul: multi snap-points, momentum physics,
+  background-scale, non-bottom directions.
 
 ---
 
@@ -185,36 +190,75 @@ Each leans on a React-only library with no Go equivalent — behavior must be
 reimplemented (server-side in Go, with HTMX, or with a small script).
 Order within the phase is by dependency, then complexity.
 
-- [ ] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
-  `Form` / `FormItem` / `FormLabel` / `FormControl` / `FormDescription` /
-  `FormMessage`. Server-side validation display is natural here; consider
-  wiring into the existing `html.ReflectFormComponents`.
-- [ ] **Command** · Cx 5 · deps: none
-  Filterable command list (cmdk). Filter server-side via HTMX or in a
-  script. Blocks **Combobox**.
+- [x] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
+  `Form` (native `<form>`) / `FormItem` / `FormLabel` (error-aware via
+  `data-error`) / `FormDescription` / `FormMessage`. FormField/FormControl are
+  React context/Slot plumbing with no server equivalent, so not ported; the
+  caller wires ids/aria directly and renders FormMessage with the error.
+- [x] **Command** · Cx 5 · deps: none
+  Filterable command list (cmdk). One shared `commandFilter` script substring-
+  matches each item's text on input, hides non-matching items/empty groups and
+  toggles CommandEmpty. Fuzzy ranking and arrow-key nav not reproduced. Blocks
+  **Combobox**.
 - [ ] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
   Composition recipe, not a primitive.
-- [ ] **Calendar** · Cx 5 · deps: Button
-  Date grid — generate server-side with Go's `time` package; month nav via
-  HTMX round-trip. Blocks **DatePicker**.
-- [ ] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
-  Composition recipe.
-- [ ] **Carousel** · Cx 5 · deps: Button
-  CSS `scroll-snap` covers most of it; drag/autoplay need a script.
-- [ ] **Resizable** · Cx 5 · deps: none
-  Drag handles — JS; CSS `resize` only covers trivial cases.
-- [ ] **Toast** (Sonner) · Cx 5 · deps: none
-  Queue/timers/swipe — JS, or HTMX out-of-band swaps for server-pushed
-  toasts.
-- [ ] **Chart** · Cx 6 · deps: none
-  recharts wrapper — needs a Go SVG chart generator or a JS charting lib.
-- [ ] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
-  Checkbox + **Select** + **Pagination**
-  Sorting/filtering/pagination done server-side via HTMX fits go-mx well.
-- [ ] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Input + Separator +
-  Skeleton + **Tooltip**
-  Most complex: ~20 sub-parts, collapse state with cookie persistence,
-  keyboard shortcut, mobile (Sheet) vs desktop modes. Build last.
+- [x] **Calendar** · Cx 5 · deps: Button
+  Single-month grid generated server-side with Go's `time` package; selected
+  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
+  plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
+- [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
+  Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as
+  a gallery example, matching how shadcn ships DatePicker (copy-paste, not a
+  primitive).
+- [x] **Carousel** · Cx 5 · deps: Button
+  Native CSS `scroll-snap` track (drag/swipe/keyboard free); Previous/Next
+  scroll the track one viewport via a tiny inline onclick. Autoplay/loop/
+  orientation not ported.
+- [x] **Resizable** · Cx 5 · deps: none
+  Flex panels + a draggable handle; one shared `resizeStart` pointer-drag
+  script adjusts the adjacent panels' flex-basis (the Slider-style tradeoff).
+  `ResizeDirection` horizontal/vertical.
+- [x] **Toast** (Sonner) · Cx 5 · deps: none
+  `Toaster` (fixed bottom-right region) + one shared script defining a global
+  `toast(msg, {description, duration})`: appends a styled toast and auto-
+  dismisses it. Triggered from any onclick. Swipe-to-dismiss and stacking
+  offsets not reproduced; HTMX out-of-band swap is the server-pushed alternative.
+- [ ] **Chart** · Cx 6 · deps: none · **DEFERRED** (design decision pending)
+  shadcn's Chart only adds a CSS-variable theming layer over Recharts' SVG;
+  porting means generating the chart SVG ourselves. The divergence is in
+  *generation*, not runtime — every option below can stay server-side. Options:
+  - **A (recommended) — hand-rolled Go SVG generator** (bar/line/area): compute
+    linear scales, axis ticks, gridlines and shapes (`<rect>`/`<polyline>`/
+    `<path>`) in Go, colored from the theme's `--chart-1…5`. Pure server-side,
+    zero client runtime — the most native-first option and a real go-mx
+    strength. Responsive via SVG `viewBox` + `width:100%` (no resize-observer,
+    the native replacement for Recharts' ResponsiveContainer). Tooltips: native
+    `<title>` per data point by default (zero JS); optional styled JS tooltip
+    later. Cost: reimplementing a *scoped* charting lib (not Recharts parity) —
+    one of the two largest remaining builds (with DataTable).
+  - **B — a Go charting dependency** (e.g. `wcharczuk/go-chart` → SVG): less
+    code, but a dep whose styling/theming won't match shadcn.
+  - **C — a JS charting lib via CDN** (like Tailwind/Shiki): fits the gallery's
+    CDN demo pattern but reintroduces a client runtime for a package component —
+    against the native-first model.
+  Open decisions before building (A): chart types (bar/line/area, or also
+  pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
+  `ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
+  theming-wrapper API shape.
+- [x] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
+  Checkbox + **Pagination**
+  Composition recipe (toolbar filter Input + Columns DropdownMenu + Table with
+  select checkboxes, sortable headers and per-row action menus + selection
+  count + Previous/Next) shipped as a gallery example, matching how shadcn ships
+  DataTable (copy-paste, not a primitive). Live email filter via one small
+  script; sorting/pagination would be server-side (HTMX/query params) in a real
+  app and are rendered but inert here.
+- [x] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Separator
+  ~18 sub-parts (Provider/Sidebar/Trigger/Inset/Header/Content/Footer/Group*/
+  Menu*/Sub*/Separator). Expand↔icon collapse via a `data-state` on the
+  group/sidebar-wrapper; one shared `sidebarToggle` script persists it to the
+  `sidebar_state` cookie, restores on load, and binds Cmd/Ctrl+B. Floating/
+  inset variants and the mobile-becomes-Sheet behavior are not reproduced.
 
 ---
 

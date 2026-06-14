@@ -1,5 +1,10 @@
 # go-mx
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx.svg)](https://pkg.go.dev/github.com/ungerik/go-mx)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ungerik/go-mx)](https://goreportcard.com/report/github.com/ungerik/go-mx)
+[![Go version](https://img.shields.io/github/go-mod/go-version/ungerik/go-mx)](go.mod)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 go-mx builds HTML in Go. Every HTML element is a Go function call, and calls
 compose into a tree of components. Rendering walks the tree and writes HTML,
 escaping text and attribute values and checking structural validity as it goes.
@@ -10,6 +15,17 @@ composes and refactors with the rest of your code.
 For the *why* — server-rendered HTML versus the SPA default, an honest
 advantages-vs-disadvantages overview, and the use cases go-mx is built for —
 see [docs/why-go-mx.md](docs/why-go-mx.md).
+
+## Documentation
+
+- **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
+  `shadcn` tutorial and how-to guides, and the rendered component gallery.
+  (GitHub Pages, served from [`docs/`](docs/).)
+- **[Component gallery](https://ungerik.github.io/go-mx/gallery/)** — every
+  ported shadcn/ui component shown next to its Go source.
+- **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
+  reference and design notes.
+- **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
 
 ## Install
 

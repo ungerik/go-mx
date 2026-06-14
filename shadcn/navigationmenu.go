@@ -3,6 +3,7 @@ package shadcn
 import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/svg"
 )
 
 // navigationMenuTriggerClasses is shadcn/ui's NavigationMenuTrigger class set
@@ -72,7 +73,7 @@ func NavigationMenuTrigger(navID string, attribsChildren ...any) *mx.Element {
 	mergeStyle(e, popoverAnchorStyle(navID))
 	chevron := icon("chevron-down",
 		"relative top-[1px] ml-1 size-3 transition duration-300 [button[aria-expanded=true]>&]:rotate-180",
-		svgPath("m6 9 6 6 6-6"))
+		svg.Path(svg.D("m6 9 6 6 6-6")))
 	e.Children = append(e.Children, chevron)
 	return finish(e, "navigation-menu-trigger", navigationMenuTriggerClasses)
 }
