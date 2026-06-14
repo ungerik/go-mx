@@ -39,7 +39,7 @@ func TestExampleGETRendersAllFields(t *testing.T) {
 		`name="Password"`, `type="password"`,
 		`name="Account-VATNumber"`, // section recursion uses hyphen path
 		`__present__Name`,          // sentinel emitted by handler
-		`method="POST"`,
+		`method="post"`,
 		`enctype="multipart/form-data"`,
 	} {
 		if !strings.Contains(body, want) {
