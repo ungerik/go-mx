@@ -95,6 +95,10 @@ For streaming output or serving over HTTP, render a `Component` into an
   of a markup writer: `pdf.Document`, text/vector/image primitives, and typed
   enums. A separate module, so the fpdf dependency stays isolated. See
   [pdf/README.md](pdf/README.md).
+- **`wordpress`** — imports a WordPress WXR export into a typed Go model and
+  renders it as a static shadcn site plus an import-diagnostics report. Its own
+  nested module, so its `golang.org/x/net/html` dependency stays out of core. See
+  [wordpress/README.md](wordpress/README.md).
 - **`web`**, **`doc`** — higher-level abstractions, partially implemented.
 
 ## Reflected forms
