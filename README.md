@@ -69,6 +69,10 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`html`** — HTML5 element and attribute constructors: `html.Div`,
   `html.Span`, `html.Class`, `html.ID`, and the rest of the HTML5 surface.
   Provides `html.FieldDecider` for plain-HTML form rendering.
+- **`svg`** — SVG element and attribute constructors, mapped the same way as
+  `html`: `xmlns` namespace handling, spec-typed numeric attribute values, and
+  typed keyword enums. Use `svg.Root` for a standalone document or `svg.SVG`
+  for inline `<svg>`. See [svg/README.md](svg/README.md).
 - **`hx`** — HTMX integration: `hx.Get`, `hx.Post`, `hx.Trigger`. Provides
   `hx.FieldDecider` that wraps `html.FieldDecider` and adds
   `hx-trigger="change"` to live inputs.

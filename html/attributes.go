@@ -24,8 +24,8 @@ func (a BoolAttrib) AttribName() string {
 	return string(a)
 }
 
-func (a BoolAttrib) AttribValue(context.Context) string {
-	return string(a)
+func (a BoolAttrib) AttribValue(context.Context) (string, error) {
+	return string(a), nil
 }
 
 // See https://github.com/jozo/all-html-elements-and-attributes

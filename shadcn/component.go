@@ -22,14 +22,20 @@ import (
 // data-slot is dropped: the slot identifies the component and is not
 // caller-configurable.
 func finish(e *mx.Element, slot, baseClasses string) *mx.Element {
-	var callerClasses []string
-	other := make([]mx.Attrib, 0, len(e.Attribs))
-	index := make(map[string]int, len(e.Attribs))
+	var (
+		callerClasses []string
+		other         = make([]mx.Attrib, 0, len(e.Attribs))
+		index         = make(map[string]int, len(e.Attribs))
+	)
 
 	for _, a := range e.Attribs {
 		switch name := a.AttribName(); name {
 		case "class":
-			callerClasses = append(callerClasses, a.AttribValue(context.Background()))
+			value, err := a.AttribValue(context.Background())
+			if err != nil {
+				return mx.NewErrElement(err)
+			}
+			callerClasses = append(callerClasses, value)
 		case "data-slot":
 			// Component identity, not caller-configurable.
 		default:
