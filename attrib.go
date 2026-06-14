@@ -127,9 +127,9 @@ type ErrAttrib struct {
 
 var _ Attrib = ErrAttrib{}
 
-// AttribName returns the empty string: an ErrAttrib stands for a failed
-// attribute and has no usable name, and AttribValue reports Err before the name
-// is needed.
+// AttribName returns the name of the attribute this ErrAttrib stands in for, so
+// it occupies the correct slot in attribute deduplication and lookups. The error
+// is reported by AttribValue, which aborts rendering of the enclosing element.
 func (a ErrAttrib) AttribName() string { return a.Name }
 
 // AttribValue always returns Err, aborting rendering of the enclosing element.
