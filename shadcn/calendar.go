@@ -53,11 +53,11 @@ func Calendar(month, selected time.Time, attribsChildren ...any) *mx.Element {
 		body.Children = append(body.Children, row)
 	}
 
-	nav := html.Div(html.Class("flex items-center justify-between pb-2"),
+	nav := html.DivClass("flex items-center justify-between pb-2",
 		finish(html.ButtonButton(
 			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
 			iconChevronLeft()), "calendar-prev", ""),
-		html.Div(html.Class("text-sm font-medium"), month.Format("January 2006")),
+		html.DivClass("text-sm font-medium", month.Format("January 2006")),
 		finish(html.ButtonButton(
 			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
 			iconChevronRight()), "calendar-next", ""),

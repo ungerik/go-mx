@@ -35,7 +35,7 @@ func ButtonLink() mx.Component {
 }
 
 func ButtonSizes() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
+	return html.DivClass("flex items-center gap-2",
 		shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM, "Small"),
 		shadcn.Button(shadcn.ButtonOutline, shadcn.SizeDefault, "Default"),
 		shadcn.Button(shadcn.ButtonOutline, shadcn.SizeLG, "Large"),

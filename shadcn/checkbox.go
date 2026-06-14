@@ -41,6 +41,12 @@ func Checkbox(attribsChildren ...any) *mx.Element {
 	return finish(e, "checkbox", checkboxClasses)
 }
 
+// CheckboxID renders a [Checkbox] with the given id, to link a [Label] or
+// [LabelFor], as a shortcut for Checkbox(html.ID(id), attribsChildren...).
+func CheckboxID(id string, attribsChildren ...any) *mx.Element {
+	return Checkbox(append([]any{html.ID(id)}, attribsChildren...)...)
+}
+
 // CheckboxIndeterminateScript returns a <script> that flips the indeterminate
 // DOM property on the checkbox with the given id. Place it after the checkbox
 // in the document (and re-run it after any change that should reset the

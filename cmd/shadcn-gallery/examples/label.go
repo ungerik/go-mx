@@ -7,8 +7,8 @@ import (
 )
 
 func LabelDemo() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Checkbox(html.ID("terms")),
-		shadcn.Label(html.For("terms"), "Accept terms and conditions"),
+	return html.DivClass("flex items-center gap-2",
+		shadcn.CheckboxID("terms"),
+		shadcn.LabelFor("terms", "Accept terms and conditions"),
 	)
 }

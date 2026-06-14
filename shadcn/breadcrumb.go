@@ -79,7 +79,7 @@ func BreadcrumbEllipsis(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{
 			iconEllipsis("size-4"),
-			html.Span(html.Class("sr-only"), "More"),
+			html.SpanClass("sr-only", "More"),
 		}
 	}
 	return finish(e, "breadcrumb-ellipsis", "flex size-9 items-center justify-center")

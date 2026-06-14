@@ -51,7 +51,7 @@ func dtRow(i int, status, email, amount string, selected bool) mx.Component {
 func DataTableDemo() mx.Component {
 	return html.Div(html.DataAttr("datatable", ""), html.Class("w-full"),
 		html.Script(mx.Raw(dtFilterScript)),
-		html.Div(html.Class("flex items-center gap-2 py-4"),
+		html.DivClass("flex items-center gap-2 py-4",
 			shadcn.Input(html.Class("max-w-sm"),
 				html.Placeholder("Filter emails..."), html.OnInput("dtFilter(this)")),
 			shadcn.DropdownMenu(html.Class("ml-auto"),
@@ -65,7 +65,7 @@ func DataTableDemo() mx.Component {
 				),
 			),
 		),
-		html.Div(html.Class("rounded-md border"),
+		html.DivClass("rounded-md border",
 			shadcn.Table(
 				shadcn.TableHeader(
 					shadcn.TableRow(
@@ -88,8 +88,8 @@ func DataTableDemo() mx.Component {
 				),
 			),
 		),
-		html.Div(html.Class("flex items-center justify-end gap-2 py-4"),
-			html.Div(html.Class("text-muted-foreground flex-1 text-sm"), "2 of 5 row(s) selected."),
+		html.DivClass("flex items-center justify-end gap-2 py-4",
+			html.DivClass("text-muted-foreground flex-1 text-sm", "2 of 5 row(s) selected."),
 			shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM, "Previous"),
 			shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM, "Next"),
 		),

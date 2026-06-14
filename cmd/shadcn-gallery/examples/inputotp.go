@@ -11,7 +11,7 @@ func InputOTPDemo() mx.Component {
 }
 
 func InputOTPWithSeparator() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
+	return html.DivClass("flex items-center gap-2",
 		shadcn.InputOTP("otp-a", "otp-first", 3),
 		shadcn.InputOTPSeparator(),
 		shadcn.InputOTP("otp-b", "otp-second", 3),

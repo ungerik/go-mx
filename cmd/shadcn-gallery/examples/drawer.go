@@ -12,14 +12,14 @@ func DrawerDemo() mx.Component {
 			html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)),
 			"Open Drawer"),
 		shadcn.DrawerContent("demo-drawer",
-			html.Div(html.Class("mx-auto w-full max-w-sm"),
+			html.DivClass("mx-auto w-full max-w-sm",
 				shadcn.DrawerHeader(
 					shadcn.DrawerTitle("Move Goal"),
 					shadcn.DrawerDescription("Set your daily activity goal. Drag the handle down to dismiss."),
 				),
-				html.Div(html.Class("p-4 pb-0"),
-					html.Div(html.Class("flex items-center justify-center text-6xl font-bold tracking-tighter"), "350"),
-					html.Div(html.Class("text-muted-foreground mt-1 text-center text-xs uppercase"), "Calories/day"),
+				html.DivClass("p-4 pb-0",
+					html.DivClass("flex items-center justify-center text-6xl font-bold tracking-tighter", "350"),
+					html.DivClass("text-muted-foreground mt-1 text-center text-xs uppercase", "Calories/day"),
 				),
 				shadcn.DrawerFooter(
 					shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, "Submit"),

@@ -7,7 +7,7 @@ import (
 )
 
 func ProgressDemo() mx.Component {
-	return html.Div(html.Class("w-full max-w-md"),
+	return html.DivClass("w-full max-w-md",
 		shadcn.Progress(66),
 	)
 }

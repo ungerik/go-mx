@@ -287,8 +287,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-input-with-label-panel-code" aria-labelledby="tab-input-with-label-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;grid w-full max-w-sm items-center gap-1.5&quot;</span>),
-	shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;email&quot;</span>), <span class="hl-string">&quot;Email&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-input-with-label-panel-code" aria-labelledby="tab-input-with-label-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;grid w-full max-w-sm items-center gap-1.5&quot;</span>,
+	shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;email&quot;</span>, <span class="hl-string">&quot;Email&quot;</span>),
 	shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>)),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>

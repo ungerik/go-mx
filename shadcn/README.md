@@ -86,6 +86,27 @@ guarantees one `data-slot`, deduplicates any other repeated attribute
 Conditional classes: go-mx attributes have no `clsx`-style object form. Compute
 them with `Cn(...)` yourself and pass the result as `html.Class(...)`.
 
+### Binding labels to controls
+
+A `<label>` is tied to its control by matching the label's `for` to the
+control's `id`. These shortcuts bake in that one attribute, so the pairing reads
+as the two ids lining up — the same `<Element><Attribute>` convention the `html`
+package uses for `LabelFor` / `InputID`:
+
+```go
+shadcn.LabelFor("email", "Email"),
+shadcn.InputID("email", html.Type("email")),
+```
+
+| Shortcut              | Shortcut for                 |
+|-----------------------|------------------------------|
+| `LabelFor(id, …)`     | `Label(html.For(id), …)`     |
+| `FormLabelFor(id, …)` | `FormLabel(html.For(id), …)` |
+| `InputID(id, …)`      | `Input(html.ID(id), …)`      |
+| `TextareaID(id, …)`   | `Textarea(html.ID(id), …)`   |
+| `CheckboxID(id, …)`   | `Checkbox(html.ID(id), …)`   |
+| `SwitchID(id, …)`     | `Switch(html.ID(id), …)`     |
+
 ## Button
 
 `Button(variant ButtonVariant, size ButtonSize, attribsChildren ...any)`. Pass

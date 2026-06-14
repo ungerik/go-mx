@@ -18,3 +18,9 @@ func Input(attribsChildren ...any) *mx.Element {
 	e.Children = nil // <input> is a void element
 	return finish(e, "input", inputClasses)
 }
+
+// InputID renders an [Input] with the given id, to link a [Label] or [LabelFor],
+// as a shortcut for Input(html.ID(id), attribsChildren...).
+func InputID(id string, attribsChildren ...any) *mx.Element {
+	return Input(append([]any{html.ID(id)}, attribsChildren...)...)
+}

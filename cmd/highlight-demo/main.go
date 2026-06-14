@@ -86,9 +86,9 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			html.H1("go-mx ", html.Code("highlight"), " demo"),
 			html.P(
 				"Theme: ", html.B(theme.Name), " · ",
-				html.A(html.HRef("?theme="+other), "switch to ", other),
+				html.AHRef("?theme="+other, "switch to ", other),
 			),
-			html.Div(html.Class("cols"),
+			html.DivClass("cols",
 				html.Div(
 					html.H2("Highlighted HTML"),
 					highlight.Component(sample),

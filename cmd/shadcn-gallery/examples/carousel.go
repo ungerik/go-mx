@@ -11,10 +11,10 @@ func CarouselDemo() mx.Component {
 		shadcn.CarouselContent(
 			mx.ForEach([]string{"1", "2", "3", "4", "5"}, func(n string) mx.Component {
 				return shadcn.CarouselItem(
-					html.Div(html.Class("p-1"),
+					html.DivClass("p-1",
 						shadcn.Card(
 							shadcn.CardContent(html.Class("flex aspect-square items-center justify-center p-6"),
-								html.Span(html.Class("text-4xl font-semibold"), n),
+								html.SpanClass("text-4xl font-semibold", n),
 							),
 						),
 					),

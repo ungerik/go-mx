@@ -37,3 +37,9 @@ func Switch(attribsChildren ...any) *mx.Element {
 	}
 	return finish(e, "switch", switchClasses)
 }
+
+// SwitchID renders a [Switch] with the given id, to link a [Label] or
+// [LabelFor], as a shortcut for Switch(html.ID(id), attribsChildren...).
+func SwitchID(id string, attribsChildren ...any) *mx.Element {
+	return Switch(append([]any{html.ID(id)}, attribsChildren...)...)
+}

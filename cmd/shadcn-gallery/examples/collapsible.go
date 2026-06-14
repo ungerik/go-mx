@@ -11,12 +11,12 @@ func CollapsibleDemo() mx.Component {
 		shadcn.CollapsibleTrigger(
 			html.Class("flex w-full items-center justify-between rounded-md border px-4 py-2 text-sm font-semibold"),
 			"@peduarte starred 3 repositories",
-			html.Span(html.Class("transition-transform group-open:rotate-180"), "▾"),
+			html.SpanClass("transition-transform group-open:rotate-180", "▾"),
 		),
 		shadcn.CollapsibleContent(html.Class("space-y-2"),
-			html.Div(html.Class("rounded-md border px-4 py-2 font-mono text-sm"), "@radix-ui/primitives"),
-			html.Div(html.Class("rounded-md border px-4 py-2 font-mono text-sm"), "@radix-ui/colors"),
-			html.Div(html.Class("rounded-md border px-4 py-2 font-mono text-sm"), "@stitches/react"),
+			html.DivClass("rounded-md border px-4 py-2 font-mono text-sm", "@radix-ui/primitives"),
+			html.DivClass("rounded-md border px-4 py-2 font-mono text-sm", "@radix-ui/colors"),
+			html.DivClass("rounded-md border px-4 py-2 font-mono text-sm", "@stitches/react"),
 		),
 	)
 }

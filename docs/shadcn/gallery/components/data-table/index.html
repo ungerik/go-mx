@@ -435,7 +435,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-data-table-demo-panel-code" aria-labelledby="tab-data-table-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">DataAttr</span>(<span class="hl-string">&quot;datatable&quot;</span>, <span class="hl-string">&quot;&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full&quot;</span>),
 	html.<span class="hl-function">Script</span>(mx.<span class="hl-function">Raw</span>(dtFilterScript)),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2 py-4&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2 py-4&quot;</span>,
 		shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
 			html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Filter emails...&quot;</span>), html.<span class="hl-function">OnInput</span>(<span class="hl-string">&quot;dtFilter(this)&quot;</span>)),
 		shadcn.<span class="hl-function">DropdownMenu</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;ml-auto&quot;</span>),
@@ -449,7 +449,7 @@
 			),
 		),
 	),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;rounded-md border&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;rounded-md border&quot;</span>,
 		shadcn.<span class="hl-function">Table</span>(
 			shadcn.<span class="hl-function">TableHeader</span>(
 				shadcn.<span class="hl-function">TableRow</span>(
@@ -472,8 +472,8 @@
 			),
 		),
 	),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center justify-end gap-2 py-4&quot;</span>),
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-muted-foreground flex-1 text-sm&quot;</span>), <span class="hl-string">&quot;2 of 5 row(s) selected.&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center justify-end gap-2 py-4&quot;</span>,
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;text-muted-foreground flex-1 text-sm&quot;</span>, <span class="hl-string">&quot;2 of 5 row(s) selected.&quot;</span>),
 		shadcn.<span class="hl-function">Button</span>(shadcn.ButtonOutline, shadcn.SizeSM, <span class="hl-string">&quot;Previous&quot;</span>),
 		shadcn.<span class="hl-function">Button</span>(shadcn.ButtonOutline, shadcn.SizeSM, <span class="hl-string">&quot;Next&quot;</span>),
 	),

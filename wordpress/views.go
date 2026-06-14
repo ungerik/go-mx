@@ -83,18 +83,18 @@ func (v *Views) Document(title string, body mx.Component) *html.Document {
 // primary nav wraps on small screens (no JS); deeper menu levels are flattened.
 func (v *Views) Shell(content mx.Component) mx.Component {
 	return mx.Components{
-		html.A(html.HRef("#content"),
+		html.AHRef("#content",
 			html.Class("sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-background focus:px-3 focus:py-2 focus:shadow"),
 			"Skip to content"),
 		html.Header(html.Class("border-b"),
-			html.Div(html.Class("mx-auto max-w-5xl px-4 py-4 flex flex-wrap items-center justify-between gap-4"),
-				html.A(html.HRef(v.pl.HomePath()), html.Class("text-lg font-semibold"), v.siteTitle()),
+			html.DivClass("mx-auto max-w-5xl px-4 py-4 flex flex-wrap items-center justify-between gap-4",
+				html.AHRef(v.pl.HomePath(), html.Class("text-lg font-semibold"), v.siteTitle()),
 				v.MenuNav("primary"),
 			),
 		),
 		html.Main(html.ID("content"), html.Class("px-4 py-8"), content),
 		html.Footer(html.Class("border-t mt-16"),
-			html.Div(html.Class("mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground"),
+			html.DivClass("mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground",
 				html.Textf("%s — rendered with go-mx", v.siteTitle()),
 			),
 		),
@@ -117,7 +117,7 @@ func (v *Views) MenuNav(menuSlug string) mx.Component {
 	links := make([]any, 0, len(items)+1)
 	links = append(links, html.Attrib("aria-label", "Primary"), html.Class("flex flex-wrap items-center gap-4"))
 	for _, mi := range items {
-		links = append(links, html.A(html.HRef(v.menuHref(mi)), html.Class("text-sm hover:underline"), menuLabel(mi)))
+		links = append(links, html.AHRef(v.menuHref(mi), html.Class("text-sm hover:underline"), menuLabel(mi)))
 	}
 	return html.Nav(links...)
 }
@@ -162,12 +162,12 @@ func (v *Views) Byline(authorLogin string, published time.Time, primaryCat strin
 		parts = append(parts, html.Time(html.Attrib("datetime", published.Format("2006-01-02")), published.Format("January 2, 2006")))
 	}
 	if t := v.catBySlug[primaryCat]; t != nil {
-		parts = append(parts, html.A(html.HRef(v.pl.CategoryPath(primaryCat)), html.Class("hover:underline"), t.Name))
+		parts = append(parts, html.AHRef(v.pl.CategoryPath(primaryCat), html.Class("hover:underline"), t.Name))
 	}
 	if len(parts) == 0 {
 		return nil
 	}
-	return html.Div(append([]any{html.Class("flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground")}, dotJoin(parts)...)...)
+	return html.DivClass("flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground", dotJoin(parts)...)
 }
 
 // FeaturedImage renders an attachment by id, or nil if there is none.
@@ -180,7 +180,7 @@ func (v *Views) FeaturedImage(id int64) mx.Component {
 	if alt == "" {
 		alt = a.Title
 	}
-	return html.Img(html.Src(a.URL), html.Alt(alt), html.Class("w-full rounded-lg"),
+	return html.ImgSrc(a.URL, html.Alt(alt), html.Class("w-full rounded-lg"),
 		html.Attrib("loading", "lazy"), html.Attrib("onerror", "this.style.display='none'"))
 }
 
@@ -194,18 +194,18 @@ func (v *Views) TaxonomyBadges(catSlugs, tagSlugs []string) mx.Component {
 	var badges []any
 	for _, s := range catSlugs {
 		if t := v.catBySlug[s]; t != nil {
-			badges = append(badges, html.A(html.HRef(v.pl.CategoryPath(s)), shadcn.Badge(shadcn.BadgeSecondary, t.Name)))
+			badges = append(badges, html.AHRef(v.pl.CategoryPath(s), shadcn.Badge(shadcn.BadgeSecondary, t.Name)))
 		}
 	}
 	for _, s := range tagSlugs {
 		if t := v.tagBySlug[s]; t != nil {
-			badges = append(badges, html.A(html.HRef(v.pl.TagPath(s)), shadcn.Badge(shadcn.BadgeOutline, t.Name)))
+			badges = append(badges, html.AHRef(v.pl.TagPath(s), shadcn.Badge(shadcn.BadgeOutline, t.Name)))
 		}
 	}
 	if len(badges) == 0 {
 		return nil
 	}
-	return html.Div(append([]any{html.Class("flex flex-wrap gap-2")}, badges...)...)
+	return html.DivClass("flex flex-wrap gap-2", badges...)
 }
 
 // PostView is the full single-post article.
@@ -215,14 +215,14 @@ func (v *Views) PostView(p *Post) mx.Component {
 		primaryCat = p.CategorySlugs[0]
 	}
 	article := []any{
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), p.Title),
+		html.H1Class("text-3xl font-bold tracking-tight", p.Title),
 	}
 	article = appendComp(article, v.Byline(p.AuthorLogin, p.Published, primaryCat), "mt-3")
 	article = appendComp(article, v.FeaturedImage(p.FeaturedImageID), "mt-6")
-	article = append(article, html.Div(html.Class("mt-6"), v.Body(p.Content, p.ID)))
+	article = append(article, html.DivClass("mt-6", v.Body(p.Content, p.ID)))
 	article = appendComp(article, v.TaxonomyBadges(p.CategorySlugs, p.TagSlugs), "mt-8")
 	article = appendComp(article, v.CommentThread(p.Comments), "")
-	return html.Div(html.Class("mx-auto max-w-3xl"),
+	return html.DivClass("mx-auto max-w-3xl",
 		v.Breadcrumb(p.Title),
 		html.Article(append([]any{html.Class("mt-4")}, article...)...),
 	)
@@ -231,11 +231,11 @@ func (v *Views) PostView(p *Post) mx.Component {
 // PageView is a single static page; it omits post metadata and lists child pages.
 func (v *Views) PageView(p *Page) mx.Component {
 	body := []any{
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), p.Title),
-		html.Div(html.Class("mt-6"), v.Body(p.Content, p.ID)),
+		html.H1Class("text-3xl font-bold tracking-tight", p.Title),
+		html.DivClass("mt-6", v.Body(p.Content, p.ID)),
 	}
 	body = appendComp(body, v.childPages(p.ID), "mt-10")
-	return html.Div(html.Class("mx-auto max-w-3xl"),
+	return html.DivClass("mx-auto max-w-3xl",
 		v.Breadcrumb(p.Title),
 		html.Article(append([]any{html.Class("mt-4")}, body...)...),
 	)
@@ -245,14 +245,14 @@ func (v *Views) childPages(parentID int64) mx.Component {
 	var kids []any
 	for _, p := range v.site.Pages {
 		if p.ParentID == parentID {
-			kids = append(kids, html.LI(html.A(html.HRef(v.pl.PagePath(p)), html.Class("underline"), p.Title)))
+			kids = append(kids, html.LI(html.AHRef(v.pl.PagePath(p), html.Class("underline"), p.Title)))
 		}
 	}
 	if len(kids) == 0 {
 		return nil
 	}
 	return html.Div(
-		html.H2(html.Class("text-lg font-semibold"), "In this section"),
+		html.H2Class("text-lg font-semibold", "In this section"),
 		html.UL(append([]any{html.Class("mt-2 list-disc pl-6")}, kids...)...),
 	)
 }
@@ -260,12 +260,12 @@ func (v *Views) childPages(parentID int64) mx.Component {
 // ArchiveView is a heading + post-card grid (or an empty state).
 func (v *Views) ArchiveView(heading, description string, posts []*Post) mx.Component {
 	head := []any{html.Class("mx-auto max-w-5xl"),
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), heading)}
+		html.H1Class("text-3xl font-bold tracking-tight", heading)}
 	if description != "" {
-		head = append(head, html.P(html.Class("mt-2 text-muted-foreground"), description))
+		head = append(head, html.PClass("mt-2 text-muted-foreground", description))
 	}
 	if len(posts) == 0 {
-		head = append(head, html.Div(html.Class("mt-8"),
+		head = append(head, html.DivClass("mt-8",
 			shadcn.Alert(shadcn.AlertDefault,
 				shadcn.AlertTitle("No posts yet"),
 				shadcn.AlertDescription("There’s nothing here yet."))))
@@ -286,13 +286,13 @@ func (v *Views) PostCard(p *Post) mx.Component {
 	if excerpt == "" {
 		excerpt = firstWords(stripTags(string(p.Content)), 30)
 	}
-	return html.A(html.HRef(v.pl.PostPath(p)), html.Class("block group"),
+	return html.AHRef(v.pl.PostPath(p), html.Class("block group"),
 		shadcn.Card(html.Class("h-full transition-colors group-hover:bg-accent"),
 			shadcn.CardHeader(
 				shadcn.CardTitle(p.Title),
 				shadcn.CardDescription(dateText(p.Published)),
 			),
-			shadcn.CardContent(html.P(html.Class("text-sm text-muted-foreground line-clamp-3"), excerpt)),
+			shadcn.CardContent(html.PClass("text-sm text-muted-foreground line-clamp-3", excerpt)),
 		),
 	)
 }
@@ -317,9 +317,9 @@ func (v *Views) CommentThread(comments []*Comment) mx.Component {
 	renderOne = func(c *Comment, depth int) mx.Component {
 		seen[c.ID] = true
 		item := []any{html.Class("mt-4 " + commentIndent(depth)),
-			html.Div(html.Class("text-sm font-medium"), commentAuthor(c)),
-			html.Div(html.Class("text-xs text-muted-foreground"), dateText(c.Date)),
-			html.Div(html.Class("mt-1 text-sm"), c.Content),
+			html.DivClass("text-sm font-medium", commentAuthor(c)),
+			html.DivClass("text-xs text-muted-foreground", dateText(c.Date)),
+			html.DivClass("mt-1 text-sm", c.Content),
 		}
 		if depth < 40 { // cap recursion against parent==self / cyclic threads
 			for _, kid := range byParent[c.ID] {
@@ -344,15 +344,15 @@ func (v *Views) CommentThread(comments []*Comment) mx.Component {
 		}
 	}
 	return html.Section(append([]any{html.Class("mt-12"),
-		html.H2(html.Class("text-xl font-semibold"), "Comments")}, body...)...)
+		html.H2Class("text-xl font-semibold", "Comments")}, body...)...)
 }
 
 // NotFound is the 404 page body.
 func (v *Views) NotFound() mx.Component {
-	return html.Div(html.Class("mx-auto max-w-3xl text-center py-20"),
-		html.H1(html.Class("text-4xl font-bold tracking-tight"), "Page not found"),
-		html.P(html.Class("mt-4 text-muted-foreground"), "The page you’re looking for doesn’t exist."),
-		html.A(html.HRef(v.pl.HomePath()), html.Class("mt-6 inline-block underline"), "Back to home"),
+	return html.DivClass("mx-auto max-w-3xl text-center py-20",
+		html.H1Class("text-4xl font-bold tracking-tight", "Page not found"),
+		html.PClass("mt-4 text-muted-foreground", "The page you’re looking for doesn’t exist."),
+		html.AHRef(v.pl.HomePath(), html.Class("mt-6 inline-block underline"), "Back to home"),
 	)
 }
 
@@ -365,7 +365,7 @@ func appendComp(s []any, c mx.Component, wrapClass string) []any {
 	if wrapClass == "" {
 		return append(s, c)
 	}
-	return append(s, html.Div(html.Class(wrapClass), c))
+	return append(s, html.DivClass(wrapClass, c))
 }
 
 func dotJoin(parts []any) []any {
@@ -375,7 +375,7 @@ func dotJoin(parts []any) []any {
 	out := make([]any, 0, len(parts)*2-1)
 	for i, p := range parts {
 		if i > 0 {
-			out = append(out, html.Span(html.Class("opacity-50"), "·"))
+			out = append(out, html.SpanClass("opacity-50", "·"))
 		}
 		out = append(out, p)
 	}

@@ -75,7 +75,7 @@ func nativeDialogCloseButton(slot string) *mx.Element {
 		html.Type("button"),
 		html.OnClick("this.closest('dialog').close()"),
 		iconX(),
-		html.Span(html.Class("sr-only"), "Close"),
+		html.SpanClass("sr-only", "Close"),
 	), slot, dialogCloseClasses)
 }
 

@@ -343,12 +343,12 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-sidebar-demo-panel-code" aria-labelledby="tab-sidebar-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">SidebarProvider</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;h-[480px] min-h-0 overflow-hidden rounded-lg border&quot;</span>),
 	shadcn.<span class="hl-function">Sidebar</span>(
 		shadcn.<span class="hl-function">SidebarHeader</span>(
-			html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2 px-1 py-1.5&quot;</span>),
-				html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg&quot;</span>),
+			html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2 px-1 py-1.5&quot;</span>,
+				html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg&quot;</span>,
 					<span class="hl-function">navIcon</span>(<span class="hl-string">&quot;M3 3h7v7H3z&quot;</span>, <span class="hl-string">&quot;M14 3h7v7h-7z&quot;</span>, <span class="hl-string">&quot;M14 14h7v7h-7z&quot;</span>, <span class="hl-string">&quot;M3 14h7v7H3z&quot;</span>)),
-				html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;grid flex-1 text-left text-sm leading-tight&quot;</span>),
-					html.<span class="hl-function">Span</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;truncate font-semibold&quot;</span>), <span class="hl-string">&quot;Acme Inc&quot;</span>),
-					html.<span class="hl-function">Span</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-sidebar-foreground/70 truncate text-xs&quot;</span>), <span class="hl-string">&quot;Enterprise&quot;</span>),
+				html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;grid flex-1 text-left text-sm leading-tight&quot;</span>,
+					html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;truncate font-semibold&quot;</span>, <span class="hl-string">&quot;Acme Inc&quot;</span>),
+					html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;text-sidebar-foreground/70 truncate text-xs&quot;</span>, <span class="hl-string">&quot;Enterprise&quot;</span>),
 				),
 			),
 		),
@@ -380,9 +380,9 @@
 	shadcn.<span class="hl-function">SidebarInset</span>(
 		html.<span class="hl-function">Element</span>(<span class="hl-string">&quot;header&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex h-12 shrink-0 items-center gap-2 border-b px-4&quot;</span>),
 			shadcn.<span class="hl-function">SidebarTrigger</span>(),
-			html.<span class="hl-function">Span</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-sm font-medium&quot;</span>), <span class="hl-string">&quot;Dashboard&quot;</span>),
+			html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;text-sm font-medium&quot;</span>, <span class="hl-string">&quot;Dashboard&quot;</span>),
 		),
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-muted-foreground flex flex-1 items-center justify-center p-6 text-sm&quot;</span>),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;text-muted-foreground flex flex-1 items-center justify-center p-6 text-sm&quot;</span>,
 			<span class="hl-string">&quot;Toggle the sidebar with the button or ⌘B / Ctrl+B.&quot;</span>),
 	),
 )</code></pre></div>

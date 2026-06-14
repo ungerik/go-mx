@@ -90,15 +90,16 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 }
 
 // shadcnField wraps a single input element in a labeled stack:
-//   <Label for=path>label</Label>
-//   <input ...>
-//   <small>help</small> (when set)
-//   <Label for=clear>clear</Label> (when nullable)
-//   <p data-error>err</p> (one per error)
+//
+//	<Label for=path>label</Label>
+//	<input ...>
+//	<small>help</small> (when set)
+//	<Label for=clear>clear</Label> (when nullable)
+//	<p data-error>err</p> (one per error)
 func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, input mx.Component) mx.Component {
 	parts := mx.Components{}
 	if labelText := fieldLabel(field, tag); labelText != "" {
-		parts = append(parts, Label(html.For(string(path)), labelText))
+		parts = append(parts, LabelFor(string(path), labelText))
 	}
 	parts = append(parts, input)
 	if tag.Help != "" {
@@ -149,7 +150,7 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 
 	row := mx.Components{input}
 	if labelText := fieldLabel(field, tag); labelText != "" {
-		row = append(row, Label(html.For(string(path)),
+		row = append(row, LabelFor(string(path),
 			mx.NewElement("span",
 				mx.Attribute{Name: "class", Value: "ml-2"},
 				mx.Text(labelText),
@@ -232,7 +233,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		items = append(items, mx.NewElement("div",
 			mx.Attribute{Name: "class", Value: "flex items-center gap-2"},
 			Checkbox(attribs...),
-			Label(html.For(string(path)+"-"+opt.Value),
+			LabelFor(string(path)+"-"+opt.Value,
 				mx.Text(optionDisplay(opt))),
 		))
 	}
@@ -379,7 +380,7 @@ func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []any {
 }
 
 func clearControl(path mx.FieldPath) mx.Component {
-	return Label(html.For(mx.ClearSentinelName(path)),
+	return LabelFor(mx.ClearSentinelName(path),
 		Checkbox(
 			html.Name(mx.ClearSentinelName(path)),
 			html.Value("1"),
