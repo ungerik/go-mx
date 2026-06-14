@@ -2,10 +2,6 @@
 
 Deferred work. The older `mx` reflection to-do list lives in `README.md`.
 
-## Generic HTML
-
-- [ ] check https://specification.website/mcp/
-
 ## shadcn/cva
 
 Follow-ons from the initial `cva` port (class-variance-authority v0.7.1):

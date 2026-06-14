@@ -177,12 +177,13 @@ commas, `Coords` formats `float64`s into a comma list.
 
 ### Boolean attributes
 
-HTML boolean attributes render as just their name when present. They are
-`BoolAttrib` constants — use them directly, omit them to leave the attribute off:
+HTML boolean attributes are present-or-absent: include them to turn them on,
+omit them to leave the attribute off. They are `BoolAttrib` constants, and each
+renders as `name="name"` (which HTML treats as equivalent to the bare attribute):
 
 ```go
 html.Input(html.Type("checkbox"), html.Checked, html.Disabled)
-// <input type="checkbox" checked disabled/>
+// <input type="checkbox" checked="checked" disabled="disabled"/>
 ```
 
 Available: `Checked`, `Disabled`, `Required`, `Readonly`, `Selected`, `Multiple`,
@@ -252,8 +253,8 @@ string for you:
 | `High` / `Low` / `Optimum`   | `(float64)`              | `high="0.8"`       |
 | `Coords`                     | `(...float64)`           | `coords="0,0,10"`  |
 | `Draggable`                  | `(bool)`                 | `draggable="true"` |
-| `WidthPx` / `HeightPx`       | `(float64)`              | `width="64.000000px"` |
-| `WidthEm` / `HeightEm`       | `(float64)`              | `width="4.000000em"`  |
+| `WidthPx` / `HeightPx`       | `(float64)`              | `width="64px"`     |
+| `WidthEm` / `HeightEm`       | `(float64)`              | `width="4em"`      |
 
 `Width`/`Height` themselves take a `string` (so `"100%"` works); the `*Px`/`*Em`
 variants are convenience wrappers.
@@ -342,7 +343,8 @@ html.UL(
 
 - `If(cond, comps...)` returns an `mx.IfElse` with `.Else(...)`, `.ElseIf(...)`,
   and `.ElseIff(...)`.
-- `Iff(condFunc, comps...)` defers the condition to render time.
+- `Iff(condFunc, comps...)` is like `If` but takes the condition as a
+  `func() bool`; the func is called immediately when the `IfElse` is built.
 - `ForEach(slice, fn)` maps a slice to components; `ForEachIter(seq, fn)` does the
   same for an `iter.Seq`.
 
@@ -446,9 +448,7 @@ html.Form(html.Action("/submit"), html.MethodPOST,
 )
 ```
 
-> **Deprecated:** use `mx.ReflectFormHandler` with `FieldDecider` instead. The
-> `OptionsProvider`, `NamedOption`, and `NamedOptionsProvider` aliases in this
-> package are likewise deprecated in favor of the `mx.*` originals.
+> **Deprecated:** use `mx.ReflectFormHandler` with `FieldDecider` instead.
 
 ## Templates and table views
 

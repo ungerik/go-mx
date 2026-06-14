@@ -103,7 +103,7 @@ map, or a struct with `attr` tags and let go-mx expand it.
 mx.If(loggedIn, logoutButton).Else(loginButton)
 
 mx.ForEach(items, func(s string) mx.Component {
-    return html.Li(s)
+    return html.LI(s)
 })
 ```
 

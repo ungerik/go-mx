@@ -99,7 +99,7 @@ Boolean attributes are constants — include them to turn them on:
 
 ```go
 html.Input(html.Type("checkbox"), html.Checked, html.Disabled)
-// <input type="checkbox" checked disabled/>
+// <input type="checkbox" checked="checked" disabled="disabled"/>
 ```
 
 Closed-keyword attributes are typed enums; use the named constant:
@@ -170,7 +170,7 @@ html.If(loggedIn,
 
 `ForEach` maps a slice to components; `ForEachIter` does the same for an
 `iter.Seq`. `If(...).Else(...)` also offers `.ElseIf(cond, …)`; `Iff(func() bool,
-…)` defers the condition to render time.
+…)` takes the condition as a func that is called immediately, not at render time.
 
 ## Build a form from a struct
 

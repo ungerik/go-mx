@@ -3,9 +3,29 @@ package html
 import (
 	"context"
 	"os"
+	"strings"
+	"testing"
 
 	"github.com/ungerik/go-mx"
 )
+
+// TestDocumentMetaPropertyOpenGraph guards that Document.MetaProperty renders
+// valid Open Graph markup (<meta property="og:title" content="…">) rather than
+// using the property key as the attribute name.
+func TestDocumentMetaPropertyOpenGraph(t *testing.T) {
+	var b strings.Builder
+	err := (&Document{
+		Title:        "T",
+		MetaProperty: map[string]string{"og:title": "Hi"},
+	}).Render(context.Background(), mx.NewCheckedWriter(&b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `<meta property="og:title" content="Hi"/>`
+	if !strings.Contains(b.String(), want) {
+		t.Errorf("Document.MetaProperty render missing Open Graph markup\ngot:  %s\nwant substring: %s", b.String(), want)
+	}
+}
 
 func ExampleNewDocument() {
 	NewDocument("Hello World", // title

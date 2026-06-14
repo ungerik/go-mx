@@ -70,10 +70,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   below).
 - **`html`** — HTML5 element and attribute constructors: `html.Div`,
   `html.Span`, `html.Class`, `html.ID`, and the rest of the HTML5 surface,
-  with typed keyword enums and numeric attribute values that validate at
-  render time. Provides `html.FieldDecider` for plain-HTML form rendering.
-  The [`html/entity`](html/entity) subpackage adds named character
-  references (`entity.Copyright`, `entity.Heart`, …).
+  with typed keyword enums that validate at render time and numeric
+  attribute constructors that format Go values for you. Provides
+  `html.FieldDecider` for plain-HTML form rendering. The
+  [`html/entity`](html/entity) subpackage adds named character references
+  (`entity.Copyright`, `entity.Heart`, …).
 - **`svg`** — SVG element and attribute constructors, mapped the same way as
   `html`: `xmlns` namespace handling, spec-typed numeric attribute values, and
   typed keyword enums. Use `svg.Root` for a standalone document or `svg.SVG`

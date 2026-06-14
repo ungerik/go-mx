@@ -52,7 +52,7 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 			),
 			ForEach(slices.Sorted(maps.Keys(d.MetaProperty)),
 				func(property string) *mx.Element {
-					return Meta(Attrib(property, d.MetaProperty[property]))
+					return Meta(Attrib("property", property), ContentAttr(d.MetaProperty[property]))
 				},
 			),
 			ForEach(d.Stylesheets,
