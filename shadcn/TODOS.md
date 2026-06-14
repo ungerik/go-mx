@@ -195,9 +195,11 @@ Order within the phase is by dependency, then complexity.
   `data-error`) / `FormDescription` / `FormMessage`. FormField/FormControl are
   React context/Slot plumbing with no server equivalent, so not ported; the
   caller wires ids/aria directly and renders FormMessage with the error.
-- [ ] **Command** · Cx 5 · deps: none
-  Filterable command list (cmdk). Filter server-side via HTMX or in a
-  script. Blocks **Combobox**.
+- [x] **Command** · Cx 5 · deps: none
+  Filterable command list (cmdk). One shared `commandFilter` script substring-
+  matches each item's text on input, hides non-matching items/empty groups and
+  toggles CommandEmpty. Fuzzy ranking and arrow-key nav not reproduced. Blocks
+  **Combobox**.
 - [ ] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
   Composition recipe, not a primitive.
 - [x] **Calendar** · Cx 5 · deps: Button
@@ -216,9 +218,11 @@ Order within the phase is by dependency, then complexity.
   Flex panels + a draggable handle; one shared `resizeStart` pointer-drag
   script adjusts the adjacent panels' flex-basis (the Slider-style tradeoff).
   `ResizeDirection` horizontal/vertical.
-- [ ] **Toast** (Sonner) · Cx 5 · deps: none
-  Queue/timers/swipe — JS, or HTMX out-of-band swaps for server-pushed
-  toasts.
+- [x] **Toast** (Sonner) · Cx 5 · deps: none
+  `Toaster` (fixed bottom-right region) + one shared script defining a global
+  `toast(msg, {description, duration})`: appends a styled toast and auto-
+  dismisses it. Triggered from any onclick. Swipe-to-dismiss and stacking
+  offsets not reproduced; HTMX out-of-band swap is the server-pushed alternative.
 - [ ] **Chart** · Cx 6 · deps: none · **DEFERRED** (design decision pending)
   shadcn's Chart only adds a CSS-variable theming layer over Recharts' SVG;
   porting means generating the chart SVG ourselves. The divergence is in
@@ -241,9 +245,14 @@ Order within the phase is by dependency, then complexity.
   pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
   `ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
   theming-wrapper API shape.
-- [ ] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
-  Checkbox + **Select** + **Pagination**
-  Sorting/filtering/pagination done server-side via HTMX fits go-mx well.
+- [x] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
+  Checkbox + **Pagination**
+  Composition recipe (toolbar filter Input + Columns DropdownMenu + Table with
+  select checkboxes, sortable headers and per-row action menus + selection
+  count + Previous/Next) shipped as a gallery example, matching how shadcn ships
+  DataTable (copy-paste, not a primitive). Live email filter via one small
+  script; sorting/pagination would be server-side (HTMX/query params) in a real
+  app and are rendered but inert here.
 - [x] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Separator
   ~18 sub-parts (Provider/Sidebar/Trigger/Inset/Header/Content/Footer/Group*/
   Menu*/Sub*/Separator). Expand↔icon collapse via a `data-state` on the

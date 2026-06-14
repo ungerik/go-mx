@@ -147,11 +147,35 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "combobox",
+			Title:       "Combobox",
+			Description: "Autocomplete input and command palette with a list of suggestions — a Popover composed with a Command.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.ComboboxDemo},
+			},
+		},
+		{
+			Slug:        "command",
+			Title:       "Command",
+			Description: "Fast, composable, unstyled command menu — type to filter.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.CommandDemo},
+			},
+		},
+		{
 			Slug:        "context-menu",
 			Title:       "Context Menu",
 			Description: "Displays a menu located at the pointer, triggered by a right-click.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.ContextMenuDemo},
+			},
+		},
+		{
+			Slug:        "data-table",
+			Title:       "Data Table",
+			Description: "Powerful table and datagrids — Table composed with a filter, column menu and pagination.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.DataTableDemo},
 			},
 		},
 		{
@@ -342,6 +366,14 @@ func docs() []ComponentDoc {
 			Examples: []Example{
 				{Name: "Default", Func: examples.SliderDemo},
 				{Name: "Range", Func: examples.SliderRange},
+			},
+		},
+		{
+			Slug:        "sonner",
+			Title:       "Sonner",
+			Description: "An opinionated toast component — imperative toast() pushed into a Toaster region.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.SonnerDemo},
 			},
 		},
 		{
