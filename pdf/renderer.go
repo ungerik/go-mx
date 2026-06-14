@@ -1,26 +1,146 @@
 package pdf
 
-import "github.com/go-pdf/fpdf"
+import (
+	"io"
 
+	"codeberg.org/go-pdf/fpdf"
+)
+
+// Renderer is the PDF output target that components draw into.
+//
+// It is the PDF counterpart of the markup writer used by the html package:
+// where an html component writes tags into a markup writer, a pdf [Component]
+// issues drawing calls against a Renderer. The embedded [*fpdf.Fpdf] is the
+// actual renderer, so every fpdf method (Cell, Rect, Image, Transform, …) is
+// available directly and components can always drop down to raw fpdf for
+// anything the typed primitives do not cover.
+//
+// fpdf is imperative and stateful: the current page, cursor position, font,
+// and colors persist between calls. The primitives in this package are thin,
+// composable wrappers around that state machine rather than a retained tree.
 type Renderer struct {
 	*fpdf.Fpdf
 
+	// translate maps UTF-8 to the encoding of the current standard (core)
+	// font, which uses cp1252 (Western Europe). Applied automatically by the
+	// text primitives via tr. Has no effect on UTF-8 fonts added with
+	// AddUTF8Font; reset it with SetTranslator when switching font encodings.
 	translate func(string) string
+
+	// lineHeight is the default line height in document units used by flowing
+	// text primitives (Text, Paragraph, NewLine) when no explicit height is
+	// given. Zero means "derive from the current font size".
+	lineHeight float64
 }
 
+// NewRenderer creates a Renderer for the given page orientation, measurement
+// unit and page size, with a Helvetica 12pt default font already selected so
+// text can be drawn without further setup.
+func NewRenderer(orientation Orientation, unit Unit, size PageSize) *Renderer {
+	f := fpdf.New(string(orientation), string(unit), string(size), "")
+	return newRenderer(f)
+}
+
+// NewRendererA4Portrait creates a Renderer for an A4 portrait document
+// measured in millimeters.
 func NewRendererA4Portrait() *Renderer {
-	p := fpdf.New(
-		fpdf.OrientationPortrait,
-		fpdf.UnitMillimeter,
-		fpdf.PageSizeA4,
-		"",
-	)
-	return &Renderer{
-		Fpdf:      p,
-		translate: p.UnicodeTranslatorFromDescriptor(""),
+	return NewRenderer(Portrait, UnitMillimeter, A4)
+}
+
+// NewRendererA4Landscape creates a Renderer for an A4 landscape document
+// measured in millimeters.
+func NewRendererA4Landscape() *Renderer {
+	return NewRenderer(Landscape, UnitMillimeter, A4)
+}
+
+// NewRendererLetterPortrait creates a Renderer for a US Letter portrait
+// document measured in inches.
+func NewRendererLetterPortrait() *Renderer {
+	return NewRenderer(Portrait, UnitInch, Letter)
+}
+
+func newRenderer(f *fpdf.Fpdf) *Renderer {
+	r := &Renderer{
+		Fpdf:      f,
+		translate: f.UnicodeTranslatorFromDescriptor(""),
+	}
+	r.SetFont(DefaultFontFamily, string(StyleRegular), DefaultFontSize)
+	return r
+}
+
+// Str applies the current font's UTF-8 translation to s. The text primitives
+// call this automatically; use it when passing strings to raw fpdf methods.
+func (r *Renderer) Str(s string) string {
+	return r.tr(s)
+}
+
+// SetTranslator replaces the UTF-8 translator, e.g. after switching to a font
+// with a different code page. Pass the result of
+// fpdf.UnicodeTranslatorFromDescriptor or the identity for UTF-8 fonts.
+func (r *Renderer) SetTranslator(translate func(string) string) {
+	r.translate = translate
+}
+
+// LoadUTF8FontBytes registers a UTF-8 TrueType font from in-memory bytes under
+// the given family and style — the in-memory counterpart of fpdf's file-based
+// AddUTF8Font, so non-Latin text needs no font file on disk. It also switches
+// the renderer's translator to identity, because UTF-8 fonts take UTF-8 strings
+// directly and the cp1252 translation used for the core fonts would corrupt
+// them; call SetTranslator if you later go back to a core font. Select the font
+// afterwards with the Font component or SetFont.
+func (r *Renderer) LoadUTF8FontBytes(family string, style FontStyle, ttf []byte) {
+	r.AddUTF8FontFromBytes(family, string(style), ttf)
+	r.SetTranslator(func(s string) string { return s })
+}
+
+// LoadUTF8FontReader is [Renderer.LoadUTF8FontBytes] reading the font from src.
+// A read error is recorded on the renderer and surfaces from the next Error().
+func (r *Renderer) LoadUTF8FontReader(family string, style FontStyle, src io.Reader) {
+	ttf, err := io.ReadAll(src)
+	if err != nil {
+		r.SetError(err)
+		return
+	}
+	r.LoadUTF8FontBytes(family, style, ttf)
+}
+
+// LineHeight returns the default line height for flowing text in document
+// units, resolving the "auto" zero value to 1.15× the current font size.
+func (r *Renderer) LineHeight() float64 {
+	return r.lineHt(r.lineHeight)
+}
+
+// SetLineHeight sets the default line height in document units for flowing
+// text. A value <= 0 restores automatic height derived from the font size.
+func (r *Renderer) SetLineHeight(h float64) {
+	r.lineHeight = h
+}
+
+// lineHt resolves an explicit height: h if positive, otherwise the configured
+// default, otherwise 1.15× the current font size converted to document units.
+func (r *Renderer) lineHt(h float64) float64 {
+	if h > 0 {
+		return h
+	}
+	if r.lineHeight > 0 {
+		return r.lineHeight
+	}
+	_, unitSize := r.GetFontSize()
+	return unitSize * 1.15
+}
+
+// ensurePage adds the first page if none has been started yet, so a component
+// can draw without the caller having to remember an explicit AddPage / Page.
+func (r *Renderer) ensurePage() {
+	if r.PageNo() == 0 {
+		r.AddPage()
 	}
 }
 
-func (w *Renderer) Str(s string) string {
-	return w.translate(s)
+// tr translates s for the current font and is used by the text primitives.
+func (r *Renderer) tr(s string) string {
+	if r.translate == nil {
+		return s
+	}
+	return r.translate(s)
 }
