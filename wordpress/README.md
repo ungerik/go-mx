@@ -86,3 +86,42 @@ hostile slug cannot escape the output directory.
 - Non-ASCII slugs fall back to a `post-<id>` path (a deliberate safety choice).
 - The live **MySQL database** and a dynamic HTTP handler are out of scope for v1;
   a REST adapter is the documented future seam.
+
+## Planned (not yet implemented)
+
+These are designed-for but not built in v1. The serializable model and the
+`Source`/`Views` seams are shaped so each is an additive change, not a rewrite.
+
+**Sources & output**
+- **Dynamic HTTP handler** — serve the model per request instead of writing
+  static files. v1 is static export only; the model makes this additive.
+- **REST API source** — ingest from `wp-json/wp/v2` (public read) as an
+  alternative to a WXR file. WXR is the only source today.
+- **Markdown (+ frontmatter) output** — for migrating off WordPress into another
+  SSG. v1 renders shadcn HTML only.
+- **RSS / Atom feed** generation.
+
+**Content pipeline**
+- **Gutenberg block → shadcn mapping** — v1 strips block comments and renders the
+  inner HTML; a block dispatcher (heading, image, gallery, columns, …) is future.
+- **More core shortcodes** — v1 strips unknown shortcode delimiters and keeps the
+  inner content; only a few core media shortcodes are recognized.
+- **Optional `bluemonday` sanitize path** — for untrusted / multi-author exports.
+  v1 defaults to trusted input (the structural allowlist always runs, but the
+  `bluemonday` integration and a `TrustedRawHTML` escape hatch are not wired yet).
+- **Input size / count limits** (`MaxInputBytes`, `MaxItems`) to bound memory on
+  untrusted or pathological exports.
+- **PHP-`unserialize`** for the serialized postmeta/options values that need it.
+
+**Assets & rendering**
+- **Media download + local URL rewriting** — v1 keeps absolute source-site media
+  URLs; downloading and rewriting them for a self-contained export is future.
+- **Dark mode / theme toggle** — v1 is light-only (see Caveats).
+- **Offline asset bundling** — vendor a precompiled Tailwind stylesheet so the
+  output renders without the CDN.
+
+**Hardening (Tier-B)**
+- Symlink-safe writes (v1's containment check is lexical; it does not yet reject
+  symlinks in a pre-existing output tree).
+- Parse-time skipped-item diagnostics in the written report files (today they
+  appear in the CLI stdout summary, not in `import-report.json`/`.html`).
