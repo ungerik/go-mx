@@ -210,7 +210,42 @@ func NoScript(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("noscript", attribsChildren...)
 }
 func Object(attribsChildren ...any) *mx.Element { return Element("object", attribsChildren...) }
-func OL(attribsChildren ...any) *mx.Element     { return Element("ol", attribsChildren...) }
+
+// OL creates an <ol> ordered-list element without a type attribute. Item markers
+// default to decimal numbers (1, 2, 3, …); the CSS list-style-type property can
+// change the rendered style without setting the attribute. Combine with Start to
+// change the first number and the Reversed boolean attribute to count downward.
+//
+// Use OLDecimal, OLLowerAlpha, OLUpperAlpha, OLLowerRoman, or OLUpperRoman to set
+// the marker type explicitly via the attribute.
+func OL(attribsChildren ...any) *mx.Element { return Element("ol", attribsChildren...) }
+
+// OLDecimal is an <ol type="1"> with decimal number markers (1, 2, 3, …) — the
+// same markers as a bare OL, but with the type attribute set explicitly.
+func OLDecimal(attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Type("1")}, attribsChildren...)...)
+}
+
+// OLLowerAlpha is an <ol type="a"> with lowercase letter markers (a, b, c, …).
+func OLLowerAlpha(attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Type("a")}, attribsChildren...)...)
+}
+
+// OLUpperAlpha is an <ol type="A"> with uppercase letter markers (A, B, C, …).
+func OLUpperAlpha(attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Type("A")}, attribsChildren...)...)
+}
+
+// OLLowerRoman is an <ol type="i"> with lowercase roman numeral markers (i, ii, iii, …).
+func OLLowerRoman(attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Type("i")}, attribsChildren...)...)
+}
+
+// OLUpperRoman is an <ol type="I"> with uppercase roman numeral markers (I, II, III, …).
+func OLUpperRoman(attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Type("I")}, attribsChildren...)...)
+}
+
 func OptGroup(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("optgroup", attribsChildren...)
 }
