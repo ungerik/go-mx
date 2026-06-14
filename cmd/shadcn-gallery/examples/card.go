@@ -13,9 +13,9 @@ func CardDemo() mx.Component {
 			shadcn.CardDescription("Deploy your new project in one click."),
 		),
 		shadcn.CardContent(
-			html.Div(html.Class("flex flex-col gap-2"),
-				shadcn.Label(html.For("name"), "Name"),
-				shadcn.Input(html.ID("name"), html.Placeholder("Name of your project")),
+			html.DivClass("flex flex-col gap-2",
+				shadcn.LabelFor("name", "Name"),
+				shadcn.InputID("name", html.Placeholder("Name of your project")),
 			),
 		),
 		shadcn.CardFooter(html.Class("flex justify-between"),

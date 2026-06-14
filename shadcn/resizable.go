@@ -62,7 +62,7 @@ func ResizableHandle(attribsChildren ...any) *mx.Element {
 	}
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{
-			html.Div(html.Class("bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border group-data-[direction=vertical]/resizable:h-3 group-data-[direction=vertical]/resizable:w-4 group-data-[direction=vertical]/resizable:rotate-90"),
+			html.DivClass("bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border group-data-[direction=vertical]/resizable:h-3 group-data-[direction=vertical]/resizable:w-4 group-data-[direction=vertical]/resizable:rotate-90",
 				icon("grip-vertical", "size-2.5",
 					svg.Circle(svg.CX(9), svg.CY(12), svg.R(1)), svg.Circle(svg.CX(9), svg.CY(5), svg.R(1)), svg.Circle(svg.CX(9), svg.CY(19), svg.R(1)),
 					svg.Circle(svg.CX(15), svg.CY(12), svg.R(1)), svg.Circle(svg.CX(15), svg.CY(5), svg.R(1)), svg.Circle(svg.CX(15), svg.CY(19), svg.R(1))),

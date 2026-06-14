@@ -8,17 +8,17 @@ import (
 
 func RadioGroupDemo() mx.Component {
 	return shadcn.RadioGroup("plan",
-		html.Div(html.Class("flex items-center gap-2"),
+		html.DivClass("flex items-center gap-2",
 			shadcn.RadioGroupItem("plan", "default", html.ID("r1"), html.Checked),
-			shadcn.Label(html.For("r1"), "Default"),
+			shadcn.LabelFor("r1", "Default"),
 		),
-		html.Div(html.Class("flex items-center gap-2"),
+		html.DivClass("flex items-center gap-2",
 			shadcn.RadioGroupItem("plan", "comfortable", html.ID("r2")),
-			shadcn.Label(html.For("r2"), "Comfortable"),
+			shadcn.LabelFor("r2", "Comfortable"),
 		),
-		html.Div(html.Class("flex items-center gap-2"),
+		html.DivClass("flex items-center gap-2",
 			shadcn.RadioGroupItem("plan", "compact", html.ID("r3")),
-			shadcn.Label(html.For("r3"), "Compact"),
+			shadcn.LabelFor("r3", "Compact"),
 		),
 	)
 }

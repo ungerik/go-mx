@@ -15,8 +15,8 @@ func TextareaDisabled() mx.Component {
 }
 
 func TextareaWithLabel() mx.Component {
-	return html.Div(html.Class("grid w-full max-w-sm gap-1.5"),
-		shadcn.Label(html.For("message"), "Your message"),
-		shadcn.Textarea(html.ID("message"), html.Placeholder("Type your message here.")),
+	return html.DivClass("grid w-full max-w-sm gap-1.5",
+		shadcn.LabelFor("message", "Your message"),
+		shadcn.TextareaID("message", html.Placeholder("Type your message here.")),
 	)
 }

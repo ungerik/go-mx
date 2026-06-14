@@ -143,6 +143,22 @@ is the media-element preload attribute enum. `BlankLink` sets
 `rel="noopener noreferrer"`, which blocks reverse tabnabbing: without
 `noopener` the opened page could navigate yours through `window.opener`.
 
+A companion family in `elements.go` bakes the single most common attribute into
+the element you reach for most — an element plus its `class` or `id`, an `<a>`
+plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
+`DivClass("card", …)` replaces `Div(Class("card"), …)`:
+
+| Function                          | Renders                              |
+|-----------------------------------|--------------------------------------|
+| `DivClass(classes, …)`            | `<div class="…">`                    |
+| `DivID(id, …)`                    | `<div id="…">`                       |
+| `SpanClass(classes, …)`           | `<span class="…">`                   |
+| `PClass(classes, …)`              | `<p class="…">`                      |
+| `H1Class(classes, …)` … `H6Class` | `<h1 class="…">` … `<h6 class="…">`  |
+| `AHRef(url, …)`                   | `<a href="…">`                       |
+| `ImgSrc(url, …)`                  | `<img src="…">` (void)               |
+| `LabelFor(id, …)`                 | `<label for="…">`                    |
+
 ## Children
 
 Children are passed as `...any` and converted at render-build time by `mx`'s

@@ -19,8 +19,8 @@ func InputFile() mx.Component {
 }
 
 func InputWithLabel() mx.Component {
-	return html.Div(html.Class("grid w-full max-w-sm items-center gap-1.5"),
-		shadcn.Label(html.For("email"), "Email"),
+	return html.DivClass("grid w-full max-w-sm items-center gap-1.5",
+		shadcn.LabelFor("email", "Email"),
 		shadcn.Input(html.Type("email"), html.ID("email"), html.Placeholder("Email")),
 	)
 }

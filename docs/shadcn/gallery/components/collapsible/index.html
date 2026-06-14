@@ -249,12 +249,12 @@
 	shadcn.<span class="hl-function">CollapsibleTrigger</span>(
 		html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex w-full items-center justify-between rounded-md border px-4 py-2 text-sm font-semibold&quot;</span>),
 		<span class="hl-string">&quot;@peduarte starred 3 repositories&quot;</span>,
-		html.<span class="hl-function">Span</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;transition-transform group-open:rotate-180&quot;</span>), <span class="hl-string">&quot;▾&quot;</span>),
+		html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;transition-transform group-open:rotate-180&quot;</span>, <span class="hl-string">&quot;▾&quot;</span>),
 	),
 	shadcn.<span class="hl-function">CollapsibleContent</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;space-y-2&quot;</span>),
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>), <span class="hl-string">&quot;@radix-ui/primitives&quot;</span>),
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>), <span class="hl-string">&quot;@radix-ui/colors&quot;</span>),
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>), <span class="hl-string">&quot;@stitches/react&quot;</span>),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>, <span class="hl-string">&quot;@radix-ui/primitives&quot;</span>),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>, <span class="hl-string">&quot;@radix-ui/colors&quot;</span>),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;rounded-md border px-4 py-2 font-mono text-sm&quot;</span>, <span class="hl-string">&quot;@stitches/react&quot;</span>),
 	),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>

@@ -20,7 +20,7 @@ func (h *Highlighter) Components(tokens []Token) mx.Components {
 		if it.Class == ClassPlain {
 			comps = append(comps, mx.Text(it.Text))
 		} else {
-			comps = append(comps, html.Span(html.Class(prefix+string(it.Class)), mx.Text(it.Text)))
+			comps = append(comps, html.SpanClass(prefix+string(it.Class), mx.Text(it.Text)))
 		}
 	}
 	return comps

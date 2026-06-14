@@ -33,7 +33,7 @@ func renderContent(raw ContentHTML, postID int64, opt contentOptions, rep *Repor
 		// x/net/html.ParseFragment is robust and effectively never errors on
 		// real input; if it does, drop the body rather than emit anything raw.
 		rep.record("dropped", "unparseable body HTML", "dropped", postID)
-		return html.Div(html.Class(wpContentClass))
+		return html.DivClass(wpContentClass)
 	}
 
 	w := &walker{opt: opt, rep: rep, postID: postID}
@@ -43,7 +43,7 @@ func renderContent(raw ContentHTML, postID int64, opt contentOptions, rep *Repor
 			children = append(children, c)
 		}
 	}
-	return html.Div(append([]any{html.Class(wpContentClass)}, children...)...)
+	return html.DivClass(wpContentClass, children...)
 }
 
 // maxNodeDepth bounds the recursive HTML walk. x/net/html already caps parse

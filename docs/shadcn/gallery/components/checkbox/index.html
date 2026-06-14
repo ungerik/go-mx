@@ -242,11 +242,11 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-demo-panel-code" aria-labelledby="tab-checkbox-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-start gap-2&quot;</span>),
-	shadcn.<span class="hl-function">Checkbox</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;terms-cb&quot;</span>)),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;grid gap-1.5&quot;</span>),
-		shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;terms-cb&quot;</span>), <span class="hl-string">&quot;Accept terms and conditions&quot;</span>),
-		html.<span class="hl-function">P</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-sm text-muted-foreground&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-demo-panel-code" aria-labelledby="tab-checkbox-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-start gap-2&quot;</span>,
+	shadcn.<span class="hl-function">CheckboxID</span>(<span class="hl-string">&quot;terms-cb&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;grid gap-1.5&quot;</span>,
+		shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;terms-cb&quot;</span>, <span class="hl-string">&quot;Accept terms and conditions&quot;</span>),
+		html.<span class="hl-function">PClass</span>(<span class="hl-string">&quot;text-sm text-muted-foreground&quot;</span>,
 			<span class="hl-string">&quot;You agree to our Terms of Service and Privacy Policy.&quot;</span>),
 	),
 )</code></pre></div>
@@ -268,9 +268,9 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-checked-panel-code" aria-labelledby="tab-checkbox-checked-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>),
-	shadcn.<span class="hl-function">Checkbox</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;checked-cb&quot;</span>), html.Checked),
-	shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;checked-cb&quot;</span>), <span class="hl-string">&quot;Subscribe to the newsletter&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-checked-panel-code" aria-labelledby="tab-checkbox-checked-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>,
+	shadcn.<span class="hl-function">CheckboxID</span>(<span class="hl-string">&quot;checked-cb&quot;</span>, html.Checked),
+	shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;checked-cb&quot;</span>, <span class="hl-string">&quot;Subscribe to the newsletter&quot;</span>),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
@@ -290,9 +290,9 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-disabled-panel-code" aria-labelledby="tab-checkbox-disabled-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>),
-	shadcn.<span class="hl-function">Checkbox</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;disabled-cb&quot;</span>), html.Disabled),
-	shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;disabled-cb&quot;</span>), <span class="hl-string">&quot;Disabled&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-checkbox-disabled-panel-code" aria-labelledby="tab-checkbox-disabled-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>,
+	shadcn.<span class="hl-function">CheckboxID</span>(<span class="hl-string">&quot;disabled-cb&quot;</span>, html.Disabled),
+	shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;disabled-cb&quot;</span>, <span class="hl-string">&quot;Disabled&quot;</span>),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>

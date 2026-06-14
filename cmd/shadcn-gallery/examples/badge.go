@@ -23,7 +23,7 @@ func BadgeOutline() mx.Component {
 }
 
 func BadgeRow() mx.Component {
-	return html.Div(html.Class("flex flex-wrap items-center gap-2"),
+	return html.DivClass("flex flex-wrap items-center gap-2",
 		shadcn.Badge(shadcn.BadgeDefault, "Default"),
 		shadcn.Badge(shadcn.BadgeSecondary, "Secondary"),
 		shadcn.Badge(shadcn.BadgeDestructive, "Destructive"),

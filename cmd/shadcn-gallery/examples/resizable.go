@@ -10,13 +10,13 @@ func ResizableDemo() mx.Component {
 	return shadcn.ResizablePanelGroup(shadcn.ResizeHorizontal,
 		html.Class("h-[200px] max-w-md rounded-lg border md:min-w-[450px]"),
 		shadcn.ResizablePanel(
-			html.Div(html.Class("flex h-full items-center justify-center p-6"),
-				html.Span(html.Class("font-semibold"), "One")),
+			html.DivClass("flex h-full items-center justify-center p-6",
+				html.SpanClass("font-semibold", "One")),
 		),
 		shadcn.ResizableHandle(),
 		shadcn.ResizablePanel(
-			html.Div(html.Class("flex h-full items-center justify-center p-6"),
-				html.Span(html.Class("font-semibold"), "Two")),
+			html.DivClass("flex h-full items-center justify-center p-6",
+				html.SpanClass("font-semibold", "Two")),
 		),
 	)
 }

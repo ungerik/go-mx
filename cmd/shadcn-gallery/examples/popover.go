@@ -12,9 +12,9 @@ func PopoverDemo() mx.Component {
 			html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)),
 			"Open popover"),
 		shadcn.PopoverContent("demo-popover", "",
-			html.Div(html.Class("grid gap-2"),
+			html.DivClass("grid gap-2",
 				html.Element("h4", html.Class("leading-none font-medium"), "Dimensions"),
-				html.P(html.Class("text-sm text-muted-foreground"), "Set the dimensions for the layer."),
+				html.PClass("text-sm text-muted-foreground", "Set the dimensions for the layer."),
 			),
 		),
 	)

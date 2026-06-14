@@ -7,26 +7,26 @@ import (
 )
 
 func CheckboxDemo() mx.Component {
-	return html.Div(html.Class("flex items-start gap-2"),
-		shadcn.Checkbox(html.ID("terms-cb")),
-		html.Div(html.Class("grid gap-1.5"),
-			shadcn.Label(html.For("terms-cb"), "Accept terms and conditions"),
-			html.P(html.Class("text-sm text-muted-foreground"),
+	return html.DivClass("flex items-start gap-2",
+		shadcn.CheckboxID("terms-cb"),
+		html.DivClass("grid gap-1.5",
+			shadcn.LabelFor("terms-cb", "Accept terms and conditions"),
+			html.PClass("text-sm text-muted-foreground",
 				"You agree to our Terms of Service and Privacy Policy."),
 		),
 	)
 }
 
 func CheckboxChecked() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Checkbox(html.ID("checked-cb"), html.Checked),
-		shadcn.Label(html.For("checked-cb"), "Subscribe to the newsletter"),
+	return html.DivClass("flex items-center gap-2",
+		shadcn.CheckboxID("checked-cb", html.Checked),
+		shadcn.LabelFor("checked-cb", "Subscribe to the newsletter"),
 	)
 }
 
 func CheckboxDisabled() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Checkbox(html.ID("disabled-cb"), html.Disabled),
-		shadcn.Label(html.For("disabled-cb"), "Disabled"),
+	return html.DivClass("flex items-center gap-2",
+		shadcn.CheckboxID("disabled-cb", html.Disabled),
+		shadcn.LabelFor("disabled-cb", "Disabled"),
 	)
 }

@@ -261,14 +261,14 @@
 		html.<span class="hl-function">Class</span>(shadcn.<span class="hl-function">ButtonClasses</span>(shadcn.ButtonOutline, shadcn.SizeDefault)),
 		<span class="hl-string">&quot;Open Drawer&quot;</span>),
 	shadcn.<span class="hl-function">DrawerContent</span>(<span class="hl-string">&quot;demo-drawer&quot;</span>,
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;mx-auto w-full max-w-sm&quot;</span>),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;mx-auto w-full max-w-sm&quot;</span>,
 			shadcn.<span class="hl-function">DrawerHeader</span>(
 				shadcn.<span class="hl-function">DrawerTitle</span>(<span class="hl-string">&quot;Move Goal&quot;</span>),
 				shadcn.<span class="hl-function">DrawerDescription</span>(<span class="hl-string">&quot;Set your daily activity goal. Drag the handle down to dismiss.&quot;</span>),
 			),
-			html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;p-4 pb-0&quot;</span>),
-				html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center justify-center text-6xl font-bold tracking-tighter&quot;</span>), <span class="hl-string">&quot;350&quot;</span>),
-				html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-muted-foreground mt-1 text-center text-xs uppercase&quot;</span>), <span class="hl-string">&quot;Calories/day&quot;</span>),
+			html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;p-4 pb-0&quot;</span>,
+				html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center justify-center text-6xl font-bold tracking-tighter&quot;</span>, <span class="hl-string">&quot;350&quot;</span>),
+				html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;text-muted-foreground mt-1 text-center text-xs uppercase&quot;</span>, <span class="hl-string">&quot;Calories/day&quot;</span>),
 			),
 			shadcn.<span class="hl-function">DrawerFooter</span>(
 				shadcn.<span class="hl-function">Button</span>(shadcn.ButtonDefault, shadcn.SizeDefault, <span class="hl-string">&quot;Submit&quot;</span>),

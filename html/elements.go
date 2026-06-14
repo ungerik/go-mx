@@ -21,16 +21,16 @@ func Textf(format string, args ...any) Text {
 	return mx.Textf(format, args...)
 }
 
-// Hyperlink is a convenience for A(HRef(href), ..., text) creating an <a>
-// element linking to href with the given text and optional attributes.
-func Hyperlink(href, text string, attribs ...mx.Attrib) *mx.Element {
-	return A(HRef(href), attribs, text)
-}
-
 // See https://github.com/jozo/all-html-elements-and-attributes
 
 // A creates an <a> anchor element, a hyperlink to other pages, files, or locations.
 func A(attribsChildren ...any) *mx.Element { return Element("a", attribsChildren...) }
+
+// AHRef creates an <a> hyperlink to the given URL
+// as a shortcut for A(HRef(url), attribsChildren...).
+func AHRef(url string, attribsChildren ...any) *mx.Element {
+	return Element("a", append([]any{HRef(url)}, attribsChildren...)...)
+}
 
 // Abbr creates an <abbr> element marking an abbreviation or acronym.
 func Abbr(attribsChildren ...any) *mx.Element { return Element("abbr", attribsChildren...) }
@@ -157,6 +157,18 @@ func Dialog(attribsChildren ...any) *mx.Element { return Element("dialog", attri
 // Div creates a <div> generic block-level container with no semantic meaning.
 func Div(attribsChildren ...any) *mx.Element { return Element("div", attribsChildren...) }
 
+// DivClass creates a <div> with the given space separated class names
+// as a shortcut for Div(Class(classes), attribsChildren...).
+func DivClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("div", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
+// DivID creates a <div> with the given id attribute
+// as a shortcut for Div(ID(id), attribsChildren...).
+func DivID(id string, attribsChildren ...any) *mx.Element {
+	return Element("div", append([]any{ID(id)}, attribsChildren...)...)
+}
+
 // DL creates a <dl> description list of DT term and DD description pairs.
 func DL(attribsChildren ...any) *mx.Element { return Element("dl", attribsChildren...) }
 
@@ -193,20 +205,56 @@ func Form(attribsChildren ...any) *mx.Element { return Element("form", attribsCh
 // H1 creates an <h1> top-level section heading.
 func H1(attribsChildren ...any) *mx.Element { return Element("h1", attribsChildren...) }
 
+// H1Class creates an <h1> with the given space separated class names
+// as a shortcut for H1(Class(classes), attribsChildren...).
+func H1Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h1", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // H2 creates an <h2> second-level section heading.
 func H2(attribsChildren ...any) *mx.Element { return Element("h2", attribsChildren...) }
+
+// H2Class creates an <h2> with the given space separated class names
+// as a shortcut for H2(Class(classes), attribsChildren...).
+func H2Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h2", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // H3 creates an <h3> third-level section heading.
 func H3(attribsChildren ...any) *mx.Element { return Element("h3", attribsChildren...) }
 
+// H3Class creates an <h3> with the given space separated class names
+// as a shortcut for H3(Class(classes), attribsChildren...).
+func H3Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h3", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // H4 creates an <h4> fourth-level section heading.
 func H4(attribsChildren ...any) *mx.Element { return Element("h4", attribsChildren...) }
+
+// H4Class creates an <h4> with the given space separated class names
+// as a shortcut for H4(Class(classes), attribsChildren...).
+func H4Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h4", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // H5 creates an <h5> fifth-level section heading.
 func H5(attribsChildren ...any) *mx.Element { return Element("h5", attribsChildren...) }
 
+// H5Class creates an <h5> with the given space separated class names
+// as a shortcut for H5(Class(classes), attribsChildren...).
+func H5Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h5", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // H6 creates an <h6> sixth-level section heading.
 func H6(attribsChildren ...any) *mx.Element { return Element("h6", attribsChildren...) }
+
+// H6Class creates an <h6> with the given space separated class names
+// as a shortcut for H6(Class(classes), attribsChildren...).
+func H6Class(classes string, attribsChildren ...any) *mx.Element {
+	return Element("h6", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Head creates the <head> element containing document metadata.
 func Head(attribsChildren ...any) *mx.Element { return Element("head", attribsChildren...) }
@@ -234,6 +282,12 @@ func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attri
 // It takes only attributes and has no children. (Image is the SVG element; use
 // Img for HTML.)
 func Img(attribs ...mx.Attrib) *mx.Element { return VoidElement("img", attribs...) }
+
+// ImgSrc creates a void <img> element loading the image at the given URL
+// as a shortcut for Img(Src(url), attribs...).
+func ImgSrc(url string, attribs ...mx.Attrib) *mx.Element {
+	return VoidElement("img", append([]mx.Attrib{Src(url)}, attribs...)...)
+}
 
 // Input creates a void <input> form control element. It takes only attributes
 // and has no children; the type attribute determines the kind of control.
@@ -358,6 +412,12 @@ func Kbd(attribsChildren ...any) *mx.Element { return Element("kbd", attribsChil
 // Label creates a <label> element captioning a form control via its for attribute or by wrapping it.
 func Label(attribsChildren ...any) *mx.Element { return Element("label", attribsChildren...) }
 
+// LabelFor creates a <label> bound to the control with the given id
+// as a shortcut for Label(For(id), attribsChildren...).
+func LabelFor(id string, attribsChildren ...any) *mx.Element {
+	return Element("label", append([]any{For(id)}, attribsChildren...)...)
+}
+
 // Legend creates a <legend> element giving a caption for its parent FieldSet.
 func Legend(attribsChildren ...any) *mx.Element { return Element("legend", attribsChildren...) }
 
@@ -452,6 +512,12 @@ func Output(attribsChildren ...any) *mx.Element { return Element("output", attri
 // P creates a <p> paragraph element.
 func P(attribsChildren ...any) *mx.Element { return Element("p", attribsChildren...) }
 
+// PClass creates a <p> with the given space separated class names
+// as a shortcut for P(Class(classes), attribsChildren...).
+func PClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("p", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // Picture creates a <picture> element offering Source alternatives for its contained Img.
 func Picture(attribsChildren ...any) *mx.Element { return Element("picture", attribsChildren...) }
 
@@ -516,6 +582,12 @@ func Source(attribs ...mx.Attrib) *mx.Element { return VoidElement("source", att
 
 // Span creates a <span> generic inline container with no semantic meaning.
 func Span(attribsChildren ...any) *mx.Element { return Element("span", attribsChildren...) }
+
+// SpanClass creates a <span> with the given space separated class names
+// as a shortcut for Span(Class(classes), attribsChildren...).
+func SpanClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("span", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Strong creates a <strong> element marking content of strong importance, seriousness, or urgency.
 func Strong(attribsChildren ...any) *mx.Element { return Element("strong", attribsChildren...) }

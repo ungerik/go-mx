@@ -38,12 +38,12 @@ func SidebarDemo() mx.Component {
 	return shadcn.SidebarProvider(html.Class("h-[480px] min-h-0 overflow-hidden rounded-lg border"),
 		shadcn.Sidebar(
 			shadcn.SidebarHeader(
-				html.Div(html.Class("flex items-center gap-2 px-1 py-1.5"),
-					html.Div(html.Class("bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg"),
+				html.DivClass("flex items-center gap-2 px-1 py-1.5",
+					html.DivClass("bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg",
 						navIcon("M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z")),
-					html.Div(html.Class("grid flex-1 text-left text-sm leading-tight"),
-						html.Span(html.Class("truncate font-semibold"), "Acme Inc"),
-						html.Span(html.Class("text-sidebar-foreground/70 truncate text-xs"), "Enterprise"),
+					html.DivClass("grid flex-1 text-left text-sm leading-tight",
+						html.SpanClass("truncate font-semibold", "Acme Inc"),
+						html.SpanClass("text-sidebar-foreground/70 truncate text-xs", "Enterprise"),
 					),
 				),
 			),
@@ -75,9 +75,9 @@ func SidebarDemo() mx.Component {
 		shadcn.SidebarInset(
 			html.Element("header", html.Class("flex h-12 shrink-0 items-center gap-2 border-b px-4"),
 				shadcn.SidebarTrigger(),
-				html.Span(html.Class("text-sm font-medium"), "Dashboard"),
+				html.SpanClass("text-sm font-medium", "Dashboard"),
 			),
-			html.Div(html.Class("text-muted-foreground flex flex-1 items-center justify-center p-6 text-sm"),
+			html.DivClass("text-muted-foreground flex flex-1 items-center justify-center p-6 text-sm",
 				"Toggle the sidebar with the button or ⌘B / Ctrl+B."),
 		),
 	)

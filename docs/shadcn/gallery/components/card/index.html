@@ -257,9 +257,9 @@
 		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;Deploy your new project in one click.&quot;</span>),
 	),
 	shadcn.<span class="hl-function">CardContent</span>(
-		html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex flex-col gap-2&quot;</span>),
-			shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;name&quot;</span>), <span class="hl-string">&quot;Name&quot;</span>),
-			shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;name&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Name of your project&quot;</span>)),
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex flex-col gap-2&quot;</span>,
+			shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;name&quot;</span>, <span class="hl-string">&quot;Name&quot;</span>),
+			shadcn.<span class="hl-function">InputID</span>(<span class="hl-string">&quot;name&quot;</span>, html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Name of your project&quot;</span>)),
 		),
 	),
 	shadcn.<span class="hl-function">CardFooter</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex justify-between&quot;</span>),

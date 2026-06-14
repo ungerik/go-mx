@@ -7,15 +7,15 @@ import (
 )
 
 func SwitchDemo() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Switch(html.ID("airplane-mode")),
-		shadcn.Label(html.For("airplane-mode"), "Airplane Mode"),
+	return html.DivClass("flex items-center gap-2",
+		shadcn.SwitchID("airplane-mode"),
+		shadcn.LabelFor("airplane-mode", "Airplane Mode"),
 	)
 }
 
 func SwitchDisabled() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
-		shadcn.Switch(html.ID("disabled-switch"), html.Disabled),
-		shadcn.Label(html.For("disabled-switch"), "Disabled"),
+	return html.DivClass("flex items-center gap-2",
+		shadcn.SwitchID("disabled-switch", html.Disabled),
+		shadcn.LabelFor("disabled-switch", "Disabled"),
 	)
 }

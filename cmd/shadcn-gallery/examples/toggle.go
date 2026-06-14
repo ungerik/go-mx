@@ -17,7 +17,7 @@ func ToggleOutline() mx.Component {
 }
 
 func ToggleSizes() mx.Component {
-	return html.Div(html.Class("flex items-center gap-2"),
+	return html.DivClass("flex items-center gap-2",
 		shadcn.Toggle(shadcn.ToggleOutline, shadcn.ToggleSizeSM, "Small"),
 		shadcn.Toggle(shadcn.ToggleOutline, shadcn.ToggleSizeDefault, "Default"),
 		shadcn.Toggle(shadcn.ToggleOutline, shadcn.ToggleSizeLG, "Large"),

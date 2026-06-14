@@ -61,7 +61,7 @@ func PaginationPrevious(attribsChildren ...any) *mx.Element {
 		html.Attrib("aria-label", "Go to previous page"),
 		html.Class("gap-1 px-2.5 sm:pl-2.5"),
 		iconChevronLeft(),
-		html.Span(html.Class("hidden sm:block"), "Previous"),
+		html.SpanClass("hidden sm:block", "Previous"),
 	)
 	args = append(args, attribsChildren...)
 	return PaginationLink(false, SizeDefault, args...)
@@ -74,7 +74,7 @@ func PaginationNext(attribsChildren ...any) *mx.Element {
 	args = append(args,
 		html.Attrib("aria-label", "Go to next page"),
 		html.Class("gap-1 px-2.5 sm:pr-2.5"),
-		html.Span(html.Class("hidden sm:block"), "Next"),
+		html.SpanClass("hidden sm:block", "Next"),
 		iconChevronRight(),
 	)
 	args = append(args, attribsChildren...)
@@ -91,7 +91,7 @@ func PaginationEllipsis(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{
 			iconEllipsis("size-4"),
-			html.Span(html.Class("sr-only"), "More pages"),
+			html.SpanClass("sr-only", "More pages"),
 		}
 	}
 	return finish(e, "pagination-ellipsis", "flex size-9 items-center justify-center")

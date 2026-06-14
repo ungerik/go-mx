@@ -107,7 +107,7 @@ func menuCheckboxItem(slot string, checked bool, attribsChildren ...any) *mx.Ele
 		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	// Prepend the indicator span so it sits in the pl-8 slot.
-	indicator := html.Span(html.Class("absolute left-2 flex size-3.5 items-center justify-center"))
+	indicator := html.SpanClass("absolute left-2 flex size-3.5 items-center justify-center")
 	if checked {
 		indicator.Children = mx.Components{iconCheck()}
 	}
@@ -135,7 +135,7 @@ func menuRadioItem(slot, name, value string, selected bool, attribsChildren ...a
 		html.DataAttr("radio-group", name),
 		html.DataAttr("value", value),
 	)
-	indicator := html.Span(html.Class("absolute left-2 flex size-3.5 items-center justify-center [&>svg]:size-2"))
+	indicator := html.SpanClass("absolute left-2 flex size-3.5 items-center justify-center [&>svg]:size-2")
 	if selected {
 		indicator.Children = mx.Components{iconCircle()}
 	}
@@ -209,6 +209,6 @@ func menuSubTrigger(slot, popoverID string, attribsChildren ...any) *mx.Element 
 		e.Attribs = append(e.Attribs, html.Attrib("aria-expanded", "false"))
 	}
 	mergeStyle(e, popoverAnchorStyle(popoverID))
-	e.Children = append(e.Children, html.Span(html.Class("ml-auto"), iconChevronRight()))
+	e.Children = append(e.Children, html.SpanClass("ml-auto", iconChevronRight()))
 	return finish(e, slot, menuItemClasses)
 }

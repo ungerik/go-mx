@@ -34,6 +34,12 @@ func FormLabel(attribsChildren ...any) *mx.Element {
 		labelClasses+" data-[error=true]:text-destructive")
 }
 
+// FormLabelFor is a [FormLabel] bound to the control with the given id
+// as a shortcut for FormLabel(html.For(id), attribsChildren...).
+func FormLabelFor(id string, attribsChildren ...any) *mx.Element {
+	return FormLabel(append([]any{html.For(id)}, attribsChildren...)...)
+}
+
 // FormDescription renders helper text below a control.
 func FormDescription(attribsChildren ...any) *mx.Element {
 	return finish(html.P(attribsChildren...), "form-description", "text-muted-foreground text-sm")

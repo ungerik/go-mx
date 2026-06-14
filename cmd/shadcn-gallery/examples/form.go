@@ -9,8 +9,8 @@ import (
 func FormDemo() mx.Component {
 	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
 		shadcn.FormItem(
-			shadcn.FormLabel(html.For("form-username"), "Username"),
-			shadcn.Input(html.ID("form-username"), html.Placeholder("shadcn")),
+			shadcn.FormLabelFor("form-username", "Username"),
+			shadcn.InputID("form-username", html.Placeholder("shadcn")),
 			shadcn.FormDescription("This is your public display name."),
 		),
 		shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Type("submit"), "Submit"),
@@ -20,8 +20,8 @@ func FormDemo() mx.Component {
 func FormWithError() mx.Component {
 	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
 		shadcn.FormItem(
-			shadcn.FormLabel(html.For("form-email"), html.DataAttr("error", "true"), "Email"),
-			shadcn.Input(html.ID("form-email"), html.Type("email"),
+			shadcn.FormLabelFor("form-email", html.DataAttr("error", "true"), "Email"),
+			shadcn.InputID("form-email", html.Type("email"),
 				html.Value("not-an-email"), html.Attrib("aria-invalid", "true")),
 			shadcn.FormMessage("Please enter a valid email address."),
 		),

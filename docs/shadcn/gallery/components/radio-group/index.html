@@ -250,17 +250,17 @@
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-radio-group-demo-panel-code" aria-labelledby="tab-radio-group-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">RadioGroup</span>(<span class="hl-string">&quot;plan&quot;</span>,
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>,
 		shadcn.<span class="hl-function">RadioGroupItem</span>(<span class="hl-string">&quot;plan&quot;</span>, <span class="hl-string">&quot;default&quot;</span>, html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;r1&quot;</span>), html.Checked),
-		shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;r1&quot;</span>), <span class="hl-string">&quot;Default&quot;</span>),
+		shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;r1&quot;</span>, <span class="hl-string">&quot;Default&quot;</span>),
 	),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>,
 		shadcn.<span class="hl-function">RadioGroupItem</span>(<span class="hl-string">&quot;plan&quot;</span>, <span class="hl-string">&quot;comfortable&quot;</span>, html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;r2&quot;</span>)),
-		shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;r2&quot;</span>), <span class="hl-string">&quot;Comfortable&quot;</span>),
+		shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;r2&quot;</span>, <span class="hl-string">&quot;Comfortable&quot;</span>),
 	),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2&quot;</span>,
 		shadcn.<span class="hl-function">RadioGroupItem</span>(<span class="hl-string">&quot;plan&quot;</span>, <span class="hl-string">&quot;compact&quot;</span>, html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;r3&quot;</span>)),
-		shadcn.<span class="hl-function">Label</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;r3&quot;</span>), <span class="hl-string">&quot;Compact&quot;</span>),
+		shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;r3&quot;</span>, <span class="hl-string">&quot;Compact&quot;</span>),
 	),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>

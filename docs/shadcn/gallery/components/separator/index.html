@@ -250,12 +250,12 @@
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-separator-demo-panel-code" aria-labelledby="tab-separator-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;space-y-1&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;space-y-1&quot;</span>,
 		html.<span class="hl-function">Element</span>(<span class="hl-string">&quot;h4&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-sm leading-none font-medium&quot;</span>), <span class="hl-string">&quot;go-mx&quot;</span>),
-		html.<span class="hl-function">P</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-muted-foreground text-sm&quot;</span>), <span class="hl-string">&quot;An HTML component library for Go.&quot;</span>),
+		html.<span class="hl-function">PClass</span>(<span class="hl-string">&quot;text-muted-foreground text-sm&quot;</span>, <span class="hl-string">&quot;An HTML component library for Go.&quot;</span>),
 	),
 	shadcn.<span class="hl-function">Separator</span>(shadcn.SeparatorHorizontal, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;my-4&quot;</span>)),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex h-5 items-center space-x-4 text-sm&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex h-5 items-center space-x-4 text-sm&quot;</span>,
 		html.<span class="hl-function">Div</span>(<span class="hl-string">&quot;Blog&quot;</span>),
 		shadcn.<span class="hl-function">Separator</span>(shadcn.SeparatorVertical),
 		html.<span class="hl-function">Div</span>(<span class="hl-string">&quot;Docs&quot;</span>),

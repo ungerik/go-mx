@@ -14,8 +14,8 @@ import (
 func (v *Views) ImportReportView() mx.Component {
 	r := v.rep
 	sections := []any{html.Class("mx-auto max-w-3xl"),
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), "Import report"),
-		html.P(html.Class("mt-2 text-muted-foreground"), countsLine(r.Counts)),
+		html.H1Class("text-3xl font-bold tracking-tight", "Import report"),
+		html.PClass("mt-2 text-muted-foreground", countsLine(r.Counts)),
 	}
 	sections = appendComp(sections, v.findingSection("Unknown shortcodes",
 		"Plugin shortcodes can’t run; the delimiters were stripped and the inner content kept.",
@@ -30,10 +30,10 @@ func (v *Views) ImportReportView() mx.Component {
 		"URLs with dangerous schemes (javascript:, data:text/html, …) that were removed.",
 		r.BlockedURLs), "mt-10")
 	if len(r.SkippedItems) > 0 {
-		sections = append(sections, html.Div(html.Class("mt-10"), v.skippedSection(r.SkippedItems)))
+		sections = append(sections, html.DivClass("mt-10", v.skippedSection(r.SkippedItems)))
 	}
 	if reportClean(r) {
-		sections = append(sections, html.Div(html.Class("mt-10"),
+		sections = append(sections, html.DivClass("mt-10",
 			shadcn.Alert(shadcn.AlertDefault,
 				shadcn.AlertTitle("Clean import"),
 				shadcn.AlertDescription("No content issues were found."))))
@@ -50,14 +50,14 @@ func (v *Views) findingSection(title, desc string, fs []Finding) mx.Component {
 	for _, f := range fs {
 		rows = append(rows, html.LI(html.Class("flex flex-wrap items-center gap-2"),
 			shadcn.Badge(shadcn.BadgeSecondary, fmt.Sprintf("×%d", f.Count)),
-			html.Span(html.Class("font-mono text-sm"), f.Name),
-			html.Span(html.Class("text-xs text-muted-foreground"), f.Disposition),
+			html.SpanClass("font-mono text-sm", f.Name),
+			html.SpanClass("text-xs text-muted-foreground", f.Disposition),
 			v.findingPosts(f.PostIDs),
 		))
 	}
 	return html.Section(
-		html.H2(html.Class("text-xl font-semibold"), title),
-		html.P(html.Class("text-sm text-muted-foreground"), desc),
+		html.H2Class("text-xl font-semibold", title),
+		html.PClass("text-sm text-muted-foreground", desc),
 		html.UL(rows...),
 	)
 }
@@ -71,11 +71,11 @@ func (v *Views) findingPosts(ids []int64) mx.Component {
 	for _, id := range ids {
 		label := fmt.Sprintf("#%d", id)
 		if r := v.pl.post[id]; r != "" {
-			links = append(links, html.A(html.HRef(r), html.Class("underline text-muted-foreground"), label))
+			links = append(links, html.AHRef(r, html.Class("underline text-muted-foreground"), label))
 		} else if r := v.pl.page[id]; r != "" {
-			links = append(links, html.A(html.HRef(r), html.Class("underline text-muted-foreground"), label))
+			links = append(links, html.AHRef(r, html.Class("underline text-muted-foreground"), label))
 		} else {
-			links = append(links, html.Span(html.Class("text-muted-foreground"), label))
+			links = append(links, html.SpanClass("text-muted-foreground", label))
 		}
 	}
 	return html.Span(links...)
@@ -91,12 +91,12 @@ func (v *Views) skippedSection(items []SkippedItem) mx.Component {
 		}
 		rows = append(rows, html.LI(
 			shadcn.Badge(shadcn.BadgeOutline, it.PostType),
-			html.Span(html.Class("ml-2"), label),
-			html.Span(html.Class("ml-2 text-muted-foreground"), it.Reason),
+			html.SpanClass("ml-2", label),
+			html.SpanClass("ml-2 text-muted-foreground", it.Reason),
 		))
 	}
 	return html.Section(
-		html.H2(html.Class("text-xl font-semibold"), "Skipped items"),
+		html.H2Class("text-xl font-semibold", "Skipped items"),
 		html.UL(rows...),
 	)
 }

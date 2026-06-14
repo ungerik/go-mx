@@ -112,11 +112,11 @@ import { codeToHtml } from 'https://esm.sh/shiki@1';
 // layout is the two-column shell: a sticky sidebar listing every component and
 // a main column holding the current page's content.
 func layout(reg *Registry, currentSlug string, content mx.Component) mx.Component {
-	return html.Div(html.Class("flex min-h-screen"),
+	return html.DivClass("flex min-h-screen",
 		html.Aside(html.Class("w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground"),
-			html.Div(html.Class("sticky top-0 flex h-screen flex-col"),
-				html.Div(html.Class("flex items-center justify-between border-b px-4 py-3"),
-					html.A(html.HRef(link("/")), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
+			html.DivClass("sticky top-0 flex h-screen flex-col",
+				html.DivClass("flex items-center justify-between border-b px-4 py-3",
+					html.AHRef(link("/"), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
 					shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM,
 						html.OnClick("localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'"),
 						"Theme"),
@@ -127,7 +127,7 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 			),
 		),
 		html.Main(html.Class("min-w-0 flex-1"),
-			html.Div(html.Class("mx-auto max-w-3xl px-8 py-10"),
+			html.DivClass("mx-auto max-w-3xl px-8 py-10",
 				content,
 			),
 		),
@@ -141,7 +141,7 @@ func sidebarLinks(reg *Registry, currentSlug string) mx.Component {
 		if d.Slug == currentSlug {
 			cls = "block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground"
 		}
-		return html.A(html.HRef(link("/components/"+d.Slug)), html.Class(cls), d.Title)
+		return html.AHRef(link("/components/"+d.Slug), html.Class(cls), d.Title)
 	})
 }
 
@@ -149,15 +149,15 @@ func sidebarLinks(reg *Registry, currentSlug string) mx.Component {
 // every component page, mirroring the shadcn/ui components index.
 func indexContent(reg *Registry) mx.Component {
 	return html.Div(
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), "Components"),
-		html.P(html.Class("mt-2 text-lg text-muted-foreground"),
+		html.H1Class("text-3xl font-bold tracking-tight", "Components"),
+		html.PClass("mt-2 text-lg text-muted-foreground",
 			"A go-mx rebuild of the shadcn/ui component docs — every preview is rendered server-side in Go, with its source shown alongside."),
-		html.Div(html.Class("mt-8 grid gap-4 sm:grid-cols-2"),
+		html.DivClass("mt-8 grid gap-4 sm:grid-cols-2",
 			mx.ForEach(reg.Docs, func(d ComponentDoc) mx.Component {
-				return html.A(html.HRef(link("/components/"+d.Slug)),
+				return html.AHRef(link("/components/"+d.Slug),
 					html.Class("rounded-lg border p-4 transition-colors hover:bg-accent"),
-					html.Div(html.Class("font-medium"), d.Title),
-					html.P(html.Class("mt-1 text-sm text-muted-foreground"), d.Description),
+					html.DivClass("font-medium", d.Title),
+					html.PClass("mt-1 text-sm text-muted-foreground", d.Description),
 				)
 			}),
 		),
@@ -172,9 +172,9 @@ func componentContent(d *ComponentDoc) mx.Component {
 		blocks[i] = previewBlock(d.Slug, ex)
 	}
 	return html.Div(
-		html.H1(html.Class("text-3xl font-bold tracking-tight"), d.Title),
-		html.P(html.Class("mt-2 text-lg text-muted-foreground"), d.Description),
-		html.Div(append([]any{html.Class("mt-10")}, blocks...)...),
+		html.H1Class("text-3xl font-bold tracking-tight", d.Title),
+		html.PClass("mt-2 text-lg text-muted-foreground", d.Description),
+		html.DivClass("mt-10", blocks...),
 	)
 }
 
@@ -183,14 +183,14 @@ func componentContent(d *ComponentDoc) mx.Component {
 func previewBlock(slug string, ex Example) mx.Component {
 	id := tabID(slug, ex.Name)
 	return html.Section(html.Class("mb-10"),
-		html.H3(html.Class("mb-3 text-sm font-medium text-muted-foreground"), ex.Name),
+		html.H3Class("mb-3 text-sm font-medium text-muted-foreground", ex.Name),
 		shadcn.Tabs(id,
 			shadcn.TabsList(
 				shadcn.TabsTrigger(id, "preview", true, "Preview"),
 				shadcn.TabsTrigger(id, "code", false, "Code"),
 			),
 			shadcn.TabsContent(id, "preview", true,
-				html.Div(html.Class("mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10"),
+				html.DivClass("mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10",
 					ex.Func(),
 				),
 			),

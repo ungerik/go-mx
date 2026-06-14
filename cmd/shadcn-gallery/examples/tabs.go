@@ -13,11 +13,11 @@ func TabsDemo() mx.Component {
 			shadcn.TabsTrigger("account-tabs", "password", false, "Password"),
 		),
 		shadcn.TabsContent("account-tabs", "account", true,
-			html.P(html.Class("p-2 text-sm text-muted-foreground"),
+			html.PClass("p-2 text-sm text-muted-foreground",
 				"Make changes to your account here. Click save when you're done."),
 		),
 		shadcn.TabsContent("account-tabs", "password", false,
-			html.P(html.Class("p-2 text-sm text-muted-foreground"),
+			html.PClass("p-2 text-sm text-muted-foreground",
 				"Change your password here. After saving, you'll be logged out."),
 		),
 	)

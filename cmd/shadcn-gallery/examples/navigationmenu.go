@@ -12,7 +12,7 @@ func NavigationMenuDemo() mx.Component {
 			shadcn.NavigationMenuItem(
 				shadcn.NavigationMenuTrigger("nm-start", "Getting started"),
 				shadcn.NavigationMenuContent("nm-start", "",
-					html.Div(html.Class("grid w-[320px] gap-1 p-2"),
+					html.DivClass("grid w-[320px] gap-1 p-2",
 						shadcn.NavigationMenuLink(false, html.HRef("#"), "Introduction"),
 						shadcn.NavigationMenuLink(false, html.HRef("#"), "Installation"),
 						shadcn.NavigationMenuLink(true, html.HRef("#"), "Typography"),
@@ -22,7 +22,7 @@ func NavigationMenuDemo() mx.Component {
 			shadcn.NavigationMenuItem(
 				shadcn.NavigationMenuTrigger("nm-components", "Components"),
 				shadcn.NavigationMenuContent("nm-components", "",
-					html.Div(html.Class("grid w-[320px] gap-1 p-2"),
+					html.DivClass("grid w-[320px] gap-1 p-2",
 						shadcn.NavigationMenuLink(false, html.HRef("#"), "Alert Dialog"),
 						shadcn.NavigationMenuLink(false, html.HRef("#"), "Hover Card"),
 						shadcn.NavigationMenuLink(false, html.HRef("#"), "Progress"),

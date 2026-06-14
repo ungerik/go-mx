@@ -14,7 +14,7 @@ func comboItem(label string, selected bool) mx.Component {
 		cls += " opacity-0"
 	}
 	return shadcn.CommandItem(
-		html.Span(html.Class(cls), navIcon("M20 6 9 17l-5-5")),
+		html.SpanClass(cls, navIcon("M20 6 9 17l-5-5")),
 		html.Span(label),
 	)
 }
@@ -28,7 +28,7 @@ func ComboboxDemo() mx.Component {
 		shadcn.PopoverTrigger("demo-combobox",
 			html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)+" w-[200px] justify-between"),
 			html.Span("Next.js"),
-			html.Span(html.Class("opacity-50"), navIcon("m7 15 5 5 5-5", "m7 9 5-5 5 5")),
+			html.SpanClass("opacity-50", navIcon("m7 15 5 5 5-5", "m7 9 5-5 5 5")),
 		),
 		shadcn.PopoverContent("demo-combobox", "",
 			html.Class("w-[200px] p-0"),

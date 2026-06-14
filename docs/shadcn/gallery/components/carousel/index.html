@@ -298,10 +298,10 @@
 	shadcn.<span class="hl-function">CarouselContent</span>(
 		mx.<span class="hl-function">ForEach</span>([]<span class="hl-type">string</span>{<span class="hl-string">&quot;1&quot;</span>, <span class="hl-string">&quot;2&quot;</span>, <span class="hl-string">&quot;3&quot;</span>, <span class="hl-string">&quot;4&quot;</span>, <span class="hl-string">&quot;5&quot;</span>}, <span class="hl-keyword">func</span>(n <span class="hl-type">string</span>) mx.Component {
 			<span class="hl-keyword">return</span> shadcn.<span class="hl-function">CarouselItem</span>(
-				html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;p-1&quot;</span>),
+				html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;p-1&quot;</span>,
 					shadcn.<span class="hl-function">Card</span>(
 						shadcn.<span class="hl-function">CardContent</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;flex aspect-square items-center justify-center p-6&quot;</span>),
-							html.<span class="hl-function">Span</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;text-4xl font-semibold&quot;</span>), n),
+							html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;text-4xl font-semibold&quot;</span>, n),
 						),
 					),
 				),

@@ -251,13 +251,13 @@
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-demo-panel-code" aria-labelledby="tab-scroll-area-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">ScrollArea</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;h-48 w-56 rounded-md border p-4 text-sm&quot;</span>),
-	html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;mb-3 font-medium leading-none&quot;</span>), <span class="hl-string">&quot;Tags&quot;</span>),
+	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;mb-3 font-medium leading-none&quot;</span>, <span class="hl-string">&quot;Tags&quot;</span>),
 	mx.<span class="hl-function">ForEach</span>([]<span class="hl-type">string</span>{
 		<span class="hl-string">&quot;v1.2.0-beta.50&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.49&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.48&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.47&quot;</span>,
 		<span class="hl-string">&quot;v1.2.0-beta.46&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.45&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.44&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.43&quot;</span>,
 		<span class="hl-string">&quot;v1.2.0-beta.42&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.41&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.40&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.39&quot;</span>,
 	}, <span class="hl-keyword">func</span>(tag <span class="hl-type">string</span>) mx.Component {
-		<span class="hl-keyword">return</span> html.<span class="hl-function">Div</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;border-b py-1.5 last:border-b-0&quot;</span>), tag)
+		<span class="hl-keyword">return</span> html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;border-b py-1.5 last:border-b-0&quot;</span>, tag)
 	}),
 )</code></pre></div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>

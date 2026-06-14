@@ -245,8 +245,8 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-form-demo-panel-code" aria-labelledby="tab-form-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Form</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm space-y-6&quot;</span>),
 	shadcn.<span class="hl-function">FormItem</span>(
-		shadcn.<span class="hl-function">FormLabel</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;form-username&quot;</span>), <span class="hl-string">&quot;Username&quot;</span>),
-		shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;form-username&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;shadcn&quot;</span>)),
+		shadcn.<span class="hl-function">FormLabelFor</span>(<span class="hl-string">&quot;form-username&quot;</span>, <span class="hl-string">&quot;Username&quot;</span>),
+		shadcn.<span class="hl-function">InputID</span>(<span class="hl-string">&quot;form-username&quot;</span>, html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;shadcn&quot;</span>)),
 		shadcn.<span class="hl-function">FormDescription</span>(<span class="hl-string">&quot;This is your public display name.&quot;</span>),
 	),
 	shadcn.<span class="hl-function">Button</span>(shadcn.ButtonDefault, shadcn.SizeDefault, html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;submit&quot;</span>), <span class="hl-string">&quot;Submit&quot;</span>),
@@ -275,8 +275,8 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-form-with-error-panel-code" aria-labelledby="tab-form-with-error-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Form</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm space-y-6&quot;</span>),
 	shadcn.<span class="hl-function">FormItem</span>(
-		shadcn.<span class="hl-function">FormLabel</span>(html.<span class="hl-function">For</span>(<span class="hl-string">&quot;form-email&quot;</span>), html.<span class="hl-function">DataAttr</span>(<span class="hl-string">&quot;error&quot;</span>, <span class="hl-string">&quot;true&quot;</span>), <span class="hl-string">&quot;Email&quot;</span>),
-		shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;form-email&quot;</span>), html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>),
+		shadcn.<span class="hl-function">FormLabelFor</span>(<span class="hl-string">&quot;form-email&quot;</span>, html.<span class="hl-function">DataAttr</span>(<span class="hl-string">&quot;error&quot;</span>, <span class="hl-string">&quot;true&quot;</span>), <span class="hl-string">&quot;Email&quot;</span>),
+		shadcn.<span class="hl-function">InputID</span>(<span class="hl-string">&quot;form-email&quot;</span>, html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>),
 			html.<span class="hl-function">Value</span>(<span class="hl-string">&quot;not-an-email&quot;</span>), html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-invalid&quot;</span>, <span class="hl-string">&quot;true&quot;</span>)),
 		shadcn.<span class="hl-function">FormMessage</span>(<span class="hl-string">&quot;Please enter a valid email address.&quot;</span>),
 	),
