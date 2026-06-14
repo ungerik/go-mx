@@ -220,10 +220,12 @@ Order within the phase is by dependency, then complexity.
 - [ ] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
   Checkbox + **Select** + **Pagination**
   Sorting/filtering/pagination done server-side via HTMX fits go-mx well.
-- [ ] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Input + Separator +
-  Skeleton + **Tooltip**
-  Most complex: ~20 sub-parts, collapse state with cookie persistence,
-  keyboard shortcut, mobile (Sheet) vs desktop modes. Build last.
+- [x] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Separator
+  ~18 sub-parts (Provider/Sidebar/Trigger/Inset/Header/Content/Footer/Group*/
+  Menu*/Sub*/Separator). Expand↔icon collapse via a `data-state` on the
+  group/sidebar-wrapper; one shared `sidebarToggle` script persists it to the
+  `sidebar_state` cookie, restores on load, and binds Cmd/Ctrl+B. Floating/
+  inset variants and the mobile-becomes-Sheet behavior are not reproduced.
 
 ---
 

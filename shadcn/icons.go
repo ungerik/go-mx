@@ -77,6 +77,13 @@ func iconX() *mx.Element {
 	return icon("x", "", svgPath("M18 6 6 18"), svgPath("m6 6 12 12"))
 }
 
+// iconPanelLeft is the lucide panel-left icon, the default SidebarTrigger glyph.
+func iconPanelLeft() *mx.Element {
+	return icon("panel-left", "",
+		html.VoidElement("rect", html.Width("18"), html.Height("18"), html.Attrib("x", "3"), html.Attrib("y", "3"), html.Attrib("rx", "2")),
+		svgPath("M9 3v18"))
+}
+
 // iconCircle is a small filled lucide-style dot, used as the
 // DropdownMenuRadioItem indicator (drawn as a tiny solid circle rather
 // than the lucide stroke-only circle since the indicator should be solid).

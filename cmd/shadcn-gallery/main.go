@@ -312,6 +312,14 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "sidebar",
+			Title:       "Sidebar",
+			Description: "A composable, themeable and customizable sidebar that collapses to icons.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.SidebarDemo},
+			},
+		},
+		{
 			Slug:        "skeleton",
 			Title:       "Skeleton",
 			Description: "Use to show a placeholder while content is loading.",
