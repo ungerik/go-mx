@@ -1,5 +1,7 @@
 # wordpress
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/wordpress.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/wordpress)
+
 Import the content of a WordPress site from a **WXR export** (the XML produced by
 WordPress under *Tools → Export*) and re-render it with go-mx + shadcn as a clean
 static site — same structure as the original (posts, pages, archives, navigation,

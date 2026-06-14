@@ -1,5 +1,7 @@
 # svg
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/svg.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/svg)
+
 Maps SVG elements and attributes to go-mx the same way the [`html`](../html)
 package maps HTML: every element is a function returning a `*mx.Element`, and
 every attribute is a function returning an `mx.Attrib`.

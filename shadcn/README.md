@@ -1,5 +1,7 @@
 # shadcn
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/shadcn.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/shadcn)
+
 A Go port of parts of [shadcn/ui](https://ui.shadcn.com), built on the go-mx
 `html` primitives. It contains a growing set of components, the thin `cn`
 class-merging helper, and faithful Go ports of the three npm packages

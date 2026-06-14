@@ -79,9 +79,15 @@ For streaming output or serving over HTTP, render a `Component` into an
   `html`: `xmlns` namespace handling, spec-typed numeric attribute values, and
   typed keyword enums. Use `svg.Root` for a standalone document or `svg.SVG`
   for inline `<svg>`. See [svg/README.md](svg/README.md).
-- **`hx`** — HTMX integration: `hx.Get`, `hx.Post`, `hx.Trigger`. Provides
-  `hx.FieldDecider` that wraps `html.FieldDecider` and adds
-  `hx-trigger="change"` to live inputs.
+- **`hx`** — HTMX integration: request attributes (`hx.Get`, `hx.Post`,
+  `hx.Trigger`, …), with typed values where htmx constrains them — a
+  `hx.SwapStyle` enum for `hx.Swap`, `bool` arguments for `hx.Boost`/
+  `hx.History`/`hx.Validate`, and boolean attributes like `hx.Disable`/
+  `hx.Preserve`. Adds `htmx:` event and `htmx-*` CSS class name constants,
+  plus a server side for HTTP handlers: `hx.IsRequest`/`hx.IsBoosted` request
+  readers and `hx.SetRedirect`/`hx.SetTrigger`/… response-header setters.
+  Provides `hx.FieldDecider` that wraps `html.FieldDecider` and adds
+  `hx-trigger="change"` to live inputs. See [hx/README.md](hx/README.md).
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
   shadcn/ui components and `shadcn.FieldDecider` for Tailwind/shadcn form
   rendering. See [shadcn/README.md](shadcn/README.md).
