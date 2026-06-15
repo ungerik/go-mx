@@ -26,6 +26,25 @@ func TestProcInst(t *testing.T) {
 	}
 }
 
+func TestProcInstIndentedAsChild(t *testing.T) {
+	// A processing instruction used as an element child is broken and indented
+	// to its siblings' depth, the same as a child element; the top-level
+	// declaration stays at column 0.
+	doc := &xml.Document{
+		Declaration: xml.Declaration,
+		Root: xml.Element("root",
+			xml.ProcInst{Target: "xml-stylesheet", Data: `href="s.xsl"`},
+			xml.Element("child", "x"),
+		),
+	}
+	want := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+		"<root>\n" +
+		"  <?xml-stylesheet href=\"s.xsl\"?>\n" +
+		"  <child>x</child>\n" +
+		"</root>"
+	require.Equal(t, want, renderIndent(t, doc))
+}
+
 func TestDeclaration(t *testing.T) {
 	// Declaration and Decl are bare values; the writer adds the line break after
 	// the closing "?>" only when content follows (see TestDocument).

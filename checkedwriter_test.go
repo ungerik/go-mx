@@ -2,11 +2,33 @@ package mx
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// shortWriter accepts at most limit bytes total, then reports a short write:
+// it returns the number of bytes it actually accepted along with an error. It
+// exists to verify CheckedWriter.Write propagates the underlying writer's count
+// instead of discarding it.
+type shortWriter struct {
+	limit   int
+	written int
+}
+
+func (s *shortWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	if s.written+n > s.limit {
+		n = s.limit - s.written
+	}
+	s.written += n
+	if n < len(p) {
+		return n, errors.New("short write")
+	}
+	return n, nil
+}
 
 // procInst renders a raw "<?target?>" processing instruction, the kind of
 // content whose closing "?>" the CheckedWriter recognizes.
@@ -68,5 +90,25 @@ func TestCheckedWriterProcInstNewline(t *testing.T) {
 		var b strings.Builder
 		got := renderTo(t, NewCheckedWriter(&b), Raw("<?a?>\n"))
 		require.Equal(t, "<?a?>", got)
+	})
+
+	t.Run("indented: a processing-instruction child is broken and indented like a sibling", func(t *testing.T) {
+		var b strings.Builder
+		w := NewCheckedWriter(&b).WithIndent("", "  ")
+		// A top-level instruction stays at column 0, but one used as an element
+		// child is indented to its siblings' depth instead of being glued to the
+		// parent's start tag.
+		got := renderTo(t, w, procInst("pi"), NewElement("root", procInst("child-pi"), NewElement("child")))
+		require.Equal(t, "<?pi?>\n<root>\n  <?child-pi?>\n  <child></child>\n</root>", got)
+	})
+
+	t.Run(`short write in the "?>\n" branch reports bytes actually written`, func(t *testing.T) {
+		// The branch strips the trailing newline and writes the 5 leading bytes
+		// "<?a?>"; the sink accepts only 3 and errors. Write must report the 3
+		// bytes the underlying writer accepted, not 0.
+		w := NewCheckedWriter(&shortWriter{limit: 3})
+		n, err := w.Write([]byte("<?a?>\n"))
+		require.Error(t, err)
+		require.Equal(t, 3, n)
 	})
 }

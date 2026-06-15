@@ -62,8 +62,19 @@ func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
 // sits on its own line in both compact and indented output, instead of being
 // glued to the following element. Indentation already breaks the line before
 // the next element (via Newline, which clears the flag first), so no duplicate
-// blank line is produced. Normal HTML/XML markup never ends a Write with "?>",
-// so this is a no-op for everything except processing instructions.
+// blank line is produced.
+//
+// When such an instruction is itself written inside an element's content (a
+// processing instruction used as a child rather than in the document prolog),
+// an indenting writer breaks and indents before it too, matching how
+// BeginElement, Comment and CDATA indent themselves — Write is the only path
+// that reaches the renderer without going through one of those.
+//
+// Escaped text and attribute values never end a Write with "?>" (">" is escaped
+// to "&gt;" and attribute values are quote-terminated), so this is a no-op for
+// ordinary markup. The exception is raw caller-supplied content (mx.Raw,
+// mx.RawBytes) ending in "?>": it is treated like a processing instruction and
+// gets the same line break.
 //
 // A declaration or instruction may already carry a trailing newline (notably
 // the standard library's encoding/xml.Header, which is the XML declaration plus
@@ -76,6 +87,18 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
+	procInst := bytes.HasSuffix(p, []byte("?>")) || bytes.HasSuffix(p, []byte("?>\n"))
+	// A processing instruction written inside an element's content must be
+	// broken and indented before it, just as BeginElement/Comment/CDATA indent
+	// themselves. Newline clears afterProcInst, so the bare break below is
+	// skipped and no duplicate newline results. Top-level instructions (an empty
+	// element stack — a document's declaration and prolog) keep their compact,
+	// un-indented spacing from the afterProcInst path instead.
+	if procInst && w.indent != "" && !w.inStartTag && len(w.elemStack) > 0 {
+		if err := w.Newline(); err != nil {
+			return 0, err
+		}
+	}
 	if w.afterProcInst {
 		w.afterProcInst = false
 		if _, err := w.Writer.Write([]byte{'\n'}); err != nil {
@@ -83,12 +106,14 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 		}
 	}
 	if bytes.HasSuffix(p, []byte("?>\n")) {
-		// Strip the trailing newline and remember the instruction so the
-		// break is emitted by the afterProcInst path on the next Write,
-		// exactly as for a newline-free declaration. All bytes of p are
-		// accounted for, so report len(p) written.
-		if _, err := w.Writer.Write(p[:len(p)-1]); err != nil {
-			return 0, err
+		// Strip the trailing newline and remember the instruction so the break
+		// is emitted by the afterProcInst path on the next Write, exactly as for
+		// a newline-free declaration. On success every byte of p is accounted
+		// for (the dropped newline included), so report len(p); on a short write
+		// report the count the underlying writer actually accepted.
+		n, err := w.Writer.Write(p[:len(p)-1])
+		if err != nil {
+			return n, err
 		}
 		w.afterProcInst = true
 		return len(p), nil
