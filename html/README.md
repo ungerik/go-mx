@@ -174,9 +174,9 @@ Children are passed as `...any` and converted at render-build time by `mx`'s
 | anything else            | go-pretty representation, escaped as text |
 
 Non-`Component` values fall through to the last row: rendered with
-[go-pretty](https://github.com/domonda/go-pretty) as a compact, single-line,
-type-tagged form (e.g. `` Item{Name:`x`;Count:3} ``) and then escaped, so they
-can never inject markup. Because that fallback is silent, a value passed by
+[go-pretty](https://github.com/domonda/go-pretty) as a compact, single-line form
+— structs and pointers tagged with their type name (e.g. `` Item{Name:`x`;Count:3} ``),
+slices and maps kept literal — and then escaped, so they can never inject markup. Because that fallback is silent, a value passed by
 mistake produces no compile error — it renders as text. Convert non-obvious
 children to a `Component` explicitly. The conversion is the `mx.AsComponent`
 variable and can be reassigned to change this behavior.

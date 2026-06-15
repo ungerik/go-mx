@@ -92,7 +92,8 @@ html.Img(html.Src("/logo.png"), html.Alt("Logo"))    // void: no children
 becomes escaped text, a `Component` passes through, a `func` is wrapped, `nil`
 renders nothing, an `error` or `fmt.Stringer` renders its text, and anything
 else is rendered with [go-pretty](https://github.com/domonda/go-pretty) as a
-compact, single-line, type-tagged representation, escaped as text. So you can
+compact, single-line representation (structs and pointers tagged with their
+type name, slices and maps kept literal), escaped as text. So you can
 mix strings and components freely, and a stringified value can never inject
 markup — escaping is done by the writer, so it is the same for HTML, XHTML, SVG
 and XML. (Because the fallback is silent, a value you *meant* as markup but that

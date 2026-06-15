@@ -82,10 +82,10 @@ time, not checked at compile time.
 - `error` / `fmt.Stringer` → `Text` of `Error()` / `String()`
 - anything else → `Text(pretty.Sprint(value))` using
   `github.com/domonda/go-pretty`, rendered as escaped text. `pretty` gives
-  primitives their plain form and other values a compact, single-line,
-  type-tagged dump (e.g. `` Item{Name:`x`;Count:3} `` instead of fmt's
-  anonymous `{x 3}`); it dereferences pointers, keeps the text single-line,
-  and bounds the length. Because it becomes a `Text` node the writer escapes
+  primitives their plain form; structs and pointers get a type-tagged
+  single-line dump (e.g. `` Item{Name:`x`;Count:3} `` instead of fmt's
+  anonymous `{x 3}`) while slices and maps stay literal (`[1,2]`); it
+  dereferences pointers, keeps the text single-line, and bounds the length. Because it becomes a `Text` node the writer escapes
   it on render — so a stringified value can never inject markup, escaping is
   the same for HTML, XHTML, SVG and XML (one `TextEscaper`; escaping is a
   writer concern, so `AsComponent` stays target-agnostic), and escaping the

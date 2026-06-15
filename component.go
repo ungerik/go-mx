@@ -36,12 +36,14 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 // Any other value falls back to Text(pretty.Sprint(c)) using
 // github.com/domonda/go-pretty, giving primitives such as int or bool their
-// plain textual form and any other value a compact, single-line, type-tagged
-// representation (for example "Item{Name:`x`;Count:3}" rather than fmt's
-// anonymous "{x 3}"). go-pretty is preferred over fmt.Sprint here because it
-// dereferences pointers, collapses control characters to escapes so the text
-// stays on one line, names the type, and bounds the length — which makes an
-// unexpected value easy to spot. In every case the result is a [Text] node, so
+// plain textual form and any other value a compact, single-line
+// representation: structs and pointers are tagged with their type name (for
+// example "Item{Name:`x`;Count:3}" rather than fmt's anonymous "{x 3}"), while
+// slices, maps and named scalars keep their literal form (a slice as [1,2], a
+// named string left quoted). go-pretty is preferred over fmt.Sprint here
+// because it dereferences pointers, collapses control characters to escapes so
+// the text stays on one line, and bounds the length — which makes an unexpected
+// value easy to spot. In every case the result is a [Text] node, so
 // the value is escaped by the [Writer] when it is rendered and can never inject
 // markup into the output — escaping is the Writer's job, independent of the
 // target syntax (HTML, XHTML, SVG, XML share the same text-node escaping; see

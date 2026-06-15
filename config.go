@@ -46,9 +46,9 @@ var (
 	// AsComponent converts a value passed as a child into a Component. It
 	// defaults to DefaultAsComponent — see its docs for the recognized types and
 	// the github.com/domonda/go-pretty fallback used to render an unexpected
-	// value as escaped text. Element, component and attribute constructors call
-	// AsComponent indirectly, so assigning a different func changes child
-	// conversion everywhere.
+	// value as escaped text. Element and component constructors route their
+	// children through AsComponent, so assigning a different func changes child
+	// conversion everywhere. (Attribute conversion is separate — see AsAttribs.)
 	//
 	// For example, to turn the silent "unexpected value becomes text" fallback
 	// into a hard failure during development (widen the accepted set to taste):

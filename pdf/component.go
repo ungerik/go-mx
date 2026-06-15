@@ -36,10 +36,12 @@ func (f ComponentFunc) Render(ctx context.Context, r *Renderer) error {
 //
 // Any other value falls back to Text(pretty.Sprint(c)) using
 // github.com/domonda/go-pretty, mirroring the mx package: primitives get their
-// plain textual form and any other value a compact, single-line, type-tagged
-// representation (for example "Item{Name:`x`;Count:3}" rather than fmt's
-// anonymous "{x 3}"), with pointers dereferenced and the length bounded, which
-// makes an unexpected value easy to spot. Unlike the markup packages there is no
+// plain textual form and any other value a compact, single-line representation
+// where structs and pointers are tagged with their type name (for example
+// "Item{Name:`x`;Count:3}" rather than fmt's anonymous "{x 3}") while slices
+// and maps keep their literal form, with pointers dereferenced and the length
+// bounded, which makes an unexpected value easy to spot. Unlike the markup
+// packages there is no
 // escaping step — a PDF is not markup, so a stringified value cannot inject
 // anything; it is simply drawn as text. The flip side is the same as in mx: a
 // value passed by mistake is silently drawn as text rather than causing a
