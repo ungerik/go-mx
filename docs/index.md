@@ -90,8 +90,16 @@ html.Img(html.Src("/logo.png"), html.Alt("Logo"))    // void: no children
 
 **Children conversion.** Children are converted at render-build time: a `string`
 becomes escaped text, a `Component` passes through, a `func` is wrapped, `nil`
-renders nothing, and anything else is stringified and escaped. So you can mix
-strings and components freely.
+renders nothing, an `error` or `fmt.Stringer` renders its text, and anything
+else is rendered with [go-pretty](https://github.com/domonda/go-pretty) as a
+compact, single-line, type-tagged representation, escaped as text. So you can
+mix strings and components freely, and a stringified value can never inject
+markup — escaping is done by the writer, so it is the same for HTML, XHTML, SVG
+and XML. (Because the fallback is silent, a value you *meant* as markup but that
+does not implement `Component` renders as its escaped pretty representation;
+convert such children to a `Component` explicitly.) The conversion is the
+package-level `mx.AsComponent` variable, which you can reassign to change this
+behavior program-wide.
 
 **Attributes.** `html.Class`, `html.ID`, `html.HRef`, `html.Type`, and the rest
 map one-to-one to HTML attributes. Values are escaped. You can also pass a slice,

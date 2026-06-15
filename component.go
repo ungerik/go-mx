@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/domonda/go-errs"
+	pretty "github.com/domonda/go-pretty"
 )
 
 type Component interface {
@@ -27,20 +28,37 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 //   - nil                        -> nil (renders nothing)
 //   - Component                  -> returned unchanged
-//   - string                     -> Text (HTML-escaped on render)
+//   - string                     -> Text (escaped on render)
 //   - the func(...) signatures
 //     in the switch below         -> wrapped as ComponentFunc
+//   - error                      -> Text of error.Error()
+//   - fmt.Stringer               -> Text of String()
 //
-// Any other value falls back to Text(fmt.Sprint(c)). This is convenient
-// for primitives such as int or bool, but it also means a value the
-// caller intended as markup (for example a struct that does not
-// implement Component, or a *T whose method set is on T) is silently
-// stringified into escaped text instead of causing a compile-time
-// error. When a child value is not obviously one of the cases above,
-// convert it to a Component explicitly so mistakes surface.
+// Any other value falls back to Text(pretty.Sprint(c)) using
+// github.com/domonda/go-pretty, giving primitives such as int or bool their
+// plain textual form and any other value a compact, single-line, type-tagged
+// representation (for example "Item{Name:`x`;Count:3}" rather than fmt's
+// anonymous "{x 3}"). go-pretty is preferred over fmt.Sprint here because it
+// dereferences pointers, collapses control characters to escapes so the text
+// stays on one line, names the type, and bounds the length — which makes an
+// unexpected value easy to spot. In every case the result is a [Text] node, so
+// the value is escaped by the [Writer] when it is rendered and can never inject
+// markup into the output — escaping is the Writer's job, independent of the
+// target syntax (HTML, XHTML, SVG, XML share the same text-node escaping; see
+// [TextEscaper]). Escaping the data content is therefore still mandatory; the
+// pretty representation only makes the scaffolding readable, it is not a reason
+// to skip escaping.
+//
+// The flip side is that a value the caller intended as markup but that does not
+// implement Component (a struct, a *T whose Component methods are on T, …) is
+// rendered as its escaped pretty representation rather than as markup, with no
+// compile-time error; convert such a child to a Component explicitly.
 //
 // DefaultAsComponent is the default implementation of the package-level
-// [AsComponent] variable, which may be reassigned to customize this.
+// [AsComponent] variable. Assign a different func to [AsComponent] to change
+// this behavior for the whole program — for example to panic on unexpected
+// types during development, to log them, or to render values with fmt.Sprint or
+// a custom go-pretty [pretty.Printer] instead. See the [AsComponent] docs.
 func DefaultAsComponent(c any) Component {
 	switch c := c.(type) {
 	case nil:
@@ -71,8 +89,16 @@ func DefaultAsComponent(c any) Component {
 		return ComponentFunc(func(ctx context.Context, w Writer) error {
 			return c(ctx).Render(ctx, w)
 		})
+	case error:
+		// Honor textual intent: error and fmt.Stringer render as their own
+		// text. fmt's verbs prefer error.Error over Stringer, so do the same.
+		// (go-pretty would not call these and would dump the struct instead,
+		// skipping unexported fields, so handle them before the default.)
+		return Text(c.Error())
+	case fmt.Stringer:
+		return Text(c.String())
 	default:
-		return Text(fmt.Sprint(c))
+		return Text(pretty.Sprint(c))
 	}
 }
 
