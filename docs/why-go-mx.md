@@ -110,9 +110,10 @@ some distinctive choices:
   gone, but the shadcn components emit Tailwind classes, so you still run a
   Tailwind CSS build (or the CDN). The supply-chain win is real but not total
   on that route.
-- **Function-call markup is noisier than JSX/templates** for some, and has a
-  documented footgun: a non-`Component` value passed as a child silently
-  stringifies to escaped text instead of erroring.
+- **Function-call markup is noisier than JSX/templates** for some, and makes a
+  deliberate trade-off: a non-`Component` value passed as a child stringifies to
+  escaped text (so it can never inject markup) rather than erroring, which means
+  a mistyped child renders as text with no compile-time error.
 - **Go-only, smaller ecosystem.** No Figma-to-React handoff, far fewer
   off-the-shelf components than the React world, and your team has to be a Go
   team.

@@ -14,7 +14,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/domonda/go-pretty v1.0.0 // indirect
+	github.com/domonda/go-pretty v1.0.0
 	github.com/domonda/go-types v0.0.0-20260602065953-00a7c42b5280
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect

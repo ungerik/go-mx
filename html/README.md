@@ -164,17 +164,22 @@ plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
 Children are passed as `...any` and converted at render-build time by `mx`'s
 `AsComponent`:
 
-| You pass        | Renders as                            |
-|-----------------|---------------------------------------|
-| `nil`           | nothing                               |
-| `string`        | escaped `Text`                        |
-| `mx.Component`  | itself (passes through)               |
-| a function      | wrapped as a `ComponentFunc`          |
-| anything else   | `fmt.Sprint`-ed, then escaped as text |
+| You pass                 | Renders as                                |
+|--------------------------|-------------------------------------------|
+| `nil`                    | nothing                                   |
+| `string`                 | escaped `Text`                            |
+| `mx.Component`           | itself (passes through)                   |
+| a function               | wrapped as a `ComponentFunc`              |
+| `error` / `fmt.Stringer` | escaped text of `Error()` / `String()`    |
+| anything else            | go-pretty representation, escaped as text |
 
-Because non-`Component` values fall through to "stringified and escaped," a value
-passed by mistake produces no compile error — it silently renders as text.
-Convert non-obvious children to a `Component` explicitly.
+Non-`Component` values fall through to the last row: rendered with
+[go-pretty](https://github.com/domonda/go-pretty) as a compact, single-line form
+— structs and pointers tagged with their type name (e.g. `` Item{Name:`x`;Count:3} ``),
+slices and maps kept literal — and then escaped, so they can never inject markup. Because that fallback is silent, a value passed by
+mistake produces no compile error — it renders as text. Convert non-obvious
+children to a `Component` explicitly. The conversion is the `mx.AsComponent`
+variable and can be reassigned to change this behavior.
 
 ## Attributes
 

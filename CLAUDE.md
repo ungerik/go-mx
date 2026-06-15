@@ -79,10 +79,26 @@ time, not checked at compile time.
 - `string` → `Text` (escaped)
 - `Component` → passes through
 - Functions → wrapped as `ComponentFunc`
-- anything else → `Text(fmt.Sprint(value))` — stringified and escaped.
-  A non-`Component` value passed by mistake produces no compile error;
-  it silently renders as escaped text. Convert non-obvious children to a
-  `Component` explicitly.
+- `error` / `fmt.Stringer` → `Text` of `Error()` / `String()`
+- anything else → `Text(pretty.Sprint(value))` using
+  `github.com/domonda/go-pretty`, rendered as escaped text. `pretty` gives
+  primitives their plain form; structs and pointers get a type-tagged
+  single-line dump (e.g. `` Item{Name:`x`;Count:3} `` instead of fmt's
+  anonymous `{x 3}`) while slices and maps stay literal (`[1,2]`); it
+  dereferences pointers, keeps the text single-line, and bounds the length. Because it becomes a `Text` node the writer escapes
+  it on render — so a stringified value can never inject markup, escaping is
+  the same for HTML, XHTML, SVG and XML (one `TextEscaper`; escaping is a
+  writer concern, so `AsComponent` stays target-agnostic), and escaping the
+  data content is still mandatory. The trade-off is that a value passed by
+  mistake (a struct that does not implement `Component`, a `*T` whose methods
+  are on `T`, …) is rendered as its escaped pretty representation with no
+  compile error; convert non-obvious children to a `Component` explicitly.
+  The package-level `AsComponent` var (`config.go`) can be reassigned to
+  change this behavior program-wide (e.g. panic/log on unexpected types, or
+  use `fmt.Sprint`). The `pdf` package mirrors all of this — same `error`/
+  `fmt.Stringer`/`pretty.Sprint` cases and a reassignable `pdf.AsComponent`
+  var (`pdf/config.go`) — except there is no escaping step (a PDF is not
+  markup).
 
 **Attribute Conversion** (`DefaultAsAttribs` in `attribs.go`):
 - Single `Attrib`, slices, maps, structs with `attr` tags
