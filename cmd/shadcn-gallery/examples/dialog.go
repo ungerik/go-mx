@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// DialogDemo renders an outline trigger that opens a dialog with a profile-editing form and footer actions.
 func DialogDemo() mx.Component {
 	return shadcn.Dialog(
 		shadcn.DialogTrigger("demo-dialog",

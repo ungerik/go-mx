@@ -13,13 +13,21 @@ type ContentHTML string
 type Status string
 
 const (
+	// StatusPublish marks a published, publicly visible post.
 	StatusPublish Status = "publish"
-	StatusDraft   Status = "draft"
+	// StatusDraft marks an unpublished draft.
+	StatusDraft Status = "draft"
+	// StatusPending marks a post awaiting review before publication.
 	StatusPending Status = "pending"
+	// StatusPrivate marks a published post visible only to authorized users.
 	StatusPrivate Status = "private"
-	StatusFuture  Status = "future"
+	// StatusFuture marks a post scheduled to publish at a future date.
+	StatusFuture Status = "future"
+	// StatusInherit marks a post (typically an attachment) that inherits its
+	// parent's status.
 	StatusInherit Status = "inherit" // attachments inherit their parent's status
-	StatusTrash   Status = "trash"
+	// StatusTrash marks a post moved to the trash.
+	StatusTrash Status = "trash"
 )
 
 // Site is a whole imported WordPress site as pure, encoding/json-serializable

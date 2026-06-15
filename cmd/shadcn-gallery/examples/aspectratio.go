@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// AspectRatioDemo renders an image constrained to a 16:9 aspect ratio.
 func AspectRatioDemo() mx.Component {
 	return html.DivClass("w-full max-w-md",
 		shadcn.AspectRatio(16.0/9.0, html.Class("bg-muted rounded-md"),

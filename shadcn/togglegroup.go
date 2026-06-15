@@ -10,7 +10,9 @@ import (
 type ToggleGroupType string // TODO use go-enum
 
 const (
-	ToggleGroupSingle   ToggleGroupType = "single"
+	// ToggleGroupSingle allows at most one item in the group to be pressed at a time (the default).
+	ToggleGroupSingle ToggleGroupType = "single"
+	// ToggleGroupMultiple allows any number of items in the group to be pressed independently.
 	ToggleGroupMultiple ToggleGroupType = "multiple"
 )
 

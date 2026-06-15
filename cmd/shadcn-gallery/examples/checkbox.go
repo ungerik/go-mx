@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// CheckboxDemo renders a checkbox with a label and supporting description text.
 func CheckboxDemo() mx.Component {
 	return html.DivClass("flex items-start gap-2",
 		shadcn.CheckboxID("terms-cb"),
@@ -17,6 +18,7 @@ func CheckboxDemo() mx.Component {
 	)
 }
 
+// CheckboxChecked renders a checked, labeled checkbox.
 func CheckboxChecked() mx.Component {
 	return html.DivClass("flex items-center gap-2",
 		shadcn.CheckboxID("checked-cb", html.Checked),
@@ -24,6 +26,7 @@ func CheckboxChecked() mx.Component {
 	)
 }
 
+// CheckboxDisabled renders a disabled, labeled checkbox.
 func CheckboxDisabled() mx.Component {
 	return html.DivClass("flex items-center gap-2",
 		shadcn.CheckboxID("disabled-cb", html.Disabled),

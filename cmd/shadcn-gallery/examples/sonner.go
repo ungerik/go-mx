@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// SonnerDemo renders a button that triggers a Sonner toast, plus the toaster container.
 func SonnerDemo() mx.Component {
 	return html.Div(
 		shadcn.Button(shadcn.ButtonOutline, shadcn.SizeDefault,

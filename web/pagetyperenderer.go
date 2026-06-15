@@ -9,12 +9,21 @@ import (
 
 var _ PageRenderer = &PageTypeRenderer{}
 
+// PageTypeRenderer is a PageRenderer that dispatches to a per-Page.Type
+// PageRenderer and a per-Page.ContentType ContentRenderer. When the selected
+// page renderer produces a document without a body, the matching content
+// renderer is used to render Page.Content into the body.
 type PageTypeRenderer struct {
 	DefaultRenderer      PageRenderer
 	PageTypeRenderers    map[string]PageRenderer
 	ContentTypeRenderers map[string]ContentRenderer
 }
 
+// RenderPage selects a PageRenderer by Page.Type (falling back to
+// DefaultRenderer or DefaultPageRenderer), then, if the resulting document has
+// no body and the page has content, renders Page.Content via the
+// ContentRenderer registered for Page.ContentType. It implements the
+// PageRenderer interface.
 func (t *PageTypeRenderer) RenderPage(ctx context.Context, page *Page) (html.Document, error) {
 	r := t.PageTypeRenderers[page.Type]
 	if r == nil {

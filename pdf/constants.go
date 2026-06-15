@@ -21,7 +21,9 @@ const (
 type Orientation string //#enum
 
 const (
-	Portrait  Orientation = fpdf.OrientationPortrait  // "portrait"
+	// Portrait is the upright "portrait" page orientation (taller than wide).
+	Portrait Orientation = fpdf.OrientationPortrait // "portrait"
+	// Landscape is the sideways "landscape" page orientation (wider than tall).
 	Landscape Orientation = fpdf.OrientationLandscape // "landscape"
 )
 
@@ -72,10 +74,14 @@ func (o Orientation) String() string {
 type Unit string //#enum
 
 const (
-	UnitPoint      Unit = fpdf.UnitPoint      // "pt"
+	// UnitPoint is the typographic point unit ("pt", 1/72 inch).
+	UnitPoint Unit = fpdf.UnitPoint // "pt"
+	// UnitMillimeter is the millimeter unit ("mm").
 	UnitMillimeter Unit = fpdf.UnitMillimeter // "mm"
+	// UnitCentimeter is the centimeter unit ("cm").
 	UnitCentimeter Unit = fpdf.UnitCentimeter // "cm"
-	UnitInch       Unit = fpdf.UnitInch       // "inch"
+	// UnitInch is the inch unit ("inch").
+	UnitInch Unit = fpdf.UnitInch // "inch"
 )
 
 // Valid indicates if u is any of the valid values for Unit
@@ -132,17 +138,28 @@ func (u Unit) String() string {
 type PageSize string //#enum
 
 const (
-	A1      PageSize = "A1"                // 594 × 841 mm
-	A2      PageSize = "A2"                // 420 × 594 mm
-	A3      PageSize = fpdf.PageSizeA3     // 297 × 420 mm
-	A4      PageSize = fpdf.PageSizeA4     // 210 × 297 mm
-	A5      PageSize = fpdf.PageSizeA5     // 148 × 210 mm
-	A6      PageSize = "A6"                // 105 × 148 mm
-	A7      PageSize = "A7"                // 74 × 105 mm
-	A8      PageSize = "A8"                // 52 × 74 mm
-	Letter  PageSize = fpdf.PageSizeLetter // 8.5 × 11 in
-	Legal   PageSize = fpdf.PageSizeLegal  // 8.5 × 14 in
-	Tabloid PageSize = "Tabloid"           // 11 × 17 in
+	// A1 is the ISO 216 A1 page size (594 × 841 mm).
+	A1 PageSize = "A1" // 594 × 841 mm
+	// A2 is the ISO 216 A2 page size (420 × 594 mm).
+	A2 PageSize = "A2" // 420 × 594 mm
+	// A3 is the ISO 216 A3 page size (297 × 420 mm).
+	A3 PageSize = fpdf.PageSizeA3 // 297 × 420 mm
+	// A4 is the ISO 216 A4 page size (210 × 297 mm).
+	A4 PageSize = fpdf.PageSizeA4 // 210 × 297 mm
+	// A5 is the ISO 216 A5 page size (148 × 210 mm).
+	A5 PageSize = fpdf.PageSizeA5 // 148 × 210 mm
+	// A6 is the ISO 216 A6 page size (105 × 148 mm).
+	A6 PageSize = "A6" // 105 × 148 mm
+	// A7 is the ISO 216 A7 page size (74 × 105 mm).
+	A7 PageSize = "A7" // 74 × 105 mm
+	// A8 is the ISO 216 A8 page size (52 × 74 mm).
+	A8 PageSize = "A8" // 52 × 74 mm
+	// Letter is the US Letter page size (8.5 × 11 in).
+	Letter PageSize = fpdf.PageSizeLetter // 8.5 × 11 in
+	// Legal is the US Legal page size (8.5 × 14 in).
+	Legal PageSize = fpdf.PageSizeLegal // 8.5 × 14 in
+	// Tabloid is the US Tabloid/Ledger page size (11 × 17 in).
+	Tabloid PageSize = "Tabloid" // 11 × 17 in
 )
 
 // Valid indicates if p is any of the valid values for PageSize
@@ -234,24 +251,40 @@ const (
 type FontStyle string //#enum
 
 const (
-	StyleRegular   FontStyle = ""  // regular
-	StyleBold      FontStyle = "B" // bold
-	StyleItalic    FontStyle = "I" // italic
+	// StyleRegular is the unstyled (regular) font style.
+	StyleRegular FontStyle = "" // regular
+	// StyleBold is the bold (B) font style.
+	StyleBold FontStyle = "B" // bold
+	// StyleItalic is the italic (I) font style.
+	StyleItalic FontStyle = "I" // italic
+	// StyleUnderline is the underline (U) font style.
 	StyleUnderline FontStyle = "U" // underline
+	// StyleStrikeOut is the strike-out (S) font style.
 	StyleStrikeOut FontStyle = "S" // strike-out
 
-	StyleBoldItalic         FontStyle = "BI" // bold + italic
-	StyleBoldUnderline      FontStyle = "BU" // bold + underline
-	StyleBoldStrikeOut      FontStyle = "BS" // bold + strike-out
-	StyleItalicUnderline    FontStyle = "IU" // italic + underline
-	StyleItalicStrikeOut    FontStyle = "IS" // italic + strike-out
+	// StyleBoldItalic combines the bold and italic styles (BI).
+	StyleBoldItalic FontStyle = "BI" // bold + italic
+	// StyleBoldUnderline combines the bold and underline styles (BU).
+	StyleBoldUnderline FontStyle = "BU" // bold + underline
+	// StyleBoldStrikeOut combines the bold and strike-out styles (BS).
+	StyleBoldStrikeOut FontStyle = "BS" // bold + strike-out
+	// StyleItalicUnderline combines the italic and underline styles (IU).
+	StyleItalicUnderline FontStyle = "IU" // italic + underline
+	// StyleItalicStrikeOut combines the italic and strike-out styles (IS).
+	StyleItalicStrikeOut FontStyle = "IS" // italic + strike-out
+	// StyleUnderlineStrikeOut combines the underline and strike-out styles (US).
 	StyleUnderlineStrikeOut FontStyle = "US" // underline + strike-out
 
-	StyleBoldItalicUnderline      FontStyle = "BIU" // bold + italic + underline
-	StyleBoldItalicStrikeOut      FontStyle = "BIS" // bold + italic + strike-out
-	StyleBoldUnderlineStrikeOut   FontStyle = "BUS" // bold + underline + strike-out
+	// StyleBoldItalicUnderline combines the bold, italic and underline styles (BIU).
+	StyleBoldItalicUnderline FontStyle = "BIU" // bold + italic + underline
+	// StyleBoldItalicStrikeOut combines the bold, italic and strike-out styles (BIS).
+	StyleBoldItalicStrikeOut FontStyle = "BIS" // bold + italic + strike-out
+	// StyleBoldUnderlineStrikeOut combines the bold, underline and strike-out styles (BUS).
+	StyleBoldUnderlineStrikeOut FontStyle = "BUS" // bold + underline + strike-out
+	// StyleItalicUnderlineStrikeOut combines the italic, underline and strike-out styles (IUS).
 	StyleItalicUnderlineStrikeOut FontStyle = "IUS" // italic + underline + strike-out
 
+	// StyleBoldItalicUnderlineStrikeOut combines all four styles (BIUS).
 	StyleBoldItalicUnderlineStrikeOut FontStyle = "BIUS" // all four
 )
 
@@ -345,9 +378,13 @@ func (f FontStyle) String() string {
 type HAlign string //#enum
 
 const (
-	AlignLeft    HAlign = "L" // left (default)
-	AlignCenter  HAlign = "C" // center
-	AlignRight   HAlign = "R" // right
+	// AlignLeft aligns text to the left edge of the cell (fpdf default).
+	AlignLeft HAlign = "L" // left (default)
+	// AlignCenter centers text horizontally within the cell.
+	AlignCenter HAlign = "C" // center
+	// AlignRight aligns text to the right edge of the cell.
+	AlignRight HAlign = "R" // right
+	// AlignJustify justifies text to both edges of the cell (MultiCell only).
 	AlignJustify HAlign = "J" // justified (MultiCell only)
 )
 
@@ -402,9 +439,13 @@ func (h HAlign) String() string {
 type VAlign string //#enum
 
 const (
-	AlignTop      VAlign = "T" // top
-	AlignMiddle   VAlign = "M" // middle (default)
-	AlignBottom   VAlign = "B" // bottom
+	// AlignTop aligns text to the top edge of the cell.
+	AlignTop VAlign = "T" // top
+	// AlignMiddle centers text vertically within the cell (fpdf default).
+	AlignMiddle VAlign = "M" // middle (default)
+	// AlignBottom aligns text to the bottom edge of the cell.
+	AlignBottom VAlign = "B" // bottom
+	// AlignBaseline aligns text to the font baseline.
 	AlignBaseline VAlign = "A" // baseline
 )
 
@@ -466,26 +507,43 @@ func (v VAlign) String() string {
 type Border string //#enum
 
 const (
-	BorderNone Border = ""  // no border
+	// BorderNone strokes no cell edge.
+	BorderNone Border = "" // no border
+	// BorderFull strokes all four edges as a single rectangle (fpdf's "1" shorthand).
 	BorderFull Border = "1" // all four edges as a single rectangle stroke
 
-	BorderLeft   Border = "L" // left edge
-	BorderTop    Border = "T" // top edge
-	BorderRight  Border = "R" // right edge
+	// BorderLeft strokes the left edge.
+	BorderLeft Border = "L" // left edge
+	// BorderTop strokes the top edge.
+	BorderTop Border = "T" // top edge
+	// BorderRight strokes the right edge.
+	BorderRight Border = "R" // right edge
+	// BorderBottom strokes the bottom edge.
 	BorderBottom Border = "B" // bottom edge
 
-	BorderLeftTop     Border = "LT" // left + top
-	BorderLeftRight   Border = "LR" // left + right
-	BorderLeftBottom  Border = "LB" // left + bottom
-	BorderTopRight    Border = "TR" // top + right
-	BorderTopBottom   Border = "TB" // top + bottom
+	// BorderLeftTop strokes the left and top edges.
+	BorderLeftTop Border = "LT" // left + top
+	// BorderLeftRight strokes the left and right edges.
+	BorderLeftRight Border = "LR" // left + right
+	// BorderLeftBottom strokes the left and bottom edges.
+	BorderLeftBottom Border = "LB" // left + bottom
+	// BorderTopRight strokes the top and right edges.
+	BorderTopRight Border = "TR" // top + right
+	// BorderTopBottom strokes the top and bottom edges.
+	BorderTopBottom Border = "TB" // top + bottom
+	// BorderRightBottom strokes the right and bottom edges.
 	BorderRightBottom Border = "RB" // right + bottom
 
-	BorderLeftTopRight    Border = "LTR" // left + top + right
-	BorderLeftTopBottom   Border = "LTB" // left + top + bottom
+	// BorderLeftTopRight strokes the left, top and right edges.
+	BorderLeftTopRight Border = "LTR" // left + top + right
+	// BorderLeftTopBottom strokes the left, top and bottom edges.
+	BorderLeftTopBottom Border = "LTB" // left + top + bottom
+	// BorderLeftRightBottom strokes the left, right and bottom edges.
 	BorderLeftRightBottom Border = "LRB" // left + right + bottom
-	BorderTopRightBottom  Border = "TRB" // top + right + bottom
+	// BorderTopRightBottom strokes the top, right and bottom edges.
+	BorderTopRightBottom Border = "TRB" // top + right + bottom
 
+	// BorderLeftTopRightBottom strokes all four edges as separate lines.
 	BorderLeftTopRightBottom Border = "LTRB" // all four edges as separate lines
 )
 
@@ -581,8 +639,11 @@ func (b Border) String() string {
 type DrawOp string //#enum
 
 const (
-	Stroke     DrawOp = "D"  // stroke the outline with the draw color
-	FillShape  DrawOp = "F"  // fill the interior with the fill color
+	// Stroke strokes the shape outline with the draw color.
+	Stroke DrawOp = "D" // stroke the outline with the draw color
+	// FillShape fills the shape interior with the fill color.
+	FillShape DrawOp = "F" // fill the interior with the fill color
+	// FillStroke fills the interior and then strokes the outline.
 	FillStroke DrawOp = "FD" // fill, then stroke
 )
 
@@ -634,9 +695,12 @@ func (d DrawOp) String() string {
 type LnPos int //#enum
 
 const (
-	LnRight   LnPos = 0 // to the right of the cell (default)
+	// LnRight moves the cursor to the right of the cell (fpdf default).
+	LnRight LnPos = 0 // to the right of the cell (default)
+	// LnNewline moves the cursor to the start of the next line.
 	LnNewline LnPos = 1 // to the start of the next line
-	LnBelow   LnPos = 2 // directly below the cell
+	// LnBelow moves the cursor directly below the cell.
+	LnBelow LnPos = 2 // directly below the cell
 )
 
 // Valid indicates if l is any of the valid values for LnPos
@@ -681,8 +745,11 @@ func (LnPos) EnumStrings() []string {
 type LineCapStyle string //#enum
 
 const (
-	CapButt   LineCapStyle = "butt"
-	CapRound  LineCapStyle = "round"
+	// CapButt ends open paths flush at the endpoint with no extension.
+	CapButt LineCapStyle = "butt"
+	// CapRound ends open paths with a semicircular cap centered on the endpoint.
+	CapRound LineCapStyle = "round"
+	// CapSquare ends open paths with a square cap extending half the line width past the endpoint.
 	CapSquare LineCapStyle = "square"
 )
 
@@ -733,8 +800,11 @@ func (l LineCapStyle) String() string {
 type LineJoinStyle string //#enum
 
 const (
+	// JoinMiter joins segments with a sharp, extended corner.
 	JoinMiter LineJoinStyle = "miter"
+	// JoinRound joins segments with a rounded corner.
 	JoinRound LineJoinStyle = "round"
+	// JoinBevel joins segments with a flattened corner.
 	JoinBevel LineJoinStyle = "bevel"
 )
 
@@ -787,9 +857,12 @@ func (l LineJoinStyle) String() string {
 type ImageType string //#enum
 
 const (
-	ImagePNG  ImageType = "png"
+	// ImagePNG is the PNG image encoding.
+	ImagePNG ImageType = "png"
+	// ImageJPEG is the JPEG image encoding.
 	ImageJPEG ImageType = "jpg"
-	ImageGIF  ImageType = "gif"
+	// ImageGIF is the GIF image encoding.
+	ImageGIF ImageType = "gif"
 )
 
 // Valid indicates if i is any of the valid values for ImageType

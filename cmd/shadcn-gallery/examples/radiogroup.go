@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// RadioGroupDemo renders a labeled radio group with the first option preselected.
 func RadioGroupDemo() mx.Component {
 	return shadcn.RadioGroup("plan",
 		html.DivClass("flex items-center gap-2",

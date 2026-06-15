@@ -34,6 +34,7 @@ func navItem(active bool, badge, label string, icon mx.Component) mx.Component {
 	return shadcn.SidebarMenuItem(item...)
 }
 
+// SidebarDemo renders a collapsible app sidebar with header, grouped navigation, footer, and an inset content area.
 func SidebarDemo() mx.Component {
 	return shadcn.SidebarProvider(html.Class("h-[480px] min-h-0 overflow-hidden rounded-lg border"),
 		shadcn.Sidebar(

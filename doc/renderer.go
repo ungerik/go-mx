@@ -5,6 +5,8 @@ import (
 	"io"
 )
 
+// Renderer renders document elements to an io.Writer, allowing different
+// output formats to be plugged in via the context.
 type Renderer interface {
 	RenderParagraphOpening(context.Context, io.Writer, *Paragraph) error
 	RenderParagraphClosing(context.Context, io.Writer, *Paragraph) error
@@ -14,6 +16,8 @@ type Renderer interface {
 
 var rendererKtxKey int
 
+// RendererFromContext returns the Renderer stored in ctx,
+// or DefaultRenderer if none has been set.
 func RendererFromContext(ctx context.Context) Renderer {
 	if r, _ := ctx.Value(&rendererKtxKey).(Renderer); r != nil {
 		return r
@@ -21,6 +25,8 @@ func RendererFromContext(ctx context.Context) Renderer {
 	return DefaultRenderer
 }
 
+// ContextWithRenderer returns a copy of ctx that carries the given renderer,
+// retrievable with RendererFromContext.
 func ContextWithRenderer(ctx context.Context, renderer Renderer) context.Context {
 	return context.WithValue(ctx, &rendererKtxKey, renderer)
 }

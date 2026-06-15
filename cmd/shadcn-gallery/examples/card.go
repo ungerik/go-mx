@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// CardDemo renders a card with header, a labeled input in the content, and footer buttons.
 func CardDemo() mx.Component {
 	return shadcn.Card(html.Class("w-full max-w-sm"),
 		shadcn.CardHeader(

@@ -10,10 +10,14 @@ import (
 type SheetSide string
 
 const (
-	SheetTop    SheetSide = "top"
-	SheetRight  SheetSide = "right"
+	// SheetTop slides the sheet in from the top edge.
+	SheetTop SheetSide = "top"
+	// SheetRight slides the sheet in from the right edge (the default).
+	SheetRight SheetSide = "right"
+	// SheetBottom slides the sheet in from the bottom edge.
 	SheetBottom SheetSide = "bottom"
-	SheetLeft   SheetSide = "left"
+	// SheetLeft slides the sheet in from the left edge.
+	SheetLeft SheetSide = "left"
 )
 
 // Sheet is a Go port of shadcn/ui's Sheet — a Dialog variant that slides in

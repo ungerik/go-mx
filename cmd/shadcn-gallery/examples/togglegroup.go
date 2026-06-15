@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// ToggleGroupDemo renders a multiple-selection toggle group of text-style buttons.
 func ToggleGroupDemo() mx.Component {
 	return shadcn.ToggleGroup(shadcn.ToggleGroupMultiple, shadcn.ToggleOutline, shadcn.ToggleSizeDefault, "text-style",
 		shadcn.ToggleGroupItem("text-style", "bold", shadcn.ToggleOutline, shadcn.ToggleSizeDefault,
@@ -17,6 +18,7 @@ func ToggleGroupDemo() mx.Component {
 	)
 }
 
+// ToggleGroupSingleDemo renders a single-selection toggle group of text-alignment buttons.
 func ToggleGroupSingleDemo() mx.Component {
 	return shadcn.ToggleGroup(shadcn.ToggleGroupSingle, shadcn.ToggleDefault, shadcn.ToggleSizeDefault, "text-align",
 		shadcn.ToggleGroupItem("text-align", "left", shadcn.ToggleDefault, shadcn.ToggleSizeDefault,

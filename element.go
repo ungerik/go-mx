@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// Element is a [Component] for a single markup element with a name, attributes
+// and children. A nil Children means a void (self-closing) element that may not
+// have content; an empty (non-nil) slice means a regular element with no
+// children. A non-nil Err defers a construction error to render time (see
+// [NewErrElement]).
 type Element struct {
 	Name     string
 	Attribs  []Attrib
@@ -12,6 +17,13 @@ type Element struct {
 	Err      error      // if non-nil, Render returns it instead of rendering; see NewErrElement
 }
 
+// NewElement builds a regular (non-void) Element with the given name, sorting
+// the variadic attribsChildren into attributes and children: each argument that
+// [AsAttribs] recognizes as attributes is appended to Attribs, every other
+// non-nil argument is converted with [AsComponent] and appended to Children. Nil
+// arguments are ignored. The returned element always has a non-nil (possibly
+// empty) Children slice, so it renders with a separate closing tag rather than
+// as a void element.
 func NewElement(name string, attribsChildren ...any) *Element {
 	e := &Element{Name: name, Children: []Component{}}
 	for _, ac := range attribsChildren {
@@ -27,6 +39,9 @@ func NewElement(name string, attribsChildren ...any) *Element {
 	return e
 }
 
+// NewVoidElement builds a void (self-closing) Element with the given name and
+// attributes. Its Children is nil, so it renders without a closing tag and
+// cannot hold content (for example <img> or <br>).
 func NewVoidElement(name string, attribs ...Attrib) *Element {
 	return &Element{Name: name, Attribs: attribs}
 }
@@ -40,6 +55,11 @@ func NewErrElement(err error) *Element {
 	return &Element{Err: err}
 }
 
+// Render writes the element and its children to w. It first returns Err if set
+// (the deferred-error pattern) and then the context error if the context is
+// done. Each attribute's value is resolved via [Attrib.AttribValue] with ctx,
+// aborting on the first error. A void element (nil Children) is closed without
+// content; otherwise the children are rendered between the start and end tags.
 func (e *Element) Render(ctx context.Context, w Writer) error {
 	if e.Err != nil {
 		return e.Err
@@ -79,6 +99,10 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	return w.EndElement()
 }
 
+// String renders the element to a string using a [CheckedWriter] with
+// single-quoted attributes and a background context. It is meant for tests and
+// debugging; a render error (including a deferred Err) is returned as
+// "mx.Element.String: " followed by the error message.
 func (e *Element) String() string {
 	var b strings.Builder
 	err := e.Render(context.Background(), NewCheckedWriter(&b).WithSingleQuoteAttribs())
@@ -88,6 +112,8 @@ func (e *Element) String() string {
 	return b.String()
 }
 
+// AttribIndex returns the index of the first attribute with the given name in
+// Attribs, or -1 if none has that name.
 func (e *Element) AttribIndex(name string) int {
 	for i, a := range e.Attribs {
 		if a.AttribName() == name {

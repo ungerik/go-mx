@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// SkeletonDemo renders skeleton placeholders for an avatar and two text lines.
 func SkeletonDemo() mx.Component {
 	return html.DivClass("flex items-center space-x-4",
 		shadcn.Skeleton(html.Class("size-12 rounded-full")),

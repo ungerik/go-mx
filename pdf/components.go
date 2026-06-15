@@ -8,6 +8,8 @@ var _ Component = Components{}
 // PDF counterpart of mx.Components. A nil element renders nothing.
 type Components []Component
 
+// Render draws each component in order, skipping nil elements, and stops at the
+// first error.
 func (cs Components) Render(ctx context.Context, r *Renderer) error {
 	for _, c := range cs {
 		if c == nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// BreadcrumbDemo renders a breadcrumb trail of links ending in the current page.
 func BreadcrumbDemo() mx.Component {
 	return shadcn.Breadcrumb(
 		shadcn.BreadcrumbList(
@@ -18,6 +19,7 @@ func BreadcrumbDemo() mx.Component {
 	)
 }
 
+// BreadcrumbWithEllipsis renders a breadcrumb trail with an ellipsis collapsing intermediate items.
 func BreadcrumbWithEllipsis() mx.Component {
 	return shadcn.Breadcrumb(
 		shadcn.BreadcrumbList(

@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// SelectDemo renders a select dropdown with a single group of fruit options.
 func SelectDemo() mx.Component {
 	return shadcn.Select(html.Name("fruit"), html.Class("w-[180px]"),
 		shadcn.SelectGroup("Fruits",

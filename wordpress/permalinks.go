@@ -14,9 +14,13 @@ import (
 type PermalinkStyle string
 
 const (
-	PermalinkSlug  PermalinkStyle = "slug"  // /slug/
+	// PermalinkSlug lays out posts by slug, e.g. /slug/.
+	PermalinkSlug PermalinkStyle = "slug" // /slug/
+	// PermalinkDated lays out posts by publication date and slug, e.g.
+	// /2006/01/slug/.
 	PermalinkDated PermalinkStyle = "dated" // /2006/01/slug/
-	PermalinkID    PermalinkStyle = "id"    // /p/123/
+	// PermalinkID lays out posts by numeric ID, e.g. /p/123/.
+	PermalinkID PermalinkStyle = "id" // /p/123/
 )
 
 // reservedWindows are device names that cannot be path segments on Windows.
@@ -206,12 +210,23 @@ func (pl *permalinks) resolve(raw string) string {
 	return ""
 }
 
-func (pl *permalinks) PostPath(p *Post) string         { return pl.post[p.ID] }
-func (pl *permalinks) PagePath(p *Page) string         { return pl.page[p.ID] }
+// PostPath returns the local route allocated for the given post.
+func (pl *permalinks) PostPath(p *Post) string { return pl.post[p.ID] }
+
+// PagePath returns the local route allocated for the given page.
+func (pl *permalinks) PagePath(p *Page) string { return pl.page[p.ID] }
+
+// CategoryPath returns the local route for the category with the given slug.
 func (pl *permalinks) CategoryPath(slug string) string { return pl.cat[slug] }
-func (pl *permalinks) TagPath(slug string) string      { return pl.tag[slug] }
-func (pl *permalinks) AuthorPath(login string) string  { return pl.author[login] }
-func (pl *permalinks) HomePath() string                { return pl.home }
+
+// TagPath returns the local route for the tag with the given slug.
+func (pl *permalinks) TagPath(slug string) string { return pl.tag[slug] }
+
+// AuthorPath returns the local route for the author with the given login.
+func (pl *permalinks) AuthorPath(login string) string { return pl.author[login] }
+
+// HomePath returns the local route for the site home page.
+func (pl *permalinks) HomePath() string { return pl.home }
 
 func slugOr(slug, kind string, id int64) string {
 	if s := safeSlug(slug); s != "" {

@@ -11,7 +11,9 @@ import (
 type ToggleVariant string // TODO use go-enum
 
 const (
+	// ToggleDefault is the default toggle style, transparent until pressed.
 	ToggleDefault ToggleVariant = "default"
+	// ToggleOutline styles the toggle with a visible border.
 	ToggleOutline ToggleVariant = "outline"
 )
 
@@ -20,9 +22,12 @@ const (
 type ToggleSize string // TODO use go-enum
 
 const (
+	// ToggleSizeDefault is the default toggle size.
 	ToggleSizeDefault ToggleSize = "default"
-	ToggleSizeSM      ToggleSize = "sm"
-	ToggleSizeLG      ToggleSize = "lg"
+	// ToggleSizeSM is the small toggle size.
+	ToggleSizeSM ToggleSize = "sm"
+	// ToggleSizeLG is the large toggle size.
+	ToggleSizeLG ToggleSize = "lg"
 )
 
 // toggleVariants resolves a toggle's base + variant + size classes, declared

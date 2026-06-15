@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// CollapsibleDemo renders a collapsible section with a trigger and expandable content.
 func CollapsibleDemo() mx.Component {
 	return shadcn.Collapsible(html.Class("w-full max-w-sm space-y-2"),
 		shadcn.CollapsibleTrigger(

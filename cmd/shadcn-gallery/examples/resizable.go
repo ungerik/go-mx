@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// ResizableDemo renders two horizontally resizable panels separated by a drag handle.
 func ResizableDemo() mx.Component {
 	return shadcn.ResizablePanelGroup(shadcn.ResizeHorizontal,
 		html.Class("h-[200px] max-w-md rounded-lg border md:min-w-[450px]"),

@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// PopoverDemo renders an outline trigger button that opens a popover with content.
 func PopoverDemo() mx.Component {
 	return shadcn.Popover(
 		shadcn.PopoverTrigger("demo-popover",

@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// DrawerDemo renders an outline trigger that opens a drawer with a header, body, and footer actions.
 func DrawerDemo() mx.Component {
 	return shadcn.Drawer(
 		shadcn.DrawerTrigger("demo-drawer",

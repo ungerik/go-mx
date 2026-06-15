@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// CarouselDemo renders a basic card carousel with previous and next navigation arrows.
 func CarouselDemo() mx.Component {
 	return shadcn.Carousel(html.Class("mx-auto w-full max-w-xs"),
 		shadcn.CarouselContent(

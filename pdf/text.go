@@ -11,6 +11,8 @@ import (
 // height and advances the cursor; embedded "\n" force line breaks.
 type Text string
 
+// Render draws the text at the current cursor, wrapping at the right margin and
+// advancing the cursor.
 func (t Text) Render(ctx context.Context, r *Renderer) error {
 	if err := ctx.Err(); err != nil {
 		return err
