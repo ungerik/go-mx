@@ -79,6 +79,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   `html`: `xmlns` namespace handling, spec-typed numeric attribute values, and
   typed keyword enums. Use `svg.Root` for a standalone document or `svg.SVG`
   for inline `<svg>`. See [svg/README.md](svg/README.md).
+- **`xml`** — generic XML markup: `xml.Element`/`xml.EmptyElement` and
+  `xml.Attrib` take any name (XML has no fixed vocabulary), with `…NS`
+  namespace-prefix shortcuts, plus the XML-specific constructs `xml.Comment`,
+  `xml.CDATA`, `xml.ProcInst`, `xml.Declaration`/`xml.Decl` and `xml.Doctype`,
+  and an `xml.Document` for full documents. See [xml/README.md](xml/README.md).
 - **`hx`** — HTMX integration: request attributes (`hx.Get`, `hx.Post`,
   `hx.Trigger`, …), with typed values where htmx constrains them — a
   `hx.SwapStyle` enum for `hx.Swap`, `bool` arguments for `hx.Boost`/

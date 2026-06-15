@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ type CheckedWriter struct {
 	inStartTag     bool
 	writtenAttribs map[string]struct{}
 	elemStack      []elemState
+	afterProcInst  bool // previous Write ended a processing instruction ("?>")
 }
 
 func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
@@ -48,7 +50,54 @@ func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
 		inStartTag:     false,
 		writtenAttribs: make(map[string]struct{}),
 		elemStack:      nil,
+		afterProcInst:  false,
 	}
+}
+
+// Write writes p to the underlying writer, overriding the embedded io.Writer so
+// the renderer can recognize XML processing instructions. A processing
+// instruction or XML declaration (xml.Declaration, xml.ProcInst, …) is written
+// raw and ends with "?>". When the previous Write ended one, a newline is
+// inserted before the next written content so the declaration or instruction
+// sits on its own line in both compact and indented output, instead of being
+// glued to the following element. Indentation already breaks the line before
+// the next element (via Newline, which clears the flag first), so no duplicate
+// blank line is produced. Normal HTML/XML markup never ends a Write with "?>",
+// so this is a no-op for everything except processing instructions.
+//
+// A declaration or instruction may already carry a trailing newline (notably
+// the standard library's encoding/xml.Header, which is the XML declaration plus
+// "\n"). That newline is dropped and the "?>" recognized, so such a value
+// renders identically to the newline-free xml.Declaration: the separating line
+// break is produced uniformly by the logic above rather than stacking on the
+// value's own newline and the one an indenting writer inserts before the next
+// element.
+func (w *CheckedWriter) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if w.afterProcInst {
+		w.afterProcInst = false
+		if _, err := w.Writer.Write([]byte{'\n'}); err != nil {
+			return 0, err
+		}
+	}
+	if bytes.HasSuffix(p, []byte("?>\n")) {
+		// Strip the trailing newline and remember the instruction so the
+		// break is emitted by the afterProcInst path on the next Write,
+		// exactly as for a newline-free declaration. All bytes of p are
+		// accounted for, so report len(p) written.
+		if _, err := w.Writer.Write(p[:len(p)-1]); err != nil {
+			return 0, err
+		}
+		w.afterProcInst = true
+		return len(p), nil
+	}
+	n, err := w.Writer.Write(p)
+	if err == nil {
+		w.afterProcInst = bytes.HasSuffix(p, []byte("?>"))
+	}
+	return n, err
 }
 
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
@@ -200,6 +249,9 @@ func (w *CheckedWriter) CDATA(text string) error {
 }
 
 func (w *CheckedWriter) Newline() error {
+	// Indentation provides this line break itself, so clear the
+	// processing-instruction flag to avoid Write inserting a second newline.
+	w.afterProcInst = false
 	_, err := w.Write([]byte{'\n'})
 	if err != nil {
 		return err
