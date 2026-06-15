@@ -118,6 +118,7 @@ with the same name on one element), and can pretty-print with
 |--------------|----------------------------------------------------------------------|
 | `html`       | HTML5 elements (`Div`, `Span`, `Input`, …) and attributes (`Class`, `ID`, …) |
 | `svg`        | SVG elements and attributes, with `xmlns` handling and numeric values |
+| `xml`        | Generic XML markup: `Element`/`Attrib` take any name (no fixed vocabulary), plus `Comment`, `CDATA`, `ProcInst`, the XML declaration and a `Document` |
 | `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, plus request readers and response-header setters for handlers |
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
