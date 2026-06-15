@@ -53,4 +53,20 @@ func TestCheckedWriterProcInstNewline(t *testing.T) {
 		got := renderTo(t, NewCheckedWriter(&b), NewElement("p", Text("1 > 0 ?>"), NewElement("br")))
 		require.Equal(t, "<p>1 &gt; 0 ?&gt;<br></br></p>", got)
 	})
+
+	t.Run(`trailing newline after "?>" is dropped (encoding/xml.Header)`, func(t *testing.T) {
+		var b strings.Builder
+		// A declaration carrying its own trailing newline (like the standard
+		// library's encoding/xml.Header) renders identically to the newline-free
+		// form: the "\n" is dropped and the single break before the next element
+		// is produced by the writer, not stacked on the value's own newline.
+		got := renderTo(t, NewCheckedWriter(&b), Raw("<?xml version=\"1.0\"?>\n"), NewElement("root"))
+		require.Equal(t, "<?xml version=\"1.0\"?>\n<root></root>", got)
+	})
+
+	t.Run(`trailing newline after "?>" with nothing following adds no break`, func(t *testing.T) {
+		var b strings.Builder
+		got := renderTo(t, NewCheckedWriter(&b), Raw("<?a?>\n"))
+		require.Equal(t, "<?a?>", got)
+	})
 }
