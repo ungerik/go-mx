@@ -32,7 +32,9 @@ import (
 type FillRule string //#enum
 
 const (
+	// FillRuleNonzero fills using the nonzero winding-number rule.
 	FillRuleNonzero FillRule = "nonzero"
+	// FillRuleEvenodd fills using the even-odd rule.
 	FillRuleEvenodd FillRule = "evenodd"
 )
 
@@ -76,14 +78,20 @@ func (v FillRule) String() string {
 	return string(v)
 }
 
-func (v FillRule) AttribName() string                          { return "fill-rule" }
+// AttribName returns the "fill-rule" attribute name.
+func (v FillRule) AttribName() string { return "fill-rule" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FillRule) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ClipRule is the SVG clip-rule presentation attribute (an enumerated keyword).
 type ClipRule string //#enum
 
 const (
+	// ClipRuleNonzero clips using the nonzero winding-number rule.
 	ClipRuleNonzero ClipRule = "nonzero"
+	// ClipRuleEvenodd clips using the even-odd rule.
 	ClipRuleEvenodd ClipRule = "evenodd"
 )
 
@@ -127,15 +135,22 @@ func (v ClipRule) String() string {
 	return string(v)
 }
 
-func (v ClipRule) AttribName() string                          { return "clip-rule" }
+// AttribName returns the "clip-rule" attribute name.
+func (v ClipRule) AttribName() string { return "clip-rule" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ClipRule) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // StrokeLineCap is the SVG stroke-linecap presentation attribute.
 type StrokeLineCap string //#enum
 
 const (
-	StrokeLineCapButt   StrokeLineCap = "butt"
-	StrokeLineCapRound  StrokeLineCap = "round"
+	// StrokeLineCapButt ends the stroke flush at the path endpoint with no extension.
+	StrokeLineCapButt StrokeLineCap = "butt"
+	// StrokeLineCapRound ends the stroke with a half-circle extending past the endpoint.
+	StrokeLineCapRound StrokeLineCap = "round"
+	// StrokeLineCapSquare ends the stroke with a square extending half the stroke width past the endpoint.
 	StrokeLineCapSquare StrokeLineCap = "square"
 )
 
@@ -182,18 +197,27 @@ func (v StrokeLineCap) String() string {
 	return string(v)
 }
 
-func (v StrokeLineCap) AttribName() string                          { return "stroke-linecap" }
+// AttribName returns the "stroke-linecap" attribute name.
+func (v StrokeLineCap) AttribName() string { return "stroke-linecap" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v StrokeLineCap) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // StrokeLineJoin is the SVG stroke-linejoin presentation attribute.
 type StrokeLineJoin string //#enum
 
 const (
-	StrokeLineJoinArcs      StrokeLineJoin = "arcs"
-	StrokeLineJoinBevel     StrokeLineJoin = "bevel"
-	StrokeLineJoinMiter     StrokeLineJoin = "miter"
+	// StrokeLineJoinArcs joins path segments with an arc that continues the stroke outlines.
+	StrokeLineJoinArcs StrokeLineJoin = "arcs"
+	// StrokeLineJoinBevel joins path segments with a flattened (beveled) corner.
+	StrokeLineJoinBevel StrokeLineJoin = "bevel"
+	// StrokeLineJoinMiter joins path segments with a sharp mitered corner.
+	StrokeLineJoinMiter StrokeLineJoin = "miter"
+	// StrokeLineJoinMiterClip mitres the corner but clips it at the miter limit instead of falling back to bevel.
 	StrokeLineJoinMiterClip StrokeLineJoin = "miter-clip"
-	StrokeLineJoinRound     StrokeLineJoin = "round"
+	// StrokeLineJoinRound joins path segments with a rounded corner.
+	StrokeLineJoinRound StrokeLineJoin = "round"
 )
 
 // Valid indicates if v is any of the valid values for StrokeLineJoin
@@ -245,7 +269,11 @@ func (v StrokeLineJoin) String() string {
 	return string(v)
 }
 
-func (v StrokeLineJoin) AttribName() string                          { return "stroke-linejoin" }
+// AttribName returns the "stroke-linejoin" attribute name.
+func (v StrokeLineJoin) AttribName() string { return "stroke-linejoin" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v StrokeLineJoin) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // General presentation
@@ -254,8 +282,11 @@ func (v StrokeLineJoin) AttribValue(context.Context) (string, error) { return st
 type Visibility string //#enum
 
 const (
-	VisibilityVisible  Visibility = "visible"
-	VisibilityHidden   Visibility = "hidden"
+	// VisibilityVisible renders the element.
+	VisibilityVisible Visibility = "visible"
+	// VisibilityHidden hides the element while keeping its layout box.
+	VisibilityHidden Visibility = "hidden"
+	// VisibilityCollapse hides the element (treated like hidden outside of table contexts).
 	VisibilityCollapse Visibility = "collapse"
 )
 
@@ -302,17 +333,25 @@ func (v Visibility) String() string {
 	return string(v)
 }
 
-func (v Visibility) AttribName() string                          { return "visibility" }
+// AttribName returns the "visibility" attribute name.
+func (v Visibility) AttribName() string { return "visibility" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Visibility) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Overflow is the SVG overflow presentation attribute.
 type Overflow string //#enum
 
 const (
+	// OverflowVisible lets content overflow the element's bounds without clipping.
 	OverflowVisible Overflow = "visible"
-	OverflowHidden  Overflow = "hidden"
-	OverflowScroll  Overflow = "scroll"
-	OverflowAuto    Overflow = "auto"
+	// OverflowHidden clips content to the element's bounds.
+	OverflowHidden Overflow = "hidden"
+	// OverflowScroll clips content to the element's bounds (a scroll mechanism may be provided).
+	OverflowScroll Overflow = "scroll"
+	// OverflowAuto lets the user agent decide how to handle overflow (typically visible for SVG).
+	OverflowAuto Overflow = "auto"
 )
 
 // Valid indicates if v is any of the valid values for Overflow
@@ -361,23 +400,37 @@ func (v Overflow) String() string {
 	return string(v)
 }
 
-func (v Overflow) AttribName() string                          { return "overflow" }
+// AttribName returns the "overflow" attribute name.
+func (v Overflow) AttribName() string { return "overflow" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Overflow) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // PointerEvents is the SVG pointer-events presentation attribute.
 type PointerEvents string //#enum
 
 const (
-	PointerEventsBoundingBox    PointerEvents = "bounding-box"
+	// PointerEventsBoundingBox makes the element's bounding box capture pointer events.
+	PointerEventsBoundingBox PointerEvents = "bounding-box"
+	// PointerEventsVisiblePainted captures pointer events on painted, visible fill and stroke areas.
 	PointerEventsVisiblePainted PointerEvents = "visiblePainted"
-	PointerEventsVisibleFill    PointerEvents = "visibleFill"
-	PointerEventsVisibleStroke  PointerEvents = "visibleStroke"
-	PointerEventsVisible        PointerEvents = "visible"
-	PointerEventsPainted        PointerEvents = "painted"
-	PointerEventsFill           PointerEvents = "fill"
-	PointerEventsStroke         PointerEvents = "stroke"
-	PointerEventsAll            PointerEvents = "all"
-	PointerEventsNone           PointerEvents = "none"
+	// PointerEventsVisibleFill captures pointer events on the visible fill area regardless of paint.
+	PointerEventsVisibleFill PointerEvents = "visibleFill"
+	// PointerEventsVisibleStroke captures pointer events on the visible stroke area regardless of paint.
+	PointerEventsVisibleStroke PointerEvents = "visibleStroke"
+	// PointerEventsVisible captures pointer events on visible fill and stroke areas regardless of paint.
+	PointerEventsVisible PointerEvents = "visible"
+	// PointerEventsPainted captures pointer events on painted fill and stroke areas regardless of visibility.
+	PointerEventsPainted PointerEvents = "painted"
+	// PointerEventsFill captures pointer events on the fill area regardless of paint or visibility.
+	PointerEventsFill PointerEvents = "fill"
+	// PointerEventsStroke captures pointer events on the stroke area regardless of paint or visibility.
+	PointerEventsStroke PointerEvents = "stroke"
+	// PointerEventsAll captures pointer events anywhere within the element regardless of paint or visibility.
+	PointerEventsAll PointerEvents = "all"
+	// PointerEventsNone makes the element ignore pointer events.
+	PointerEventsNone PointerEvents = "none"
 )
 
 // Valid indicates if v is any of the valid values for PointerEvents
@@ -444,16 +497,24 @@ func (v PointerEvents) String() string {
 	return string(v)
 }
 
-func (v PointerEvents) AttribName() string                          { return "pointer-events" }
+// AttribName returns the "pointer-events" attribute name.
+func (v PointerEvents) AttribName() string { return "pointer-events" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v PointerEvents) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ShapeRendering is the SVG shape-rendering presentation attribute.
 type ShapeRendering string //#enum
 
 const (
-	ShapeRenderingAuto               ShapeRendering = "auto"
-	ShapeRenderingOptimizeSpeed      ShapeRendering = "optimizeSpeed"
-	ShapeRenderingCrispEdges         ShapeRendering = "crispEdges"
+	// ShapeRenderingAuto lets the user agent balance speed, edge crispness and geometric precision.
+	ShapeRenderingAuto ShapeRendering = "auto"
+	// ShapeRenderingOptimizeSpeed favors rendering speed, disabling anti-aliasing.
+	ShapeRenderingOptimizeSpeed ShapeRendering = "optimizeSpeed"
+	// ShapeRenderingCrispEdges favors sharp contrast edges over geometric accuracy.
+	ShapeRenderingCrispEdges ShapeRendering = "crispEdges"
+	// ShapeRenderingGeometricPrecision favors geometric accuracy over speed and crisp edges.
 	ShapeRenderingGeometricPrecision ShapeRendering = "geometricPrecision"
 )
 
@@ -503,18 +564,27 @@ func (v ShapeRendering) String() string {
 	return string(v)
 }
 
-func (v ShapeRendering) AttribName() string                          { return "shape-rendering" }
+// AttribName returns the "shape-rendering" attribute name.
+func (v ShapeRendering) AttribName() string { return "shape-rendering" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ShapeRendering) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // VectorEffect is the SVG vector-effect presentation attribute.
 type VectorEffect string //#enum
 
 const (
-	VectorEffectNone             VectorEffect = "none"
+	// VectorEffectNone applies no vector effect.
+	VectorEffectNone VectorEffect = "none"
+	// VectorEffectNonScalingStroke keeps the stroke width constant regardless of transforms or zoom.
 	VectorEffectNonScalingStroke VectorEffect = "non-scaling-stroke"
-	VectorEffectNonScalingSize   VectorEffect = "non-scaling-size"
-	VectorEffectNonRotation      VectorEffect = "non-rotation"
-	VectorEffectFixedPosition    VectorEffect = "fixed-position"
+	// VectorEffectNonScalingSize keeps the element's size constant regardless of transforms or zoom.
+	VectorEffectNonScalingSize VectorEffect = "non-scaling-size"
+	// VectorEffectNonRotation keeps the element unrotated regardless of transforms.
+	VectorEffectNonRotation VectorEffect = "non-rotation"
+	// VectorEffectFixedPosition keeps the element at a fixed position regardless of transforms.
+	VectorEffectFixedPosition VectorEffect = "fixed-position"
 )
 
 // Valid indicates if v is any of the valid values for VectorEffect
@@ -566,14 +636,20 @@ func (v VectorEffect) String() string {
 	return string(v)
 }
 
-func (v VectorEffect) AttribName() string                          { return "vector-effect" }
+// AttribName returns the "vector-effect" attribute name.
+func (v VectorEffect) AttribName() string { return "vector-effect" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v VectorEffect) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Isolation is the SVG isolation presentation attribute.
 type Isolation string //#enum
 
 const (
-	IsolationAuto    Isolation = "auto"
+	// IsolationAuto isolates the element only when a property forcing a stacking context requires it.
+	IsolationAuto Isolation = "auto"
+	// IsolationIsolate creates a new stacking context so blend modes do not reach below it.
 	IsolationIsolate Isolation = "isolate"
 )
 
@@ -617,15 +693,22 @@ func (v Isolation) String() string {
 	return string(v)
 }
 
-func (v Isolation) AttribName() string                          { return "isolation" }
+// AttribName returns the "isolation" attribute name.
+func (v Isolation) AttribName() string { return "isolation" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Isolation) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ColorInterpolation is the SVG color-interpolation presentation attribute.
 type ColorInterpolation string //#enum
 
 const (
-	ColorInterpolationAuto      ColorInterpolation = "auto"
-	ColorInterpolationSRGB      ColorInterpolation = "sRGB"
+	// ColorInterpolationAuto lets the user agent choose the color space for interpolation.
+	ColorInterpolationAuto ColorInterpolation = "auto"
+	// ColorInterpolationSRGB interpolates colors in the sRGB color space.
+	ColorInterpolationSRGB ColorInterpolation = "sRGB"
+	// ColorInterpolationLinearRGB interpolates colors in the linearized RGB color space.
 	ColorInterpolationLinearRGB ColorInterpolation = "linearRGB"
 )
 
@@ -672,7 +755,11 @@ func (v ColorInterpolation) String() string {
 	return string(v)
 }
 
+// AttribName returns the "color-interpolation" attribute name.
 func (v ColorInterpolation) AttribName() string { return "color-interpolation" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ColorInterpolation) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -682,8 +769,11 @@ func (v ColorInterpolation) AttribValue(context.Context) (string, error) {
 type ColorInterpolationFilters string //#enum
 
 const (
-	ColorInterpolationFiltersAuto      ColorInterpolationFilters = "auto"
-	ColorInterpolationFiltersSRGB      ColorInterpolationFilters = "sRGB"
+	// ColorInterpolationFiltersAuto lets the user agent choose the color space for filter interpolation.
+	ColorInterpolationFiltersAuto ColorInterpolationFilters = "auto"
+	// ColorInterpolationFiltersSRGB interpolates filter colors in the sRGB color space.
+	ColorInterpolationFiltersSRGB ColorInterpolationFilters = "sRGB"
+	// ColorInterpolationFiltersLinearRGB interpolates filter colors in the linearized RGB color space (the filter default).
 	ColorInterpolationFiltersLinearRGB ColorInterpolationFilters = "linearRGB"
 )
 
@@ -730,7 +820,11 @@ func (v ColorInterpolationFilters) String() string {
 	return string(v)
 }
 
+// AttribName returns the "color-interpolation-filters" attribute name.
 func (v ColorInterpolationFilters) AttribName() string { return "color-interpolation-filters" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ColorInterpolationFilters) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -741,21 +835,37 @@ func (v ColorInterpolationFilters) AttribValue(context.Context) (string, error) 
 type MixBlendMode string //#enum
 
 const (
-	MixBlendModeNormal     MixBlendMode = "normal"
-	MixBlendModeMultiply   MixBlendMode = "multiply"
-	MixBlendModeScreen     MixBlendMode = "screen"
-	MixBlendModeOverlay    MixBlendMode = "overlay"
-	MixBlendModeDarken     MixBlendMode = "darken"
-	MixBlendModeLighten    MixBlendMode = "lighten"
+	// MixBlendModeNormal paints the element on top with no blending.
+	MixBlendModeNormal MixBlendMode = "normal"
+	// MixBlendModeMultiply multiplies the element's colors with the backdrop, darkening the result.
+	MixBlendModeMultiply MixBlendMode = "multiply"
+	// MixBlendModeScreen inverts, multiplies and inverts again, lightening the result.
+	MixBlendModeScreen MixBlendMode = "screen"
+	// MixBlendModeOverlay combines multiply and screen depending on the backdrop.
+	MixBlendModeOverlay MixBlendMode = "overlay"
+	// MixBlendModeDarken keeps the darker of the element and backdrop colors per channel.
+	MixBlendModeDarken MixBlendMode = "darken"
+	// MixBlendModeLighten keeps the lighter of the element and backdrop colors per channel.
+	MixBlendModeLighten MixBlendMode = "lighten"
+	// MixBlendModeColorDodge brightens the backdrop to reflect the element's color.
 	MixBlendModeColorDodge MixBlendMode = "color-dodge"
-	MixBlendModeColorBurn  MixBlendMode = "color-burn"
-	MixBlendModeHardLight  MixBlendMode = "hard-light"
-	MixBlendModeSoftLight  MixBlendMode = "soft-light"
+	// MixBlendModeColorBurn darkens the backdrop to reflect the element's color.
+	MixBlendModeColorBurn MixBlendMode = "color-burn"
+	// MixBlendModeHardLight applies multiply or screen depending on the element's color.
+	MixBlendModeHardLight MixBlendMode = "hard-light"
+	// MixBlendModeSoftLight applies a softer dodge or burn depending on the element's color.
+	MixBlendModeSoftLight MixBlendMode = "soft-light"
+	// MixBlendModeDifference subtracts the darker color from the lighter one per channel.
 	MixBlendModeDifference MixBlendMode = "difference"
-	MixBlendModeExclusion  MixBlendMode = "exclusion"
-	MixBlendModeHue        MixBlendMode = "hue"
+	// MixBlendModeExclusion is like difference but with lower contrast.
+	MixBlendModeExclusion MixBlendMode = "exclusion"
+	// MixBlendModeHue keeps the element's hue with the backdrop's saturation and luminosity.
+	MixBlendModeHue MixBlendMode = "hue"
+	// MixBlendModeSaturation keeps the element's saturation with the backdrop's hue and luminosity.
 	MixBlendModeSaturation MixBlendMode = "saturation"
-	MixBlendModeColor      MixBlendMode = "color"
+	// MixBlendModeColor keeps the element's hue and saturation with the backdrop's luminosity.
+	MixBlendModeColor MixBlendMode = "color"
+	// MixBlendModeLuminosity keeps the element's luminosity with the backdrop's hue and saturation.
 	MixBlendModeLuminosity MixBlendMode = "luminosity"
 )
 
@@ -841,28 +951,48 @@ func (v MixBlendMode) String() string {
 	return string(v)
 }
 
-func (v MixBlendMode) AttribName() string                          { return "mix-blend-mode" }
+// AttribName returns the "mix-blend-mode" attribute name.
+func (v MixBlendMode) AttribName() string { return "mix-blend-mode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v MixBlendMode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Mode is the SVG mode attribute of <feBlend> (a <blend-mode>).
 type Mode string //#enum
 
 const (
-	ModeNormal     Mode = "normal"
-	ModeMultiply   Mode = "multiply"
-	ModeScreen     Mode = "screen"
-	ModeOverlay    Mode = "overlay"
-	ModeDarken     Mode = "darken"
-	ModeLighten    Mode = "lighten"
+	// ModeNormal paints the input on top with no blending.
+	ModeNormal Mode = "normal"
+	// ModeMultiply multiplies the input colors with the backdrop, darkening the result.
+	ModeMultiply Mode = "multiply"
+	// ModeScreen inverts, multiplies and inverts again, lightening the result.
+	ModeScreen Mode = "screen"
+	// ModeOverlay combines multiply and screen depending on the backdrop.
+	ModeOverlay Mode = "overlay"
+	// ModeDarken keeps the darker of the input and backdrop colors per channel.
+	ModeDarken Mode = "darken"
+	// ModeLighten keeps the lighter of the input and backdrop colors per channel.
+	ModeLighten Mode = "lighten"
+	// ModeColorDodge brightens the backdrop to reflect the input color.
 	ModeColorDodge Mode = "color-dodge"
-	ModeColorBurn  Mode = "color-burn"
-	ModeHardLight  Mode = "hard-light"
-	ModeSoftLight  Mode = "soft-light"
+	// ModeColorBurn darkens the backdrop to reflect the input color.
+	ModeColorBurn Mode = "color-burn"
+	// ModeHardLight applies multiply or screen depending on the input color.
+	ModeHardLight Mode = "hard-light"
+	// ModeSoftLight applies a softer dodge or burn depending on the input color.
+	ModeSoftLight Mode = "soft-light"
+	// ModeDifference subtracts the darker color from the lighter one per channel.
 	ModeDifference Mode = "difference"
-	ModeExclusion  Mode = "exclusion"
-	ModeHue        Mode = "hue"
+	// ModeExclusion is like difference but with lower contrast.
+	ModeExclusion Mode = "exclusion"
+	// ModeHue keeps the input's hue with the backdrop's saturation and luminosity.
+	ModeHue Mode = "hue"
+	// ModeSaturation keeps the input's saturation with the backdrop's hue and luminosity.
 	ModeSaturation Mode = "saturation"
-	ModeColor      Mode = "color"
+	// ModeColor keeps the input's hue and saturation with the backdrop's luminosity.
+	ModeColor Mode = "color"
+	// ModeLuminosity keeps the input's luminosity with the backdrop's hue and saturation.
 	ModeLuminosity Mode = "luminosity"
 )
 
@@ -948,7 +1078,11 @@ func (v Mode) String() string {
 	return string(v)
 }
 
-func (v Mode) AttribName() string                          { return "mode" }
+// AttribName returns the "mode" attribute name.
+func (v Mode) AttribName() string { return "mode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Mode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Text and fonts
@@ -957,8 +1091,11 @@ func (v Mode) AttribValue(context.Context) (string, error) { return string(v), v
 type FontStyle string //#enum
 
 const (
-	FontStyleNormal  FontStyle = "normal"
-	FontStyleItalic  FontStyle = "italic"
+	// FontStyleNormal selects the upright (roman) face.
+	FontStyleNormal FontStyle = "normal"
+	// FontStyleItalic selects the italic face.
+	FontStyleItalic FontStyle = "italic"
+	// FontStyleOblique selects the oblique (slanted) face.
 	FontStyleOblique FontStyle = "oblique"
 )
 
@@ -1005,16 +1142,23 @@ func (v FontStyle) String() string {
 	return string(v)
 }
 
-func (v FontStyle) AttribName() string                          { return "font-style" }
+// AttribName returns the "font-style" attribute name.
+func (v FontStyle) AttribName() string { return "font-style" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FontStyle) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // TextAnchor is the SVG text-anchor presentation attribute.
 type TextAnchor string //#enum
 
 const (
-	TextAnchorStart  TextAnchor = "start"
+	// TextAnchorStart aligns text so it begins at the given position.
+	TextAnchorStart TextAnchor = "start"
+	// TextAnchorMiddle centers text on the given position.
 	TextAnchorMiddle TextAnchor = "middle"
-	TextAnchorEnd    TextAnchor = "end"
+	// TextAnchorEnd aligns text so it ends at the given position.
+	TextAnchorEnd TextAnchor = "end"
 )
 
 // Valid indicates if v is any of the valid values for TextAnchor
@@ -1060,22 +1204,35 @@ func (v TextAnchor) String() string {
 	return string(v)
 }
 
-func (v TextAnchor) AttribName() string                          { return "text-anchor" }
+// AttribName returns the "text-anchor" attribute name.
+func (v TextAnchor) AttribName() string { return "text-anchor" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v TextAnchor) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // DominantBaseline is the SVG dominant-baseline presentation attribute.
 type DominantBaseline string //#enum
 
 const (
-	DominantBaselineAuto         DominantBaseline = "auto"
-	DominantBaselineTextBottom   DominantBaseline = "text-bottom"
-	DominantBaselineAlphabetic   DominantBaseline = "alphabetic"
-	DominantBaselineIdeographic  DominantBaseline = "ideographic"
-	DominantBaselineMiddle       DominantBaseline = "middle"
-	DominantBaselineCentral      DominantBaseline = "central"
+	// DominantBaselineAuto uses the dominant baseline appropriate for the script and writing mode.
+	DominantBaselineAuto DominantBaseline = "auto"
+	// DominantBaselineTextBottom aligns to the bottom of the text content area.
+	DominantBaselineTextBottom DominantBaseline = "text-bottom"
+	// DominantBaselineAlphabetic aligns to the alphabetic baseline used by Latin scripts.
+	DominantBaselineAlphabetic DominantBaseline = "alphabetic"
+	// DominantBaselineIdeographic aligns to the ideographic (under-side) baseline used by CJK scripts.
+	DominantBaselineIdeographic DominantBaseline = "ideographic"
+	// DominantBaselineMiddle aligns to the middle baseline, halfway up the x-height.
+	DominantBaselineMiddle DominantBaseline = "middle"
+	// DominantBaselineCentral aligns to the central baseline, midway between ascender and descender.
+	DominantBaselineCentral DominantBaseline = "central"
+	// DominantBaselineMathematical aligns to the mathematical baseline.
 	DominantBaselineMathematical DominantBaseline = "mathematical"
-	DominantBaselineHanging      DominantBaseline = "hanging"
-	DominantBaselineTextTop      DominantBaseline = "text-top"
+	// DominantBaselineHanging aligns to the hanging baseline used by Indic scripts.
+	DominantBaselineHanging DominantBaseline = "hanging"
+	// DominantBaselineTextTop aligns to the top of the text content area.
+	DominantBaselineTextTop DominantBaseline = "text-top"
 )
 
 // Valid indicates if v is any of the valid values for DominantBaseline
@@ -1139,7 +1296,11 @@ func (v DominantBaseline) String() string {
 	return string(v)
 }
 
+// AttribName returns the "dominant-baseline" attribute name.
 func (v DominantBaseline) AttribName() string { return "dominant-baseline" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v DominantBaseline) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -1148,14 +1309,22 @@ func (v DominantBaseline) AttribValue(context.Context) (string, error) {
 type AlignmentBaseline string //#enum
 
 const (
-	AlignmentBaselineBaseline     AlignmentBaseline = "baseline"
-	AlignmentBaselineTextBottom   AlignmentBaseline = "text-bottom"
-	AlignmentBaselineAlphabetic   AlignmentBaseline = "alphabetic"
-	AlignmentBaselineIdeographic  AlignmentBaseline = "ideographic"
-	AlignmentBaselineMiddle       AlignmentBaseline = "middle"
-	AlignmentBaselineCentral      AlignmentBaseline = "central"
+	// AlignmentBaselineBaseline aligns to the dominant baseline of the parent.
+	AlignmentBaselineBaseline AlignmentBaseline = "baseline"
+	// AlignmentBaselineTextBottom aligns to the bottom of the text content area.
+	AlignmentBaselineTextBottom AlignmentBaseline = "text-bottom"
+	// AlignmentBaselineAlphabetic aligns to the alphabetic baseline used by Latin scripts.
+	AlignmentBaselineAlphabetic AlignmentBaseline = "alphabetic"
+	// AlignmentBaselineIdeographic aligns to the ideographic (under-side) baseline used by CJK scripts.
+	AlignmentBaselineIdeographic AlignmentBaseline = "ideographic"
+	// AlignmentBaselineMiddle aligns to the middle baseline, halfway up the x-height.
+	AlignmentBaselineMiddle AlignmentBaseline = "middle"
+	// AlignmentBaselineCentral aligns to the central baseline, midway between ascender and descender.
+	AlignmentBaselineCentral AlignmentBaseline = "central"
+	// AlignmentBaselineMathematical aligns to the mathematical baseline.
 	AlignmentBaselineMathematical AlignmentBaseline = "mathematical"
-	AlignmentBaselineTextTop      AlignmentBaseline = "text-top"
+	// AlignmentBaselineTextTop aligns to the top of the text content area.
+	AlignmentBaselineTextTop AlignmentBaseline = "text-top"
 )
 
 // Valid indicates if v is any of the valid values for AlignmentBaseline
@@ -1216,7 +1385,11 @@ func (v AlignmentBaseline) String() string {
 	return string(v)
 }
 
+// AttribName returns the "alignment-baseline" attribute name.
 func (v AlignmentBaseline) AttribName() string { return "alignment-baseline" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v AlignmentBaseline) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -1225,9 +1398,12 @@ func (v AlignmentBaseline) AttribValue(context.Context) (string, error) {
 type WritingMode string //#enum
 
 const (
+	// WritingModeHorizontalTB lays out text horizontally, top to bottom.
 	WritingModeHorizontalTB WritingMode = "horizontal-tb"
-	WritingModeVerticalRL   WritingMode = "vertical-rl"
-	WritingModeVerticalLR   WritingMode = "vertical-lr"
+	// WritingModeVerticalRL lays out text vertically, right column to left.
+	WritingModeVerticalRL WritingMode = "vertical-rl"
+	// WritingModeVerticalLR lays out text vertically, left column to right.
+	WritingModeVerticalLR WritingMode = "vertical-lr"
 )
 
 // Valid indicates if v is any of the valid values for WritingMode
@@ -1273,14 +1449,20 @@ func (v WritingMode) String() string {
 	return string(v)
 }
 
-func (v WritingMode) AttribName() string                          { return "writing-mode" }
+// AttribName returns the "writing-mode" attribute name.
+func (v WritingMode) AttribName() string { return "writing-mode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v WritingMode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Direction is the SVG direction presentation attribute.
 type Direction string //#enum
 
 const (
+	// DirectionLTR sets the inline base direction left-to-right.
 	DirectionLTR Direction = "ltr"
+	// DirectionRTL sets the inline base direction right-to-left.
 	DirectionRTL Direction = "rtl"
 )
 
@@ -1324,14 +1506,20 @@ func (v Direction) String() string {
 	return string(v)
 }
 
-func (v Direction) AttribName() string                          { return "direction" }
+// AttribName returns the "direction" attribute name.
+func (v Direction) AttribName() string { return "direction" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Direction) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // LengthAdjust is the SVG lengthAdjust attribute of <text>/<textPath>.
 type LengthAdjust string //#enum
 
 const (
-	LengthAdjustSpacing          LengthAdjust = "spacing"
+	// LengthAdjustSpacing fits text to textLength by adjusting only spacing between glyphs.
+	LengthAdjustSpacing LengthAdjust = "spacing"
+	// LengthAdjustSpacingAndGlyphs fits text to textLength by stretching both spacing and glyphs.
 	LengthAdjustSpacingAndGlyphs LengthAdjust = "spacingAndGlyphs"
 )
 
@@ -1375,14 +1563,20 @@ func (v LengthAdjust) String() string {
 	return string(v)
 }
 
-func (v LengthAdjust) AttribName() string                          { return "lengthAdjust" }
+// AttribName returns the "lengthAdjust" attribute name.
+func (v LengthAdjust) AttribName() string { return "lengthAdjust" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v LengthAdjust) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Method is the SVG method attribute of <textPath>.
 type Method string //#enum
 
 const (
-	MethodAlign   Method = "align"
+	// MethodAlign renders glyphs along the path without distorting them.
+	MethodAlign Method = "align"
+	// MethodStretch stretches the glyph outlines to follow the path's curvature.
 	MethodStretch Method = "stretch"
 )
 
@@ -1426,14 +1620,20 @@ func (v Method) String() string {
 	return string(v)
 }
 
-func (v Method) AttribName() string                          { return "method" }
+// AttribName returns the "method" attribute name.
+func (v Method) AttribName() string { return "method" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Method) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Spacing is the SVG spacing attribute of <textPath>.
 type Spacing string //#enum
 
 const (
-	SpacingAuto  Spacing = "auto"
+	// SpacingAuto lets the user agent adjust glyph spacing to render text smoothly along the path.
+	SpacingAuto Spacing = "auto"
+	// SpacingExact lays out glyphs with their exact advance, ignoring path curvature.
 	SpacingExact Spacing = "exact"
 )
 
@@ -1477,14 +1677,20 @@ func (v Spacing) String() string {
 	return string(v)
 }
 
-func (v Spacing) AttribName() string                          { return "spacing" }
+// AttribName returns the "spacing" attribute name.
+func (v Spacing) AttribName() string { return "spacing" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Spacing) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Side is the SVG side attribute of <textPath>.
 type Side string //#enum
 
 const (
-	SideLeft  Side = "left"
+	// SideLeft renders text on the left side of the path (the default).
+	SideLeft Side = "left"
+	// SideRight renders text on the right side of the path, effectively reversing it.
 	SideRight Side = "right"
 )
 
@@ -1528,7 +1734,11 @@ func (v Side) String() string {
 	return string(v)
 }
 
-func (v Side) AttribName() string                          { return "side" }
+// AttribName returns the "side" attribute name.
+func (v Side) AttribName() string { return "side" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Side) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Units
@@ -1537,7 +1747,9 @@ func (v Side) AttribValue(context.Context) (string, error) { return string(v), v
 type GradientUnits string //#enum
 
 const (
-	GradientUnitsUserSpaceOnUse    GradientUnits = "userSpaceOnUse"
+	// GradientUnitsUserSpaceOnUse interprets gradient coordinates in the current user coordinate system.
+	GradientUnitsUserSpaceOnUse GradientUnits = "userSpaceOnUse"
+	// GradientUnitsObjectBoundingBox interprets gradient coordinates as fractions of the referencing element's bounding box.
 	GradientUnitsObjectBoundingBox GradientUnits = "objectBoundingBox"
 )
 
@@ -1581,14 +1793,20 @@ func (v GradientUnits) String() string {
 	return string(v)
 }
 
-func (v GradientUnits) AttribName() string                          { return "gradientUnits" }
+// AttribName returns the "gradientUnits" attribute name.
+func (v GradientUnits) AttribName() string { return "gradientUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v GradientUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // PatternUnits is the SVG patternUnits attribute.
 type PatternUnits string //#enum
 
 const (
-	PatternUnitsUserSpaceOnUse    PatternUnits = "userSpaceOnUse"
+	// PatternUnitsUserSpaceOnUse interprets the pattern's x, y, width and height in the current user coordinate system.
+	PatternUnitsUserSpaceOnUse PatternUnits = "userSpaceOnUse"
+	// PatternUnitsObjectBoundingBox interprets the pattern's x, y, width and height as fractions of the referencing element's bounding box.
 	PatternUnitsObjectBoundingBox PatternUnits = "objectBoundingBox"
 )
 
@@ -1632,14 +1850,20 @@ func (v PatternUnits) String() string {
 	return string(v)
 }
 
-func (v PatternUnits) AttribName() string                          { return "patternUnits" }
+// AttribName returns the "patternUnits" attribute name.
+func (v PatternUnits) AttribName() string { return "patternUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v PatternUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // PatternContentUnits is the SVG patternContentUnits attribute.
 type PatternContentUnits string //#enum
 
 const (
-	PatternContentUnitsUserSpaceOnUse    PatternContentUnits = "userSpaceOnUse"
+	// PatternContentUnitsUserSpaceOnUse interprets the pattern's content coordinates in the current user coordinate system.
+	PatternContentUnitsUserSpaceOnUse PatternContentUnits = "userSpaceOnUse"
+	// PatternContentUnitsObjectBoundingBox interprets the pattern's content coordinates as fractions of the referencing element's bounding box.
 	PatternContentUnitsObjectBoundingBox PatternContentUnits = "objectBoundingBox"
 )
 
@@ -1683,7 +1907,11 @@ func (v PatternContentUnits) String() string {
 	return string(v)
 }
 
+// AttribName returns the "patternContentUnits" attribute name.
 func (v PatternContentUnits) AttribName() string { return "patternContentUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v PatternContentUnits) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -1692,7 +1920,9 @@ func (v PatternContentUnits) AttribValue(context.Context) (string, error) {
 type ClipPathUnits string //#enum
 
 const (
-	ClipPathUnitsUserSpaceOnUse    ClipPathUnits = "userSpaceOnUse"
+	// ClipPathUnitsUserSpaceOnUse interprets clip path coordinates in the current user coordinate system.
+	ClipPathUnitsUserSpaceOnUse ClipPathUnits = "userSpaceOnUse"
+	// ClipPathUnitsObjectBoundingBox interprets clip path coordinates as fractions of the referencing element's bounding box.
 	ClipPathUnitsObjectBoundingBox ClipPathUnits = "objectBoundingBox"
 )
 
@@ -1736,14 +1966,20 @@ func (v ClipPathUnits) String() string {
 	return string(v)
 }
 
-func (v ClipPathUnits) AttribName() string                          { return "clipPathUnits" }
+// AttribName returns the "clipPathUnits" attribute name.
+func (v ClipPathUnits) AttribName() string { return "clipPathUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ClipPathUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // MaskUnits is the SVG maskUnits attribute.
 type MaskUnits string //#enum
 
 const (
-	MaskUnitsUserSpaceOnUse    MaskUnits = "userSpaceOnUse"
+	// MaskUnitsUserSpaceOnUse interprets the mask's x, y, width and height in the current user coordinate system.
+	MaskUnitsUserSpaceOnUse MaskUnits = "userSpaceOnUse"
+	// MaskUnitsObjectBoundingBox interprets the mask's x, y, width and height as fractions of the masked element's bounding box.
 	MaskUnitsObjectBoundingBox MaskUnits = "objectBoundingBox"
 )
 
@@ -1787,14 +2023,20 @@ func (v MaskUnits) String() string {
 	return string(v)
 }
 
-func (v MaskUnits) AttribName() string                          { return "maskUnits" }
+// AttribName returns the "maskUnits" attribute name.
+func (v MaskUnits) AttribName() string { return "maskUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v MaskUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // MaskContentUnits is the SVG maskContentUnits attribute.
 type MaskContentUnits string //#enum
 
 const (
-	MaskContentUnitsUserSpaceOnUse    MaskContentUnits = "userSpaceOnUse"
+	// MaskContentUnitsUserSpaceOnUse interprets the mask's content coordinates in the current user coordinate system.
+	MaskContentUnitsUserSpaceOnUse MaskContentUnits = "userSpaceOnUse"
+	// MaskContentUnitsObjectBoundingBox interprets the mask's content coordinates as fractions of the masked element's bounding box.
 	MaskContentUnitsObjectBoundingBox MaskContentUnits = "objectBoundingBox"
 )
 
@@ -1838,7 +2080,11 @@ func (v MaskContentUnits) String() string {
 	return string(v)
 }
 
+// AttribName returns the "maskContentUnits" attribute name.
 func (v MaskContentUnits) AttribName() string { return "maskContentUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v MaskContentUnits) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -1847,7 +2093,9 @@ func (v MaskContentUnits) AttribValue(context.Context) (string, error) {
 type FilterUnits string //#enum
 
 const (
-	FilterUnitsUserSpaceOnUse    FilterUnits = "userSpaceOnUse"
+	// FilterUnitsUserSpaceOnUse interprets the filter region's x, y, width and height in the current user coordinate system.
+	FilterUnitsUserSpaceOnUse FilterUnits = "userSpaceOnUse"
+	// FilterUnitsObjectBoundingBox interprets the filter region's x, y, width and height as fractions of the referencing element's bounding box.
 	FilterUnitsObjectBoundingBox FilterUnits = "objectBoundingBox"
 )
 
@@ -1891,14 +2139,20 @@ func (v FilterUnits) String() string {
 	return string(v)
 }
 
-func (v FilterUnits) AttribName() string                          { return "filterUnits" }
+// AttribName returns the "filterUnits" attribute name.
+func (v FilterUnits) AttribName() string { return "filterUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v FilterUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // PrimitiveUnits is the SVG primitiveUnits attribute.
 type PrimitiveUnits string //#enum
 
 const (
-	PrimitiveUnitsUserSpaceOnUse    PrimitiveUnits = "userSpaceOnUse"
+	// PrimitiveUnitsUserSpaceOnUse interprets filter primitive coordinates and lengths in the current user coordinate system.
+	PrimitiveUnitsUserSpaceOnUse PrimitiveUnits = "userSpaceOnUse"
+	// PrimitiveUnitsObjectBoundingBox interprets filter primitive coordinates and lengths as fractions of the referencing element's bounding box.
 	PrimitiveUnitsObjectBoundingBox PrimitiveUnits = "objectBoundingBox"
 )
 
@@ -1942,15 +2196,21 @@ func (v PrimitiveUnits) String() string {
 	return string(v)
 }
 
-func (v PrimitiveUnits) AttribName() string                          { return "primitiveUnits" }
+// AttribName returns the "primitiveUnits" attribute name.
+func (v PrimitiveUnits) AttribName() string { return "primitiveUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v PrimitiveUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // MarkerUnits is the SVG markerUnits attribute.
 type MarkerUnits string //#enum
 
 const (
+	// MarkerUnitsUserSpaceOnUse interprets marker dimensions in the current user coordinate system.
 	MarkerUnitsUserSpaceOnUse MarkerUnits = "userSpaceOnUse"
-	MarkerUnitsStrokeWidth    MarkerUnits = "strokeWidth"
+	// MarkerUnitsStrokeWidth scales marker dimensions by the stroke width of the referencing element.
+	MarkerUnitsStrokeWidth MarkerUnits = "strokeWidth"
 )
 
 // Valid indicates if v is any of the valid values for MarkerUnits
@@ -1993,7 +2253,11 @@ func (v MarkerUnits) String() string {
 	return string(v)
 }
 
-func (v MarkerUnits) AttribName() string                          { return "markerUnits" }
+// AttribName returns the "markerUnits" attribute name.
+func (v MarkerUnits) AttribName() string { return "markerUnits" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v MarkerUnits) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Gradients and filter primitives
@@ -2002,9 +2266,12 @@ func (v MarkerUnits) AttribValue(context.Context) (string, error) { return strin
 type SpreadMethod string //#enum
 
 const (
-	SpreadMethodPad     SpreadMethod = "pad"
+	// SpreadMethodPad extends the gradient's end colors to fill the remaining area.
+	SpreadMethodPad SpreadMethod = "pad"
+	// SpreadMethodReflect repeats the gradient with alternating direction to fill the remaining area.
 	SpreadMethodReflect SpreadMethod = "reflect"
-	SpreadMethodRepeat  SpreadMethod = "repeat"
+	// SpreadMethodRepeat tiles the gradient in the same direction to fill the remaining area.
+	SpreadMethodRepeat SpreadMethod = "repeat"
 )
 
 // Valid indicates if v is any of the valid values for SpreadMethod
@@ -2050,16 +2317,23 @@ func (v SpreadMethod) String() string {
 	return string(v)
 }
 
-func (v SpreadMethod) AttribName() string                          { return "spreadMethod" }
+// AttribName returns the "spreadMethod" attribute name.
+func (v SpreadMethod) AttribName() string { return "spreadMethod" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v SpreadMethod) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // EdgeMode is the SVG edgeMode attribute of <feConvolveMatrix>/<feGaussianBlur>.
 type EdgeMode string //#enum
 
 const (
+	// EdgeModeDuplicate extends the input image by duplicating its edge pixels.
 	EdgeModeDuplicate EdgeMode = "duplicate"
-	EdgeModeWrap      EdgeMode = "wrap"
-	EdgeModeNone      EdgeMode = "none"
+	// EdgeModeWrap extends the input image by tiling it.
+	EdgeModeWrap EdgeMode = "wrap"
+	// EdgeModeNone treats pixels outside the input image as transparent black.
+	EdgeModeNone EdgeMode = "none"
 )
 
 // Valid indicates if v is any of the valid values for EdgeMode
@@ -2105,14 +2379,20 @@ func (v EdgeMode) String() string {
 	return string(v)
 }
 
-func (v EdgeMode) AttribName() string                          { return "edgeMode" }
+// AttribName returns the "edgeMode" attribute name.
+func (v EdgeMode) AttribName() string { return "edgeMode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v EdgeMode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // StitchTiles is the SVG stitchTiles attribute of <feTurbulence>.
 type StitchTiles string //#enum
 
 const (
-	StitchTilesStitch   StitchTiles = "stitch"
+	// StitchTilesStitch adjusts noise frequencies so adjacent tiles join without seams.
+	StitchTilesStitch StitchTiles = "stitch"
+	// StitchTilesNoStitch leaves tile edges unmatched, allowing visible seams.
 	StitchTilesNoStitch StitchTiles = "noStitch"
 )
 
@@ -2156,16 +2436,24 @@ func (v StitchTiles) String() string {
 	return string(v)
 }
 
-func (v StitchTiles) AttribName() string                          { return "stitchTiles" }
+// AttribName returns the "stitchTiles" attribute name.
+func (v StitchTiles) AttribName() string { return "stitchTiles" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v StitchTiles) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // XChannelSelector is the SVG xChannelSelector attribute of <feDisplacementMap>.
 type XChannelSelector string //#enum
 
 const (
+	// XChannelSelectorR uses the red channel of the displacement map for the x displacement.
 	XChannelSelectorR XChannelSelector = "R"
+	// XChannelSelectorG uses the green channel of the displacement map for the x displacement.
 	XChannelSelectorG XChannelSelector = "G"
+	// XChannelSelectorB uses the blue channel of the displacement map for the x displacement.
 	XChannelSelectorB XChannelSelector = "B"
+	// XChannelSelectorA uses the alpha channel of the displacement map for the x displacement.
 	XChannelSelectorA XChannelSelector = "A"
 )
 
@@ -2215,7 +2503,11 @@ func (v XChannelSelector) String() string {
 	return string(v)
 }
 
+// AttribName returns the "xChannelSelector" attribute name.
 func (v XChannelSelector) AttribName() string { return "xChannelSelector" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v XChannelSelector) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -2224,9 +2516,13 @@ func (v XChannelSelector) AttribValue(context.Context) (string, error) {
 type YChannelSelector string //#enum
 
 const (
+	// YChannelSelectorR uses the red channel of the displacement map for the y displacement.
 	YChannelSelectorR YChannelSelector = "R"
+	// YChannelSelectorG uses the green channel of the displacement map for the y displacement.
 	YChannelSelectorG YChannelSelector = "G"
+	// YChannelSelectorB uses the blue channel of the displacement map for the y displacement.
 	YChannelSelectorB YChannelSelector = "B"
+	// YChannelSelectorA uses the alpha channel of the displacement map for the y displacement.
 	YChannelSelectorA YChannelSelector = "A"
 )
 
@@ -2276,7 +2572,11 @@ func (v YChannelSelector) String() string {
 	return string(v)
 }
 
+// AttribName returns the "yChannelSelector" attribute name.
 func (v YChannelSelector) AttribName() string { return "yChannelSelector" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v YChannelSelector) AttribValue(context.Context) (string, error) {
 	return string(v), v.Validate()
 }
@@ -2287,8 +2587,11 @@ func (v YChannelSelector) AttribValue(context.Context) (string, error) {
 type AttributeType string //#enum
 
 const (
-	AttributeTypeCSS  AttributeType = "CSS"
-	AttributeTypeXML  AttributeType = "XML"
+	// AttributeTypeCSS animates the target as a CSS property.
+	AttributeTypeCSS AttributeType = "CSS"
+	// AttributeTypeXML animates the target as an XML presentation attribute.
+	AttributeTypeXML AttributeType = "XML"
+	// AttributeTypeAuto lets the user agent decide whether the target is a CSS property or XML attribute.
 	AttributeTypeAuto AttributeType = "auto"
 )
 
@@ -2335,17 +2638,25 @@ func (v AttributeType) String() string {
 	return string(v)
 }
 
-func (v AttributeType) AttribName() string                          { return "attributeType" }
+// AttribName returns the "attributeType" attribute name.
+func (v AttributeType) AttribName() string { return "attributeType" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v AttributeType) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // CalcMode is the SVG calcMode attribute of animation elements.
 type CalcMode string //#enum
 
 const (
+	// CalcModeDiscrete jumps from one value to the next without interpolation.
 	CalcModeDiscrete CalcMode = "discrete"
-	CalcModeLinear   CalcMode = "linear"
-	CalcModePaced    CalcMode = "paced"
-	CalcModeSpline   CalcMode = "spline"
+	// CalcModeLinear interpolates values linearly between keyframes.
+	CalcModeLinear CalcMode = "linear"
+	// CalcModePaced interpolates linearly at an even pace across the whole animation.
+	CalcModePaced CalcMode = "paced"
+	// CalcModeSpline interpolates along the cubic Bezier curves given by keySplines.
+	CalcModeSpline CalcMode = "spline"
 )
 
 // Valid indicates if v is any of the valid values for CalcMode
@@ -2394,15 +2705,21 @@ func (v CalcMode) String() string {
 	return string(v)
 }
 
-func (v CalcMode) AttribName() string                          { return "calcMode" }
+// AttribName returns the "calcMode" attribute name.
+func (v CalcMode) AttribName() string { return "calcMode" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v CalcMode) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Additive is the SVG additive attribute of animation elements.
 type Additive string //#enum
 
 const (
+	// AdditiveReplace overrides the underlying attribute value with the animation value.
 	AdditiveReplace Additive = "replace"
-	AdditiveSum     Additive = "sum"
+	// AdditiveSum adds the animation value to the underlying attribute value.
+	AdditiveSum Additive = "sum"
 )
 
 // Valid indicates if v is any of the valid values for Additive
@@ -2445,15 +2762,21 @@ func (v Additive) String() string {
 	return string(v)
 }
 
-func (v Additive) AttribName() string                          { return "additive" }
+// AttribName returns the "additive" attribute name.
+func (v Additive) AttribName() string { return "additive" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Additive) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Accumulate is the SVG accumulate attribute of animation elements.
 type Accumulate string //#enum
 
 const (
+	// AccumulateNone restarts each repeat iteration from the base value.
 	AccumulateNone Accumulate = "none"
-	AccumulateSum  Accumulate = "sum"
+	// AccumulateSum adds each repeat iteration's end value to the next, accumulating over repeats.
+	AccumulateSum Accumulate = "sum"
 )
 
 // Valid indicates if v is any of the valid values for Accumulate
@@ -2496,16 +2819,23 @@ func (v Accumulate) String() string {
 	return string(v)
 }
 
-func (v Accumulate) AttribName() string                          { return "accumulate" }
+// AttribName returns the "accumulate" attribute name.
+func (v Accumulate) AttribName() string { return "accumulate" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Accumulate) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Restart is the SVG restart attribute of animation elements.
 type Restart string //#enum
 
 const (
-	RestartAlways        Restart = "always"
+	// RestartAlways allows the animation to restart at any time.
+	RestartAlways Restart = "always"
+	// RestartWhenNotActive allows a restart only while the animation is not currently active.
 	RestartWhenNotActive Restart = "whenNotActive"
-	RestartNever         Restart = "never"
+	// RestartNever prevents the animation from restarting once begun.
+	RestartNever Restart = "never"
 )
 
 // Valid indicates if v is any of the valid values for Restart
@@ -2551,7 +2881,11 @@ func (v Restart) String() string {
 	return string(v)
 }
 
-func (v Restart) AttribName() string                          { return "restart" }
+// AttribName returns the "restart" attribute name.
+func (v Restart) AttribName() string { return "restart" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v Restart) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Misc
@@ -2560,7 +2894,9 @@ func (v Restart) AttribValue(context.Context) (string, error) { return string(v)
 type CrossOrigin string //#enum
 
 const (
-	CrossOriginAnonymous      CrossOrigin = "anonymous"
+	// CrossOriginAnonymous makes the cross-origin request without credentials.
+	CrossOriginAnonymous CrossOrigin = "anonymous"
+	// CrossOriginUseCredentials makes the cross-origin request with credentials.
 	CrossOriginUseCredentials CrossOrigin = "use-credentials"
 )
 
@@ -2604,14 +2940,20 @@ func (v CrossOrigin) String() string {
 	return string(v)
 }
 
-func (v CrossOrigin) AttribName() string                          { return "crossorigin" }
+// AttribName returns the "crossorigin" attribute name.
+func (v CrossOrigin) AttribName() string { return "crossorigin" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v CrossOrigin) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // ZoomAndPan is the SVG zoomAndPan attribute.
 type ZoomAndPan string //#enum
 
 const (
+	// ZoomAndPanDisable disables user-initiated zooming and panning of the viewport.
 	ZoomAndPanDisable ZoomAndPan = "disable"
+	// ZoomAndPanMagnify allows user-initiated zooming and panning of the viewport.
 	ZoomAndPanMagnify ZoomAndPan = "magnify"
 )
 
@@ -2655,7 +2997,11 @@ func (v ZoomAndPan) String() string {
 	return string(v)
 }
 
-func (v ZoomAndPan) AttribName() string                          { return "zoomAndPan" }
+// AttribName returns the "zoomAndPan" attribute name.
+func (v ZoomAndPan) AttribName() string { return "zoomAndPan" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
 func (v ZoomAndPan) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
 // Compile-time checks that every enum type is usable directly as an attribute.

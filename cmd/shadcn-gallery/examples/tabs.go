@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// TabsDemo renders a two-tab interface with Account and Password panels.
 func TabsDemo() mx.Component {
 	return shadcn.Tabs("account-tabs", html.Class("w-full max-w-md"),
 		shadcn.TabsList(html.Class("grid w-full grid-cols-2"),

@@ -2,6 +2,8 @@ package doc
 
 import "github.com/ungerik/go-mx"
 
+// Paragraph is a block of document content identified by ID and holding its
+// content as a single child Component.
 type Paragraph struct {
 	ID       string
 	Children mx.Component

@@ -48,6 +48,7 @@ func dtRow(i int, status, email, amount string, selected bool) mx.Component {
 	return shadcn.TableRow(cells...)
 }
 
+// DataTableDemo renders a data table with a live email filter, a column-toggle dropdown, selectable rows, row-action menus, and pagination controls.
 func DataTableDemo() mx.Component {
 	return html.Div(html.DataAttr("datatable", ""), html.Class("w-full"),
 		html.Script(mx.Raw(dtFilterScript)),

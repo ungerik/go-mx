@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// AlertDialogDemo renders an outline trigger that opens a confirmation alert dialog with cancel and continue actions.
 func AlertDialogDemo() mx.Component {
 	return shadcn.AlertDialog(
 		shadcn.AlertDialogTrigger("ad-demo",

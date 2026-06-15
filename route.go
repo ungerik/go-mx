@@ -28,12 +28,22 @@ type Route interface {
 
 var _ http.Handler = new(ComponentFuncHandler[int])
 
+// ComponentFuncHandler is an http.Handler that builds an argument of type T
+// from the request, calls compFunc to obtain a [Component], and writes its
+// rendered markup as the response. T is expected to be a struct: each of its
+// fields is populated from the request's path value or form value of the same
+// name (only string fields are currently supported; others are skipped). The
+// optional response headers are added before the body is written.
 type ComponentFuncHandler[T any] struct {
 	compFunc      func(T) Component
 	writerFactory WriterFactory
 	headers       []http.Header
 }
 
+// NewComponentFuncHandler returns a [ComponentFuncHandler] for the component
+// constructor compFunc, using writerFactory to create the render [Writer] (the
+// package [DefaultWriterFactory] is used if it is nil) and adding the given
+// response headers to each response.
 func NewComponentFuncHandler[T any](compFunc func(T) Component, writerFactory WriterFactory, headers ...http.Header) *ComponentFuncHandler[T] {
 	return &ComponentFuncHandler[T]{
 		compFunc:      compFunc,
@@ -89,11 +99,17 @@ func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, reques
 
 var _ Route = new(TypedRoute[struct{}])
 
+// TypedRoute is a [Route] that pairs a [ComponentFuncHandler] of type T with an
+// http.ServeMux path pattern, so the same handler can both serve requests and
+// report its pattern and methods for registration.
 type TypedRoute[T any] struct {
 	ComponentFuncHandler[T]
 	pattern string
 }
 
+// NewTypedRoute returns a [TypedRoute] for the given http.ServeMux pattern and
+// component constructor compFunc. writerFactory and headers are passed through
+// to the embedded [ComponentFuncHandler].
 func NewTypedRoute[T any](pattern string, compFunc func(T) Component, writerFactory WriterFactory, headers ...http.Header) *TypedRoute[T] {
 	return &TypedRoute[T]{
 		ComponentFuncHandler: ComponentFuncHandler[T]{
@@ -105,10 +121,14 @@ func NewTypedRoute[T any](pattern string, compFunc func(T) Component, writerFact
 	}
 }
 
+// Pattern returns the http.ServeMux pattern of the route.
 func (r *TypedRoute[T]) Pattern() string {
 	return r.pattern
 }
 
+// Methods returns the HTTP method specified at the start of the pattern as a
+// single-element slice, or nil if the pattern names no method (so the route
+// handles all methods).
 func (r *TypedRoute[T]) Methods() []string {
 	method := patternMethod(r.pattern)
 	if method == "" {
@@ -135,6 +155,7 @@ func (r *TypedRoute[T]) Path(values ...map[string]any) string {
 	return r.pattern
 }
 
+// Register registers the route on mux under its pattern.
 func (r *TypedRoute[T]) Register(mux *http.ServeMux) {
 	mux.Handle(r.Pattern(), r)
 }
@@ -215,6 +236,9 @@ func patternPath(pattern string) string {
 	return pattern[i+1:]
 }
 
+// PathValueNames returns the set of placeholder names in the path portion of an
+// http.ServeMux pattern, that is the names inside "{...}" segments (any method
+// prefix is ignored).
 func PathValueNames(pattern string) map[string]struct{} {
 	names := make(map[string]struct{})
 	for part := range strings.SplitSeq(patternPath(pattern), "/") {

@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// NewCheckedWriter returns a [CheckedWriter] writing to dest, using the package
+// [TextEscaper] for text content. A nil dest discards the output (io.Discard).
+// The returned writer uses double-quoted attributes and no indentation by
+// default; configure it with the With* methods.
 func NewCheckedWriter(dest io.Writer) *CheckedWriter {
 	if dest == nil {
 		dest = io.Discard
@@ -20,6 +24,12 @@ type elemState struct {
 	hasNewline bool
 }
 
+// CheckedWriter is the default [Writer] implementation. It escapes text and
+// attribute values, validates that the element lifecycle methods are called in
+// a legal order (and rejects empty or duplicate names, unbalanced tags, and an
+// optional allow-list of element names), and can pretty-print with indentation.
+// A CheckedWriter is stateful and not safe for concurrent use; create one per
+// output destination (see [NewCheckedWriter] and [CheckedWriter.Clone]).
 type CheckedWriter struct {
 	// Configuration:
 	io.Writer
@@ -36,6 +46,10 @@ type CheckedWriter struct {
 	afterProcInst  bool // previous Write ended a processing instruction ("?>")
 }
 
+// Clone returns a new [CheckedWriter] writing to dest that copies this writer's
+// configuration (escaper, quote style, indentation, allowed elements) but
+// starts with fresh, empty render state. Use it to reuse a configured writer for
+// another destination.
 func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
 	return &CheckedWriter{
 		// Configuration:
@@ -125,17 +139,24 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// WithIndent enables pretty-printing: each element is placed on its own line,
+// preceded by prefix and one indent per nesting level. An empty indent disables
+// indentation. It mutates and returns the receiver for chaining.
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
 	w.prefix = prefix
 	w.indent = indent
 	return w
 }
 
+// WithSingleQuoteAttribs makes attribute values be written in single quotes
+// (name='value'). It mutates and returns the receiver for chaining.
 func (w *CheckedWriter) WithSingleQuoteAttribs() *CheckedWriter {
 	w.singleQuote = true
 	return w
 }
 
+// WithDoubleQuoteAttribs makes attribute values be written in double quotes
+// (name="value"), the default. It mutates and returns the receiver for chaining.
 func (w *CheckedWriter) WithDoubleQuoteAttribs() *CheckedWriter {
 	w.singleQuote = false
 	return w
@@ -148,6 +169,10 @@ func (w *CheckedWriter) currentElemName() string {
 	return w.elemStack[len(w.elemStack)-1].element
 }
 
+// BeginElement opens the start tag of element elem, leaving the writer in the
+// state where attributes can be added. It returns an error for an empty name,
+// if the previous start tag is still open, or if an allow-list is configured and
+// elem is not in it. With indentation enabled it first breaks and indents the line.
 func (w *CheckedWriter) BeginElement(elem string) error {
 	// TODO regex for valid element name
 	if elem == "" {
@@ -177,6 +202,10 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 	return err
 }
 
+// Attribute writes a name="value" (or name='value') pair into the currently
+// open start tag, with the value escaped for the active quote style. It returns
+// an error if no start tag is open, the name is empty, or the name was already
+// written for this element (duplicate attribute).
 func (w *CheckedWriter) Attribute(name, value string) (err error) {
 	if !w.inStartTag {
 		return fmt.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
@@ -201,6 +230,8 @@ func (w *CheckedWriter) Attribute(name, value string) (err error) {
 	return err
 }
 
+// CloseElementStartTag closes the open start tag with ">" so that child content
+// can follow. It returns an error if no element is open or no start tag is open.
 func (w *CheckedWriter) CloseElementStartTag() error {
 	if len(w.elemStack) == 0 {
 		return errors.New("can't CloseElementStartTag without BeginElement")
@@ -213,6 +244,10 @@ func (w *CheckedWriter) CloseElementStartTag() error {
 	return err
 }
 
+// EndElement closes the current element: as a self-closing "/>" if its start
+// tag is still open (a void element), otherwise with a "</name>" closing tag.
+// If the element had indented children, the closing tag is placed on its own
+// indented line. It returns an error if no element is open.
 func (w *CheckedWriter) EndElement() (err error) {
 	if len(w.elemStack) == 0 {
 		return errors.New("can't EndElement without BeginElement")
@@ -235,6 +270,8 @@ func (w *CheckedWriter) EndElement() (err error) {
 	return err
 }
 
+// EscapeText writes text as escaped element content using the configured text
+// escaper. It returns an error if called while a start tag is still open.
 func (w *CheckedWriter) EscapeText(text string) error {
 	if w.inStartTag {
 		return fmt.Errorf("can't EscapeText while writing start tag of element %s", w.currentElemName())
@@ -243,6 +280,9 @@ func (w *CheckedWriter) EscapeText(text string) error {
 	return err
 }
 
+// Comment writes text as an HTML/XML comment "<!-- text -->". With indentation
+// enabled it first breaks and indents the line. The text is written as-is and is
+// not yet checked for the comment-content restrictions.
 func (w *CheckedWriter) Comment(text string) error {
 	// TODO The text part of comments has the following restrictions:
 	// must not start with a ">" character
@@ -259,6 +299,9 @@ func (w *CheckedWriter) Comment(text string) error {
 	return err
 }
 
+// CDATA writes text inside a "<![CDATA[ ... ]]>" section. It returns an error if
+// text contains the terminator "]]>", which cannot appear in a CDATA section.
+// With indentation enabled it first breaks and indents the line.
 func (w *CheckedWriter) CDATA(text string) error {
 	if strings.Contains(text, "]]>") {
 		return fmt.Errorf("CDATA text contains ']]>': %s", text)
@@ -273,6 +316,10 @@ func (w *CheckedWriter) CDATA(text string) error {
 	return err
 }
 
+// Newline writes a line break followed by the configured prefix and one indent
+// per open element, so subsequent output is indented to the current nesting
+// depth. It also marks the open elements so their closing tags get their own
+// line.
 func (w *CheckedWriter) Newline() error {
 	// Indentation provides this line break itself, so clear the
 	// processing-instruction flag to avoid Write inserting a second newline.

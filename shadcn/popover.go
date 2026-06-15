@@ -19,10 +19,14 @@ import (
 type PopoverSide string // TODO use go-enum
 
 const (
-	PopoverTop    PopoverSide = "top"
-	PopoverRight  PopoverSide = "right"
+	// PopoverTop renders the content above its trigger.
+	PopoverTop PopoverSide = "top"
+	// PopoverRight renders the content to the right of its trigger.
+	PopoverRight PopoverSide = "right"
+	// PopoverBottom renders the content below its trigger (the default).
 	PopoverBottom PopoverSide = "bottom"
-	PopoverLeft   PopoverSide = "left"
+	// PopoverLeft renders the content to the left of its trigger.
+	PopoverLeft PopoverSide = "left"
 )
 
 // normPopoverSide maps an empty or unknown side to the default (bottom).

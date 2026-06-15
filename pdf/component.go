@@ -19,6 +19,7 @@ type Component interface {
 // ComponentFunc adapts a function to the [Component] interface.
 type ComponentFunc func(ctx context.Context, r *Renderer) error
 
+// Render calls the wrapped function.
 func (f ComponentFunc) Render(ctx context.Context, r *Renderer) error {
 	return f(ctx, r)
 }

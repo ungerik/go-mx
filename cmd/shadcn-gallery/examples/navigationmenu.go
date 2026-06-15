@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// NavigationMenuDemo renders a navigation menu with dropdown content panels and a plain link.
 func NavigationMenuDemo() mx.Component {
 	return shadcn.NavigationMenu(
 		shadcn.NavigationMenuList(

@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// DropdownMenuDemo renders an outline trigger that opens a dropdown menu with a label, grouped items, shortcuts, and a separator.
 func DropdownMenuDemo() mx.Component {
 	return shadcn.DropdownMenu(
 		shadcn.DropdownMenuTrigger("demo-dropdown",

@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// Page holds the metadata and content of a single web page,
+// independent of how it is sourced or rendered.
 type Page struct {
 	// Route      mx.Route
 	PathValues map[string]any

@@ -23,6 +23,8 @@ type IfElse struct {
 	comps Components
 }
 
+// Render draws the wrapped components when the condition is true and does
+// nothing otherwise.
 func (i IfElse) Render(ctx context.Context, r *Renderer) error {
 	if !i.cond {
 		return nil

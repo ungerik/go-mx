@@ -16,6 +16,9 @@ import (
 // https://github.com/adrg/frontmatter
 // https://github.com/yuin/goldmark
 
+// GlobPageSource is a PageSource that yields pages from files matching a glob
+// Pattern. Markdown files are parsed for frontmatter metadata, and HTML and
+// plain-text files are loaded with their respective content types.
 type GlobPageSource struct {
 	Dir           fs.File
 	Pattern       string
@@ -23,6 +26,8 @@ type GlobPageSource struct {
 	DefaultAuthor string
 }
 
+// Pages iterates over the files matching the glob Pattern and yields a Page for
+// each supported file type, implementing the PageSource interface.
 func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[*Page, error] {
 	return func(yield func(*Page, error) bool) {
 		files, err := filepath.Glob(s.Pattern)

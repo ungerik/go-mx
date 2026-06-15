@@ -44,18 +44,25 @@ type Attrib interface {
 	AttribValue(context.Context) (string, error)
 }
 
+// NewAttrib returns an Attrib with the given name and static value.
 func NewAttrib(name, value string) Attrib {
 	return Attribute{Name: name, Value: value}
 }
 
+// NewAttribf returns an Attrib with the given name and a value formatted
+// from valueFmt and a using fmt.Sprintf.
 func NewAttribf(name, valueFmt string, a ...any) Attrib {
 	return Attribute{Name: name, Value: fmt.Sprintf(valueFmt, a...)}
 }
 
+// AppendAttrib appends an Attrib with the given name and value to attribs
+// and returns the extended slice.
 func AppendAttrib(attribs []Attrib, name, value string) []Attrib {
 	return append(attribs, Attribute{Name: name, Value: value})
 }
 
+// PrependAttrib returns a new slice with an Attrib of the given name and
+// value placed before the elements of attribs.
 func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 	return append([]Attrib{Attribute{Name: name, Value: value}}, attribs...)
 }
@@ -67,15 +74,18 @@ type ConstAttrib string
 
 var _ Attrib = ConstAttrib("")
 
+// AttribName returns the part of the "name=value" string before the first '='.
 func (a ConstAttrib) AttribName() string {
 	return string(a)[:strings.IndexByte(string(a), '=')]
 }
 
+// AttribValue returns the part of the "name=value" string after the first '='
+// and a nil error; the value is static and does not depend on the context.
 func (a ConstAttrib) AttribValue(context.Context) (string, error) {
 	return string(a)[strings.IndexByte(string(a), '=')+1:], nil
 }
 
-// Attribute implements the Attrib interface.
+// Attribute is an Attrib holding a static name and value pair.
 type Attribute struct {
 	Name  string
 	Value string
@@ -83,18 +93,24 @@ type Attribute struct {
 
 var _ Attrib = Attribute{}
 
+// AttribName returns the attribute Name.
 func (a Attribute) AttribName() string {
 	return a.Name
 }
 
+// AttribValue returns the static attribute Value and a nil error,
+// ignoring the context.
 func (a Attribute) AttribValue(context.Context) (string, error) {
 	return a.Value, nil
 }
 
+// String returns the attribute formatted as name='value' with the value
+// single-quote escaped, as produced by AttribString.
 func (a Attribute) String() string {
 	return AttribString(a)
 }
 
+// Validate returns an error if the attribute Name is empty.
 func (a Attribute) Validate() error {
 	// TODO regex for valid attribute name
 	if a.Name == "" {
@@ -103,10 +119,15 @@ func (a Attribute) Validate() error {
 	return nil
 }
 
+// Valid reports whether Validate returns no error.
 func (a Attribute) Valid() bool {
 	return a.Validate() == nil
 }
 
+// AttribString formats an Attrib as name='value' with the value single-quote
+// escaped, evaluating AttribValue with a background context. If AttribValue
+// returns an error, the value is rendered as "!ERROR: " followed by the error
+// message. It is intended for debugging and String methods, not markup output.
 func AttribString(a Attrib) string {
 	value, err := a.AttribValue(context.Background())
 	if err != nil {

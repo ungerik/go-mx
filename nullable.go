@@ -5,6 +5,8 @@ import (
 	"reflect"
 )
 
+// Nullable is implemented by types that can report whether they hold a NULL
+// (absent) value. The reflection-based [IsNull] helper recognizes it.
 type Nullable interface {
 	IsNull() bool
 }
@@ -51,6 +53,8 @@ func canBeNil(k reflect.Kind) bool {
 	return false
 }
 
+// IsZero reports whether value is nil or equal to the zero value of its type,
+// using [reflect.Value.IsZero].
 func IsZero(value any) bool {
 	return value == nil || reflect.ValueOf(value).IsZero()
 }

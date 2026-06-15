@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// PaginationDemo renders pagination with previous/next controls, numbered links, and an ellipsis.
 func PaginationDemo() mx.Component {
 	return shadcn.Pagination(
 		shadcn.PaginationContent(

@@ -11,10 +11,14 @@ import (
 type BadgeVariant string // TODO use go-enum
 
 const (
-	BadgeDefault     BadgeVariant = "default"
-	BadgeSecondary   BadgeVariant = "secondary"
+	// BadgeDefault is the default badge style, using the primary color.
+	BadgeDefault BadgeVariant = "default"
+	// BadgeSecondary styles the badge with the secondary color.
+	BadgeSecondary BadgeVariant = "secondary"
+	// BadgeDestructive styles the badge to signal an error or destructive condition.
 	BadgeDestructive BadgeVariant = "destructive"
-	BadgeOutline     BadgeVariant = "outline"
+	// BadgeOutline styles the badge with a transparent background and visible border.
+	BadgeOutline BadgeVariant = "outline"
 )
 
 // badgeVariants resolves a badge's base + variant classes, declared the same

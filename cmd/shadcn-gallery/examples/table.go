@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// TableDemo renders a captioned invoices table with header and body rows.
 func TableDemo() mx.Component {
 	return shadcn.Table(
 		shadcn.TableCaption("A list of your recent invoices."),

@@ -7,6 +7,8 @@ import (
 	"github.com/domonda/go-types/uu"
 )
 
+// DocVersion is a stored version of a Document, recording who created it,
+// when, and an optional description.
 type DocVersion struct {
 	ID          uu.ID                  `db:"id,pk"`
 	DocumentID  uu.ID                  `db:"document_id"`

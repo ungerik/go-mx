@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// ScrollAreaDemo renders a fixed-height scroll area listing version tags.
 func ScrollAreaDemo() mx.Component {
 	return shadcn.ScrollArea(html.Class("h-48 w-56 rounded-md border p-4 text-sm"),
 		html.DivClass("mb-3 font-medium leading-none", "Tags"),

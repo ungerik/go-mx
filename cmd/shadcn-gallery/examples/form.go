@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// FormDemo renders a form with a labeled input, description text, and a submit button.
 func FormDemo() mx.Component {
 	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
 		shadcn.FormItem(
@@ -17,6 +18,7 @@ func FormDemo() mx.Component {
 	)
 }
 
+// FormWithError renders a form whose field is in an invalid state with an error message.
 func FormWithError() mx.Component {
 	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
 		shadcn.FormItem(

@@ -10,6 +10,9 @@ import (
 	"github.com/domonda/go-errs"
 )
 
+// JoinPath joins URL path segments with path.Join, but preserves a trailing
+// slash if the last segment has one (which path.Join would otherwise strip).
+// It returns an empty string for no segments.
 func JoinPath(segments []string) string {
 	if len(segments) == 0 {
 		return ""
@@ -22,6 +25,8 @@ func JoinPath(segments []string) string {
 	return p
 }
 
+// JoinAbsPath is like [JoinPath] but ensures the result begins with a leading
+// slash, making it an absolute path.
 func JoinAbsPath(segments []string) string {
 	p := JoinPath(segments)
 	if !strings.HasPrefix(p, "/") {
@@ -30,6 +35,10 @@ func JoinAbsPath(segments []string) string {
 	return p
 }
 
+// FormatPathValue formats value (stringified with fmt.Sprint and then
+// URL-path-escaped) for substitution into the path placeholder named name. It
+// returns an error if name is empty or contains the characters '/', '{' or '}',
+// which are invalid in a placeholder name.
 func FormatPathValue(name string, value any) (valStr string, err error) {
 	if name == "" {
 		return "", errs.New("path value name is empty")

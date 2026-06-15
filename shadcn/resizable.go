@@ -11,8 +11,10 @@ import (
 type ResizeDirection string
 
 const (
+	// ResizeHorizontal lays the panels out in a row, resized along the x-axis (the default).
 	ResizeHorizontal ResizeDirection = "horizontal"
-	ResizeVertical   ResizeDirection = "vertical"
+	// ResizeVertical lays the panels out in a column, resized along the y-axis.
+	ResizeVertical ResizeDirection = "vertical"
 )
 
 // resizeScript drags a [ResizableHandle] to resize its two adjacent panels by

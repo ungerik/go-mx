@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// HoverCardDemo renders a link trigger that reveals a hover card with an avatar and details.
 func HoverCardDemo() mx.Component {
 	return shadcn.HoverCard(
 		shadcn.HoverCardTrigger("demo-hovercard", 0, 0,

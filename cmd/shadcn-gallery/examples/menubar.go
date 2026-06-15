@@ -5,6 +5,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// MenubarDemo renders a menubar with File, Edit, and View menus containing items, shortcuts, and checkbox items.
 func MenubarDemo() mx.Component {
 	return shadcn.Menubar(
 		shadcn.MenubarMenu(

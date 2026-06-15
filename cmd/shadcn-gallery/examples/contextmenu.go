@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// ContextMenuDemo renders a right-click target that opens a context menu with items, shortcuts, and checkbox items.
 func ContextMenuDemo() mx.Component {
 	return shadcn.ContextMenu(
 		shadcn.ContextMenuTrigger("demo-contextmenu",

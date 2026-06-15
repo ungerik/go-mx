@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+// DefaultAsAttribs tries to convert an arbitrary value into a slice of
+// [Attrib], returning ok false if the value is not one of the recognized
+// attribute forms. It is how element constructors decide whether a variadic
+// argument is an attribute (versus a child component).
+//
+// Recognized are a single [Attrib] or [Attribute], slices, iterators and
+// constructor functions of those, an [AttribProvider], a map[string]any
+// ([Attribs]) or map[string]string, and a struct (or non-nil pointer to one)
+// whose fields carry "attr" tags, which are read via [ReflectAttribs].
+//
+// DefaultAsAttribs is the default implementation of the package-level
+// [AsAttribs] variable, which may be reassigned to customize this.
 func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 	switch x := maybeAttrib.(type) {
 	case Attrib:
@@ -69,12 +81,18 @@ func toAttribSlice[T Attrib](attribs []T) []Attrib {
 	return result
 }
 
+// AttribProvider is implemented by types that can supply their attributes
+// as a slice of [Attrib]. [DefaultAsAttribs] recognizes such values.
 type AttribProvider interface {
 	Attribs() []Attrib
 }
 
+// Attribs maps attribute names to values of any type, which are stringified
+// with fmt.Sprint when rendered. It implements [AttribProvider] via its
+// Attribs method, so a literal map can be passed where attributes are expected.
 type Attribs map[string]any
 
+// AttribsFromStringMap returns an Attribs built from a map of string values.
 func AttribsFromStringMap(m map[string]string) Attribs {
 	attribs := make(Attribs, len(m))
 	for name, value := range m {
@@ -124,6 +142,12 @@ func (a Attribs) String() string {
 	return b.String()
 }
 
+// ReflectAttribs builds attributes from the fields of struct value s,
+// iterating flattened fields (including embedded structs) via
+// [ReflectStructFields]. If tag is non-empty, a field's attribute name is
+// taken from that struct tag and the field is skipped when the tag is absent
+// or "-"; if tag is empty, the lower-cased field name is used. Each value is
+// stringified with fmt.Sprint.
 func ReflectAttribs(s reflect.Value, tag string) []Attrib {
 	var attribs []Attrib
 	for field, value := range ReflectStructFields(s) {

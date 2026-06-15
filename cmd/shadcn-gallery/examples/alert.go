@@ -5,6 +5,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// AlertDefault renders a default alert with a title and description.
 func AlertDefault() mx.Component {
 	return shadcn.Alert(shadcn.AlertDefault,
 		shadcn.AlertTitle("Heads up!"),
@@ -12,6 +13,7 @@ func AlertDefault() mx.Component {
 	)
 }
 
+// AlertDestructive renders a destructive-variant alert with a title and description.
 func AlertDestructive() mx.Component {
 	return shadcn.Alert(shadcn.AlertDestructive,
 		shadcn.AlertTitle("Error"),

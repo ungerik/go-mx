@@ -11,7 +11,9 @@ import (
 type AlertVariant string // TODO use go-enum
 
 const (
-	AlertDefault     AlertVariant = "default"
+	// AlertDefault is the default alert style, rendered on the card background.
+	AlertDefault AlertVariant = "default"
+	// AlertDestructive styles the alert to signal an error or destructive condition.
 	AlertDestructive AlertVariant = "destructive"
 )
 

@@ -10,12 +10,18 @@ import (
 	pretty "github.com/domonda/go-pretty"
 )
 
+// Component is the fundamental abstraction of the package: anything that can
+// render itself as markup. Render writes the component to w using the context,
+// for example to read request-scoped data or to be canceled, and returns the
+// first build or write error encountered.
 type Component interface {
 	Render(context.Context, Writer) error
 }
 
+// ComponentFunc adapts a render function to the [Component] interface.
 type ComponentFunc func(context.Context, Writer) error
 
+// Render calls the function, satisfying the [Component] interface.
 func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 	return f(ctx, w)
 }
@@ -104,6 +110,13 @@ func DefaultAsComponent(c any) Component {
 	}
 }
 
+// ComponentHTTPHandler returns an http.HandlerFunc that renders comp to a
+// buffer using a Writer from writerFactory, then writes the buffered markup as
+// the response after adding the given response header values. The component is
+// rendered with the request's context. A render error or a recovered panic is
+// reported via [RespondNonContextError], which returns a 500 (and reveals the
+// error only if [RevealInternalServerErrors] is set) while staying silent on a
+// canceled request.
 func ComponentHTTPHandler(comp Component, writerFactory WriterFactory, header http.Header) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
 		defer func() {
@@ -127,12 +140,16 @@ func ComponentHTTPHandler(comp Component, writerFactory WriterFactory, header ht
 	}
 }
 
+// ComponentModifier transforms a [Component] into another one, for example to
+// wrap or decorate it.
 type ComponentModifier interface {
 	ModifyComponent(Component) Component
 }
 
+// ComponentModifierFunc adapts a function to the [ComponentModifier] interface.
 type ComponentModifierFunc func(Component) Component
 
+// ModifyComponent calls the function, satisfying the [ComponentModifier] interface.
 func (f ComponentModifierFunc) ModifyComponent(component Component) Component {
 	return f(component)
 }

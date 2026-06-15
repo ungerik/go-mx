@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// AccordionDemo renders an accordion of three collapsible FAQ items.
 func AccordionDemo() mx.Component {
 	return shadcn.Accordion(html.Class("w-full max-w-md"),
 		shadcn.AccordionItem("faq",

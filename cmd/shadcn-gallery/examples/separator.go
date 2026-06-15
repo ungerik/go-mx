@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// SeparatorDemo renders horizontal and vertical separators between sections.
 func SeparatorDemo() mx.Component {
 	return html.Div(
 		html.DivClass("space-y-1",

@@ -51,17 +51,28 @@ const (
 	// and, by default, identifiers, operators and punctuation).
 	ClassPlain TokenClass = ""
 
-	ClassKeyword     TokenClass = "keyword"     // if, for, func, package, ...
-	ClassType        TokenClass = "type"        // predeclared types: int, string, error, ...
-	ClassFunction    TokenClass = "function"    // a called or declared function/method name
-	ClassBuiltin     TokenClass = "builtin"     // predeclared functions: make, len, append, ...
-	ClassConstant    TokenClass = "constant"    // predeclared values: true, false, nil, iota
-	ClassString      TokenClass = "string"      // string and rune literals
-	ClassNumber      TokenClass = "number"      // int, float and imaginary literals
-	ClassComment     TokenClass = "comment"     // line and block comments
-	ClassOperator    TokenClass = "operator"    // +, :=, ==, <-, ...
-	ClassPunctuation TokenClass = "punctuation" // parentheses, braces, commas, dots, ...
-	ClassIdent       TokenClass = "ident"       // any other identifier
+	// ClassKeyword is a Go keyword such as if, for, func or package.
+	ClassKeyword TokenClass = "keyword"
+	// ClassType is a predeclared type such as int, string or error.
+	ClassType TokenClass = "type"
+	// ClassFunction is a called or declared function/method name.
+	ClassFunction TokenClass = "function"
+	// ClassBuiltin is a predeclared function such as make, len or append.
+	ClassBuiltin TokenClass = "builtin"
+	// ClassConstant is a predeclared value such as true, false, nil or iota.
+	ClassConstant TokenClass = "constant"
+	// ClassString is a string or rune literal.
+	ClassString TokenClass = "string"
+	// ClassNumber is an integer, float or imaginary literal.
+	ClassNumber TokenClass = "number"
+	// ClassComment is a line or block comment.
+	ClassComment TokenClass = "comment"
+	// ClassOperator is an operator such as +, :=, == or <-.
+	ClassOperator TokenClass = "operator"
+	// ClassPunctuation is a delimiter such as a parenthesis, brace, comma, dot or colon.
+	ClassPunctuation TokenClass = "punctuation"
+	// ClassIdent is any other identifier.
+	ClassIdent TokenClass = "ident"
 )
 
 // Token is a single classified slice of the source. The concatenation of the

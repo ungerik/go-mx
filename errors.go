@@ -7,6 +7,10 @@ import (
 )
 
 var (
+	// RevealInternalServerErrors controls whether [RespondNonContextError]
+	// includes the actual error message in a 500 response. It defaults to false,
+	// which sends a generic "Internal Server Error"; set it to true (typically in
+	// development) to expose the error text.
 	RevealInternalServerErrors = false
 )
 

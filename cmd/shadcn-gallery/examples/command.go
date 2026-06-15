@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// CommandDemo renders a command palette with a search input and grouped, shortcut-labeled items.
 func CommandDemo() mx.Component {
 	return shadcn.Command(html.Class("max-w-md rounded-lg border shadow-md"),
 		shadcn.CommandInput(html.Placeholder("Type a command or search...")),

@@ -11,26 +11,40 @@ import (
 type ButtonVariant string // TODO use go-enum
 
 const (
-	ButtonDefault     ButtonVariant = "default"
+	// ButtonDefault is the default button style, using the primary color.
+	ButtonDefault ButtonVariant = "default"
+	// ButtonDestructive styles the button to signal a destructive action.
 	ButtonDestructive ButtonVariant = "destructive"
-	ButtonOutline     ButtonVariant = "outline"
-	ButtonSecondary   ButtonVariant = "secondary"
-	ButtonGhost       ButtonVariant = "ghost"
-	ButtonLink        ButtonVariant = "link"
+	// ButtonOutline styles the button with a transparent background and visible border.
+	ButtonOutline ButtonVariant = "outline"
+	// ButtonSecondary styles the button with the secondary color.
+	ButtonSecondary ButtonVariant = "secondary"
+	// ButtonGhost styles the button with no background until hovered.
+	ButtonGhost ButtonVariant = "ghost"
+	// ButtonLink styles the button to look like a text hyperlink.
+	ButtonLink ButtonVariant = "link"
 )
 
 // ButtonSize selects a button's size.
 type ButtonSize string // TODO use go-enum
 
 const (
+	// SizeDefault is the default button size.
 	SizeDefault ButtonSize = "default"
-	SizeXS      ButtonSize = "xs"
-	SizeSM      ButtonSize = "sm"
-	SizeLG      ButtonSize = "lg"
-	SizeIcon    ButtonSize = "icon"
-	SizeIconXS  ButtonSize = "icon-xs"
-	SizeIconSM  ButtonSize = "icon-sm"
-	SizeIconLG  ButtonSize = "icon-lg"
+	// SizeXS is the extra-small button size.
+	SizeXS ButtonSize = "xs"
+	// SizeSM is the small button size.
+	SizeSM ButtonSize = "sm"
+	// SizeLG is the large button size.
+	SizeLG ButtonSize = "lg"
+	// SizeIcon is the square size for an icon-only button.
+	SizeIcon ButtonSize = "icon"
+	// SizeIconXS is the extra-small square size for an icon-only button.
+	SizeIconXS ButtonSize = "icon-xs"
+	// SizeIconSM is the small square size for an icon-only button.
+	SizeIconSM ButtonSize = "icon-sm"
+	// SizeIconLG is the large square size for an icon-only button.
+	SizeIconLG ButtonSize = "icon-lg"
 )
 
 // buttonVariants resolves a button's base + variant + size classes, declared

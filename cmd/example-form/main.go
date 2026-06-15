@@ -28,6 +28,7 @@ import (
 // Tier is a small enum used to demonstrate the enum dispatch path.
 type Tier string
 
+// EnumStrings returns the string values of all valid Tier enum constants.
 func (Tier) EnumStrings() []string {
 	return []string{"free", "team", "enterprise"}
 }
@@ -35,6 +36,7 @@ func (Tier) EnumStrings() []string {
 // Feature is the enum used to populate the multi-select / set field.
 type Feature string
 
+// EnumStrings returns the string values of all valid Feature enum constants.
 func (Feature) EnumStrings() []string {
 	return []string{"sso", "audit-log", "advanced-analytics", "exports"}
 }
@@ -69,6 +71,7 @@ type store struct {
 	p  Profile
 }
 
+// Load returns a copy of the single stored Profile record.
 func (s *store) Load(_ context.Context) (*Profile, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -76,6 +79,9 @@ func (s *store) Load(_ context.Context) (*Profile, error) {
 	return &cp, nil
 }
 
+// Save validates the cross-field invariant that the "enterprise" tier
+// requires the SSO feature, returning a [mx.FieldErrors] if it is
+// violated, and otherwise stores p as the single Profile record.
 func (s *store) Save(_ context.Context, p *Profile) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

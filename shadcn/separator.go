@@ -9,8 +9,10 @@ import (
 type SeparatorOrientation string // TODO use go-enum
 
 const (
+	// SeparatorHorizontal orients the separator as a horizontal rule (the default).
 	SeparatorHorizontal SeparatorOrientation = "horizontal"
-	SeparatorVertical   SeparatorOrientation = "vertical"
+	// SeparatorVertical orients the separator as a vertical rule.
+	SeparatorVertical SeparatorOrientation = "vertical"
 )
 
 // separatorClasses is shadcn/ui's separator class string. The data-orientation

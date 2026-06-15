@@ -6,6 +6,7 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
+// SheetDemo renders an outline trigger that opens a side sheet with a profile-editing form and footer actions.
 func SheetDemo() mx.Component {
 	return shadcn.Sheet(
 		shadcn.SheetTrigger("demo-sheet",
