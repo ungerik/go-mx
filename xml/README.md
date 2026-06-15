@@ -84,10 +84,15 @@ and other values are stringified. Use `Text`/`Textf` for explicit text and
 | `Attrib(name, value)`               | `name="value"`           |
 | `AttribNS(prefix, name, value)`     | `prefix:name="value"`    |
 
-`Attrib` is generic over [`AttribValue`](attributes.go) (a string or any numeric
-type): strings pass through and floats render as plain decimals, never
-scientific notation, so `Attrib("w", 100)`, `Attrib("ratio", 0.5)` and
-`Attrib("id", "x1")` all work.
+`Attrib` is generic over [`AttribValue`](attributes.go) (a string or any integer
+or floating-point type): strings pass through and floats render as plain
+decimals, never scientific notation, so `Attrib("w", 100)`, `Attrib("ratio", 0.5)`
+and `Attrib("id", "x1")` all work.
+
+To pass a dynamic set of attributes, build an `Attribs` (an alias for
+[`mx.Attribs`](https://pkg.go.dev/github.com/ungerik/go-mx#Attribs), a
+`map[string]any` of name to value) and hand it to an element like any other
+argument; it renders sorted, with `id` first and `class` second.
 
 The predefined `xml:`/`xmlns` attributes have dedicated constructors because they
 mean the same thing in every document:
@@ -127,8 +132,10 @@ XML declaration and `Doctype` a document type declaration. They are bare `Raw`
 values with no trailing newline; the `mx.CheckedWriter` recognizes the closing
 `?>` of a declaration or processing instruction and breaks the line after it, so
 each sits on its own line in both compact and indented output (this also applies
-to HTML rendering, where `?>` simply never occurs). All are `Raw`, so they can
-be composed freely or used as a `Document`'s `Declaration`/`Prolog`.
+to HTML rendering, where `?>` simply never occurs). `Declaration`/`Decl` and
+`Doctype` are `Raw`; `ProcInst` is a struct component, but all of them are
+`mx.Component`s, so they compose freely or serve as a `Document`'s
+`Declaration`/`Prolog`.
 
 ## Conditional rendering and iteration
 
@@ -162,8 +169,9 @@ doc := &xml.Document{
 http.HandleFunc("/feed.xml", doc.HandleHTTP) // Content-Type: application/xml
 ```
 
-`Serve(addr, component)` serves any component as indented XML, and `String(c)`
-renders a component to a string for tests and one-off use.
+`Serve(addr, component)` serves any component as indented XML — `doc.Serve(addr)`
+is the shorthand for a `Document` — and `String(c)` renders a component to a
+string for tests and one-off use.
 
 ## Escaping helpers
 

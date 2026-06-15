@@ -28,9 +28,11 @@
 //	    ),
 //	}
 //
-// Element and attribute names are not validated against any schema: the package
-// guarantees well-formedness (escaping of text and attribute values, balanced
-// tags, and the comment/CDATA/processing-instruction constraints), not validity.
+// Element and attribute names are passed through as written: they are not
+// checked for XML name syntax or schema validity. The package does handle the
+// content-dependent mechanics of well-formed output — escaping text and
+// attribute values, balancing tags, and enforcing the comment, CDATA, and
+// processing-instruction constraints.
 package xml
 
 import (

@@ -11,9 +11,10 @@ import (
 type Attribs = mx.Attribs
 
 // AttribValue is the type set accepted by the generic [Attrib] constructor: a
-// string or any built-in numeric type. Strings pass through unchanged; integers
-// are formatted as plain decimals and floats with strconv.FormatFloat so small
-// or large magnitudes render as plain decimals instead of scientific notation.
+// string or any integer or floating-point type (not uintptr or complex).
+// Strings pass through unchanged; integers are formatted as plain decimals and
+// floats with strconv.FormatFloat so small or large magnitudes render as plain
+// decimals instead of scientific notation.
 type AttribValue interface {
 	~string |
 		~int | ~int8 | ~int16 | ~int32 | ~int64 |
