@@ -53,6 +53,11 @@ func TestShortcutConstructors(t *testing.T) {
 			`<script>console.log(1 < 2)</script>`,
 		},
 		{
+			"script js (multiple args joined by semicolon)",
+			ScriptJS(`const x = 1`, `console.log(x)`).String(),
+			`<script>const x = 1;console.log(x)</script>`,
+		},
+		{
 			"script module with src",
 			ScriptModule(Src("/app.mjs")).String(),
 			`<script type='module' src='/app.mjs'></script>`,
@@ -61,6 +66,11 @@ func TestShortcutConstructors(t *testing.T) {
 			"script module js (inline, raw)",
 			ScriptModuleJS(`import {x} from "./m.js"; x()`).String(),
 			`<script type='module'>import {x} from "./m.js"; x()</script>`,
+		},
+		{
+			"script module js (multiple args joined by semicolon)",
+			ScriptModuleJS(`import {x} from "./m.js"`, `x()`).String(),
+			`<script type='module'>import {x} from "./m.js";x()</script>`,
 		},
 		{
 			"stylesheet",

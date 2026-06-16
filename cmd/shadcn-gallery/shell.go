@@ -68,14 +68,14 @@ func head() mx.Component {
 	comps := mx.Components{
 		html.ScriptJS(themeInitScript),
 		html.Element("style", html.Type("text/tailwindcss"), html.Raw(themeCSS)),
-		html.Script(html.Src("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")),
+		html.ScriptSrc("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"),
 	}
 	if staticHighlight {
 		// The code blocks render with a dark background regardless of page
 		// theme (matching the dynamic Shiki block), so the dark theme is used.
 		comps = append(comps, highlight.DarkTheme.StyleElement(""))
 	} else {
-		comps = append(comps, html.Script(html.Type("module"), mx.Raw(shikiScript)))
+		comps = append(comps, html.ScriptModuleJS(shikiScript))
 	}
 	return comps
 }

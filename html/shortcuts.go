@@ -7,6 +7,8 @@ package html
 // every call site.
 
 import (
+	"strings"
+
 	"github.com/ungerik/go-mx"
 )
 
@@ -42,11 +44,13 @@ func MetaViewport(content string) *mx.Element {
 
 // ScriptJS is a <script> element wrapping the given raw JavaScript as its
 // content, the inline counterpart to ScriptSrc,
-// e.g. ScriptJS(`console.log("hi")`).
-func ScriptJS(js string) *mx.Element {
+// e.g. ScriptJS(`console.log("hi")`). Multiple arguments are joined with
+// semicolons, so several statements can be passed as separate strings:
+// ScriptJS(`const x = 1`, `console.log(x)`).
+func ScriptJS(js ...string) *mx.Element {
 	return &mx.Element{
 		Name:     "script",
-		Children: []mx.Component{mx.Raw(js)},
+		Children: []mx.Component{mx.Raw(strings.Join(js, ";"))},
 	}
 }
 
@@ -69,12 +73,14 @@ func ScriptModule(attribsChildren ...any) *mx.Element {
 
 // ScriptModuleJS is a <script type="module"> wrapping the given raw ES module
 // source as its content, the inline counterpart to ScriptModule(Src(url)),
-// e.g. ScriptModuleJS(`import {x} from "./m.js"; x()`).
-func ScriptModuleJS(js string) *mx.Element {
+// e.g. ScriptModuleJS(`import {x} from "./m.js"; x()`). Multiple arguments are
+// joined with semicolons, so several statements can be passed as separate
+// strings: ScriptModuleJS(`import {x} from "./m.js"`, `x()`).
+func ScriptModuleJS(js ...string) *mx.Element {
 	return &mx.Element{
 		Name:     "script",
 		Attribs:  []mx.Attrib{Type("module")},
-		Children: []mx.Component{mx.Raw(js)},
+		Children: []mx.Component{mx.Raw(strings.Join(js, ";"))},
 	}
 }
 
