@@ -78,7 +78,7 @@ func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) 
 	if side == "" {
 		side = PopoverTop
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(tooltipScript))...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(tooltipID))
 	}
@@ -89,6 +89,5 @@ func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) 
 		e.Attribs = append(e.Attribs, html.Role("tooltip"))
 	}
 	mergeStyle(e, popoverContentStyle(tooltipID, side))
-	e.Children = append(e.Children, html.Script(mx.Raw(tooltipScript)))
 	return finish(e, "tooltip-content", tooltipContentClasses)
 }

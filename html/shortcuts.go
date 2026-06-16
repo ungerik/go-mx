@@ -40,11 +40,25 @@ func MetaViewport(content string) *mx.Element {
 	return MetaName("viewport", content)
 }
 
+// ScriptJS is a <script> element wrapping the given raw JavaScript as its
+// content, the inline counterpart to ScriptSrc,
+// e.g. ScriptJS(`console.log("hi")`).
+func ScriptJS(js string) *mx.Element {
+	return &mx.Element{
+		Name:     "script",
+		Children: []mx.Component{mx.Raw(js)},
+	}
+}
+
 // ScriptSrc is a <script src="..."> loading an external classic script. Extra
 // attributes or children may follow, e.g. ScriptSrc(url, Defer) or
 // ScriptSrc(url, Async, CrossOrigin("anonymous")).
-func ScriptSrc(url string, attribsChildren ...any) *mx.Element {
-	return Script(append([]any{Src(url)}, attribsChildren...)...)
+func ScriptSrc(url string, attribs ...mx.Attrib) *mx.Element {
+	return &mx.Element{
+		Name:     "script",
+		Attribs:  append([]mx.Attrib{Src(url)}, attribs...),
+		Children: []mx.Component{}, // not a void element: needs </script>, so non-nil empty children
+	}
 }
 
 // ScriptModule is a <script type="module" ...> ES module script. Combine with
@@ -53,16 +67,33 @@ func ScriptModule(attribsChildren ...any) *mx.Element {
 	return Script(append([]any{Type("module")}, attribsChildren...)...)
 }
 
+// ScriptModuleJS is a <script type="module"> wrapping the given raw ES module
+// source as its content, the inline counterpart to ScriptModule(Src(url)),
+// e.g. ScriptModuleJS(`import {x} from "./m.js"; x()`).
+func ScriptModuleJS(js string) *mx.Element {
+	return &mx.Element{
+		Name:     "script",
+		Attribs:  []mx.Attrib{Type("module")},
+		Children: []mx.Component{mx.Raw(js)},
+	}
+}
+
 // StyleSheet is a <link rel="stylesheet" href="..."> loading an external CSS
 // stylesheet. Extra attributes (Media, Integrity, …) may follow.
 func StyleSheet(href string, attribs ...mx.Attrib) *mx.Element {
-	return Link(append([]mx.Attrib{Rel("stylesheet"), HRef(href)}, attribs...)...)
+	return &mx.Element{
+		Name:    "link",
+		Attribs: append([]mx.Attrib{Rel("stylesheet"), HRef(href)}, attribs...),
+	}
 }
 
 // Icon is a <link rel="icon" href="..."> declaring the page favicon. Extra
 // attributes (Sizes, Type, …) may follow.
 func Icon(href string, attribs ...mx.Attrib) *mx.Element {
-	return Link(append([]mx.Attrib{Rel("icon"), HRef(href)}, attribs...)...)
+	return &mx.Element{
+		Name:    "link",
+		Attribs: append([]mx.Attrib{Rel("icon"), HRef(href)}, attribs...),
+	}
 }
 
 // LinkPreload is a <link rel="preload" href="..." as="..."> preloading a
@@ -73,10 +104,8 @@ func LinkPreload(href string, as As, attribs ...mx.Attrib) *mx.Element {
 	return Link(append([]mx.Attrib{Rel("preload"), HRef(href), as}, attribs...)...)
 }
 
-// BlankLink is an <a href="..." target="_blank" rel="noopener noreferrer"> that
-// opens in a new browsing context. The rel value prevents reverse tabnabbing:
-// without rel="noopener" the opened page can navigate this one via
-// window.opener. Extra attributes may follow the text.
-func BlankLink(href, text string, attribs ...mx.Attrib) *mx.Element {
-	return A(HRef(href), TargetBlank, Rel("noopener", "noreferrer"), attribs, text)
+// AHRef creates an <a> hyperlink to the given URL
+// as a shortcut for A(HRef(url), attribsChildren...).
+func AHRef(url string, attribsChildren ...any) *mx.Element {
+	return A(append([]any{HRef(url)}, attribsChildren...)...)
 }

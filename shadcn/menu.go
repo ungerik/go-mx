@@ -52,7 +52,7 @@ func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu boo
 	if err := validateID(popoverID); err != nil {
 		return mx.NewErrElement(err)
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(menuScript))...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(popoverID))
 	}
@@ -77,7 +77,6 @@ func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu boo
 	if anchored {
 		mergeStyle(e, popoverContentStyle(popoverID, side))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(menuScript)))
 	return finish(e, slot, menuContentClasses)
 }
 

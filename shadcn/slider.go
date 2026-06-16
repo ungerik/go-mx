@@ -105,7 +105,7 @@ func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...a
 		track,
 		mkInput(lo),
 		mkInput(hi),
-		html.Script(mx.Raw(sliderClampScript)),
+		html.ScriptJS(sliderClampScript),
 	)
 	return finish(e, "slider", "relative flex w-full touch-none items-center select-none h-4")
 }

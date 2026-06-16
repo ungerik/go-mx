@@ -434,7 +434,7 @@
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-data-table-demo-panel-code" aria-labelledby="tab-data-table-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">Div</span>(html.<span class="hl-function">DataAttr</span>(<span class="hl-string">&quot;datatable&quot;</span>, <span class="hl-string">&quot;&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full&quot;</span>),
-	html.<span class="hl-function">Script</span>(mx.<span class="hl-function">Raw</span>(dtFilterScript)),
+	html.<span class="hl-function">ScriptJS</span>(dtFilterScript),
 	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex items-center gap-2 py-4&quot;</span>,
 		shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
 			html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Filter emails...&quot;</span>), html.<span class="hl-function">OnInput</span>(<span class="hl-string">&quot;dtFilter(this)&quot;</span>)),

@@ -60,8 +60,7 @@ func DrawerContent(drawerID string, attribsChildren ...any) *mx.Element {
 	handle := finish(html.Div(html.Attrib("onpointerdown", "drawerStart(event,this)")),
 		"drawer-handle", "bg-muted mx-auto mt-4 h-2 w-[100px] shrink-0 cursor-grab touch-none rounded-full")
 	// Grab handle first, then the caller's children, then the shared script.
-	e.Children = append(mx.Components{handle}, e.Children...)
-	e.Children = append(e.Children, html.Script(mx.Raw(drawerScript)))
+	e.Children = append(append(mx.Components{handle}, e.Children...), html.ScriptJS(drawerScript))
 	return finish(e, "drawer-content", drawerContentClasses)
 }
 

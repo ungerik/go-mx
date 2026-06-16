@@ -66,7 +66,7 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 //     no client-side script and no CDN dependency for the code blocks.
 func head() mx.Component {
 	comps := mx.Components{
-		html.Script(mx.Raw(themeInitScript)),
+		html.ScriptJS(themeInitScript),
 		html.Element("style", html.Type("text/tailwindcss"), html.Raw(themeCSS)),
 		html.Script(html.Src("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")),
 	}

@@ -57,5 +57,5 @@ func CheckboxIndeterminateScript(id string) *mx.Element {
 	if err := validateID(id); err != nil {
 		return mx.NewErrElement(err)
 	}
-	return html.Script(mx.Raw("document.getElementById('" + id + "').indeterminate=true"))
+	return html.ScriptJS("document.getElementById('" + id + "').indeterminate=true")
 }

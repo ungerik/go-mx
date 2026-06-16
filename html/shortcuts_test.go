@@ -48,9 +48,19 @@ func TestShortcutConstructors(t *testing.T) {
 			`<script src='/app.js' defer='defer'></script>`,
 		},
 		{
+			"script js (inline, raw)",
+			ScriptJS(`console.log(1 < 2)`).String(),
+			`<script>console.log(1 < 2)</script>`,
+		},
+		{
 			"script module with src",
 			ScriptModule(Src("/app.mjs")).String(),
 			`<script type='module' src='/app.mjs'></script>`,
+		},
+		{
+			"script module js (inline, raw)",
+			ScriptModuleJS(`import {x} from "./m.js"; x()`).String(),
+			`<script type='module'>import {x} from "./m.js"; x()</script>`,
 		},
 		{
 			"stylesheet",
@@ -66,16 +76,6 @@ func TestShortcutConstructors(t *testing.T) {
 			"link preload with As enum",
 			LinkPreload("/font.woff2", AsFont, CrossOrigin("anonymous")).String(),
 			`<link rel='preload' href='/font.woff2' as='font' crossorigin='anonymous'/>`,
-		},
-		{
-			"blank link sets noopener rel",
-			BlankLink("https://example.com", "Example").String(),
-			`<a href='https://example.com' target='_blank' rel='noopener noreferrer'>Example</a>`,
-		},
-		{
-			"blank link with extra attrib",
-			BlankLink("https://example.com", "Example", Class("ext")).String(),
-			`<a href='https://example.com' target='_blank' rel='noopener noreferrer' class='ext'>Example</a>`,
 		},
 	}
 	for _, tt := range tests {

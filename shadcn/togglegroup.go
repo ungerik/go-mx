@@ -47,7 +47,7 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 	if err := validateID(id); err != nil {
 		return mx.NewErrElement(err)
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(toggleGroupClickScript))...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
@@ -57,7 +57,6 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 		html.DataAttr("size", normToggleSize(size)),
 		html.DataAttr("toggle-group", id),
 	)
-	e.Children = append(e.Children, html.Script(mx.Raw(toggleGroupClickScript)))
 	return finish(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
 }
 

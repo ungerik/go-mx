@@ -72,6 +72,13 @@ html.Div(html.Class("container"), html.P("Hello"))
 html.Img(html.Src("/img.png"), html.Alt("Image"))
 ```
 
+**Attribs before children**: in every `attribsChildren ...any` constructor
+(`html.Div`, `NewElement`, the `shadcn` components, …) always pass attributes
+before children. `NewElement` sorts the variadic into the separate `Attribs`
+and `Children` slices regardless of order, but the source must list attribs
+first, then children — including when appending to the variadic, e.g.
+`html.Div(append(attribsChildren, child)...)` (child added last).
+
 **Component Conversion** (`DefaultAsComponent` in `component.go`):
 Children are passed as `...any` and converted dynamically at render-build
 time, not checked at compile time.

@@ -26,11 +26,10 @@ func Tabs(id string, attribsChildren ...any) *mx.Element {
 	if err := validateID(id); err != nil {
 		return mx.NewErrElement(err)
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(tabsSelectScript))...)
 	if e.AttribIndex("data-tabs") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("tabs", id))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(tabsSelectScript)))
 	return finish(e, "tabs", "flex flex-col gap-2")
 }
 

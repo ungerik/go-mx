@@ -82,7 +82,7 @@ func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
 	hidden.Children = nil
 
 	e.Children = append(e.Children, slots...)
-	e.Children = append(e.Children, hidden, html.Script(mx.Raw(inputOTPScript)))
+	e.Children = append(e.Children, hidden, html.ScriptJS(inputOTPScript))
 
 	return finish(e, "input-otp", "flex items-center gap-2")
 }

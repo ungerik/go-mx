@@ -97,7 +97,7 @@ func HoverCardContent(hoverCardID string, side PopoverSide, openDelayMs, closeDe
 	}
 	openStr := strconv.Itoa(openDelayMs)
 	closeStr := strconv.Itoa(closeDelayMs)
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(hoverCardScript))...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(hoverCardID))
 	}
@@ -116,6 +116,5 @@ func HoverCardContent(hoverCardID string, side PopoverSide, openDelayMs, closeDe
 		e.Attribs = append(e.Attribs, html.OnMouseOut("hoverCardHide(this,'"+hoverCardID+"',"+closeStr+")"))
 	}
 	mergeStyle(e, popoverContentStyle(hoverCardID, side))
-	e.Children = append(e.Children, html.Script(mx.Raw(hoverCardScript)))
 	return finish(e, "hover-card-content", hoverCardContentClasses)
 }

@@ -19,8 +19,7 @@ const commandScript = /*js*/ `if(!window.commandFilter){window.commandFilter=fun
 
 // Command is the filterable command palette container.
 func Command(attribsChildren ...any) *mx.Element {
-	e := html.Div(attribsChildren...)
-	e.Children = append(e.Children, html.Script(mx.Raw(commandScript)))
+	e := html.Div(append(attribsChildren, html.ScriptJS(commandScript))...)
 	return finish(e, "command",
 		"bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md")
 }

@@ -87,7 +87,7 @@ func NavigationMenuContent(navID string, side PopoverSide, attribsChildren ...an
 	if err := validateID(navID); err != nil {
 		return mx.NewErrElement(err)
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(menuScript))...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(navID))
 	}
@@ -101,7 +101,6 @@ func NavigationMenuContent(navID string, side PopoverSide, attribsChildren ...an
 		e.Attribs = append(e.Attribs, html.OnToggle("menuOpen(event)"))
 	}
 	mergeStyle(e, popoverContentStyle(navID, side))
-	e.Children = append(e.Children, html.Script(mx.Raw(menuScript)))
 	return finish(e, "navigation-menu-content", navigationMenuContentClasses)
 }
 
