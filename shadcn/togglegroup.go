@@ -44,7 +44,9 @@ func normToggleGroupType(t ToggleGroupType) string {
 // continue to match. The toggleGroupClick script is appended once per group
 // instance, guarded with if(!window.toggleGroupClick).
 func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSize, id string, attribsChildren ...any) *mx.Element {
-	validateID(id)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -78,7 +80,9 @@ const toggleGroupItemJoinClasses = "min-w-0 flex-1 shrink-0 rounded-none shadow-
 // onclick that calls the shared toggleGroupClick(this); pass any hx.*
 // attribute (e.g. hx.Post(...)) to drive the press server-side instead.
 func ToggleGroupItem(groupID, value string, variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.Element {
-	validateID(groupID)
+	if err := validateID(groupID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

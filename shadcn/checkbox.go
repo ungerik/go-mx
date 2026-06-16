@@ -54,6 +54,8 @@ func CheckboxID(id string, attribsChildren ...any) *mx.Element {
 //
 // HTML has no indeterminate attribute; this script bridges that gap.
 func CheckboxIndeterminateScript(id string) *mx.Element {
-	validateID(id)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
 	return html.Script(mx.Raw("document.getElementById('" + id + "').indeterminate=true"))
 }

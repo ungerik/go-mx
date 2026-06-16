@@ -45,7 +45,9 @@ func HoverCard(attribsChildren ...any) *mx.Element {
 // inside without nesting buttons. focusin/focusout (not focus/blur) are
 // used so descendant focus events bubble.
 func HoverCardTrigger(hoverCardID string, openDelayMs, closeDelayMs int, attribsChildren ...any) *mx.Element {
-	validateID(hoverCardID)
+	if err := validateID(hoverCardID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	if openDelayMs <= 0 {
 		openDelayMs = hoverCardDefaultOpenDelayMs
 	}
@@ -84,7 +86,9 @@ func HoverCardTrigger(hoverCardID string, openDelayMs, closeDelayMs int, attribs
 // itself so the popover stays open while the cursor is over it (and closes
 // shortly after the cursor leaves).
 func HoverCardContent(hoverCardID string, side PopoverSide, openDelayMs, closeDelayMs int, attribsChildren ...any) *mx.Element {
-	validateID(hoverCardID)
+	if err := validateID(hoverCardID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	if openDelayMs <= 0 {
 		openDelayMs = hoverCardDefaultOpenDelayMs
 	}

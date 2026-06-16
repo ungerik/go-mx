@@ -39,7 +39,9 @@ const inputOTPSlotClasses = "size-9 rounded-md border border-input bg-transparen
 // caret) and synthesizes the hidden value with the shared otpAdvance script —
 // a documented divergence.
 func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
-	validateID(id)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
 	if length < 1 {
 		panic("shadcn: InputOTP length must be >= 1")
 	}

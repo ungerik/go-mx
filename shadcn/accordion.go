@@ -34,7 +34,9 @@ func Accordion(attribsChildren ...any) *mx.Element {
 func AccordionItem(groupName string, attribsChildren ...any) *mx.Element {
 	e := html.Details(attribsChildren...)
 	if groupName != "" {
-		validateID(groupName)
+		if err := validateID(groupName); err != nil {
+			return mx.NewErrElement(err)
+		}
 		if e.AttribIndex("name") < 0 {
 			e.Attribs = append(e.Attribs, html.Name(groupName))
 		}

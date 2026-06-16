@@ -15,7 +15,9 @@ import (
 // panics, since it is interpolated into each item's name attribute and
 // addressed by browsers as the radios' exclusive-selection group.
 func RadioGroup(name string, attribsChildren ...any) *mx.Element {
-	validateID(name)
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("radiogroup"))
@@ -44,7 +46,9 @@ const radioGroupItemClasses = "peer aspect-square size-4 shrink-0 appearance-non
 // link a [Label]. Caller-supplied type, name or value is left untouched.
 // Children are not valid on a void element and are dropped.
 func RadioGroupItem(name, value string, attribsChildren ...any) *mx.Element {
-	validateID(name)
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Element("input", attribsChildren...)
 	e.Children = nil // <input> is a void element
 	if e.AttribIndex("type") < 0 {

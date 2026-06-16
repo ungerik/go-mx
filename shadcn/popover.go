@@ -91,7 +91,9 @@ func Popover(attribsChildren ...any) *mx.Element {
 // Pass any html.* attributes (or html.Class for styling) the normal way; the
 // anchor-name fragment is merged into a caller-supplied style.
 func PopoverTrigger(popoverID string, attribsChildren ...any) *mx.Element {
-	validateID(popoverID)
+	if err := validateID(popoverID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -116,7 +118,9 @@ func PopoverTrigger(popoverID string, attribsChildren ...any) *mx.Element {
 // (so the browser handles open / close / light-dismiss / Escape) and the
 // CSS anchor-position style. side may be "" for the default (bottom).
 func PopoverContent(popoverID string, side PopoverSide, attribsChildren ...any) *mx.Element {
-	validateID(popoverID)
+	if err := validateID(popoverID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(popoverID))

@@ -32,7 +32,9 @@ func Drawer(attribsChildren ...any) *mx.Element {
 // DrawerTrigger renders a button that opens the drawer via showModal(). Pass
 // content/styling directly (use html.Class([ButtonClasses](...)) for the look).
 func DrawerTrigger(drawerID string, attribsChildren ...any) *mx.Element {
-	validateID(drawerID)
+	if err := validateID(drawerID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -48,7 +50,9 @@ func DrawerTrigger(drawerID string, attribsChildren ...any) *mx.Element {
 // top (drag it down to dismiss) followed by the caller's children. It
 // light-dismisses (a backdrop click closes it). side is bottom-only.
 func DrawerContent(drawerID string, attribsChildren ...any) *mx.Element {
-	validateID(drawerID)
+	if err := validateID(drawerID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Dialog(append([]any{html.ID(drawerID)}, attribsChildren...)...)
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("if(event.target===this)this.close()"))

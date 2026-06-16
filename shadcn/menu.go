@@ -49,7 +49,9 @@ const menuShortcutClasses = "ml-auto text-xs tracking-widest text-muted-foregrou
 // as a sub-popover (the menuKeyNav ArrowLeft handler then closes it and
 // refocuses the parent trigger).
 func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu bool, attribsChildren ...any) *mx.Element {
-	validateID(popoverID)
+	if err := validateID(popoverID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(popoverID))
@@ -120,7 +122,9 @@ func menuCheckboxItem(slot string, checked bool, attribsChildren ...any) *mx.Ele
 // iconCircle indicator. The caller's onclick (or hx-*) handles the actual
 // selection state change.
 func menuRadioItem(slot, name, value string, selected bool, attribsChildren ...any) *mx.Element {
-	validateID(name)
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menuitemradio"))
@@ -168,7 +172,9 @@ func menuGroup(slot string, attribsChildren ...any) *mx.Element {
 
 // menuRadioGroup renders a group of radio items sharing one name.
 func menuRadioGroup(slot, name string, attribsChildren ...any) *mx.Element {
-	validateID(name)
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -188,7 +194,9 @@ func menuShortcut(slot string, attribsChildren ...any) *mx.Element {
 // popoverButton-equivalent attribs plus the menuitem role and a chevron-right
 // indicator on the right.
 func menuSubTrigger(slot, popoverID string, attribsChildren ...any) *mx.Element {
-	validateID(popoverID)
+	if err := validateID(popoverID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menuitem"))
