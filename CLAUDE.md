@@ -127,8 +127,8 @@ mx.ForEach(slice, func(v T) Component { ... })
 - Use `any` instead of `interface{}`
 - Use `github.com/domonda/go-errs` for errors (`errs.New`, `errs.Errorf`)
 - Use `github.com/domonda/go-types/uu` for UUIDs (`uu.ID`, `uu.IDSlice`, `uu.IDNil`)
-- SQL strings: prefix with `/*sql*/` and use backticks
-- HTML strings: prefix with `/*html*/` and use backticks
+- SQL strings: prefix with `/*sql*/` and use backticks and start on a new line when following an argument
+- HTML strings: prefix with `/*html*/` and use backticks and start on a new line when following an argument
 
 ## Skill routing
 

@@ -57,13 +57,17 @@ const accordionTriggerClasses = "focus-visible:border-ring focus-visible:ring-ri
 // appended, carrying group-open:rotate-180 so it rotates when the parent
 // [AccordionItem] is open. To use a different indicator, pass it as a child.
 func AccordionTrigger(attribsChildren ...any) *mx.Element {
-	e := html.Summary(attribsChildren...)
 	// Always append the chevron — shadcn's trigger always renders one.
-	chevron := icon("chevron-down",
+	chevron := icon(
+		"chevron-down",
 		"text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-180",
-		svg.Path(svg.D("m6 9 6 6 6-6")))
-	e.Children = append(e.Children, chevron)
-	return finish(e, "accordion-trigger", accordionTriggerClasses)
+		svg.Path(svg.D("m6 9 6 6 6-6")),
+	)
+	return finish(
+		html.Summary(append(attribsChildren, chevron)...),
+		"accordion-trigger",
+		accordionTriggerClasses,
+	)
 }
 
 // AccordionContent renders the open-state content as a <div>. shadcn's

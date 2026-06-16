@@ -13,7 +13,11 @@ const inputClasses = "file:text-foreground placeholder:text-muted-foreground sel
 // the input type the normal way, e.g. html.Type("email"); with no type the
 // browser defaults to text.
 func Input(attribs ...mx.Attrib) *mx.Element {
-	return finish(html.VoidElement("input", attribs...), "input", inputClasses)
+	return finish(
+		html.VoidElement("input", attribs...),
+		"input",
+		inputClasses,
+	)
 }
 
 // InputID renders an [Input] with the given id, to link a [Label] or [LabelFor],
