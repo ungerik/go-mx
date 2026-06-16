@@ -30,11 +30,8 @@ var checkboxClasses = "peer size-4 shrink-0 appearance-none rounded-[4px] border
 // attribute — so this component cannot start indeterminate from markup alone.
 // Use [CheckboxIndeterminateScript] to emit a one-line script that flips the
 // property after the page loads.
-//
-// Children are not valid on a void element and are dropped.
-func Checkbox(attribsChildren ...any) *mx.Element {
-	e := html.Element("input", attribsChildren...)
-	e.Children = nil // <input> is a void element
+func Checkbox(attribs ...mx.Attrib) *mx.Element {
+	e := html.VoidElement("input", attribs...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("checkbox"))
 	}
@@ -42,9 +39,9 @@ func Checkbox(attribsChildren ...any) *mx.Element {
 }
 
 // CheckboxID renders a [Checkbox] with the given id, to link a [Label] or
-// [LabelFor], as a shortcut for Checkbox(html.ID(id), attribsChildren...).
-func CheckboxID(id string, attribsChildren ...any) *mx.Element {
-	return Checkbox(append([]any{html.ID(id)}, attribsChildren...)...)
+// [LabelFor], as a shortcut for Checkbox(html.ID(id), attribs...).
+func CheckboxID(id string, attribs ...mx.Attrib) *mx.Element {
+	return Checkbox(append([]mx.Attrib{html.ID(id)}, attribs...)...)
 }
 
 // CheckboxIndeterminateScript returns a <script> that flips the indeterminate

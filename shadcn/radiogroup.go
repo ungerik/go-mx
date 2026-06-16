@@ -44,13 +44,11 @@ const radioGroupItemClasses = "peer aspect-square size-4 shrink-0 appearance-non
 //
 // Pass html.Checked to start selected, html.Disabled to disable, html.ID to
 // link a [Label]. Caller-supplied type, name or value is left untouched.
-// Children are not valid on a void element and are dropped.
-func RadioGroupItem(name, value string, attribsChildren ...any) *mx.Element {
+func RadioGroupItem(name, value string, attribs ...mx.Attrib) *mx.Element {
 	if err := validateID(name); err != nil {
 		return mx.NewErrElement(err)
 	}
-	e := html.Element("input", attribsChildren...)
-	e.Children = nil // <input> is a void element
+	e := html.VoidElement("input", attribs...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("radio"))
 	}

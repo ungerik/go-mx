@@ -125,7 +125,7 @@ func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, e
 }
 
 func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	attribs := []any{
+	attribs := []mx.Attrib{
 		html.Name(string(path)),
 		html.ID(string(path)),
 		html.Value("on"),
@@ -219,7 +219,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 	selected := setMembers(value)
 	items := mx.Components{}
 	for _, opt := range options {
-		attribs := []any{
+		attribs := []mx.Attrib{
 			html.Name(string(path)),
 			html.Value(opt.Value),
 			hx.Trigger("change"),
@@ -253,9 +253,9 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 // enough that calling private html helpers across packages would be
 // uglier than this short duplication.
 
-func stringAttribs(path mx.FieldPath, value reflect.Value, t reflect.Type, tag mx.FormTag, errs []error) []any {
+func stringAttribs(path mx.FieldPath, value reflect.Value, t reflect.Type, tag mx.FormTag, errs []error) []mx.Attrib {
 	inputType := stringWidget(tag, t)
-	a := []any{
+	a := []mx.Attrib{
 		html.Type(inputType),
 		html.Name(string(path)),
 		html.ID(string(path)),
@@ -282,8 +282,8 @@ func stringAttribs(path mx.FieldPath, value reflect.Value, t reflect.Type, tag m
 	return a
 }
 
-func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []any {
-	a := []any{
+func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
+	a := []mx.Attrib{
 		html.Type("number"),
 		html.Name(string(path)),
 		html.ID(string(path)),
@@ -311,7 +311,7 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	return a
 }
 
-func datetimeAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []any {
+func datetimeAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
 	t := "datetime-local"
 	switch tag.Widget {
 	case "date":
@@ -319,7 +319,7 @@ func datetimeAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 	case "time":
 		t = "time"
 	}
-	a := []any{
+	a := []mx.Attrib{
 		html.Type(t),
 		html.Name(string(path)),
 		html.ID(string(path)),
@@ -364,8 +364,8 @@ func textareaAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 	return a
 }
 
-func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []any {
-	a := []any{
+func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
+	a := []mx.Attrib{
 		html.Type("file"),
 		html.Name(string(path)),
 		html.ID(string(path)),
