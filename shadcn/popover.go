@@ -1,7 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
@@ -16,7 +19,7 @@ import (
 // without it (Firefox as of mid-2026) render the popover at its default
 // centered position — still dismissible and functional, just not anchored.
 // See shadcn/README.md for the rationale.
-type PopoverSide string // TODO use go-enum
+type PopoverSide string //#enum
 
 const (
 	// PopoverTop renders the content above its trigger.
@@ -28,6 +31,52 @@ const (
 	// PopoverLeft renders the content to the left of its trigger.
 	PopoverLeft PopoverSide = "left"
 )
+
+// Valid indicates if p is any of the valid values for PopoverSide
+func (p PopoverSide) Valid() bool {
+	switch p {
+	case
+		PopoverTop,
+		PopoverRight,
+		PopoverBottom,
+		PopoverLeft:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if p is none of the valid values for PopoverSide
+func (p PopoverSide) Validate() error {
+	if !p.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.PopoverSide", p)
+	}
+	return nil
+}
+
+// Enums returns all valid values for PopoverSide
+func (PopoverSide) Enums() []PopoverSide {
+	return []PopoverSide{
+		PopoverTop,
+		PopoverRight,
+		PopoverBottom,
+		PopoverLeft,
+	}
+}
+
+// EnumStrings returns all valid values for PopoverSide as strings
+func (PopoverSide) EnumStrings() []string {
+	return []string{
+		"top",
+		"right",
+		"bottom",
+		"left",
+	}
+}
+
+// String implements the fmt.Stringer interface for PopoverSide
+func (p PopoverSide) String() string {
+	return string(p)
+}
 
 // normPopoverSide maps an empty or unknown side to the default (bottom).
 func normPopoverSide(s PopoverSide) PopoverSide {

@@ -1,6 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn/cva"
@@ -8,7 +12,7 @@ import (
 
 // ToggleVariant selects a toggle's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's toggle.tsx (new-york-v4, Tailwind v4).
-type ToggleVariant string // TODO use go-enum
+type ToggleVariant string //#enum
 
 const (
 	// ToggleDefault is the default toggle style, transparent until pressed.
@@ -17,9 +21,49 @@ const (
 	ToggleOutline ToggleVariant = "outline"
 )
 
+// Valid indicates if t is any of the valid values for ToggleVariant
+func (t ToggleVariant) Valid() bool {
+	switch t {
+	case
+		ToggleDefault,
+		ToggleOutline:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for ToggleVariant
+func (t ToggleVariant) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ToggleVariant", t)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ToggleVariant
+func (ToggleVariant) Enums() []ToggleVariant {
+	return []ToggleVariant{
+		ToggleDefault,
+		ToggleOutline,
+	}
+}
+
+// EnumStrings returns all valid values for ToggleVariant as strings
+func (ToggleVariant) EnumStrings() []string {
+	return []string{
+		"default",
+		"outline",
+	}
+}
+
+// String implements the fmt.Stringer interface for ToggleVariant
+func (t ToggleVariant) String() string {
+	return string(t)
+}
+
 // ToggleSize selects a toggle's size. Distinct from [ButtonSize] because the
 // toggle's size table is its own (no icon sizes, different padding).
-type ToggleSize string // TODO use go-enum
+type ToggleSize string //#enum
 
 const (
 	// ToggleSizeDefault is the default toggle size.
@@ -29,6 +73,49 @@ const (
 	// ToggleSizeLG is the large toggle size.
 	ToggleSizeLG ToggleSize = "lg"
 )
+
+// Valid indicates if t is any of the valid values for ToggleSize
+func (t ToggleSize) Valid() bool {
+	switch t {
+	case
+		ToggleSizeDefault,
+		ToggleSizeSM,
+		ToggleSizeLG:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for ToggleSize
+func (t ToggleSize) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ToggleSize", t)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ToggleSize
+func (ToggleSize) Enums() []ToggleSize {
+	return []ToggleSize{
+		ToggleSizeDefault,
+		ToggleSizeSM,
+		ToggleSizeLG,
+	}
+}
+
+// EnumStrings returns all valid values for ToggleSize as strings
+func (ToggleSize) EnumStrings() []string {
+	return []string{
+		"default",
+		"sm",
+		"lg",
+	}
+}
+
+// String implements the fmt.Stringer interface for ToggleSize
+func (t ToggleSize) String() string {
+	return string(t)
+}
 
 // toggleVariants resolves a toggle's base + variant + size classes, declared
 // the same way shadcn/ui's toggle.tsx declares them with cva. The Radix

@@ -1,13 +1,17 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
 
 // ToggleGroupType selects exclusive- vs independent-pressed behavior. shadcn's
 // Radix Root exposes the same choice as a type="single"/"multiple" prop.
-type ToggleGroupType string // TODO use go-enum
+type ToggleGroupType string //#enum
 
 const (
 	// ToggleGroupSingle allows at most one item in the group to be pressed at a time (the default).
@@ -15,6 +19,46 @@ const (
 	// ToggleGroupMultiple allows any number of items in the group to be pressed independently.
 	ToggleGroupMultiple ToggleGroupType = "multiple"
 )
+
+// Valid indicates if t is any of the valid values for ToggleGroupType
+func (t ToggleGroupType) Valid() bool {
+	switch t {
+	case
+		ToggleGroupSingle,
+		ToggleGroupMultiple:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for ToggleGroupType
+func (t ToggleGroupType) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ToggleGroupType", t)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ToggleGroupType
+func (ToggleGroupType) Enums() []ToggleGroupType {
+	return []ToggleGroupType{
+		ToggleGroupSingle,
+		ToggleGroupMultiple,
+	}
+}
+
+// EnumStrings returns all valid values for ToggleGroupType as strings
+func (ToggleGroupType) EnumStrings() []string {
+	return []string{
+		"single",
+		"multiple",
+	}
+}
+
+// String implements the fmt.Stringer interface for ToggleGroupType
+func (t ToggleGroupType) String() string {
+	return string(t)
+}
 
 // toggleGroupClickScript is the once-emitted client function that drives
 // item presses. It reads the parent group's data-type at click time so the

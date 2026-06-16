@@ -1,6 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn/cva"
@@ -8,7 +12,7 @@ import (
 
 // ButtonVariant selects a button's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's button.tsx (new-york-v4, Tailwind v4).
-type ButtonVariant string // TODO use go-enum
+type ButtonVariant string //#enum
 
 const (
 	// ButtonDefault is the default button style, using the primary color.
@@ -25,8 +29,60 @@ const (
 	ButtonLink ButtonVariant = "link"
 )
 
+// Valid indicates if b is any of the valid values for ButtonVariant
+func (b ButtonVariant) Valid() bool {
+	switch b {
+	case
+		ButtonDefault,
+		ButtonDestructive,
+		ButtonOutline,
+		ButtonSecondary,
+		ButtonGhost,
+		ButtonLink:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if b is none of the valid values for ButtonVariant
+func (b ButtonVariant) Validate() error {
+	if !b.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ButtonVariant", b)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ButtonVariant
+func (ButtonVariant) Enums() []ButtonVariant {
+	return []ButtonVariant{
+		ButtonDefault,
+		ButtonDestructive,
+		ButtonOutline,
+		ButtonSecondary,
+		ButtonGhost,
+		ButtonLink,
+	}
+}
+
+// EnumStrings returns all valid values for ButtonVariant as strings
+func (ButtonVariant) EnumStrings() []string {
+	return []string{
+		"default",
+		"destructive",
+		"outline",
+		"secondary",
+		"ghost",
+		"link",
+	}
+}
+
+// String implements the fmt.Stringer interface for ButtonVariant
+func (b ButtonVariant) String() string {
+	return string(b)
+}
+
 // ButtonSize selects a button's size.
-type ButtonSize string // TODO use go-enum
+type ButtonSize string //#enum
 
 const (
 	// SizeDefault is the default button size.
@@ -46,6 +102,64 @@ const (
 	// SizeIconLG is the large square size for an icon-only button.
 	SizeIconLG ButtonSize = "icon-lg"
 )
+
+// Valid indicates if b is any of the valid values for ButtonSize
+func (b ButtonSize) Valid() bool {
+	switch b {
+	case
+		SizeDefault,
+		SizeXS,
+		SizeSM,
+		SizeLG,
+		SizeIcon,
+		SizeIconXS,
+		SizeIconSM,
+		SizeIconLG:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if b is none of the valid values for ButtonSize
+func (b ButtonSize) Validate() error {
+	if !b.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ButtonSize", b)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ButtonSize
+func (ButtonSize) Enums() []ButtonSize {
+	return []ButtonSize{
+		SizeDefault,
+		SizeXS,
+		SizeSM,
+		SizeLG,
+		SizeIcon,
+		SizeIconXS,
+		SizeIconSM,
+		SizeIconLG,
+	}
+}
+
+// EnumStrings returns all valid values for ButtonSize as strings
+func (ButtonSize) EnumStrings() []string {
+	return []string{
+		"default",
+		"xs",
+		"sm",
+		"lg",
+		"icon",
+		"icon-xs",
+		"icon-sm",
+		"icon-lg",
+	}
+}
+
+// String implements the fmt.Stringer interface for ButtonSize
+func (b ButtonSize) String() string {
+	return string(b)
+}
 
 // buttonVariants resolves a button's base + variant + size classes, declared
 // the same way shadcn/ui's button.tsx declares them with cva.
