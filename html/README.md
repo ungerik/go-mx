@@ -458,21 +458,6 @@ Tag keys (comma-separated inside `form:"…"`): `required`, `readonly`,
 `label=…`, `widget=…` (`textarea`, `email`, `url`, `tel`, `password`, `date`,
 `time`, `radio`, `file`, …).
 
-### `ReflectFormComponents` — deprecated
-
-`ReflectFormComponents` renders a struct as a flat list of inputs from `input:"…"`
-struct tags. It predates the decider chain and lacks parsing, validation, and
-sentinels.
-
-```go
-html.Form(html.Action("/submit"), html.MethodPOST,
-    html.ReflectFormComponents(UserDetails{Name: "John Doe"}),
-    html.InputTypeSubmit(html.Value("Submit")),
-)
-```
-
-> **Deprecated:** use `mx.ReflectFormHandler` with `FieldDecider` instead.
-
 ## Templates and table views
 
 - `Template{File, Data, Funcs}` is a `Component` that parses a `text/template`

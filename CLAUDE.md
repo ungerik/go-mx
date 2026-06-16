@@ -112,7 +112,7 @@ mx.ForEach(slice, func(v T) Component { ... })
 ### Reflection Features
 
 - `ReflectAttribs()`: Extract attributes from struct fields using `attr` tag
-- `ReflectFormComponents()`: Generate form inputs from struct fields using `input` tag
+- `ReflectFormFields()`: Iterator over form-relevant struct fields (`form:"…"` tags), the walk behind `mx.ReflectFormHandler` and the `FieldDecider` chain
 - `ReflectStructFields()`: Iterator over flattened struct fields (handles embedded)
 
 ## Code Conventions
