@@ -1,6 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn/cva"
@@ -8,7 +12,7 @@ import (
 
 // BadgeVariant selects a badge's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's badge.tsx (new-york-v4, Tailwind v4).
-type BadgeVariant string // TODO use go-enum
+type BadgeVariant string //#enum
 
 const (
 	// BadgeDefault is the default badge style, using the primary color.
@@ -20,6 +24,52 @@ const (
 	// BadgeOutline styles the badge with a transparent background and visible border.
 	BadgeOutline BadgeVariant = "outline"
 )
+
+// Valid indicates if b is any of the valid values for BadgeVariant
+func (b BadgeVariant) Valid() bool {
+	switch b {
+	case
+		BadgeDefault,
+		BadgeSecondary,
+		BadgeDestructive,
+		BadgeOutline:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if b is none of the valid values for BadgeVariant
+func (b BadgeVariant) Validate() error {
+	if !b.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.BadgeVariant", b)
+	}
+	return nil
+}
+
+// Enums returns all valid values for BadgeVariant
+func (BadgeVariant) Enums() []BadgeVariant {
+	return []BadgeVariant{
+		BadgeDefault,
+		BadgeSecondary,
+		BadgeDestructive,
+		BadgeOutline,
+	}
+}
+
+// EnumStrings returns all valid values for BadgeVariant as strings
+func (BadgeVariant) EnumStrings() []string {
+	return []string{
+		"default",
+		"secondary",
+		"destructive",
+		"outline",
+	}
+}
+
+// String implements the fmt.Stringer interface for BadgeVariant
+func (b BadgeVariant) String() string {
+	return string(b)
+}
 
 // badgeVariants resolves a badge's base + variant classes, declared the same
 // way shadcn/ui's badge.tsx declares them with cva.

@@ -31,12 +31,13 @@ func ContextMenu(attribsChildren ...any) *mx.Element {
 // Defaults: oncontextmenu="contextMenuOpen(event,'{menuID}')". The script is
 // appended once as a child of the trigger.
 func ContextMenuTrigger(menuID string, attribsChildren ...any) *mx.Element {
-	validateID(menuID)
-	e := html.Div(attribsChildren...)
+	if err := validateID(menuID); err != nil {
+		return mx.NewErrElement(err)
+	}
+	e := html.Div(append(attribsChildren, html.ScriptJS(contextMenuScript))...)
 	if e.AttribIndex("oncontextmenu") < 0 {
 		e.Attribs = append(e.Attribs, html.OnContextMenu("contextMenuOpen(event,'"+menuID+"')"))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(contextMenuScript)))
 	return finish(e, "context-menu-trigger", "")
 }
 

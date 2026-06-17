@@ -32,14 +32,13 @@ const sidebarScript = /*js*/ `if(!window.sidebarToggle){window.sidebarToggle=fun
 // SidebarProvider is the flex wrapper around the [Sidebar] and [SidebarInset].
 // It defaults to data-state="expanded" and sets the sidebar width variables.
 func SidebarProvider(attribsChildren ...any) *mx.Element {
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(sidebarScript))...)
 	if e.AttribIndex("data-state") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("state", "expanded"))
 	}
 	if e.AttribIndex("style") < 0 {
 		e.Attribs = append(e.Attribs, html.Style("--sidebar-width: "+sidebarWidth+"; --sidebar-width-icon: "+sidebarWidthIcon))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(sidebarScript)))
 	return finish(e, "sidebar-wrapper", "group/sidebar-wrapper flex min-h-svh w-full")
 }
 

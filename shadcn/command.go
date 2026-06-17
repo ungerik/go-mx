@@ -19,8 +19,7 @@ const commandScript = /*js*/ `if(!window.commandFilter){window.commandFilter=fun
 
 // Command is the filterable command palette container.
 func Command(attribsChildren ...any) *mx.Element {
-	e := html.Div(attribsChildren...)
-	e.Children = append(e.Children, html.Script(mx.Raw(commandScript)))
+	e := html.Div(append(attribsChildren, html.ScriptJS(commandScript))...)
 	return finish(e, "command",
 		"bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md")
 }
@@ -28,9 +27,8 @@ func Command(attribsChildren ...any) *mx.Element {
 // CommandInput renders the search box (with a leading search icon) that filters
 // the list on input. Pass html.Placeholder("…") and other input
 // attributes; they land on the <input>.
-func CommandInput(attribsChildren ...any) *mx.Element {
-	input := html.Element("input", append([]any{html.Type("text"), html.OnInput("commandFilter(this)")}, attribsChildren...)...)
-	input.Children = nil // <input> is a void element; avoid a stray </input>
+func CommandInput(attribs ...mx.Attrib) *mx.Element {
+	input := html.VoidElement("input", append([]mx.Attrib{html.Type("text"), html.OnInput("commandFilter(this)")}, attribs...)...)
 	input = finish(input, "command-input",
 		"placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50")
 	return finish(html.Div(

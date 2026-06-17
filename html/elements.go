@@ -26,12 +26,6 @@ func Textf(format string, args ...any) Text {
 // A creates an <a> anchor element, a hyperlink to other pages, files, or locations.
 func A(attribsChildren ...any) *mx.Element { return Element("a", attribsChildren...) }
 
-// AHRef creates an <a> hyperlink to the given URL
-// as a shortcut for A(HRef(url), attribsChildren...).
-func AHRef(url string, attribsChildren ...any) *mx.Element {
-	return Element("a", append([]any{HRef(url)}, attribsChildren...)...)
-}
-
 // Abbr creates an <abbr> element marking an abbreviation or acronym.
 func Abbr(attribsChildren ...any) *mx.Element { return Element("abbr", attribsChildren...) }
 

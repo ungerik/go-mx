@@ -33,7 +33,9 @@ const sliderClampScript = /*js*/ `if(!window.sliderClamp){window.sliderClamp=fun
 // id is a stable identifier (validated) used as the data-slider attribute that
 // scopes the script to this instance. min/max/step go on each native input.
 func Slider(min, max, step float64, values []float64, id string, attribsChildren ...any) *mx.Element {
-	validateID(id)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
 	switch len(values) {
 	case 1:
 		return sliderSingle(min, max, step, values[0], attribsChildren...)
@@ -103,7 +105,7 @@ func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...a
 		track,
 		mkInput(lo),
 		mkInput(hi),
-		html.Script(mx.Raw(sliderClampScript)),
+		html.ScriptJS(sliderClampScript),
 	)
 	return finish(e, "slider", "relative flex w-full touch-none items-center select-none h-4")
 }

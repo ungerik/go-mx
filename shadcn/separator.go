@@ -1,12 +1,16 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
 
 // SeparatorOrientation selects a [Separator]'s axis.
-type SeparatorOrientation string // TODO use go-enum
+type SeparatorOrientation string //#enum
 
 const (
 	// SeparatorHorizontal orients the separator as a horizontal rule (the default).
@@ -14,6 +18,46 @@ const (
 	// SeparatorVertical orients the separator as a vertical rule.
 	SeparatorVertical SeparatorOrientation = "vertical"
 )
+
+// Valid indicates if s is any of the valid values for SeparatorOrientation
+func (s SeparatorOrientation) Valid() bool {
+	switch s {
+	case
+		SeparatorHorizontal,
+		SeparatorVertical:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if s is none of the valid values for SeparatorOrientation
+func (s SeparatorOrientation) Validate() error {
+	if !s.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.SeparatorOrientation", s)
+	}
+	return nil
+}
+
+// Enums returns all valid values for SeparatorOrientation
+func (SeparatorOrientation) Enums() []SeparatorOrientation {
+	return []SeparatorOrientation{
+		SeparatorHorizontal,
+		SeparatorVertical,
+	}
+}
+
+// EnumStrings returns all valid values for SeparatorOrientation as strings
+func (SeparatorOrientation) EnumStrings() []string {
+	return []string{
+		"horizontal",
+		"vertical",
+	}
+}
+
+// String implements the fmt.Stringer interface for SeparatorOrientation
+func (s SeparatorOrientation) String() string {
+	return string(s)
+}
 
 // separatorClasses is shadcn/ui's separator class string. The data-orientation
 // driven sizing utilities resolve against the data-orientation attribute that

@@ -23,12 +23,13 @@ const tabsSelectScript = /*js*/ `if(!window.tabsSelect){window.tabsSelect=functi
 // inline <script> emitted once per Tabs (guarded with if(!window.tabsSelect)).
 // Triggers opt into htmx by passing an hx-* attribute; see [TabsTrigger].
 func Tabs(id string, attribsChildren ...any) *mx.Element {
-	validateID(id)
-	e := html.Div(attribsChildren...)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
+	e := html.Div(append(attribsChildren, html.ScriptJS(tabsSelectScript))...)
 	if e.AttribIndex("data-tabs") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("tabs", id))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(tabsSelectScript)))
 	return finish(e, "tabs", "flex flex-col gap-2")
 }
 
@@ -59,7 +60,9 @@ const tabsTriggerClasses = "aria-selected:bg-background dark:aria-selected:text-
 // tabsSelect(tabsID, value) — pass any hx.* attribute (e.g. hx.Get(...)) to
 // drive the panel swap server-side instead.
 func TabsTrigger(tabsID, value string, active bool, attribsChildren ...any) *mx.Element {
-	validateID(tabsID)
+	if err := validateID(tabsID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -93,7 +96,9 @@ func TabsTrigger(tabsID, value string, active bool, attribsChildren ...any) *mx.
 // this panel initially visible. Inactive panels are emitted with the boolean
 // hidden attribute; the tabsSelect script flips it on switch.
 func TabsContent(tabsID, value string, active bool, attribsChildren ...any) *mx.Element {
-	validateID(tabsID)
+	if err := validateID(tabsID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("tabpanel"))

@@ -12,10 +12,13 @@ import (
 // AlertDialog precedent), so any well-known go-mx composition pattern works.
 //
 // name must contain only letters, digits, '-' and '_'; an empty or invalid name
-// panics, since it is interpolated into each item's name attribute and
-// addressed by browsers as the radios' exclusive-selection group.
+// is reported per [PanicOnInvalidID] (panics by default, otherwise deferred to
+// render as an error), since it is interpolated into each item's name attribute
+// and addressed by browsers as the radios' exclusive-selection group.
 func RadioGroup(name string, attribsChildren ...any) *mx.Element {
-	validateID(name)
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("radiogroup"))
@@ -42,11 +45,11 @@ const radioGroupItemClasses = "peer aspect-square size-4 shrink-0 appearance-non
 //
 // Pass html.Checked to start selected, html.Disabled to disable, html.ID to
 // link a [Label]. Caller-supplied type, name or value is left untouched.
-// Children are not valid on a void element and are dropped.
-func RadioGroupItem(name, value string, attribsChildren ...any) *mx.Element {
-	validateID(name)
-	e := html.Element("input", attribsChildren...)
-	e.Children = nil // <input> is a void element
+func RadioGroupItem(name, value string, attribs ...mx.Attrib) *mx.Element {
+	if err := validateID(name); err != nil {
+		return mx.NewErrElement(err)
+	}
+	e := html.VoidElement("input", attribs...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("radio"))
 	}

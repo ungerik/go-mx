@@ -36,7 +36,9 @@ func Sheet(attribsChildren ...any) *mx.Element {
 // content/styling directly (use html.Class([ButtonClasses](...)) for the button
 // look) rather than a nested [Button].
 func SheetTrigger(sheetID string, attribsChildren ...any) *mx.Element {
-	validateID(sheetID)
+	if err := validateID(sheetID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -76,7 +78,9 @@ func sheetSideClasses(side SheetSide) string {
 // light-dismisses (a click on the backdrop closes it). side may be "" for the
 // default (right).
 func SheetContent(sheetID string, side SheetSide, attribsChildren ...any) *mx.Element {
-	validateID(sheetID)
+	if err := validateID(sheetID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Dialog(append([]any{html.ID(sheetID)}, attribsChildren...)...)
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("if(event.target===this)this.close()"))

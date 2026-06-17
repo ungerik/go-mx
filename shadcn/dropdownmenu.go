@@ -24,7 +24,9 @@ func DropdownMenu(attribsChildren ...any) *mx.Element {
 // popovertargetaction="toggle", aria-haspopup="menu", aria-expanded="false",
 // plus the anchor-name style.
 func DropdownMenuTrigger(menuID string, attribsChildren ...any) *mx.Element {
-	validateID(menuID)
+	if err := validateID(menuID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

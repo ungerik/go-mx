@@ -32,11 +32,10 @@ func ResizablePanelGroup(direction ResizeDirection, attribsChildren ...any) *mx.
 	if direction == ResizeVertical {
 		dir = "vertical"
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(resizeScript))...)
 	if e.AttribIndex("data-direction") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("direction", dir))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(resizeScript)))
 	return finish(e, "resizable-panel-group",
 		"group/resizable flex h-full w-full data-[direction=vertical]:flex-col")
 }

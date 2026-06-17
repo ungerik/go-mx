@@ -120,8 +120,8 @@ explicit.
 
 The `*Button`, `OL*`, and `InputType*` families above bake a common attribute
 into an element. `shortcuts.go` extends that idea to the element-and-attribute
-pairings you write in almost every document — `<meta>`, `<script>`, `<link>`,
-and a safe new-tab `<a>` — so one call replaces the boilerplate:
+pairings you write in almost every document — `<meta>`, `<script>`, and
+`<link>` — so one call replaces the boilerplate:
 
 | Function                          | Renders                              |
 |-----------------------------------|--------------------------------------|
@@ -131,17 +131,16 @@ and a safe new-tab `<a>` — so one call replaces the boilerplate:
 | `MetaProperty(property, content)` | `<meta property="…" content="…">` (Open Graph) |
 | `MetaViewport(content)`           | `<meta name="viewport" content="…">` |
 | `ScriptSrc(url, …)`               | `<script src="…">` external classic script |
+| `ScriptJS(js…)`                   | `<script>…</script>` inline classic script |
 | `ScriptModule(…)`                 | `<script type="module">` ES module   |
+| `ScriptModuleJS(js…)`             | `<script type="module">…</script>` inline ES module |
 | `StyleSheet(href, …)`             | `<link rel="stylesheet" href="…">`   |
 | `Icon(href, …)`                   | `<link rel="icon" href="…">` favicon |
 | `LinkPreload(href, as, …)`        | `<link rel="preload" href="…" as="…">` |
-| `BlankLink(href, text, …)`        | `<a … target="_blank" rel="noopener noreferrer">` |
 
 `LinkPreload` takes the typed `As` destination enum (`AsScript`, `AsStyle`,
 `AsFont`, …); it is named `LinkPreload` rather than `Preload` because `Preload`
-is the media-element preload attribute enum. `BlankLink` sets
-`rel="noopener noreferrer"`, which blocks reverse tabnabbing: without
-`noopener` the opened page could navigate yours through `window.opener`.
+is the media-element preload attribute enum.
 
 A companion family in `elements.go` bakes the single most common attribute into
 the element you reach for most — an element plus its `class` or `id`, an `<a>`
@@ -457,21 +456,6 @@ Tag keys (comma-separated inside `form:"…"`): `required`, `readonly`,
 `placeholder=…`, `help=…`, `pattern=…`, `min=…`, `max=…`, `step=…`,
 `label=…`, `widget=…` (`textarea`, `email`, `url`, `tel`, `password`, `date`,
 `time`, `radio`, `file`, …).
-
-### `ReflectFormComponents` — deprecated
-
-`ReflectFormComponents` renders a struct as a flat list of inputs from `input:"…"`
-struct tags. It predates the decider chain and lacks parsing, validation, and
-sentinels.
-
-```go
-html.Form(html.Action("/submit"), html.MethodPOST,
-    html.ReflectFormComponents(UserDetails{Name: "John Doe"}),
-    html.InputTypeSubmit(html.Value("Submit")),
-)
-```
-
-> **Deprecated:** use `mx.ReflectFormHandler` with `FieldDecider` instead.
 
 ## Templates and table views
 
