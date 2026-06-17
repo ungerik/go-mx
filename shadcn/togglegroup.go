@@ -1,13 +1,17 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
 
 // ToggleGroupType selects exclusive- vs independent-pressed behavior. shadcn's
 // Radix Root exposes the same choice as a type="single"/"multiple" prop.
-type ToggleGroupType string // TODO use go-enum
+type ToggleGroupType string //#enum
 
 const (
 	// ToggleGroupSingle allows at most one item in the group to be pressed at a time (the default).
@@ -15,6 +19,46 @@ const (
 	// ToggleGroupMultiple allows any number of items in the group to be pressed independently.
 	ToggleGroupMultiple ToggleGroupType = "multiple"
 )
+
+// Valid indicates if t is any of the valid values for ToggleGroupType
+func (t ToggleGroupType) Valid() bool {
+	switch t {
+	case
+		ToggleGroupSingle,
+		ToggleGroupMultiple:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for ToggleGroupType
+func (t ToggleGroupType) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ToggleGroupType", t)
+	}
+	return nil
+}
+
+// Enums returns all valid values for ToggleGroupType
+func (ToggleGroupType) Enums() []ToggleGroupType {
+	return []ToggleGroupType{
+		ToggleGroupSingle,
+		ToggleGroupMultiple,
+	}
+}
+
+// EnumStrings returns all valid values for ToggleGroupType as strings
+func (ToggleGroupType) EnumStrings() []string {
+	return []string{
+		"single",
+		"multiple",
+	}
+}
+
+// String implements the fmt.Stringer interface for ToggleGroupType
+func (t ToggleGroupType) String() string {
+	return string(t)
+}
 
 // toggleGroupClickScript is the once-emitted client function that drives
 // item presses. It reads the parent group's data-type at click time so the
@@ -44,8 +88,10 @@ func normToggleGroupType(t ToggleGroupType) string {
 // continue to match. The toggleGroupClick script is appended once per group
 // instance, guarded with if(!window.toggleGroupClick).
 func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSize, id string, attribsChildren ...any) *mx.Element {
-	validateID(id)
-	e := html.Div(attribsChildren...)
+	if err := validateID(id); err != nil {
+		return mx.NewErrElement(err)
+	}
+	e := html.Div(append(attribsChildren, html.ScriptJS(toggleGroupClickScript))...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
@@ -55,7 +101,6 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 		html.DataAttr("size", normToggleSize(size)),
 		html.DataAttr("toggle-group", id),
 	)
-	e.Children = append(e.Children, html.Script(mx.Raw(toggleGroupClickScript)))
 	return finish(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
 }
 
@@ -78,7 +123,9 @@ const toggleGroupItemJoinClasses = "min-w-0 flex-1 shrink-0 rounded-none shadow-
 // onclick that calls the shared toggleGroupClick(this); pass any hx.*
 // attribute (e.g. hx.Post(...)) to drive the press server-side instead.
 func ToggleGroupItem(groupID, value string, variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.Element {
-	validateID(groupID)
+	if err := validateID(groupID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

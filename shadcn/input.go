@@ -11,16 +11,17 @@ const inputClasses = "file:text-foreground placeholder:text-muted-foreground sel
 
 // Input renders a shadcn/ui text input as a styled void <input> element. Pass
 // the input type the normal way, e.g. html.Type("email"); with no type the
-// browser defaults to text. Children are not valid on a void element and are
-// dropped.
-func Input(attribsChildren ...any) *mx.Element {
-	e := html.Element("input", attribsChildren...)
-	e.Children = nil // <input> is a void element
-	return finish(e, "input", inputClasses)
+// browser defaults to text.
+func Input(attribs ...mx.Attrib) *mx.Element {
+	return finish(
+		html.VoidElement("input", attribs...),
+		"input",
+		inputClasses,
+	)
 }
 
 // InputID renders an [Input] with the given id, to link a [Label] or [LabelFor],
-// as a shortcut for Input(html.ID(id), attribsChildren...).
-func InputID(id string, attribsChildren ...any) *mx.Element {
-	return Input(append([]any{html.ID(id)}, attribsChildren...)...)
+// as a shortcut for Input(html.ID(id), attribs...).
+func InputID(id string, attribs ...mx.Attrib) *mx.Element {
+	return Input(append([]mx.Attrib{html.ID(id)}, attribs...)...)
 }

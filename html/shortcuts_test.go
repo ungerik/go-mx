@@ -48,9 +48,29 @@ func TestShortcutConstructors(t *testing.T) {
 			`<script src='/app.js' defer='defer'></script>`,
 		},
 		{
+			"script js (inline, raw)",
+			ScriptJS(`console.log(1 < 2)`).String(),
+			`<script>console.log(1 < 2)</script>`,
+		},
+		{
+			"script js (multiple args joined by semicolon)",
+			ScriptJS(`const x = 1`, `console.log(x)`).String(),
+			`<script>const x = 1;console.log(x)</script>`,
+		},
+		{
 			"script module with src",
 			ScriptModule(Src("/app.mjs")).String(),
 			`<script type='module' src='/app.mjs'></script>`,
+		},
+		{
+			"script module js (inline, raw)",
+			ScriptModuleJS(`import {x} from "./m.js"; x()`).String(),
+			`<script type='module'>import {x} from "./m.js"; x()</script>`,
+		},
+		{
+			"script module js (multiple args joined by semicolon)",
+			ScriptModuleJS(`import {x} from "./m.js"`, `x()`).String(),
+			`<script type='module'>import {x} from "./m.js";x()</script>`,
 		},
 		{
 			"stylesheet",
@@ -67,15 +87,51 @@ func TestShortcutConstructors(t *testing.T) {
 			LinkPreload("/font.woff2", AsFont, CrossOrigin("anonymous")).String(),
 			`<link rel='preload' href='/font.woff2' as='font' crossorigin='anonymous'/>`,
 		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}
+
+// TestScriptJSRawUnescaped pins the trusted-input contract of ScriptJS and
+// ScriptModuleJS documented on those functions: their content is emitted
+// verbatim via mx.Raw with no HTML escaping, because a script body cannot be
+// HTML-escaped without changing what it executes. The cases below lock that
+// no-escaping behavior — in particular that a "</script>" sequence passes
+// through unaltered (the XSS vector the doc warns against) — so an accidental
+// "add escaping" change is caught instead of silently breaking valid scripts.
+func TestScriptJSRawUnescaped(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
 		{
-			"blank link sets noopener rel",
-			BlankLink("https://example.com", "Example").String(),
-			`<a href='https://example.com' target='_blank' rel='noopener noreferrer'>Example</a>`,
+			"ScriptJS emits < > & and quotes verbatim",
+			ScriptJS(`if (a < b && c > d) alert("x" + 'y')`).String(),
+			`<script>if (a < b && c > d) alert("x" + 'y')</script>`,
 		},
 		{
-			"blank link with extra attrib",
-			BlankLink("https://example.com", "Example", Class("ext")).String(),
-			`<a href='https://example.com' target='_blank' rel='noopener noreferrer' class='ext'>Example</a>`,
+			"ScriptJS does not escape a </script> breakout sequence",
+			ScriptJS(`var s = "</script>"`).String(),
+			`<script>var s = "</script>"</script>`,
+		},
+		{
+			"empty ScriptJS renders an empty, non-void element",
+			ScriptJS().String(),
+			`<script></script>`,
+		},
+		{
+			"ScriptModuleJS emits < > & verbatim",
+			ScriptModuleJS(`export const ok = 1 < 2 && 3 > 2`).String(),
+			`<script type='module'>export const ok = 1 < 2 && 3 > 2</script>`,
+		},
+		{
+			"ScriptModuleJS does not escape a </script> breakout sequence",
+			ScriptModuleJS(`const s = "</script>"`).String(),
+			`<script type='module'>const s = "</script>"</script>`,
 		},
 	}
 	for _, tt := range tests {

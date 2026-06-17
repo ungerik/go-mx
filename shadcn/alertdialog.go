@@ -15,25 +15,6 @@ import (
 // ::backdrop pseudo-element (styled here via the Tailwind v4 `backdrop:`
 // variant). See README.md for the full porting rationale.
 
-// validateID panics unless id is a non-empty string of letters, digits, '-'
-// and '_'. Components in this package interpolate the id into an onclick
-// handler, an id, name, for, aria-controls or aria-labelledby attribute, so it
-// must be a safe, valid HTML id.
-func validateID(id string) {
-	if id == "" {
-		panic("shadcn: id must not be empty")
-	}
-	for _, r := range id {
-		ok := r == '-' || r == '_' ||
-			(r >= '0' && r <= '9') ||
-			(r >= 'A' && r <= 'Z') ||
-			(r >= 'a' && r <= 'z')
-		if !ok {
-			panic("shadcn: id must contain only letters, digits, '-' and '_': " + id)
-		}
-	}
-}
-
 // AlertDialog wraps a trigger and its dialog content. It is purely structural:
 // the trigger and content are linked by the dialog id passed to
 // [AlertDialogTrigger] and [AlertDialogContent], not by DOM nesting.
@@ -46,7 +27,9 @@ func AlertDialog(attribsChildren ...any) *mx.Element {
 // optionally, styling. It renders a <button>, so pass text/class rather than a
 // nested [Button]; for the button look use html.Class([ButtonClasses](...)).
 func AlertDialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
-	validateID(dialogID)
+	if err := validateID(dialogID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -85,7 +68,9 @@ const alertDialogContentClasses = "group/alert-dialog-content open:grid m-auto w
 // A data-size attribute (default "default", or "sm") drives the responsive
 // max-width; pass html.DataAttr("size", "sm") to override.
 func AlertDialogContent(dialogID string, attribsChildren ...any) *mx.Element {
-	validateID(dialogID)
+	if err := validateID(dialogID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Dialog(append([]any{html.ID(dialogID)}, attribsChildren...)...)
 	// Move the caller's children inside a <form method="dialog"> so action and
 	// cancel buttons close the dialog on submit. Caller attributes stay on the

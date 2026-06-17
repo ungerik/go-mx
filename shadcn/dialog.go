@@ -25,7 +25,9 @@ func Dialog(attribsChildren ...any) *mx.Element {
 // html.Class([ButtonClasses](...)) for the button look) rather than a nested
 // [Button].
 func DialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
-	validateID(dialogID)
+	if err := validateID(dialogID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
@@ -56,7 +58,9 @@ const dialogCloseClasses = "ring-offset-background focus:ring-ring absolute top-
 // dialog itself) closes it. Pass html.OnClick("") semantics are not
 // special-cased — supply your own onclick to override the light-dismiss.
 func DialogContent(dialogID string, attribsChildren ...any) *mx.Element {
-	validateID(dialogID)
+	if err := validateID(dialogID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Dialog(append([]any{html.ID(dialogID)}, attribsChildren...)...)
 	if e.AttribIndex("onclick") < 0 {
 		// Light dismiss: close when the click lands on the dialog/backdrop

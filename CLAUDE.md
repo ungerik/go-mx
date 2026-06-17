@@ -72,6 +72,13 @@ html.Div(html.Class("container"), html.P("Hello"))
 html.Img(html.Src("/img.png"), html.Alt("Image"))
 ```
 
+**Attribs before children**: in every `attribsChildren ...any` constructor
+(`html.Div`, `NewElement`, the `shadcn` components, …) always pass attributes
+before children. `NewElement` sorts the variadic into the separate `Attribs`
+and `Children` slices regardless of order, but the source must list attribs
+first, then children — including when appending to the variadic, e.g.
+`html.Div(append(attribsChildren, child)...)` (child added last).
+
 **Component Conversion** (`DefaultAsComponent` in `component.go`):
 Children are passed as `...any` and converted dynamically at render-build
 time, not checked at compile time.
@@ -112,7 +119,7 @@ mx.ForEach(slice, func(v T) Component { ... })
 ### Reflection Features
 
 - `ReflectAttribs()`: Extract attributes from struct fields using `attr` tag
-- `ReflectFormComponents()`: Generate form inputs from struct fields using `input` tag
+- `ReflectFormFields()`: Iterator over form-relevant struct fields (`form:"…"` tags), the walk behind `mx.ReflectFormHandler` and the `FieldDecider` chain
 - `ReflectStructFields()`: Iterator over flattened struct fields (handles embedded)
 
 ## Code Conventions
@@ -120,5 +127,24 @@ mx.ForEach(slice, func(v T) Component { ... })
 - Use `any` instead of `interface{}`
 - Use `github.com/domonda/go-errs` for errors (`errs.New`, `errs.Errorf`)
 - Use `github.com/domonda/go-types/uu` for UUIDs (`uu.ID`, `uu.IDSlice`, `uu.IDNil`)
-- SQL strings: prefix with `/*sql*/` and use backticks
-- HTML strings: prefix with `/*html*/` and use backticks
+- SQL strings: prefix with `/*sql*/` and use backticks and start on a new line when following an argument
+- HTML strings: prefix with `/*html*/` and use backticks and start on a new line when following an argument
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec

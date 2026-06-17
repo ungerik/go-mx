@@ -42,7 +42,9 @@ func Tooltip(attribsChildren ...any) *mx.Element {
 // anchors to. focusin/focusout (not focus/blur) are used because they bubble —
 // so any descendant getting focus opens the tooltip.
 func TooltipTrigger(tooltipID string, attribsChildren ...any) *mx.Element {
-	validateID(tooltipID)
+	if err := validateID(tooltipID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Span(attribsChildren...)
 	if e.AttribIndex("aria-describedby") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-describedby", tooltipID))
@@ -70,11 +72,13 @@ func TooltipTrigger(tooltipID string, attribsChildren ...any) *mx.Element {
 // tooltipScript appended once. side may be "" for the default (top —
 // matching shadcn's default tooltip placement).
 func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) *mx.Element {
-	validateID(tooltipID)
+	if err := validateID(tooltipID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	if side == "" {
 		side = PopoverTop
 	}
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(tooltipScript))...)
 	if e.AttribIndex("id") < 0 {
 		e.Attribs = append(e.Attribs, html.ID(tooltipID))
 	}
@@ -85,6 +89,5 @@ func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) 
 		e.Attribs = append(e.Attribs, html.Role("tooltip"))
 	}
 	mergeStyle(e, popoverContentStyle(tooltipID, side))
-	e.Children = append(e.Children, html.Script(mx.Raw(tooltipScript)))
 	return finish(e, "tooltip-content", tooltipContentClasses)
 }

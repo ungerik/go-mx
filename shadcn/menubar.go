@@ -24,11 +24,10 @@ const menubarTriggerClasses = "focus:bg-accent focus:text-accent-foreground aria
 // [MenubarMenu]s inside it. The menubarHover script is appended once so
 // hovering a trigger while another menu is open switches to it.
 func Menubar(attribsChildren ...any) *mx.Element {
-	e := html.Div(attribsChildren...)
+	e := html.Div(append(attribsChildren, html.ScriptJS(menubarScript))...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menubar"))
 	}
-	e.Children = append(e.Children, html.Script(mx.Raw(menubarScript)))
 	return finish(e, "menubar", menubarClasses)
 }
 
@@ -45,7 +44,9 @@ func MenubarMenu(attribsChildren ...any) *mx.Element {
 // popovertargetaction="toggle", aria-haspopup="menu", aria-expanded="false",
 // onmouseenter="menubarHover(this)", plus the anchor-name style.
 func MenubarTrigger(menuID string, attribsChildren ...any) *mx.Element {
-	validateID(menuID)
+	if err := validateID(menuID); err != nil {
+		return mx.NewErrElement(err)
+	}
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

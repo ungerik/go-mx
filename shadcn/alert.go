@@ -1,6 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn/cva"
@@ -8,7 +12,7 @@ import (
 
 // AlertVariant selects an alert's visual style. Class strings are transcribed
 // verbatim from shadcn/ui's alert.tsx (new-york-v4, Tailwind v4).
-type AlertVariant string // TODO use go-enum
+type AlertVariant string //#enum
 
 const (
 	// AlertDefault is the default alert style, rendered on the card background.
@@ -16,6 +20,46 @@ const (
 	// AlertDestructive styles the alert to signal an error or destructive condition.
 	AlertDestructive AlertVariant = "destructive"
 )
+
+// Valid indicates if a is any of the valid values for AlertVariant
+func (a AlertVariant) Valid() bool {
+	switch a {
+	case
+		AlertDefault,
+		AlertDestructive:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if a is none of the valid values for AlertVariant
+func (a AlertVariant) Validate() error {
+	if !a.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.AlertVariant", a)
+	}
+	return nil
+}
+
+// Enums returns all valid values for AlertVariant
+func (AlertVariant) Enums() []AlertVariant {
+	return []AlertVariant{
+		AlertDefault,
+		AlertDestructive,
+	}
+}
+
+// EnumStrings returns all valid values for AlertVariant as strings
+func (AlertVariant) EnumStrings() []string {
+	return []string{
+		"default",
+		"destructive",
+	}
+}
+
+// String implements the fmt.Stringer interface for AlertVariant
+func (a AlertVariant) String() string {
+	return string(a)
+}
 
 // alertVariants resolves an alert's base + variant classes, declared the same
 // way shadcn/ui's alert.tsx declares them with cva.

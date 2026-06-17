@@ -25,10 +25,9 @@ const switchClasses = "peer inline-flex h-[1.15rem] w-8 shrink-0 appearance-none
 //
 // Pass html.Checked to start in the on state, html.Name/html.Value for form
 // submission, html.Disabled to disable. Caller-supplied type, role or onchange
-// is left untouched. Children are not valid on a void element and are dropped.
-func Switch(attribsChildren ...any) *mx.Element {
-	e := html.Element("input", attribsChildren...)
-	e.Children = nil // <input> is a void element
+// is left untouched.
+func Switch(attribs ...mx.Attrib) *mx.Element {
+	e := html.VoidElement("input", attribs...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("checkbox"))
 	}
@@ -39,7 +38,7 @@ func Switch(attribsChildren ...any) *mx.Element {
 }
 
 // SwitchID renders a [Switch] with the given id, to link a [Label] or
-// [LabelFor], as a shortcut for Switch(html.ID(id), attribsChildren...).
-func SwitchID(id string, attribsChildren ...any) *mx.Element {
-	return Switch(append([]any{html.ID(id)}, attribsChildren...)...)
+// [LabelFor], as a shortcut for Switch(html.ID(id), attribs...).
+func SwitchID(id string, attribs ...mx.Attrib) *mx.Element {
+	return Switch(append([]mx.Attrib{html.ID(id)}, attribs...)...)
 }
