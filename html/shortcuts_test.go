@@ -94,3 +94,49 @@ func TestShortcutConstructors(t *testing.T) {
 		})
 	}
 }
+
+// TestScriptJSRawUnescaped pins the trusted-input contract of ScriptJS and
+// ScriptModuleJS documented on those functions: their content is emitted
+// verbatim via mx.Raw with no HTML escaping, because a script body cannot be
+// HTML-escaped without changing what it executes. The cases below lock that
+// no-escaping behavior — in particular that a "</script>" sequence passes
+// through unaltered (the XSS vector the doc warns against) — so an accidental
+// "add escaping" change is caught instead of silently breaking valid scripts.
+func TestScriptJSRawUnescaped(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{
+			"ScriptJS emits < > & and quotes verbatim",
+			ScriptJS(`if (a < b && c > d) alert("x" + 'y')`).String(),
+			`<script>if (a < b && c > d) alert("x" + 'y')</script>`,
+		},
+		{
+			"ScriptJS does not escape a </script> breakout sequence",
+			ScriptJS(`var s = "</script>"`).String(),
+			`<script>var s = "</script>"</script>`,
+		},
+		{
+			"empty ScriptJS renders an empty, non-void element",
+			ScriptJS().String(),
+			`<script></script>`,
+		},
+		{
+			"ScriptModuleJS emits < > & verbatim",
+			ScriptModuleJS(`export const ok = 1 < 2 && 3 > 2`).String(),
+			`<script type='module'>export const ok = 1 < 2 && 3 > 2</script>`,
+		},
+		{
+			"ScriptModuleJS does not escape a </script> breakout sequence",
+			ScriptModuleJS(`const s = "</script>"`).String(),
+			`<script type='module'>const s = "</script>"</script>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}

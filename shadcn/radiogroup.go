@@ -12,8 +12,9 @@ import (
 // AlertDialog precedent), so any well-known go-mx composition pattern works.
 //
 // name must contain only letters, digits, '-' and '_'; an empty or invalid name
-// panics, since it is interpolated into each item's name attribute and
-// addressed by browsers as the radios' exclusive-selection group.
+// is reported per [PanicOnInvalidID] (panics by default, otherwise deferred to
+// render as an error), since it is interpolated into each item's name attribute
+// and addressed by browsers as the radios' exclusive-selection group.
 func RadioGroup(name string, attribsChildren ...any) *mx.Element {
 	if err := validateID(name); err != nil {
 		return mx.NewErrElement(err)

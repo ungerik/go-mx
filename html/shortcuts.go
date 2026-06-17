@@ -47,6 +47,12 @@ func MetaViewport(content string) *mx.Element {
 // e.g. ScriptJS(`console.log("hi")`). Multiple arguments are joined with
 // semicolons, so several statements can be passed as separate strings:
 // ScriptJS(`const x = 1`, `console.log(x)`).
+//
+// The js is emitted verbatim as [mx.Raw] with no escaping — a script body
+// cannot be HTML-escaped without changing what it executes. Pass only trusted,
+// developer-controlled source. Never interpolate untrusted input: a "</script>"
+// sequence in the content ends the element and everything after it is parsed as
+// HTML, a cross-site scripting vector that escaping cannot defend against here.
 func ScriptJS(js ...string) *mx.Element {
 	return &mx.Element{
 		Name:     "script",
@@ -55,7 +61,7 @@ func ScriptJS(js ...string) *mx.Element {
 }
 
 // ScriptSrc is a <script src="..."> loading an external classic script. Extra
-// attributes or children may follow, e.g. ScriptSrc(url, Defer) or
+// attributes may follow, e.g. ScriptSrc(url, Defer) or
 // ScriptSrc(url, Async, CrossOrigin("anonymous")).
 func ScriptSrc(url string, attribs ...mx.Attrib) *mx.Element {
 	return &mx.Element{
@@ -76,6 +82,12 @@ func ScriptModule(attribsChildren ...any) *mx.Element {
 // e.g. ScriptModuleJS(`import {x} from "./m.js"; x()`). Multiple arguments are
 // joined with semicolons, so several statements can be passed as separate
 // strings: ScriptModuleJS(`import {x} from "./m.js"`, `x()`).
+//
+// Like [ScriptJS], the source is emitted verbatim as [mx.Raw] with no escaping.
+// Pass only trusted, developer-controlled source. Never interpolate untrusted
+// input: a "</script>" sequence in the content ends the element and everything
+// after it is parsed as HTML, a cross-site scripting vector that escaping cannot
+// defend against here.
 func ScriptModuleJS(js ...string) *mx.Element {
 	return &mx.Element{
 		Name:     "script",
