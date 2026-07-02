@@ -104,7 +104,7 @@ func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 	if err == nil {
 		f = repClosure(m)
 	} else {
-		f = func(s string) string { return s }
+		f = returnStringUnchanged
 	}
 	return
 }
@@ -124,7 +124,7 @@ func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error
 		f, err = UnicodeTranslator(fl)
 		fl.Close()
 	} else {
-		f = func(s string) string { return s }
+		f = returnStringUnchanged
 	}
 	return
 }
@@ -155,7 +155,7 @@ func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(strin
 			rep, r.err = UnicodeTranslatorFromFile(filepath.Join(r.fontpath, cpStr) + ".map")
 		}
 	} else {
-		rep = func(s string) string { return s }
+		rep = returnStringUnchanged
 	}
 	return
 }
@@ -296,3 +296,5 @@ func arrayMerge(arr1, arr2 *untypedKeyMap) *untypedKeyMap {
 func fontFamilyEscape(familyStr string) string {
 	return strings.ReplaceAll(familyStr, " ", "#20")
 }
+
+func returnStringUnchanged(s string) string { return s }
