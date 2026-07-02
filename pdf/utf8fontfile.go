@@ -447,7 +447,7 @@ func (utf *utf8FontFile) parsePOSTTable(weight int) {
 	}
 }
 
-func (utf *utf8FontFile) parseCMAPTable(format int) int {
+func (utf *utf8FontFile) parseCMAPTable() int {
 	cmapPosition := utf.SeekTable("cmap")
 	utf.skip(2)
 	cmapTableCount := utf.readUint16()
@@ -476,12 +476,12 @@ func (utf *utf8FontFile) parseCMAPTable(format int) int {
 }
 
 func (utf *utf8FontFile) parseTables() {
-	f := utf.parseNAMETable()
+	utf.parseNAMETable()
 	utf.parseHEADTable()
 	n := utf.parseHHEATable()
 	w := utf.parseOS2Table()
 	utf.parsePOSTTable(w)
-	runeCMAPPosition := utf.parseCMAPTable(f)
+	runeCMAPPosition := utf.parseCMAPTable()
 
 	utf.SeekTable("maxp")
 	utf.skip(4)
@@ -900,19 +900,20 @@ func (utf *utf8FontFile) getMetrics(metricCount, gid int) []byte {
 func (utf *utf8FontFile) parseLOCATable(format, numSymbols int) {
 	start := utf.SeekTable("loca")
 	utf.symbolPosition = make([]int, 0)
-	if format == 0 {
+	switch format {
+	case 0:
 		data := utf.getRange(start, (numSymbols*2)+2)
 		arr := unpackUint16Array(data)
 		for n := 0; n <= numSymbols; n++ {
 			utf.symbolPosition = append(utf.symbolPosition, arr[n+1]*2)
 		}
-	} else if format == 1 {
+	case 1:
 		data := utf.getRange(start, (numSymbols*4)+4)
 		arr := unpackUint32Array(data)
 		for n := 0; n <= numSymbols; n++ {
 			utf.symbolPosition = append(utf.symbolPosition, arr[n+1])
 		}
-	} else {
+	default:
 		fmt.Printf("Unknown loca table format %d\n", format)
 		return
 	}

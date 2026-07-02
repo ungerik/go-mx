@@ -4875,10 +4875,11 @@ func (r *Renderer) putGradients() {
 		}
 		r.newobj()
 		r.outf("<</ShadingType %d /ColorSpace /DeviceRGB", gr.tp)
-		if gr.tp == 2 {
+		switch gr.tp {
+		case 2:
 			r.outf("/Coords [%.5f %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
 				gr.x1, gr.y1, gr.x2, gr.y2, f1)
-		} else if gr.tp == 3 {
+		case 3:
 			r.outf("/Coords [%.5f %.5f 0 %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
 				gr.x1, gr.y1, gr.x2, gr.y2, gr.r, f1)
 		}

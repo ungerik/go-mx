@@ -85,19 +85,26 @@ func repClosure(m map[rune]byte) func(string) string {
 func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 	m := make(map[rune]byte)
 	var uPos, cPos uint32
-	var lineStr, nameStr string
+	var nameStr string
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
-		lineStr = sc.Text()
-		lineStr = strings.TrimSpace(lineStr)
-		if len(lineStr) > 0 {
-			_, err = fmt.Sscanf(lineStr, "!%2X U+%4X %s", &cPos, &uPos, &nameStr)
-			if err == nil {
-				if cPos >= 0x80 {
-					m[rune(uPos)] = byte(cPos)
-				}
-			}
+		lineStr := strings.TrimSpace(sc.Text())
+		if len(lineStr) == 0 {
+			continue
 		}
+		_, scanErr := fmt.Sscanf(lineStr, "!%2X U+%4X %s", &cPos, &uPos, &nameStr)
+		if scanErr != nil {
+			if err == nil {
+				err = scanErr
+			}
+			continue
+		}
+		if cPos >= 0x80 {
+			m[rune(uPos)] = byte(cPos)
+		}
+	}
+	if err == nil {
+		err = sc.Err()
 	}
 	if err == nil {
 		f = repClosure(m)
@@ -316,18 +323,10 @@ func remove(arr []int, key int) []int {
 	return append(arr[:n], arr[n+1:]...)
 }
 
-func isChinese(rune2 rune) bool {
-	// chinese unicode: 4e00-9fa5
-	if rune2 >= rune(0x4e00) && rune2 <= rune(0x9fa5) {
-		return true
-	}
-	return false
-}
-
 // Condition font family string to PDF name compliance. See section 5.3 (Names)
 // in https://resources.infosecinstitute.com/pdf-file-format-basic-structure/
 func fontFamilyEscape(familyStr string) (escStr string) {
-	escStr = strings.Replace(familyStr, " ", "#20", -1)
+	escStr = strings.ReplaceAll(familyStr, " ", "#20")
 	// Additional replacements can take place here
 	return
 }
