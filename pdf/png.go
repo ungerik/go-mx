@@ -23,6 +23,8 @@ package pdf
 import (
 	"fmt"
 	"strings"
+
+	"github.com/domonda/go-errs"
 )
 
 func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
@@ -36,7 +38,7 @@ func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	case 3:
 		colspace = "Indexed"
 	default:
-		r.err = fmt.Errorf("unknown color type in PNG buffer: %d", ct)
+		r.err = errs.Errorf("unknown color type in PNG buffer: %d", ct)
 	}
 	return
 }
@@ -45,13 +47,13 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 	info = r.newImageInfo()
 	// 	Check signature
 	if string(buf.Next(8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
-		r.err = fmt.Errorf("not a PNG buffer")
+		r.err = errs.New("not a PNG buffer")
 		return
 	}
 	// Read header chunk
 	_ = buf.Next(4)
 	if string(buf.Next(4)) != "IHDR" {
-		r.err = fmt.Errorf("incorrect PNG buffer")
+		r.err = errs.New("incorrect PNG buffer")
 		return
 	}
 	w := buf.i32()
@@ -70,15 +72,15 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 		return
 	}
 	if buf.u8() != 0 {
-		r.err = fmt.Errorf("'unknown compression method in PNG buffer")
+		r.err = errs.New("'unknown compression method in PNG buffer")
 		return
 	}
 	if buf.u8() != 0 {
-		r.err = fmt.Errorf("'unknown filter method in PNG buffer")
+		r.err = errs.New("'unknown filter method in PNG buffer")
 		return
 	}
 	if buf.u8() != 0 {
-		r.err = fmt.Errorf("interlacing not supported in PNG buffer")
+		r.err = errs.New("interlacing not supported in PNG buffer")
 		return
 	}
 	_ = buf.Next(4)
@@ -155,7 +157,7 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 		}
 	}
 	if colspace == "Indexed" && len(pal) == 0 {
-		r.err = fmt.Errorf("missing palette in PNG buffer")
+		r.err = errs.New("missing palette in PNG buffer")
 	}
 	info.w = float64(w)
 	info.h = float64(h)

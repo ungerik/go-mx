@@ -89,7 +89,7 @@ func (r *Renderer) putAttachments() {
 }
 
 // return /EmbeddedFiles tree name catalog entry.
-func (r Renderer) getEmbeddedFiles() string {
+func (r *Renderer) getEmbeddedFiles() string {
 	names := make([]string, len(r.attachments))
 	for i, as := range r.attachments {
 		names[i] = fmt.Sprintf("(Attachement%d) %d 0 R ", i+1, as.objectNumber)

@@ -21,12 +21,12 @@
 package pdf
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"slices"
 	"sort"
+
+	"github.com/domonda/go-errs"
 )
 
 // flags
@@ -108,18 +108,16 @@ func (utf *utf8FontFile) parseFile() error {
 	utf.Ascent = 0
 	utf.Descent = 0
 	codeType := uint32(utf.readUint32())
-	if codeType == 0x4F54544F {
-		return fmt.Errorf("not supported\n ")
-	}
-	if codeType == 0x74746366 {
-		return fmt.Errorf("not supported\n ")
-	}
-	if codeType != 0x00010000 && codeType != 0x74727565 {
-		return fmt.Errorf("not a TrueType font: codeType=%v\n ", codeType)
+	switch {
+	case codeType == 0x4F54544F: // "OTTO"
+		return errs.New("OpenType fonts with PostScript outlines are not supported")
+	case codeType == 0x74746366: // "ttcf"
+		return errs.New("TrueType collections are not supported")
+	case codeType != 0x00010000 && codeType != 0x74727565:
+		return errs.Errorf("not a TrueType font: codeType=%v", codeType)
 	}
 	utf.generateTableDescriptions()
-	utf.parseTables()
-	return nil
+	return utf.parseTables()
 }
 
 func (utf *utf8FontFile) generateTableDescriptions() {
@@ -220,15 +218,13 @@ func (utf *utf8FontFile) getUint16(pos int) int {
 	return (int(s[0]) << 8) + int(s[1])
 }
 
-func (utf *utf8FontFile) splice(stream []byte, offset int, value []byte) []byte {
+func splice(stream []byte, offset int, value []byte) []byte {
 	stream = append([]byte{}, stream...)
 	return append(append(stream[:offset], value...), stream[offset+len(value):]...)
 }
 
-func (utf *utf8FontFile) insertUint16(stream []byte, offset int, value int) []byte {
-	up := make([]byte, 2)
-	binary.BigEndian.PutUint16(up, uint16(value))
-	return utf.splice(stream, offset, up)
+func insertUint16(stream []byte, offset int, value int) []byte {
+	return splice(stream, offset, binary.BigEndian.AppendUint16(nil, uint16(value)))
 }
 
 func (utf *utf8FontFile) getRange(pos, length int) []byte {
@@ -258,7 +254,7 @@ func (utf *utf8FontFile) setOutTable(name string, data []byte) {
 		return
 	}
 	if name == "head" {
-		data = utf.splice(data, 8, []byte{0, 0, 0, 0})
+		data = splice(data, 8, []byte{0, 0, 0, 0})
 	}
 	utf.outTablesData[name] = data
 }
@@ -277,12 +273,11 @@ func inArray(s int, arr []int) bool {
 	return slices.Contains(arr, s)
 }
 
-func (utf *utf8FontFile) parseNAMETable() int {
+func (utf *utf8FontFile) parseNAMETable() error {
 	namePosition := utf.SeekTable("name")
 	format := utf.readUint16()
 	if format != 0 {
-		fmt.Printf("Illegal format %d\n", format)
-		return format
+		return errs.Errorf("unsupported TrueType name table format %d", format)
 	}
 	nameCount := utf.readUint16()
 	stringDataPosition := namePosition + utf.readUint16()
@@ -300,15 +295,14 @@ func (utf *utf8FontFile) parseNAMETable() int {
 			continue
 		}
 		currentName := ""
-		if system == 3 && code == 1 && local == 0x409 {
+		switch {
+		case system == 3 && code == 1 && local == 0x409: // Microsoft, Unicode BMP, en-US
 			oldPos := utf.fileReader.readerPosition
 			utf.seek(stringDataPosition + position)
 			if size%2 != 0 {
-				fmt.Printf("name is not binar byte format\n")
-				return format
+				return errs.Errorf("TrueType name table entry has odd size %d, expected UTF-16", size)
 			}
 			size /= 2
-			currentName = ""
 			for size > 0 {
 				char := utf.readUint16()
 				currentName += string(rune(char))
@@ -316,7 +310,7 @@ func (utf *utf8FontFile) parseNAMETable() int {
 			}
 			utf.fileReader.readerPosition = oldPos
 			utf.seek(int(oldPos))
-		} else if system == 1 && code == 0 && local == 0 {
+		case system == 1 && code == 0 && local == 0: // Macintosh, Roman, English
 			oldPos := utf.fileReader.readerPosition
 			currentName = string(utf.getRange(stringDataPosition+position, size))
 			utf.fileReader.readerPosition = oldPos
@@ -330,10 +324,10 @@ func (utf *utf8FontFile) parseNAMETable() int {
 			}
 		}
 	}
-	return format
+	return nil
 }
 
-func (utf *utf8FontFile) parseHEADTable() {
+func (utf *utf8FontFile) parseHEADTable() error {
 	utf.SeekTable("head")
 	utf.skip(18)
 	utf.fontElementSize = utf.readUint16()
@@ -348,12 +342,12 @@ func (utf *utf8FontFile) parseHEADTable() {
 	_ = utf.readUint16()
 	symbolDataFormat := utf.readUint16()
 	if symbolDataFormat != 0 {
-		fmt.Printf("Unknown symbol data format %d\n", symbolDataFormat)
-		return
+		return errs.Errorf("unknown symbol data format %d", symbolDataFormat)
 	}
+	return nil
 }
 
-func (utf *utf8FontFile) parseHHEATable() int {
+func (utf *utf8FontFile) parseHHEATable() (int, error) {
 	metricsCount := 0
 	if _, OK := utf.tableDescriptions["hhea"]; OK {
 		scale := 1000.0 / float64(utf.fontElementSize)
@@ -366,19 +360,17 @@ func (utf *utf8FontFile) parseHHEATable() int {
 		utf.skip(24)
 		metricDataFormat := utf.readUint16()
 		if metricDataFormat != 0 {
-			fmt.Printf("Unknown horizontal metric data format %d\n", metricDataFormat)
-			return 0
+			return 0, errs.Errorf("unknown horizontal metric data format %d", metricDataFormat)
 		}
 		metricsCount = utf.readUint16()
 		if metricsCount == 0 {
-			fmt.Printf("Number of horizontal metrics is 0\n")
-			return 0
+			return 0, errs.New("number of horizontal metrics is 0")
 		}
 	}
-	return metricsCount
+	return metricsCount, nil
 }
 
-func (utf *utf8FontFile) parseOS2Table() int {
+func (utf *utf8FontFile) parseOS2Table() (int, error) {
 	var weightType int
 	scale := 1000.0 / float64(utf.fontElementSize)
 	if _, OK := utf.tableDescriptions["OS/2"]; OK {
@@ -389,8 +381,7 @@ func (utf *utf8FontFile) parseOS2Table() int {
 		utf.skip(2)
 		fsType := utf.readUint16()
 		if fsType == 0x0002 || (fsType&0x0300) != 0 {
-			fmt.Printf("ERROR - copyright restrictions.\n")
-			return 0
+			return 0, errs.New("font license does not permit embedding (fsType restriction)")
 		}
 		utf.skip(20)
 		_ = utf.readInt16()
@@ -422,7 +413,7 @@ func (utf *utf8FontFile) parseOS2Table() int {
 		utf.CapHeight = utf.Ascent
 	}
 	utf.StemV = 50 + int(math.Pow(float64(weightType)/65.0, 2))
-	return weightType
+	return weightType, nil
 }
 
 func (utf *utf8FontFile) parsePOSTTable(weight int) {
@@ -447,7 +438,7 @@ func (utf *utf8FontFile) parsePOSTTable(weight int) {
 	}
 }
 
-func (utf *utf8FontFile) parseCMAPTable() int {
+func (utf *utf8FontFile) parseCMAPTable() (int, error) {
 	cmapPosition := utf.SeekTable("cmap")
 	utf.skip(2)
 	cmapTableCount := utf.readUint16()
@@ -469,19 +460,31 @@ func (utf *utf8FontFile) parseCMAPTable() int {
 		utf.seek(int(oldReaderPosition))
 	}
 	if cidCMAPPosition == 0 {
-		fmt.Printf("Font does not have cmap for Unicode\n")
-		return cidCMAPPosition
+		return 0, errs.New("font does not have a cmap for Unicode")
 	}
-	return cidCMAPPosition
+	return cidCMAPPosition, nil
 }
 
-func (utf *utf8FontFile) parseTables() {
-	utf.parseNAMETable()
-	utf.parseHEADTable()
-	n := utf.parseHHEATable()
-	w := utf.parseOS2Table()
+func (utf *utf8FontFile) parseTables() error {
+	if err := utf.parseNAMETable(); err != nil {
+		return err
+	}
+	if err := utf.parseHEADTable(); err != nil {
+		return err
+	}
+	n, err := utf.parseHHEATable()
+	if err != nil {
+		return err
+	}
+	w, err := utf.parseOS2Table()
+	if err != nil {
+		return err
+	}
 	utf.parsePOSTTable(w)
-	runeCMAPPosition := utf.parseCMAPTable()
+	runeCMAPPosition, err := utf.parseCMAPTable()
+	if err != nil {
+		return err
+	}
 
 	utf.SeekTable("maxp")
 	utf.skip(4)
@@ -493,6 +496,7 @@ func (utf *utf8FontFile) parseTables() {
 
 	scale := 1000.0 / float64(utf.fontElementSize)
 	utf.parseHMTXTable(n, numSymbols, symbolCharDictionary, scale)
+	return nil
 }
 
 func (utf *utf8FontFile) generateCMAP() map[int][]int {
@@ -516,8 +520,7 @@ func (utf *utf8FontFile) generateCMAP() map[int][]int {
 	}
 
 	if runeCmapPosition == 0 {
-		fmt.Printf("Font does not have cmap for Unicode\n")
-		return nil
+		return nil // no cmap for Unicode; the caller reports the error
 	}
 
 	symbolCharDictionary := make(map[int][]int)
@@ -633,7 +636,7 @@ func (utf *utf8FontFile) generateCMAPTable(cidSymbolPairCollection map[int]int, 
 }
 
 // GenerateCutFont fill utf8FontFile from .utf file, only with runes from usedRunes
-func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) []byte {
+func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) ([]byte, error) {
 	utf.fileReader.readerPosition = 0
 	utf.symbolPosition = make([]int, 0)
 	utf.charSymbolDictionary = make(map[int]int)
@@ -660,12 +663,14 @@ func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) []byte {
 
 	symbolCharDictionary := utf.generateCMAP()
 	if symbolCharDictionary == nil {
-		return nil
+		return nil, errs.New("font does not have a cmap for Unicode")
 	}
 
 	utf.parseHMTXTable(metricsCount, numSymbols, symbolCharDictionary, 1.0)
 
-	utf.parseLOCATable(LocaFormat, numSymbols)
+	if err := utf.parseLOCATable(LocaFormat, numSymbols); err != nil {
+		return nil, err
+	}
 
 	cidSymbolPairCollection, symbolArray, symbolCollection, symbolCollectionKeys := utf.parseSymbols(usedRunes)
 
@@ -724,18 +729,19 @@ func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) []byte {
 					utf.symbolData[originalSymbolIdx]["compSymbols"] = make([]int, 0)
 				}
 				utf.symbolData[originalSymbolIdx]["compSymbols"] = append(utf.symbolData[originalSymbolIdx]["compSymbols"], symbolIdx)
-				data = utf.insertUint16(data, posInSymbol+2, symbolArray[symbolIdx])
+				data = insertUint16(data, posInSymbol+2, symbolArray[symbolIdx])
 				posInSymbol += 4
 				if (flags & symbolWords) != 0 {
 					posInSymbol += 4
 				} else {
 					posInSymbol += 2
 				}
-				if (flags & symbolScale) != 0 {
+				switch {
+				case flags&symbolScale != 0:
 					posInSymbol += 2
-				} else if (flags & symbolAllScale) != 0 {
+				case flags&symbolAllScale != 0:
 					posInSymbol += 4
-				} else if (flags & symbol2x2) != 0 {
+				case flags&symbol2x2 != 0:
 					posInSymbol += 8
 				}
 			}
@@ -770,21 +776,21 @@ func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) []byte {
 	utf.setOutTable("loca", locaData)
 
 	headData := utf.getTableData("head")
-	headData = utf.insertUint16(headData, 50, LocaFormat)
+	headData = insertUint16(headData, 50, LocaFormat)
 	utf.setOutTable("head", headData)
 
 	hheaData := utf.getTableData("hhea")
-	hheaData = utf.insertUint16(hheaData, 34, metricsCount)
+	hheaData = insertUint16(hheaData, 34, metricsCount)
 	utf.setOutTable("hhea", hheaData)
 
 	maxp := utf.getTableData("maxp")
-	maxp = utf.insertUint16(maxp, 4, numSymbols)
+	maxp = insertUint16(maxp, 4, numSymbols)
 	utf.setOutTable("maxp", maxp)
 
 	os2Data := utf.getTableData("OS/2")
 	utf.setOutTable("OS/2", os2Data)
 
-	return utf.assembleTables()
+	return utf.assembleTables(), nil
 }
 
 func (utf *utf8FontFile) getSymbols(originalSymbolIdx int, start *int, symbolSet map[int]int, SymbolsCollection map[int]int, SymbolsCollectionKeys []int) (*int, map[int]int, map[int]int, []int) {
@@ -816,11 +822,12 @@ func (utf *utf8FontFile) getSymbols(originalSymbolIdx int, start *int, symbolSet
 			} else {
 				utf.skip(2)
 			}
-			if flags&symbolScale != 0 {
+			switch {
+			case flags&symbolScale != 0:
 				utf.skip(2)
-			} else if flags&symbolAllScale != 0 {
+			case flags&symbolAllScale != 0:
 				utf.skip(4)
-			} else if flags&symbol2x2 != 0 {
+			case flags&symbol2x2 != 0:
 				utf.skip(8)
 			}
 		}
@@ -897,7 +904,7 @@ func (utf *utf8FontFile) getMetrics(metricCount, gid int) []byte {
 	return metrics
 }
 
-func (utf *utf8FontFile) parseLOCATable(format, numSymbols int) {
+func (utf *utf8FontFile) parseLOCATable(format, numSymbols int) error {
 	start := utf.SeekTable("loca")
 	utf.symbolPosition = make([]int, 0)
 	switch format {
@@ -914,9 +921,9 @@ func (utf *utf8FontFile) parseLOCATable(format, numSymbols int) {
 			utf.symbolPosition = append(utf.symbolPosition, arr[n+1])
 		}
 	default:
-		fmt.Printf("Unknown loca table format %d\n", format)
-		return
+		return errs.Errorf("unknown loca table format %d", format)
 	}
+	return nil
 }
 
 func (utf *utf8FontFile) generateSCCSDictionaries(runeCmapPosition int, symbolCharDictionary map[int][]int, charSymbolDictionary map[int]int) {
@@ -1017,34 +1024,26 @@ func (utf *utf8FontFile) assembleTables() []byte {
 
 	checksum := utf.generateChecksum([]byte(answer))
 	checksum = utf.calcInt32([]int{0xB1B0, 0xAFBA}, checksum)
-	answer = utf.splice(answer, (begin + 8), pack2Uint16(checksum[0], checksum[1]))
+	answer = splice(answer, (begin + 8), pack2Uint16(checksum[0], checksum[1]))
 	return answer
 }
 
+// unpackUint16Array decodes data as big-endian uint16 values, keeping the
+// 1-based indexing of the original PHP port via a leading zero element.
 func unpackUint16Array(data []byte) []int {
-	answer := make([]int, 1)
-	r := bytes.NewReader(data)
-	bs := make([]byte, 2)
-	var e error
-	var c int
-	c, e = r.Read(bs)
-	for e == nil && c > 0 {
-		answer = append(answer, int(binary.BigEndian.Uint16(bs)))
-		c, e = r.Read(bs)
+	answer := make([]int, 1, 1+len(data)/2)
+	for i := 0; i+2 <= len(data); i += 2 {
+		answer = append(answer, int(binary.BigEndian.Uint16(data[i:i+2])))
 	}
 	return answer
 }
 
+// unpackUint32Array decodes data as big-endian uint32 values, keeping the
+// 1-based indexing of the original PHP port via a leading zero element.
 func unpackUint32Array(data []byte) []int {
-	answer := make([]int, 1)
-	r := bytes.NewReader(data)
-	bs := make([]byte, 4)
-	var e error
-	var c int
-	c, e = r.Read(bs)
-	for e == nil && c > 0 {
-		answer = append(answer, int(binary.BigEndian.Uint32(bs)))
-		c, e = r.Read(bs)
+	answer := make([]int, 1, 1+len(data)/4)
+	for i := 0; i+4 <= len(data); i += 4 {
+		answer = append(answer, int(binary.BigEndian.Uint32(data[i:i+4])))
 	}
 	return answer
 }
@@ -1054,52 +1053,30 @@ func unpackUint16(data []byte) int {
 }
 
 func packHeader(N uint32, n1, n2, n3, n4 int) []byte {
-	answer := make([]byte, 0)
-	bs4 := make([]byte, 4)
-	binary.BigEndian.PutUint32(bs4, N)
-	answer = append(answer, bs4...)
-	bs := make([]byte, 2)
-	binary.BigEndian.PutUint16(bs, uint16(n1))
-	answer = append(answer, bs...)
-	binary.BigEndian.PutUint16(bs, uint16(n2))
-	answer = append(answer, bs...)
-	binary.BigEndian.PutUint16(bs, uint16(n3))
-	answer = append(answer, bs...)
-	binary.BigEndian.PutUint16(bs, uint16(n4))
-	answer = append(answer, bs...)
+	answer := binary.BigEndian.AppendUint32(make([]byte, 0, 12), N)
+	answer = binary.BigEndian.AppendUint16(answer, uint16(n1))
+	answer = binary.BigEndian.AppendUint16(answer, uint16(n2))
+	answer = binary.BigEndian.AppendUint16(answer, uint16(n3))
+	answer = binary.BigEndian.AppendUint16(answer, uint16(n4))
 	return answer
 }
 
 func pack2Uint16(n1, n2 int) []byte {
-	answer := make([]byte, 0)
-	bs := make([]byte, 2)
-	binary.BigEndian.PutUint16(bs, uint16(n1))
-	answer = append(answer, bs...)
-	binary.BigEndian.PutUint16(bs, uint16(n2))
-	answer = append(answer, bs...)
-	return answer
+	answer := binary.BigEndian.AppendUint16(make([]byte, 0, 4), uint16(n1))
+	return binary.BigEndian.AppendUint16(answer, uint16(n2))
 }
 
 func pack2Uint32(n1, n2 int) []byte {
-	answer := make([]byte, 0)
-	bs := make([]byte, 4)
-	binary.BigEndian.PutUint32(bs, uint32(n1))
-	answer = append(answer, bs...)
-	binary.BigEndian.PutUint32(bs, uint32(n2))
-	answer = append(answer, bs...)
-	return answer
+	answer := binary.BigEndian.AppendUint32(make([]byte, 0, 8), uint32(n1))
+	return binary.BigEndian.AppendUint32(answer, uint32(n2))
 }
 
 func packUint32(n1 int) []byte {
-	bs := make([]byte, 4)
-	binary.BigEndian.PutUint32(bs, uint32(n1))
-	return bs
+	return binary.BigEndian.AppendUint32(nil, uint32(n1))
 }
 
 func packUint16(n1 int) []byte {
-	bs := make([]byte, 2)
-	binary.BigEndian.PutUint16(bs, uint16(n1))
-	return bs
+	return binary.BigEndian.AppendUint16(nil, uint16(n1))
 }
 
 func keySortStrings(s map[string][]byte) []string {
@@ -1136,14 +1113,12 @@ func keySortArrayRangeMap(s map[int][]int) []int {
 }
 
 // UTF8CutFont is a utility function that generates a TrueType font composed
-// only of the runes included in cutset. The rune glyphs are copied from This
-// function is demonstrated in ExampleUTF8CutFont().
-func UTF8CutFont(inBuf []byte, cutset string) (outBuf []byte) {
+// only of the runes included in cutset.
+func UTF8CutFont(inBuf []byte, cutset string) ([]byte, error) {
 	f := newUTF8Font(&fileReader{readerPosition: 0, array: inBuf})
 	runes := map[int]int{}
 	for i, r := range cutset {
 		runes[i] = int(r)
 	}
-	outBuf = f.GenerateCutFont(runes)
-	return
+	return f.GenerateCutFont(runes)
 }

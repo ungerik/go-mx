@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/domonda/go-errs"
 )
 
 func writeBytes(leadStr string, startPos int, sl []byte) {
@@ -82,7 +84,7 @@ func CompareBytes(sl1, sl2 []byte, printDiff bool) (err error) {
 		posStart = posEnd
 	}
 	if diffs {
-		err = fmt.Errorf("documents are different")
+		err = errs.New("documents are different")
 	}
 	return
 }

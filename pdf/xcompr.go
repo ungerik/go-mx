@@ -7,8 +7,9 @@ package pdf
 import (
 	"bytes"
 	"compress/zlib"
-	"fmt"
 	"sync"
+
+	"github.com/domonda/go-errs"
 )
 
 var xmem = xmempool{
@@ -29,16 +30,16 @@ func (pool *xmempool) compress(data []byte) *membuffer {
 
 	zw, err := zlib.NewWriterLevel(buf, zlib.BestSpeed)
 	if err != nil {
-		panic(fmt.Errorf("could not create zlib writer: %w", err))
+		panic(errs.Errorf("could not create zlib writer: %w", err))
 	}
 	_, err = zw.Write(data)
 	if err != nil {
-		panic(fmt.Errorf("could not zlib-compress slice: %w", err))
+		panic(errs.Errorf("could not zlib-compress slice: %w", err))
 	}
 
 	err = zw.Close()
 	if err != nil {
-		panic(fmt.Errorf("could not close zlib writer: %w", err))
+		panic(errs.Errorf("could not close zlib writer: %w", err))
 	}
 	return mem
 }

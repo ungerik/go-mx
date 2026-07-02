@@ -39,10 +39,13 @@ import (
 	"math"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/domonda/go-errs"
 )
 
 var gl struct {
@@ -57,7 +60,7 @@ type fmtBuffer struct {
 }
 
 func (b *fmtBuffer) printf(fmtStr string, args ...any) {
-	b.Buffer.WriteString(fmt.Sprintf(fmtStr, args...))
+	fmt.Fprintf(&b.Buffer, fmtStr, args...)
 }
 
 func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType) (r *Renderer) {
@@ -128,7 +131,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	case "in", "inch":
 		r.k = 72.0
 	default:
-		r.err = fmt.Errorf("incorrect unit %s", unitStr)
+		r.err = errs.Errorf("incorrect unit %s", unitStr)
 		return
 	}
 	r.unitStr = unitStr
@@ -166,7 +169,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 		r.w = r.defPageSize.Ht
 		r.h = r.defPageSize.Wd
 	default:
-		r.err = fmt.Errorf("incorrect orientation: %s", orientationStr)
+		r.err = errs.Errorf("incorrect orientation: %s", orientationStr)
 		return
 	}
 	r.curOrientation = r.defOrientation
@@ -273,7 +276,7 @@ func (r *Renderer) ClearError() {
 // about fmtStr and args.
 func (r *Renderer) SetErrorf(fmtStr string, args ...any) {
 	if r.err == nil {
-		r.err = fmt.Errorf(fmtStr, args...)
+		r.err = errs.Errorf(fmtStr, args...)
 	}
 }
 
@@ -375,7 +378,7 @@ func (r *Renderer) SetPageBoxRec(t string, pb PageBox) {
 	case "artbox":
 		t = "ArtBox"
 	default:
-		r.err = fmt.Errorf("%s is not a valid page box type", t)
+		r.err = errs.Errorf("%s is not a valid page box type", t)
 		return
 	}
 
@@ -559,7 +562,7 @@ func (r *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
 	case "fullpage", "fullwidth", "real", "default":
 		r.zoomMode = zoomStr
 	default:
-		r.err = fmt.Errorf("incorrect zoom display mode: %s", zoomStr)
+		r.err = errs.Errorf("incorrect zoom display mode: %s", zoomStr)
 		return
 	}
 	switch layoutStr {
@@ -567,7 +570,7 @@ func (r *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
 		"TwoColumnLeft", "TwoColumnRight", "TwoPageLeft", "TwoPageRight":
 		r.layoutMode = layoutStr
 	default:
-		r.err = fmt.Errorf("incorrect layout display mode: %s", layoutStr)
+		r.err = errs.Errorf("incorrect layout display mode: %s", layoutStr)
 		return
 	}
 }
@@ -738,10 +741,11 @@ func (r *Renderer) open() {
 // prevent the generation of an invalid document.
 func (r *Renderer) Close() {
 	if r.err == nil {
-		if r.clipNest > 0 {
-			r.err = fmt.Errorf("clip procedure must be explicitly ended")
-		} else if r.transformNest > 0 {
-			r.err = fmt.Errorf("transformation procedure must be explicitly ended")
+		switch {
+		case r.clipNest > 0:
+			r.err = errs.New("clip procedure must be explicitly ended")
+		case r.transformNest > 0:
+			r.err = errs.New("transformation procedure must be explicitly ended")
 		}
 	}
 	if r.err != nil {
@@ -758,9 +762,10 @@ func (r *Renderer) Close() {
 	}
 	// Page footer
 	r.inFooter = true
-	if r.footerFnc != nil {
+	switch {
+	case r.footerFnc != nil:
 		r.footerFnc()
-	} else if r.footerFncLpi != nil {
+	case r.footerFncLpi != nil:
 		r.footerFncLpi(true)
 	}
 	r.inFooter = false
@@ -822,10 +827,10 @@ func (r *Renderer) AddPageFormat(orientationStr string, size SizeType) {
 	if r.page > 0 {
 		r.inFooter = true
 		// Page footer avoid double call on footer.
-		if r.footerFnc != nil {
+		switch {
+		case r.footerFnc != nil:
 			r.footerFnc()
-
-		} else if r.footerFncLpi != nil {
+		case r.footerFncLpi != nil:
 			r.footerFncLpi(false) // not last page.
 		}
 		r.inFooter = false
@@ -928,11 +933,7 @@ func (r *Renderer) PageNo() int {
 }
 
 func colorComp(v int) (int, float64) {
-	if v < 0 {
-		v = 0
-	} else if v > 255 {
-		v = 255
-	}
+	v = min(max(v, 0), 255)
 	return v, float64(v) / 255.0
 }
 
@@ -1060,13 +1061,14 @@ func (r *Renderer) GetStringSymbolWidth(s string) int {
 	if r.isCurrentUTF8 {
 		for _, char := range s {
 			intChar := int(char)
-			if len(r.currentFont.Cw) >= intChar && r.currentFont.Cw[intChar] > 0 {
+			switch {
+			case len(r.currentFont.Cw) >= intChar && r.currentFont.Cw[intChar] > 0:
 				if r.currentFont.Cw[intChar] != 65535 {
 					w += r.currentFont.Cw[intChar]
 				}
-			} else if r.currentFont.Desc.MissingWidth != 0 {
+			case r.currentFont.Desc.MissingWidth != 0:
 				w += r.currentFont.Desc.MissingWidth
-			} else {
+			default:
 				w += 500
 			}
 		}
@@ -1542,11 +1544,11 @@ func (r *Renderer) SetAlpha(alpha float64, blendModeStr string) {
 	case "":
 		bl.modeStr = "Normal"
 	default:
-		r.err = fmt.Errorf("unrecognized blend mode \"%s\"", blendModeStr)
+		r.err = errs.Errorf("unrecognized blend mode \"%s\"", blendModeStr)
 		return
 	}
 	if alpha < 0.0 || alpha > 1.0 {
-		r.err = fmt.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
+		r.err = errs.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
 		return
 	}
 	r.alpha = alpha
@@ -1965,7 +1967,7 @@ func (r *Renderer) ClipEnd() {
 			r.clipNest--
 			r.out("Q")
 		} else {
-			r.err = fmt.Errorf("error attempting to end clip operation out of sequence")
+			r.err = errs.New("error attempting to end clip operation out of sequence")
 		}
 	}
 }
@@ -2021,9 +2023,9 @@ func (r *Renderer) AddUTF8Font(familyStr, styleStr, fileStr string) {
 func (r *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 	if fileStr == "" {
 		if isUTF8 {
-			fileStr = strings.Replace(familyStr, " ", "", -1) + strings.ToLower(styleStr) + ".ttf"
+			fileStr = strings.ReplaceAll(familyStr, " ", "") + strings.ToLower(styleStr) + ".ttf"
 		} else {
-			fileStr = strings.Replace(familyStr, " ", "", -1) + strings.ToLower(styleStr) + ".json"
+			fileStr = strings.ReplaceAll(familyStr, " ", "") + strings.ToLower(styleStr) + ".json"
 		}
 	}
 	if isUTF8 {
@@ -2190,7 +2192,7 @@ func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 
 		err := utf8File.parseFile()
 		if err != nil {
-			fmt.Printf("get metrics Error: %e\n", err)
+			r.SetError(err)
 			return
 		}
 		desc := FontDescType{
@@ -2393,11 +2395,11 @@ func (r *Renderer) SetFont(familyStr, styleStr string, size float64) {
 	styleStr = strings.ToUpper(styleStr)
 	r.underline = strings.Contains(styleStr, "U")
 	if r.underline {
-		styleStr = strings.Replace(styleStr, "U", "", -1)
+		styleStr = strings.ReplaceAll(styleStr, "U", "")
 	}
 	r.strikeout = strings.Contains(styleStr, "S")
 	if r.strikeout {
-		styleStr = strings.Replace(styleStr, "S", "", -1)
+		styleStr = strings.ReplaceAll(styleStr, "S", "")
 	}
 	if styleStr == "IB" {
 		styleStr = "BI"
@@ -2435,7 +2437,7 @@ func (r *Renderer) SetFont(familyStr, styleStr string, size float64) {
 				}
 			}
 		} else {
-			r.err = fmt.Errorf("undefined font: %s %s", familyStr, styleStr)
+			r.err = errs.Errorf("undefined font: %s %s", familyStr, styleStr)
 			return
 		}
 	}
@@ -2690,7 +2692,7 @@ func (r *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 	}
 
 	if r.currentFont.Name == "" {
-		r.err = fmt.Errorf("font has not been set; unable to render text")
+		r.err = errs.New("font has not been set; unable to render text")
 		return
 	}
 
@@ -2829,9 +2831,9 @@ func (r *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 				}
 			} else {
 
-				txt2 = strings.Replace(txtStr, "\\", "\\\\", -1)
-				txt2 = strings.Replace(txt2, "(", "\\(", -1)
-				txt2 = strings.Replace(txt2, ")", "\\)", -1)
+				txt2 = strings.ReplaceAll(txtStr, "\\", "\\\\")
+				txt2 = strings.ReplaceAll(txt2, "(", "\\(")
+				txt2 = strings.ReplaceAll(txt2, ")", "\\)")
 			}
 			bt := (r.x + dx) * k
 			td := (r.h - (r.y + dy + .5*h + .3*r.fontSize)) * k
@@ -2907,7 +2909,7 @@ func (r *Renderer) SplitLines(txt []byte, w float64) [][]byte {
 	lines := [][]byte{}
 	cw := r.currentFont.Cw
 	wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
-	s := bytes.Replace(txt, []byte("\r"), []byte{}, -1)
+	s := bytes.ReplaceAll(txt, []byte("\r"), []byte{})
 	nb := len(s)
 	for nb > 0 && s[nb-1] == '\n' {
 		nb--
@@ -2982,7 +2984,7 @@ func (r *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 		w = r.w - r.rMargin - r.x
 	}
 	wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
-	s := strings.Replace(txtStr, "\r", "", -1)
+	s := strings.ReplaceAll(txtStr, "\r", "")
 	srune := []rune(s)
 
 	// remove extra line breaks
@@ -3086,12 +3088,14 @@ func (r *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 			ns++
 		}
 		if int(c) >= len(cw) {
-			r.err = fmt.Errorf("character outside the supported range: %s", string(c))
+			r.err = errs.Errorf("character outside the supported range: %s", string(c))
 			return
 		}
-		if cw[int(c)] == 0 { //Marker width 0 used for missing symbols
+		switch cw[int(c)] {
+		case 0: // marker width 0 is used for missing symbols
 			l += r.currentFont.Desc.MissingWidth
-		} else if cw[int(c)] != 65535 { //Marker width 65535 used for zero width symbols
+		case 65535: // marker width 65535 is used for zero-width symbols
+		default:
 			l += cw[int(c)]
 		}
 		if l > wmax {
@@ -3168,7 +3172,7 @@ func (r *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 	cw := r.currentFont.Cw
 	w := r.w - r.rMargin - r.x
 	wmax := (w - 2*r.cMargin) * 1000 / r.fontSize
-	s := strings.Replace(txtStr, "\r", "", -1)
+	s := strings.ReplaceAll(txtStr, "\r", "")
 	var nb int
 	if r.isCurrentUTF8 {
 		nb = len([]rune(s))
@@ -3559,7 +3563,7 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 
 	// First use of this image, get info
 	if options.ImageType == "" {
-		r.err = fmt.Errorf("image type should be specified if reading from custom reader")
+		r.err = errs.New("image type should be specified if reading from custom reader")
 		return
 	}
 	options.ImageType = strings.ToLower(options.ImageType)
@@ -3574,7 +3578,7 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 	case "gif":
 		info = r.parsegif(rd)
 	default:
-		r.err = fmt.Errorf("unsupported image type: %s", options.ImageType)
+		r.err = errs.Errorf("unsupported image type: %s", options.ImageType)
 	}
 	if r.err != nil {
 		return
@@ -3625,7 +3629,7 @@ func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (i
 	if options.ImageType == "" {
 		pos := strings.LastIndex(fileStr, ".")
 		if pos < 0 {
-			r.err = fmt.Errorf("image file has no extension and no type was specified: %s", fileStr)
+			r.err = errs.Errorf("image file has no extension and no type was specified: %s", fileStr)
 			return
 		}
 		options.ImageType = fileStr[pos+1:]
@@ -3741,7 +3745,7 @@ func (r *Renderer) OutputAndClose(w io.WriteCloser) error {
 	_ = r.Output(w)
 	err := w.Close()
 	if err != nil {
-		return fmt.Errorf("could not close writer: %w", err)
+		return errs.Errorf("could not close writer: %w", err)
 	}
 	return r.err
 }
@@ -3766,7 +3770,7 @@ func (r *Renderer) OutputFileAndClose(fileStr string) error {
 
 	err = pdfFile.Close()
 	if err != nil {
-		return fmt.Errorf("could not close output file: %w", err)
+		return errs.Errorf("could not close output file: %w", err)
 	}
 
 	return r.err
@@ -3805,7 +3809,7 @@ func (r *Renderer) getpagesizestr(sizeStr string) (size SizeType) {
 		size.Ht /= r.k
 
 	} else {
-		r.err = fmt.Errorf("unknown page size %s", sizeStr)
+		r.err = errs.Errorf("unknown page size %s", sizeStr)
 	}
 	return
 }
@@ -3888,10 +3892,10 @@ func (r *Renderer) loadfont(rd io.Reader) (def fontDefType) {
 
 // Escape special characters in strings
 func (r *Renderer) escape(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "(", "\\(", -1)
-	s = strings.Replace(s, ")", "\\)", -1)
-	s = strings.Replace(s, "\r", "\\r", -1)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "(", "\\(")
+	s = strings.ReplaceAll(s, ")", "\\)")
+	s = strings.ReplaceAll(s, "\r", "\\r")
 	return s
 }
 
@@ -3980,7 +3984,7 @@ func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
 	case color.CMYKModel:
 		info.cs = "DeviceCMYK"
 	default:
-		r.err = fmt.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
+		r.err = errs.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
 		return
 	}
 	return
@@ -4209,7 +4213,7 @@ func (r *Renderer) replaceAliases() {
 			for n := 1; n <= r.page; n++ {
 				s := r.pages[n].String()
 				if strings.Contains(s, alias) {
-					s = strings.Replace(s, alias, replacement, -1)
+					s = strings.ReplaceAll(s, alias, replacement)
 					r.pages[n].Truncate(0)
 					r.pages[n].WriteString(s)
 				}
@@ -4454,7 +4458,11 @@ func (r *Renderer) putfonts() {
 				fontName := "utf8" + font.Name
 				usedRunes := font.usedRunes
 				delete(usedRunes, 0)
-				utf8FontStream := font.utf8File.GenerateCutFont(usedRunes)
+				utf8FontStream, err := font.utf8File.GenerateCutFont(usedRunes)
+				if err != nil {
+					r.SetError(err)
+					return
+				}
 				utf8FontSize := len(utf8FontStream)
 				CodeSignDictionary := font.utf8File.CodeSymbolDictionary
 				delete(CodeSignDictionary, 0)
@@ -4530,7 +4538,7 @@ func (r *Renderer) putfonts() {
 				r.out("endobj")
 				mem.release()
 			default:
-				r.err = fmt.Errorf("unsupported font type: %s", tp)
+				r.err = errs.Errorf("unsupported font type: %s", tp)
 				return
 			}
 		}
@@ -4622,7 +4630,9 @@ func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 				cidArray[key].delete("interval")
 			}
 			cidArray[previousKey] = arrayMerge(cidArray[previousKey], cidArray[key])
-			cidArrayKeys = remove(cidArrayKeys, key)
+			if i := slices.Index(cidArrayKeys, key); i >= 0 {
+				cidArrayKeys = slices.Delete(cidArrayKeys, i, i+1)
+			}
 		} else {
 			g++
 			previousKey = key
@@ -5453,7 +5463,7 @@ func (r *Renderer) TransformScaleXY(s, x, y float64) {
 // The TransformBegin() example demonstrates this method.
 func (r *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
 	if scaleWd == 0 || scaleHt == 0 {
-		r.err = fmt.Errorf("scale factor cannot be zero")
+		r.err = errs.New("scale factor cannot be zero")
 		return
 	}
 	y = (r.h - y) * r.k
@@ -5568,7 +5578,7 @@ func (r *Renderer) TransformSkewY(angleY, x, y float64) {
 // The TransformBegin() example demonstrates this method.
 func (r *Renderer) TransformSkew(angleX, angleY, x, y float64) {
 	if angleX <= -90 || angleX >= 90 || angleY <= -90 || angleY >= 90 {
-		r.err = fmt.Errorf("skew values must be between -90° and 90°")
+		r.err = errs.New("skew values must be between -90° and 90°")
 		return
 	}
 	x *= r.k
@@ -5587,11 +5597,12 @@ func (r *Renderer) TransformSkew(angleX, angleY, x, y float64) {
 // according to the specified matrix. It is typically easier to use the various
 // methods such as TransformRotate() and TransformMirrorVertical() instead.
 func (r *Renderer) Transform(tm TransformMatrix) {
-	if r.transformNest > 0 {
+	switch {
+	case r.transformNest > 0:
 		r.outf("%.5f %.5f %.5f %.5f %.5f %.5f cm",
 			tm.A, tm.B, tm.C, tm.D, tm.E, tm.F)
-	} else if r.err == nil {
-		r.err = fmt.Errorf("transformation context is not active")
+	case r.err == nil:
+		r.err = errs.New("transformation context is not active")
 	}
 }
 
@@ -5603,6 +5614,6 @@ func (r *Renderer) TransformEnd() {
 		r.transformNest--
 		r.out("Q")
 	} else {
-		r.err = fmt.Errorf("error attempting to end transformation operation out of sequence")
+		r.err = errs.New("error attempting to end transformation operation out of sequence")
 	}
 }

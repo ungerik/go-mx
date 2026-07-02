@@ -23,6 +23,8 @@ package pdf
 import (
 	"fmt"
 	"strings"
+
+	"github.com/domonda/go-errs"
 )
 
 func byteBound(v byte) byte {
@@ -52,7 +54,7 @@ func (r *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
 				},
 			}
 		} else {
-			r.err = fmt.Errorf("name \"%s\" is already associated with a spot color", nameStr)
+			r.err = errs.Errorf("name \"%s\" is already associated with a spot color", nameStr)
 		}
 	}
 }
@@ -61,7 +63,7 @@ func (r *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
 	if r.err == nil {
 		clr, ok = r.spotColorMap[nameStr]
 		if !ok {
-			r.err = fmt.Errorf("spot color name \"%s\" is not registered", nameStr)
+			r.err = errs.Errorf("spot color name \"%s\" is not registered", nameStr)
 		}
 	}
 	return
@@ -167,7 +169,7 @@ func (r *Renderer) GetFillSpotColor() (name string, c, m, y, k byte) {
 func (r *Renderer) putSpotColors() {
 	for k, v := range r.spotColorMap {
 		r.newobj()
-		r.outf("[/Separation /%s", strings.Replace(k, " ", "#20", -1))
+		r.outf("[/Separation /%s", strings.ReplaceAll(k, " ", "#20"))
 		r.out("/DeviceCMYK <<")
 		r.out("/Range [0 1 0 1 0 1 0 1] /C0 [0 0 0 0] ")
 		r.outf("/C1 [%.3f %.3f %.3f %.3f] ", float64(v.val.c)/100, float64(v.val.m)/100,

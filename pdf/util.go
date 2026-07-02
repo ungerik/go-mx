@@ -27,6 +27,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf16"
 )
@@ -208,15 +209,10 @@ type untypedKeyMap struct {
 
 // Get position of key=>value in PHP Array
 func (pa *untypedKeyMap) getIndex(key any) int {
-	if key != nil {
-		for i, mKey := range pa.keySet {
-			if mKey == key {
-				return i
-			}
-		}
+	if key == nil {
 		return -1
 	}
-	return -1
+	return slices.Index(pa.keySet, key)
 }
 
 // Put key=>value in PHP Array
@@ -250,16 +246,8 @@ func (pa *untypedKeyMap) delete(key any) {
 	}
 	i := pa.getIndex(key)
 	if i >= 0 {
-		if i == 0 {
-			pa.keySet = pa.keySet[1:]
-			pa.valueSet = pa.valueSet[1:]
-		} else if i == len(pa.keySet)-1 {
-			pa.keySet = pa.keySet[:len(pa.keySet)-1]
-			pa.valueSet = pa.valueSet[:len(pa.valueSet)-1]
-		} else {
-			pa.keySet = append(pa.keySet[:i], pa.keySet[i+1:]...)
-			pa.valueSet = append(pa.valueSet[:i], pa.valueSet[i+1:]...)
-		}
+		pa.keySet = slices.Delete(pa.keySet, i, i+1)
+		pa.valueSet = slices.Delete(pa.valueSet, i, i+1)
 	}
 }
 
@@ -281,21 +269,22 @@ func (pa *untypedKeyMap) pop() {
 // Imitation of PHP function array_merge()
 func arrayMerge(arr1, arr2 *untypedKeyMap) *untypedKeyMap {
 	answer := untypedKeyMap{}
-	if arr1 == nil && arr2 == nil {
+	switch {
+	case arr1 == nil && arr2 == nil:
 		answer = untypedKeyMap{
 			make([]any, 0),
 			make([]int, 0),
 		}
-	} else if arr2 == nil {
+	case arr2 == nil:
 		answer.keySet = arr1.keySet[:]
 		answer.valueSet = arr1.valueSet[:]
-	} else if arr1 == nil {
+	case arr1 == nil:
 		answer.keySet = arr2.keySet[:]
 		answer.valueSet = arr2.valueSet[:]
-	} else {
+	default:
 		answer.keySet = arr1.keySet[:]
 		answer.valueSet = arr1.valueSet[:]
-		for i := 0; i < len(arr2.keySet); i++ {
+		for i := range arr2.keySet {
 			if arr2.keySet[i] == "interval" {
 				if arr1.getIndex("interval") < 0 {
 					answer.put("interval", arr2.valueSet[i])
@@ -308,25 +297,8 @@ func arrayMerge(arr1, arr2 *untypedKeyMap) *untypedKeyMap {
 	return &answer
 }
 
-func remove(arr []int, key int) []int {
-	n := 0
-	for i, mKey := range arr {
-		if mKey == key {
-			n = i
-		}
-	}
-	if n == 0 {
-		return arr[1:]
-	} else if n == len(arr)-1 {
-		return arr[:len(arr)-1]
-	}
-	return append(arr[:n], arr[n+1:]...)
-}
-
 // Condition font family string to PDF name compliance. See section 5.3 (Names)
 // in https://resources.infosecinstitute.com/pdf-file-format-basic-structure/
-func fontFamilyEscape(familyStr string) (escStr string) {
-	escStr = strings.ReplaceAll(familyStr, " ", "#20")
-	// Additional replacements can take place here
-	return
+func fontFamilyEscape(familyStr string) string {
+	return strings.ReplaceAll(familyStr, " ", "#20")
 }
