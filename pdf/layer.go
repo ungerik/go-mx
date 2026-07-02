@@ -103,29 +103,30 @@ func (r *Renderer) layerPutLayers() {
 }
 
 func (r *Renderer) layerPutResourceDict() {
-	if len(r.layer.list) > 0 {
-		r.out("/Properties <<")
-		for j, layer := range r.layer.list {
-			r.outf("/OC%d %d 0 R", j, layer.objNum)
-		}
-		r.out(">>")
+	if len(r.layer.list) == 0 {
+		return
 	}
-
+	r.out("/Properties <<")
+	for j, layer := range r.layer.list {
+		r.outf("/OC%d %d 0 R", j, layer.objNum)
+	}
+	r.out(">>")
 }
 
 func (r *Renderer) layerPutCatalog() {
-	if len(r.layer.list) > 0 {
-		var onStr strings.Builder
-		var offStr strings.Builder
-		for _, layer := range r.layer.list {
-			onStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
-			if !layer.visible {
-				offStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
-			}
+	if len(r.layer.list) == 0 {
+		return
+	}
+	var onStr strings.Builder
+	var offStr strings.Builder
+	for _, layer := range r.layer.list {
+		fmt.Fprintf(&onStr, "%d 0 R ", layer.objNum)
+		if !layer.visible {
+			fmt.Fprintf(&offStr, "%d 0 R ", layer.objNum)
 		}
-		r.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr.String(), onStr.String())
-		if r.layer.openLayerPane {
-			r.out("/PageMode /UseOC")
-		}
+	}
+	r.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr.String(), onStr.String())
+	if r.layer.openLayerPane {
+		r.out("/PageMode /UseOC")
 	}
 }

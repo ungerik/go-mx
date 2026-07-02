@@ -22,7 +22,6 @@ package pdf
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -48,23 +47,18 @@ func utf8toutf16(s string, withBOM ...bool) string {
 }
 
 func repClosure(m map[rune]byte) func(string) string {
-	var buf bytes.Buffer
 	return func(str string) string {
-		var ch byte
-		var ok bool
-		buf.Truncate(0)
+		buf := make([]byte, 0, len(str))
 		for _, r := range str {
+			ch := byte('.')
 			if r < 0x80 {
 				ch = byte(r)
-			} else {
-				ch, ok = m[r]
-				if !ok {
-					ch = byte('.')
-				}
+			} else if b, ok := m[r]; ok {
+				ch = b
 			}
-			buf.WriteByte(ch)
+			buf = append(buf, ch)
 		}
-		return buf.String()
+		return string(buf)
 	}
 }
 

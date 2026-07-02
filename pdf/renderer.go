@@ -4706,9 +4706,17 @@ func (r *Renderer) putimages() {
 		keyList = append(keyList, key)
 	}
 
-	// Sort the keyList []string by the corresponding image's width.
+	// Sort the keyList []string by the corresponding image's width, with the
+	// content hash as tie-breaker so that equal-width images do not leak the
+	// random map iteration order into the output.
 	if r.catalogSort {
-		sort.SliceStable(keyList, func(i, j int) bool { return r.images[keyList[i]].w < r.images[keyList[j]].w })
+		sort.SliceStable(keyList, func(i, j int) bool {
+			a, b := r.images[keyList[i]], r.images[keyList[j]]
+			if a.w != b.w {
+				return a.w < b.w
+			}
+			return a.i < b.i
+		})
 	}
 
 	// Maintain a list of inserted image SHA-1 hashes, with their
@@ -5616,4 +5624,110 @@ func (r *Renderer) TransformEnd() {
 	} else {
 		r.err = errs.New("error attempting to end transformation operation out of sequence")
 	}
+}
+
+// NewRenderer creates a Renderer for the given page orientation, measurement
+// unit and page size, with a Helvetica 12pt default font already selected so
+// text can be drawn without further setup.
+func NewRenderer(orientation Orientation, unit Unit, size PageSize) *Renderer {
+	r := New(string(orientation), string(unit), string(size), "")
+	r.translate = r.UnicodeTranslatorFromDescriptor("")
+	r.SetFont(DefaultFontFamily, string(StyleRegular), DefaultFontSize)
+	return r
+}
+
+// NewRendererA4Portrait creates a Renderer for an A4 portrait document
+// measured in millimeters.
+func NewRendererA4Portrait() *Renderer {
+	return NewRenderer(Portrait, UnitMillimeter, A4)
+}
+
+// NewRendererA4Landscape creates a Renderer for an A4 landscape document
+// measured in millimeters.
+func NewRendererA4Landscape() *Renderer {
+	return NewRenderer(Landscape, UnitMillimeter, A4)
+}
+
+// NewRendererLetterPortrait creates a Renderer for a US Letter portrait
+// document measured in inches.
+func NewRendererLetterPortrait() *Renderer {
+	return NewRenderer(Portrait, UnitInch, Letter)
+}
+
+// Str applies the current font's UTF-8 translation to s. The text components
+// call this automatically; use it when passing strings to the raw renderer
+// methods.
+func (r *Renderer) Str(s string) string {
+	return r.tr(s)
+}
+
+// SetTranslator replaces the UTF-8 translator, e.g. after switching to a font
+// with a different code page. Pass the result of
+// UnicodeTranslatorFromDescriptor or the identity for UTF-8 fonts.
+func (r *Renderer) SetTranslator(translate func(string) string) {
+	r.translate = translate
+}
+
+// LoadUTF8FontBytes registers a UTF-8 TrueType font from in-memory bytes under
+// the given family and style — the in-memory counterpart of the file-based
+// AddUTF8Font, so non-Latin text needs no font file on disk. It also switches
+// the renderer's translator to identity, because UTF-8 fonts take UTF-8 strings
+// directly and the cp1252 translation used for the core fonts would corrupt
+// them; call SetTranslator if you later go back to a core font. Select the font
+// afterwards with the Font component or SetFont.
+func (r *Renderer) LoadUTF8FontBytes(family string, style FontStyle, ttf []byte) {
+	r.AddUTF8FontFromBytes(family, string(style), ttf)
+	r.SetTranslator(func(s string) string { return s })
+}
+
+// LoadUTF8FontReader is [Renderer.LoadUTF8FontBytes] reading the font from src.
+// A read error is recorded on the renderer and surfaces from the next Error().
+func (r *Renderer) LoadUTF8FontReader(family string, style FontStyle, src io.Reader) {
+	ttf, err := io.ReadAll(src)
+	if err != nil {
+		r.SetError(err)
+		return
+	}
+	r.LoadUTF8FontBytes(family, style, ttf)
+}
+
+// LineHeight returns the default line height for flowing text in document
+// units, resolving the "auto" zero value to 1.15× the current font size.
+func (r *Renderer) LineHeight() float64 {
+	return r.lineHt(r.lineHeight)
+}
+
+// SetLineHeight sets the default line height in document units for flowing
+// text. A value <= 0 restores automatic height derived from the font size.
+func (r *Renderer) SetLineHeight(h float64) {
+	r.lineHeight = h
+}
+
+// lineHt resolves an explicit height: h if positive, otherwise the configured
+// default, otherwise 1.15× the current font size converted to document units.
+func (r *Renderer) lineHt(h float64) float64 {
+	if h > 0 {
+		return h
+	}
+	if r.lineHeight > 0 {
+		return r.lineHeight
+	}
+	_, unitSize := r.GetFontSize()
+	return unitSize * 1.15
+}
+
+// ensurePage adds the first page if none has been started yet, so a component
+// can draw without the caller having to remember an explicit AddPage / Page.
+func (r *Renderer) ensurePage() {
+	if r.PageNo() == 0 {
+		r.AddPage()
+	}
+}
+
+// tr translates s for the current font and is used by the text components.
+func (r *Renderer) tr(s string) string {
+	if r.translate == nil {
+		return s
+	}
+	return r.translate(s)
 }

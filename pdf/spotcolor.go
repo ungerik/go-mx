@@ -74,17 +74,15 @@ func (r *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
 func (r *Renderer) SetDrawSpotColor(nameStr string, tint byte) {
-	var clr spotColorType
-	var ok bool
-
-	clr, ok = r.getSpotColor(nameStr)
-	if ok {
-		r.color.draw.mode = colorModeSpot
-		r.color.draw.spotStr = nameStr
-		r.color.draw.str = fmt.Sprintf("/CS%d CS %.3f SCN", clr.id, float64(byteBound(tint))/100)
-		if r.page > 0 {
-			r.out(r.color.draw.str)
-		}
+	clr, ok := r.getSpotColor(nameStr)
+	if !ok {
+		return
+	}
+	r.color.draw.mode = colorModeSpot
+	r.color.draw.spotStr = nameStr
+	r.color.draw.str = fmt.Sprintf("/CS%d CS %.3f SCN", clr.id, float64(byteBound(tint))/100)
+	if r.page > 0 {
+		r.out(r.color.draw.str)
 	}
 }
 
@@ -93,18 +91,16 @@ func (r *Renderer) SetDrawSpotColor(nameStr string, tint byte) {
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
 func (r *Renderer) SetFillSpotColor(nameStr string, tint byte) {
-	var clr spotColorType
-	var ok bool
-
-	clr, ok = r.getSpotColor(nameStr)
-	if ok {
-		r.color.fill.mode = colorModeSpot
-		r.color.fill.spotStr = nameStr
-		r.color.fill.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
-		r.colorFlag = r.color.fill.str != r.color.text.str
-		if r.page > 0 {
-			r.out(r.color.fill.str)
-		}
+	clr, ok := r.getSpotColor(nameStr)
+	if !ok {
+		return
+	}
+	r.color.fill.mode = colorModeSpot
+	r.color.fill.spotStr = nameStr
+	r.color.fill.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
+	r.colorFlag = r.color.fill.str != r.color.text.str
+	if r.page > 0 {
+		r.out(r.color.fill.str)
 	}
 }
 

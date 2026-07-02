@@ -50,79 +50,6 @@ type gradientType struct {
 	objNum            int
 }
 
-const (
-	// OrientationPortrait represents the portrait orientation.
-	OrientationPortrait = "portrait"
-
-	// OrientationLandscape represents the landscape orientation.
-	OrientationLandscape = "landscape"
-)
-
-const (
-	// UnitPoint represents the size unit point
-	UnitPoint = "pt"
-	// UnitMillimeter represents the size unit millimeter
-	UnitMillimeter = "mm"
-	// UnitCentimeter represents the size unit centimeter
-	UnitCentimeter = "cm"
-	// UnitInch represents the size unit inch
-	UnitInch = "inch"
-)
-
-const (
-	// PageSizeA3 represents DIN/ISO A3 page size
-	PageSizeA3 = "A3"
-	// PageSizeA4 represents DIN/ISO A4 page size
-	PageSizeA4 = "A4"
-	// PageSizeA5 represents DIN/ISO A5 page size
-	PageSizeA5 = "A5"
-	// PageSizeLetter represents US Letter page size
-	PageSizeLetter = "Letter"
-	// PageSizeLegal represents US Legal page size
-	PageSizeLegal = "Legal"
-)
-
-const (
-	// BorderNone set no border
-	BorderNone = ""
-	// BorderFull sets a full border
-	BorderFull = "1"
-	// BorderLeft sets the border on the left side
-	BorderLeft = "L"
-	// BorderTop sets the border at the top
-	BorderTop = "T"
-	// BorderRight sets the border on the right side
-	BorderRight = "R"
-	// BorderBottom sets the border on the bottom
-	BorderBottom = "B"
-)
-
-const (
-	// LineBreakNone disables linebreak
-	LineBreakNone = 0
-	// LineBreakNormal enables normal linebreak
-	LineBreakNormal = 1
-	// LineBreakBelow enables linebreak below
-	LineBreakBelow = 2
-)
-
-const (
-	// AlignLeft left aligns the cell
-	AlignLeft = "L"
-	// AlignRight right aligns the cell
-	AlignRight = "R"
-	// AlignCenter centers the cell
-	AlignCenter = "C"
-	// AlignTop aligns the cell to the top
-	AlignTop = "T"
-	// AlignBottom aligns the cell to the bottom
-	AlignBottom = "B"
-	// AlignMiddle aligns the cell to the middle
-	AlignMiddle = "M"
-	// AlignBaseline aligns the cell to the baseline
-	AlignBaseline = "B"
-)
-
 type colorMode int
 
 const (
@@ -504,6 +431,16 @@ type Renderer struct {
 	outputIntents          []OutputIntentType       // OutputIntents
 	outputIntentStartN     int                      // Start object number for
 	userUnderlineThickness float64                  // A custom user underline thickness multiplier.
+
+	// translate maps UTF-8 to the encoding of the current standard (core)
+	// font, which uses cp1252 (Western Europe). Applied automatically by the
+	// text components via tr. Has no effect on UTF-8 fonts added with
+	// AddUTF8Font; reset it with SetTranslator when switching font encodings.
+	translate func(string) string
+	// lineHeight is the default line height in document units used by flowing
+	// text components (Text, Paragraph, NewLine) when no explicit height is
+	// given. Zero means "derive from the current font size".
+	lineHeight float64
 
 	fmt struct {
 		buf []byte       // buffer used to format numbers.
