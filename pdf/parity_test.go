@@ -15,7 +15,7 @@ import (
 // before the component layer is ported on top of it.
 func TestEngineGoldenParity(t *testing.T) {
 	// Document.NewRenderer: New + default font.
-	f := New("portrait", "mm", "A4", "")
+	f := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 	f.SetFont("Helvetica", "", 12)
 
 	// renderGolden determinism setup.

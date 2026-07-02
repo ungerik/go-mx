@@ -219,8 +219,7 @@ func (r *Renderer) TransformEnd() {
 // unit and page size, with a Helvetica 12pt default font already selected so
 // text can be drawn without further setup.
 func NewRenderer(orientation Orientation, unit Unit, size PageSize) *Renderer {
-	r := New(string(orientation), string(unit), string(size), "")
-	r.translate = r.UnicodeTranslatorFromDescriptor("")
+	r := newRenderer(orientation, unit, size, "", SizeType{0, 0})
 	r.SetFont(DefaultFontFamily, string(StyleRegular), DefaultFontSize)
 	return r
 }
@@ -228,19 +227,19 @@ func NewRenderer(orientation Orientation, unit Unit, size PageSize) *Renderer {
 // NewRendererA4Portrait creates a Renderer for an A4 portrait document
 // measured in millimeters.
 func NewRendererA4Portrait() *Renderer {
-	return NewRenderer(Portrait, UnitMillimeter, A4)
+	return NewRenderer(OrientationPortrait, UnitMillimeter, PageSizeA4)
 }
 
 // NewRendererA4Landscape creates a Renderer for an A4 landscape document
 // measured in millimeters.
 func NewRendererA4Landscape() *Renderer {
-	return NewRenderer(Landscape, UnitMillimeter, A4)
+	return NewRenderer(OrientationLandscape, UnitMillimeter, PageSizeA4)
 }
 
 // NewRendererLetterPortrait creates a Renderer for a US Letter portrait
 // document measured in inches.
 func NewRendererLetterPortrait() *Renderer {
-	return NewRenderer(Portrait, UnitInch, Letter)
+	return NewRenderer(OrientationPortrait, UnitInch, PageSizeLetter)
 }
 
 // Str applies the current font's UTF-8 translation to s. The text components

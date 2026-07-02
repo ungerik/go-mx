@@ -22,6 +22,8 @@ package pdf
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/domonda/go-errs"
@@ -157,8 +159,18 @@ func (r *Renderer) GetFillSpotColor() (name string, c, m, y, k byte) {
 	return r.returnSpotColor(r.color.fill)
 }
 
+// spotColorNames returns the spot color names ordered by registration id, so
+// that object numbering and resource dictionaries do not depend on the map
+// iteration order.
+func (r *Renderer) spotColorNames() []string {
+	return slices.SortedFunc(maps.Keys(r.spotColorMap), func(a, b string) int {
+		return r.spotColorMap[a].id - r.spotColorMap[b].id
+	})
+}
+
 func (r *Renderer) putSpotColors() {
-	for k, v := range r.spotColorMap {
+	for _, k := range r.spotColorNames() {
+		v := r.spotColorMap[k]
 		r.newobj()
 		r.outf("[/Separation /%s", strings.ReplaceAll(k, " ", "#20"))
 		r.out("/DeviceCMYK <<")
@@ -174,7 +186,8 @@ func (r *Renderer) putSpotColors() {
 
 func (r *Renderer) spotColorPutResourceDict() {
 	r.out("/ColorSpace <<")
-	for _, clr := range r.spotColorMap {
+	for _, k := range r.spotColorNames() {
+		clr := r.spotColorMap[k]
 		r.outf("/CS%d %d 0 R", clr.id, clr.objID)
 	}
 	r.out(">>")

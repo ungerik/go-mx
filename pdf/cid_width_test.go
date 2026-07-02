@@ -6,7 +6,7 @@ import (
 )
 
 func cidFontWidthArray(font *fontDefType, lastRune int) string {
-	r := New("P", "mm", "A4", "")
+	r := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 	r.generateCIDFontMap(font, lastRune)
 	return normalizeWOutput(r.buffer.String())
 }

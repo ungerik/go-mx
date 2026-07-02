@@ -383,7 +383,7 @@ func TestParityPagesFontsAndBreaks(t *testing.T) {
 		legacy.Page(legacy.Paragraph("back on a default page")),
 	)
 	nativeBody = append(nativeBody,
-		native.PageFormat(native.Landscape, native.A5, native.Paragraph("landscape A5 page")),
+		native.PageFormat(native.OrientationLandscape, native.PageSizeA5, native.Paragraph("landscape A5 page")),
 		native.Page(native.Paragraph("back on a default page")),
 	)
 

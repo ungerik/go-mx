@@ -29,7 +29,7 @@ func PageFormat(orientation Orientation, size PageSize, children ...any) Compone
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		r.AddPageFormat(string(orientation), r.GetPageSizeStr(string(size)))
+		r.AddPageFormat(orientation, r.standardPageSize(size))
 		if err := r.Error(); err != nil {
 			return err
 		}

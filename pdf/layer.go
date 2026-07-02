@@ -40,12 +40,6 @@ type layerRecType struct {
 	openLayerPane bool
 }
 
-func (r *Renderer) layerInit() {
-	r.layer.list = make([]layerType, 0)
-	r.layer.currentLayer = -1
-	r.layer.openLayerPane = false
-}
-
 // AddLayer defines a layer that can be shown or hidden when the document is
 // displayed. name specifies the layer name that the document reader will
 // display in the layer list. visible specifies whether the layer will be

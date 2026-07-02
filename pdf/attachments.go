@@ -5,6 +5,7 @@
 package pdf
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -142,18 +143,18 @@ func (r *Renderer) putAnnotationsAttachments() {
 	}
 }
 
-func (r *Renderer) putAttachmentAnnotationLinks(out *fmtBuffer, page int) {
+func (r *Renderer) putAttachmentAnnotationLinks(out *bytes.Buffer, page int) {
 	for _, an := range r.pageAttachments[page] {
 		x1, y1, x2, y2 := an.x, an.y, an.x+an.w, an.y-an.h
 		as := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [%.2f %.2f %.2f %.2f] /Length 0 >>",
 			x1, y1, x2, y2)
 		as += "\nstream\nendstream"
 
-		out.printf("<< /Type /Annot /Subtype /FileAttachment /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0]\n",
+		fmt.Fprintf(out, "<< /Type /Annot /Subtype /FileAttachment /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0]\n",
 			x1, y1, x2, y2)
-		out.printf("/Contents %s ", r.textstring(utf8toutf16(an.Description)))
-		out.printf("/T %s ", r.textstring(utf8toutf16(an.Filename)))
-		out.printf("/AP << /N %s>>", as)
-		out.printf("/FS %d 0 R >>\n", an.objectNumber)
+		fmt.Fprintf(out, "/Contents %s ", r.textstring(utf8toutf16(an.Description)))
+		fmt.Fprintf(out, "/T %s ", r.textstring(utf8toutf16(an.Filename)))
+		fmt.Fprintf(out, "/AP << /N %s>>", as)
+		fmt.Fprintf(out, "/FS %d 0 R >>\n", an.objectNumber)
 	}
 }

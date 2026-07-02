@@ -23,7 +23,6 @@ package pdf
 import (
 	"encoding/binary"
 	"math"
-	"slices"
 	"sort"
 
 	"github.com/domonda/go-errs"
@@ -99,7 +98,17 @@ func newUTF8Font(reader *fileReader) *utf8FontFile {
 	return &utf
 }
 
-func (utf *utf8FontFile) parseFile() error {
+func (utf *utf8FontFile) parseFile() (err error) {
+	// The parser reads through unguarded slicing and map lookups, so a
+	// truncated or corrupt font triggers runtime panics deep in the parse
+	// paths. Convert them into an error at this boundary so that malformed
+	// (possibly untrusted) font bytes fail the font load instead of crashing
+	// the process.
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = errs.Errorf("malformed TrueType font: %v", rec)
+		}
+	}()
 	utf.fileReader.readerPosition = 0
 	utf.symbolPosition = make([]int, 0)
 	utf.charSymbolDictionary = make(map[int]int)
@@ -199,7 +208,12 @@ func (utf *utf8FontFile) SeekTable(name string) int {
 }
 
 func (utf *utf8FontFile) seekTable(name string, offsetInTable int) int {
-	_, _ = utf.fileReader.seek(int64(utf.tableDescriptions[name].position+offsetInTable), 0)
+	desc := utf.tableDescriptions[name]
+	if desc == nil {
+		// Recovered as an error by the parseFile / GenerateCutFont boundary.
+		panic(errs.Errorf("missing required TrueType table %q", name))
+	}
+	_, _ = utf.fileReader.seek(int64(desc.position+offsetInTable), 0)
 	return int(utf.fileReader.readerPosition)
 }
 
@@ -259,74 +273,6 @@ func (utf *utf8FontFile) setOutTable(name string, data []byte) {
 	utf.outTablesData[name] = data
 }
 
-func arrayKeys(arr map[int]string) []int {
-	answer := make([]int, len(arr))
-	i := 0
-	for key := range arr {
-		answer[i] = key
-		i++
-	}
-	return answer
-}
-
-func inArray(s int, arr []int) bool {
-	return slices.Contains(arr, s)
-}
-
-func (utf *utf8FontFile) parseNAMETable() error {
-	namePosition := utf.SeekTable("name")
-	format := utf.readUint16()
-	if format != 0 {
-		return errs.Errorf("unsupported TrueType name table format %d", format)
-	}
-	nameCount := utf.readUint16()
-	stringDataPosition := namePosition + utf.readUint16()
-	names := map[int]string{1: "", 2: "", 3: "", 4: "", 6: ""}
-	keys := arrayKeys(names)
-	counter := len(names)
-	for range nameCount {
-		system := utf.readUint16()
-		code := utf.readUint16()
-		local := utf.readUint16()
-		nameID := utf.readUint16()
-		size := utf.readUint16()
-		position := utf.readUint16()
-		if !inArray(nameID, keys) {
-			continue
-		}
-		currentName := ""
-		switch {
-		case system == 3 && code == 1 && local == 0x409: // Microsoft, Unicode BMP, en-US
-			oldPos := utf.fileReader.readerPosition
-			utf.seek(stringDataPosition + position)
-			if size%2 != 0 {
-				return errs.Errorf("TrueType name table entry has odd size %d, expected UTF-16", size)
-			}
-			size /= 2
-			for size > 0 {
-				char := utf.readUint16()
-				currentName += string(rune(char))
-				size--
-			}
-			utf.fileReader.readerPosition = oldPos
-			utf.seek(int(oldPos))
-		case system == 1 && code == 0 && local == 0: // Macintosh, Roman, English
-			oldPos := utf.fileReader.readerPosition
-			currentName = string(utf.getRange(stringDataPosition+position, size))
-			utf.fileReader.readerPosition = oldPos
-			utf.seek(int(oldPos))
-		}
-		if currentName != "" && names[nameID] == "" {
-			names[nameID] = currentName
-			counter--
-			if counter == 0 {
-				break
-			}
-		}
-	}
-	return nil
-}
-
 func (utf *utf8FontFile) parseHEADTable() error {
 	utf.SeekTable("head")
 	utf.skip(18)
@@ -379,6 +325,11 @@ func (utf *utf8FontFile) parseOS2Table() (int, error) {
 		utf.skip(2)
 		weightType = utf.readUint16()
 		utf.skip(2)
+		// Refuse to embed fonts whose OS/2 fsType flags forbid it
+		// (0x0002 restricted license, 0x0100 no subsetting, 0x0200
+		// bitmap-only). This is a deliberate divergence from the legacy
+		// fpdf engine, which printed a warning to stdout and embedded the
+		// font anyway.
 		fsType := utf.readUint16()
 		if fsType == 0x0002 || (fsType&0x0300) != 0 {
 			return 0, errs.New("font license does not permit embedding (fsType restriction)")
@@ -466,9 +417,6 @@ func (utf *utf8FontFile) parseCMAPTable() (int, error) {
 }
 
 func (utf *utf8FontFile) parseTables() error {
-	if err := utf.parseNAMETable(); err != nil {
-		return err
-	}
 	if err := utf.parseHEADTable(); err != nil {
 		return err
 	}
@@ -636,7 +584,15 @@ func (utf *utf8FontFile) generateCMAPTable(cidSymbolPairCollection map[int]int, 
 }
 
 // GenerateCutFont fill utf8FontFile from .utf file, only with runes from usedRunes
-func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) ([]byte, error) {
+func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) (data []byte, err error) {
+	// See parseFile: convert parser panics on malformed font data into an
+	// error at this boundary.
+	defer func() {
+		if rec := recover(); rec != nil {
+			data = nil
+			err = errs.Errorf("malformed TrueType font: %v", rec)
+		}
+	}()
 	utf.fileReader.readerPosition = 0
 	utf.symbolPosition = make([]int, 0)
 	utf.charSymbolDictionary = make(map[int]int)

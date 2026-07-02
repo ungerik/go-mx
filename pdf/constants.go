@@ -2,7 +2,10 @@
 
 package pdf
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Defaults applied by the Renderer constructors and Document so text can be
 // drawn without explicit setup.
@@ -12,23 +15,22 @@ const (
 )
 
 // Orientation is a page orientation passed to the Renderer constructors and to
-// the Page component. fpdf matches on the first letter, case-insensitively, so
-// Portrait and Landscape are the only two distinct orientations.
+// the Page component.
 type Orientation string //#enum
 
 const (
-	// Portrait is the upright "portrait" page orientation (taller than wide).
-	Portrait Orientation = "portrait"
-	// Landscape is the sideways "landscape" page orientation (wider than tall).
-	Landscape Orientation = "landscape"
+	// OrientationPortrait is the upright "portrait" page orientation (taller than wide).
+	OrientationPortrait Orientation = "portrait"
+	// OrientationLandscape is the sideways "landscape" page orientation (wider than tall).
+	OrientationLandscape Orientation = "landscape"
 )
 
 // Valid indicates if o is any of the valid values for Orientation
 func (o Orientation) Valid() bool {
 	switch o {
 	case
-		Portrait,
-		Landscape:
+		OrientationPortrait,
+		OrientationLandscape:
 		return true
 	}
 	return false
@@ -45,8 +47,8 @@ func (o Orientation) Validate() error {
 // Enums returns all valid values for Orientation
 func (Orientation) Enums() []Orientation {
 	return []Orientation{
-		Portrait,
-		Landscape,
+		OrientationPortrait,
+		OrientationLandscape,
 	}
 }
 
@@ -63,10 +65,19 @@ func (o Orientation) String() string {
 	return string(o)
 }
 
+// pageSize returns width and height in user units for size at orientation o.
+func (o Orientation) pageSize(size SizeType) (w, h float64) {
+	if o == OrientationLandscape {
+		return size.Ht, size.Wd
+	}
+	return size.Wd, size.Ht
+}
+
 // Unit is the document measurement unit. All coordinates, widths and heights
 // passed to components are expressed in this unit; font sizes are always in
 // points regardless of the document unit. These four are the only distinct
-// units fpdf supports.
+// units fpdf supports. [New] accepts the canonical spellings below and legacy
+// aliases "point" (for pt) and "in" (for inch), compared case-insensitively.
 type Unit string //#enum
 
 const (
@@ -95,7 +106,7 @@ func (u Unit) Valid() bool {
 
 // Validate returns an error if u is none of the valid values for Unit
 func (u Unit) Validate() error {
-	if !u.Valid() {
+	if _, ok := u.normalize(); !ok {
 		return fmt.Errorf("invalid value %#v for type pdf.Unit", u)
 	}
 	return nil
@@ -126,53 +137,96 @@ func (u Unit) String() string {
 	return string(u)
 }
 
-// PageSize is a standard page size accepted by fpdf's string-based page setup.
-// The constants below are all of them; fully custom dimensions go through the
-// raw fpdf API (NewCustom / AddPageFormat with a SizeType). fpdf
-// lower-cases the value, so these upper-case forms and their lower-case
-// spellings are equivalent.
+// pointsPerUnit returns the number of points per document unit.
+func (u Unit) pointsPerUnit() (float64, bool) {
+	u, ok := u.normalize()
+	if !ok {
+		return 0, false
+	}
+	switch u {
+	case UnitPoint:
+		return 1.0, true
+	case UnitMillimeter:
+		return 72.0 / 25.4, true
+	case UnitCentimeter:
+		return 72.0 / 2.54, true
+	case UnitInch:
+		return 72.0, true
+	default:
+		return 0, false
+	}
+}
+
+// unitAliases maps legacy fpdf spellings (compared case-insensitively) to
+// canonical [Unit] values.
+var unitAliases = map[string]Unit{
+	"point": UnitPoint,
+	"in":    UnitInch,
+}
+
+// normalize returns the canonical unit and true when s is a known unit or alias.
+func (u Unit) normalize() (Unit, bool) {
+	if u.Valid() {
+		return u, true
+	}
+	s := strings.ToLower(string(u))
+	if canon, ok := unitAliases[s]; ok {
+		return canon, true
+	}
+	for _, canon := range Unit("").Enums() {
+		if strings.EqualFold(s, string(canon)) {
+			return canon, true
+		}
+	}
+	return "", false
+}
+
+// PageSize is a standard page size accepted by the Renderer constructors and
+// [PageFormat]. Fully custom dimensions use [NewCustom] / [Renderer.AddPageFormat]
+// with a [SizeType]. Names are matched case-insensitively (ISO sizes use an
+// uppercase A and digit, US sizes use title case).
 type PageSize string //#enum
 
 const (
-	// A1 is the ISO 216 A1 page size (594 × 841 mm).
-	A1 PageSize = "A1" // 594 × 841 mm
-	// A2 is the ISO 216 A2 page size (420 × 594 mm).
-	A2 PageSize = "A2" // 420 × 594 mm
-	// A3 is the ISO 216 A3 page size (297 × 420 mm).
-	A3 PageSize = "A3" // 297 × 420 mm
-	// A4 is the ISO 216 A4 page size (210 × 297 mm).
-	A4 PageSize = "A4" // 210 × 297 mm
-	// A5 is the ISO 216 A5 page size (148 × 210 mm).
-	A5 PageSize = "A5" // 148 × 210 mm
-	// A6 is the ISO 216 A6 page size (105 × 148 mm).
-	A6 PageSize = "A6" // 105 × 148 mm
-	// A7 is the ISO 216 A7 page size (74 × 105 mm).
-	A7 PageSize = "A7" // 74 × 105 mm
-	// A8 is the ISO 216 A8 page size (52 × 74 mm).
-	A8 PageSize = "A8" // 52 × 74 mm
-	// Letter is the US Letter page size (8.5 × 11 in).
-	Letter PageSize = "Letter" // 8.5 × 11 in
-	// Legal is the US Legal page size (8.5 × 14 in).
-	Legal PageSize = "Legal" // 8.5 × 14 in
-	// Tabloid is the US Tabloid/Ledger page size (11 × 17 in).
-	Tabloid PageSize = "Tabloid" // 11 × 17 in
+	// PageSizeA1 is the ISO 216 A1 page size (594 × 841 mm).
+	PageSizeA1 PageSize = "A1" // 594 × 841 mm
+	// PageSizeA2 is the ISO 216 A2 page size (420 × 594 mm).
+	PageSizeA2 PageSize = "A2" // 420 × 594 mm
+	// PageSizeA3 is the ISO 216 A3 page size (297 × 420 mm).
+	PageSizeA3 PageSize = "A3" // 297 × 420 mm
+	// PageSizeA4 is the ISO 216 A4 page size (210 × 297 mm).
+	PageSizeA4 PageSize = "A4" // 210 × 297 mm
+	// PageSizeA5 is the ISO 216 A5 page size (148 × 210 mm).
+	PageSizeA5 PageSize = "A5" // 148 × 210 mm
+	// PageSizeA6 is the ISO 216 A6 page size (105 × 148 mm).
+	PageSizeA6 PageSize = "A6" // 105 × 148 mm
+	// PageSizeA7 is the ISO 216 A7 page size (74 × 105 mm).
+	PageSizeA7 PageSize = "A7" // 74 × 105 mm
+	// PageSizeA8 is the ISO 216 A8 page size (52 × 74 mm).
+	PageSizeA8 PageSize = "A8" // 52 × 74 mm
+	// PageSizeLetter is the US Letter page size (8.5 × 11 in).
+	PageSizeLetter PageSize = "Letter" // 8.5 × 11 in
+	// PageSizeLegal is the US Legal page size (8.5 × 14 in).
+	PageSizeLegal PageSize = "Legal" // 8.5 × 14 in
+	// PageSizeTabloid is the US Tabloid/Ledger page size (11 × 17 in).
+	PageSizeTabloid PageSize = "Tabloid" // 11 × 17 in
 )
 
 // Valid indicates if p is any of the valid values for PageSize
 func (p PageSize) Valid() bool {
 	switch p {
 	case
-		A1,
-		A2,
-		A3,
-		A4,
-		A5,
-		A6,
-		A7,
-		A8,
-		Letter,
-		Legal,
-		Tabloid:
+		PageSizeA1,
+		PageSizeA2,
+		PageSizeA3,
+		PageSizeA4,
+		PageSizeA5,
+		PageSizeA6,
+		PageSizeA7,
+		PageSizeA8,
+		PageSizeLetter,
+		PageSizeLegal,
+		PageSizeTabloid:
 		return true
 	}
 	return false
@@ -180,7 +234,7 @@ func (p PageSize) Valid() bool {
 
 // Validate returns an error if p is none of the valid values for PageSize
 func (p PageSize) Validate() error {
-	if !p.Valid() {
+	if _, ok := p.normalize(); !ok {
 		return fmt.Errorf("invalid value %#v for type pdf.PageSize", p)
 	}
 	return nil
@@ -189,17 +243,17 @@ func (p PageSize) Validate() error {
 // Enums returns all valid values for PageSize
 func (PageSize) Enums() []PageSize {
 	return []PageSize{
-		A1,
-		A2,
-		A3,
-		A4,
-		A5,
-		A6,
-		A7,
-		A8,
-		Letter,
-		Legal,
-		Tabloid,
+		PageSizeA1,
+		PageSizeA2,
+		PageSizeA3,
+		PageSizeA4,
+		PageSizeA5,
+		PageSizeA6,
+		PageSizeA7,
+		PageSizeA8,
+		PageSizeLetter,
+		PageSizeLegal,
+		PageSizeTabloid,
 	}
 }
 
@@ -223,6 +277,54 @@ func (PageSize) EnumStrings() []string {
 // String implements the fmt.Stringer interface for PageSize
 func (p PageSize) String() string {
 	return string(p)
+}
+
+// pageSizeByFold maps a lowercased page size name to its canonical [PageSize].
+var pageSizeByFold = func() map[string]PageSize {
+	enums := PageSize("").Enums()
+	m := make(map[string]PageSize, len(enums))
+	for _, p := range enums {
+		m[strings.ToLower(string(p))] = p
+	}
+	return m
+}()
+
+// normalize returns the canonical page size and true when p is a known name
+// (matched case-insensitively, as fpdf did with strings.ToLower).
+func (p PageSize) normalize() (PageSize, bool) {
+	if p.Valid() {
+		return p, true
+	}
+	if canon, ok := pageSizeByFold[strings.ToLower(string(p))]; ok {
+		return canon, true
+	}
+	return "", false
+}
+
+// SizeType returns the page width and height in points (1/72 inch) for p in
+// portrait orientation. The second result is false when p is not a known size.
+func (p PageSize) SizeType() (SizeType, bool) {
+	p, ok := p.normalize()
+	if !ok {
+		return SizeType{}, false
+	}
+	sz, ok := stdPageSizesPt[p]
+	return sz, ok
+}
+
+// stdPageSizesPt maps each standard page size to its width and height in points.
+var stdPageSizesPt = map[PageSize]SizeType{
+	PageSizeA1:      {1683.78, 2383.94},
+	PageSizeA2:      {1190.55, 1683.78},
+	PageSizeA3:      {841.89, 1190.55},
+	PageSizeA4:      {595.28, 841.89},
+	PageSizeA5:      {420.94, 595.28},
+	PageSizeA6:      {297.64, 420.94},
+	PageSizeA7:      {209.76, 297.64},
+	PageSizeA8:      {147.40, 209.76},
+	PageSizeLetter:  {612, 792},
+	PageSizeLegal:   {612, 1008},
+	PageSizeTabloid: {792, 1224},
 }
 
 // Standard (core) font families, which need no font files. These are untyped
@@ -902,6 +1004,127 @@ func (ImageType) EnumStrings() []string {
 // String implements the fmt.Stringer interface for ImageType
 func (i ImageType) String() string {
 	return string(i)
+}
+
+// BlendMode is a PDF extended graphics state blend mode (PDF 1.4+), as used by
+// [Renderer.SetAlpha].
+type BlendMode string //#enum
+
+const (
+	// BlendModeNormal is the default blend mode (source over destination).
+	BlendModeNormal BlendMode = "Normal"
+	// BlendModeMultiply multiplies source and destination color values.
+	BlendModeMultiply BlendMode = "Multiply"
+	// BlendModeScreen screens source and destination color values.
+	BlendModeScreen BlendMode = "Screen"
+	// BlendModeOverlay combines Multiply and Screen according to destination.
+	BlendModeOverlay BlendMode = "Overlay"
+	// BlendModeDarken keeps the darker of source and destination.
+	BlendModeDarken BlendMode = "Darken"
+	// BlendModeLighten keeps the lighter of source and destination.
+	BlendModeLighten BlendMode = "Lighten"
+	// BlendModeColorDodge brightens destination to reflect source.
+	BlendModeColorDodge BlendMode = "ColorDodge"
+	// BlendModeColorBurn darkens destination to reflect source.
+	BlendModeColorBurn BlendMode = "ColorBurn"
+	// BlendModeHardLight combines Multiply and Screen according to source.
+	BlendModeHardLight BlendMode = "HardLight"
+	// BlendModeSoftLight softens HardLight.
+	BlendModeSoftLight BlendMode = "SoftLight"
+	// BlendModeDifference subtracts darker from lighter channel values.
+	BlendModeDifference BlendMode = "Difference"
+	// BlendModeExclusion produces a lower-contrast Difference.
+	BlendModeExclusion BlendMode = "Exclusion"
+	// BlendModeHue uses the hue of source with destination saturation and luminosity.
+	BlendModeHue BlendMode = "Hue"
+	// BlendModeSaturation uses the saturation of source with destination hue and luminosity.
+	BlendModeSaturation BlendMode = "Saturation"
+	// BlendModeColor uses the hue and saturation of source with destination luminosity.
+	BlendModeColor BlendMode = "Color"
+	// BlendModeLuminosity uses the luminosity of source with destination hue and saturation.
+	BlendModeLuminosity BlendMode = "Luminosity"
+)
+
+// Valid indicates if b is any of the valid values for BlendMode
+func (b BlendMode) Valid() bool {
+	switch b {
+	case
+		BlendModeNormal,
+		BlendModeMultiply,
+		BlendModeScreen,
+		BlendModeOverlay,
+		BlendModeDarken,
+		BlendModeLighten,
+		BlendModeColorDodge,
+		BlendModeColorBurn,
+		BlendModeHardLight,
+		BlendModeSoftLight,
+		BlendModeDifference,
+		BlendModeExclusion,
+		BlendModeHue,
+		BlendModeSaturation,
+		BlendModeColor,
+		BlendModeLuminosity:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if b is none of the valid values for BlendMode
+func (b BlendMode) Validate() error {
+	if !b.Valid() {
+		return fmt.Errorf("invalid value %#v for type pdf.BlendMode", b)
+	}
+	return nil
+}
+
+// Enums returns all valid values for BlendMode
+func (BlendMode) Enums() []BlendMode {
+	return []BlendMode{
+		BlendModeNormal,
+		BlendModeMultiply,
+		BlendModeScreen,
+		BlendModeOverlay,
+		BlendModeDarken,
+		BlendModeLighten,
+		BlendModeColorDodge,
+		BlendModeColorBurn,
+		BlendModeHardLight,
+		BlendModeSoftLight,
+		BlendModeDifference,
+		BlendModeExclusion,
+		BlendModeHue,
+		BlendModeSaturation,
+		BlendModeColor,
+		BlendModeLuminosity,
+	}
+}
+
+// EnumStrings returns all valid values for BlendMode as strings
+func (BlendMode) EnumStrings() []string {
+	return []string{
+		"Normal",
+		"Multiply",
+		"Screen",
+		"Overlay",
+		"Darken",
+		"Lighten",
+		"ColorDodge",
+		"ColorBurn",
+		"HardLight",
+		"SoftLight",
+		"Difference",
+		"Exclusion",
+		"Hue",
+		"Saturation",
+		"Color",
+		"Luminosity",
+	}
+}
+
+// String implements the fmt.Stringer interface for BlendMode
+func (b BlendMode) String() string {
+	return string(b)
 }
 
 // Point is a coordinate in document units, re-exported from fpdf so it can be

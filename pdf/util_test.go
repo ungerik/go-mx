@@ -8,11 +8,10 @@ import (
 )
 
 // TestUnicodeTranslatorEmbeddedMaps loads every embedded code-page map and
-// checks a known translation, guarding the map files against the strict
-// line-format handling of UnicodeTranslator (any malformed line is an error).
+// checks a known translation.
 func TestUnicodeTranslatorEmbeddedMaps(t *testing.T) {
 	for _, cp := range []string{"", "cp1250", "cp1252"} {
-		r := New("portrait", "mm", "A4", "")
+		r := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 		translate := r.UnicodeTranslatorFromDescriptor(cp)
 		if err := r.Error(); err != nil {
 			t.Fatalf("load %q map: %v", cp, err)
@@ -22,7 +21,7 @@ func TestUnicodeTranslatorEmbeddedMaps(t *testing.T) {
 		}
 	}
 
-	r := New("portrait", "mm", "A4", "")
+	r := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 	translate := r.UnicodeTranslatorFromDescriptor("") // cp1252
 	if err := r.Error(); err != nil {
 		t.Fatalf("load cp1252 map: %v", err)
@@ -32,15 +31,17 @@ func TestUnicodeTranslatorEmbeddedMaps(t *testing.T) {
 	}
 }
 
-// TestUnicodeTranslatorErrors checks that malformed map lines and reader
-// failures surface as errors and yield the identity translator.
+// TestUnicodeTranslatorErrors checks that malformed map lines are skipped
+// (matching the tolerance of the legacy engine towards comment/header lines
+// in user-supplied .map files) while reader failures surface as errors and
+// yield the identity translator.
 func TestUnicodeTranslatorErrors(t *testing.T) {
 	translate, err := UnicodeTranslator(strings.NewReader("!80 U+20AC Euro\nnot a map line\n!82 U+201A quotesinglbase\n"))
-	if err == nil {
-		t.Fatal("malformed line did not return an error")
+	if err != nil {
+		t.Fatalf("malformed line was not skipped: %v", err)
 	}
-	if got := translate("€"); got != "€" {
-		t.Errorf("translator after error is not the identity: %q", got)
+	if got := translate("€‚"); got != "\x80\x82" {
+		t.Errorf("translate(%q) = %x, want 8082 (entries around the malformed line must load)", "€‚", got)
 	}
 
 	translate, err = UnicodeTranslator(failingReader{})

@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"io"
 	"net/http"
@@ -65,18 +66,9 @@ func NewDocument(title string, body ...any) *Document {
 // NewRenderer creates a [Renderer] configured from the document's page setup,
 // applying the A4/portrait/millimeter defaults for any unset field.
 func (d *Document) NewRenderer() *Renderer {
-	orientation := d.Orientation
-	if orientation == "" {
-		orientation = Portrait
-	}
-	unit := d.Unit
-	if unit == "" {
-		unit = UnitMillimeter
-	}
-	size := d.PageSize
-	if size == "" {
-		size = A4
-	}
+	orientation := cmp.Or(d.Orientation, OrientationPortrait)
+	unit := cmp.Or(d.Unit, UnitMillimeter)
+	size := cmp.Or(d.PageSize, PageSizeA4)
 	return NewRenderer(orientation, unit, size)
 }
 
@@ -119,25 +111,27 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 		r.SetMargins(d.Margins.Left, d.Margins.Top, d.Margins.Right)
 	}
 
-	family := d.FontFamily
-	if family == "" {
-		family = DefaultFontFamily
-	}
+	family := cmp.Or(d.FontFamily, DefaultFontFamily)
 	size := d.FontSize
 	if size == 0 {
 		size = DefaultFontSize
 	}
 	r.SetFont(family, string(d.FontStyle), size)
 
-	// fpdf's header/footer callbacks have no error return, so a component
-	// error would otherwise be lost: fold it into the renderer's error state
-	// (kept until cleared) so it surfaces from Render's final r.Error().
+	// The renderer's header/footer callbacks have no error return, so a
+	// component error would otherwise be lost: fold it into the renderer's
+	// error state (kept until cleared) so it surfaces from Render's final
+	// r.Error(). The callbacks are always set — nil clears them — so that a
+	// document without Header/Footer does not inherit the callbacks of a
+	// document previously rendered into the same renderer.
 	if d.Header != nil {
 		r.SetHeaderFunc(func() {
 			if err := d.Header.Render(ctx, r); err != nil {
 				r.SetError(err)
 			}
 		})
+	} else {
+		r.SetHeaderFunc(nil)
 	}
 	if d.Footer != nil {
 		r.SetFooterFunc(func() {
@@ -145,6 +139,8 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 				r.SetError(err)
 			}
 		})
+	} else {
+		r.SetFooterFunc(nil)
 	}
 }
 

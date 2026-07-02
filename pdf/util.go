@@ -22,6 +22,7 @@ package pdf
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -74,12 +75,11 @@ func repClosure(m map[rune]byte) func(string) string {
 // code point value. The third is the glyph name. A number of these code page
 // map files are packaged with the gfpdf library in the font directory.
 //
-// An error occurs only if a line is read that does not conform to the expected
-// format. In this case, the returned function is valid but does not perform
-// any rune translation.
+// Lines that do not conform to the expected format (comments, headers) are
+// skipped. An error is returned only if reading from r fails; in that case
+// the returned function is valid but does not perform any rune translation.
 func UnicodeTranslator(r io.Reader) (func(string) string, error) {
 	m := make(map[rune]byte)
-	var err error
 	var uPos, cPos uint32
 	var nameStr string
 	sc := bufio.NewScanner(r)
@@ -88,24 +88,17 @@ func UnicodeTranslator(r io.Reader) (func(string) string, error) {
 		if len(lineStr) == 0 {
 			continue
 		}
-		_, scanErr := fmt.Sscanf(lineStr, "!%2X U+%4X %s", &cPos, &uPos, &nameStr)
-		if scanErr != nil {
-			if err == nil {
-				err = scanErr
-			}
-			continue
+		if _, err := fmt.Sscanf(lineStr, "!%2X U+%4X %s", &cPos, &uPos, &nameStr); err != nil {
+			continue // skip non-mapping lines
 		}
 		if cPos >= 0x80 {
 			m[rune(uPos)] = byte(cPos)
 		}
 	}
-	if err == nil {
-		err = sc.Err()
+	if err := sc.Err(); err != nil {
+		return returnStringUnchanged, err
 	}
-	if err == nil {
-		return repClosure(m), nil
-	}
-	return returnStringUnchanged, err
+	return repClosure(m), nil
 }
 
 // UnicodeTranslatorFromFile returns a function that can be used to translate,
@@ -142,9 +135,7 @@ func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) func(string) st
 	if r.err != nil {
 		return returnStringUnchanged
 	}
-	if len(cpStr) == 0 {
-		cpStr = "cp1252"
-	}
+	cpStr = cmp.Or(cpStr, "cp1252")
 	emb, err := embFS.Open("font_embed/" + cpStr + ".map")
 	if err == nil {
 		defer emb.Close()

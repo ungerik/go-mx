@@ -283,16 +283,16 @@ type outlineType struct {
 }
 
 // InitType is used with NewCustom() to customize an Renderer instance.
-// OrientationStr, UnitStr, SizeStr and FontDirStr correspond to the arguments
+// Orientation, Unit, PageSize and FontDirStr correspond to the arguments
 // accepted by New(). If the Wd and Ht fields of Size are each greater than
-// zero, Size will be used to set the default page size rather than SizeStr. Wd
-// and Ht are specified in the units of measure indicated by UnitStr.
+// zero, Size will be used to set the default page size rather than PageSize. Wd
+// and Ht are specified in the units of measure indicated by Unit.
 type InitType struct {
-	OrientationStr string
-	UnitStr        string
-	SizeStr        string
-	Size           SizeType
-	FontDirStr     string
+	Orientation Orientation
+	Unit        Unit
+	PageSize    PageSize
+	Size        SizeType
+	FontDirStr  string
 }
 
 // FontLoader is used to read fonts (JSON font specification and zlib compressed font binaries)
@@ -334,20 +334,19 @@ type Renderer struct {
 	page             int                        // current page number
 	n                int                        // current object number
 	offsets          []int                      // array of object offsets
-	buffer           fmtBuffer                  // buffer holding in-memory PDF
+	buffer           bytes.Buffer               // buffer holding in-memory PDF
 	pages            []*bytes.Buffer            // slice[page] of page content; 1-based
 	state            int                        // current document state
 	compress         bool                       // compression flag
 	k                float64                    // scale factor (number of points in user unit)
-	defOrientation   string                     // default orientation
-	curOrientation   string                     // current orientation
-	stdPageSizes     map[string]SizeType        // standard page sizes
+	defOrientation   Orientation                // default orientation
+	curOrientation   Orientation                // current orientation
 	defPageSize      SizeType                   // default page size
 	defPageBoxes     map[string]PageBox         // default page size
 	curPageSize      SizeType                   // current page size
 	pageSizes        map[int]SizeType           // used for pages with non default sizes or orientations
 	pageBoxes        map[int]map[string]PageBox // used to define the crop, trim, bleed and art boxes
-	unitStr          string                     // unit of measure for all rendered objects except fonts
+	unit             Unit                       // unit of measure for all rendered objects except fonts
 	wPt, hPt         float64                    // dimensions of current page in points
 	w, h             float64                    // dimensions of current page in user unit
 	lMargin          float64                    // left margin
@@ -411,7 +410,7 @@ type Renderer struct {
 	dashPhase        float64                    // dash phase
 	blendList        []blendModeType            // slice[idx] of alpha transparency modes, 1-based
 	blendMap         map[string]int             // map into blendList
-	blendMode        string                     // current blend mode
+	blendMode        BlendMode                  // current blend mode
 	alpha            float64                    // current transpacency
 	gradientList     []gradientType             // slice[idx] of gradient records
 	clipNest         int                        // Number of active clipping contexts
@@ -441,11 +440,6 @@ type Renderer struct {
 	// text components (Text, Paragraph, NewLine) when no explicit height is
 	// given. Zero means "derive from the current font size".
 	lineHeight float64
-
-	fmt struct {
-		buf []byte       // buffer used to format numbers.
-		col bytes.Buffer // buffer used to build color strings.
-	}
 }
 
 const (
