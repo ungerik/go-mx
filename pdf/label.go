@@ -72,15 +72,16 @@ func TickmarkPrecision(div float64) int {
 // appropriate precision for formatting purposes. The values min and max will
 // be contained within the tickmark range.
 func Tickmarks(min, max float64) (list []float64, precision int) {
-	if max > min {
-		spread := niceNum(max-min, false)
-		d := niceNum((spread / 4), true)
-		graphMin := math.Floor(min/d) * d
-		graphMax := math.Ceil(max/d) * d
-		precision = TickmarkPrecision(d)
-		for x := graphMin; x < graphMax+0.5*d; x += d {
-			list = append(list, x)
-		}
+	if max <= min {
+		return nil, 0
 	}
-	return
+	spread := niceNum(max-min, false)
+	d := niceNum(spread/4, true)
+	graphMin := math.Floor(min/d) * d
+	graphMax := math.Ceil(max/d) * d
+	precision = TickmarkPrecision(d)
+	for x := graphMin; x < graphMax+0.5*d; x += d {
+		list = append(list, x)
+	}
+	return list, precision
 }

@@ -106,7 +106,7 @@ func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 	} else {
 		f = returnStringUnchanged
 	}
-	return
+	return f, err
 }
 
 // UnicodeTranslatorFromFile returns a function that can be used to translate,
@@ -126,7 +126,7 @@ func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error
 	} else {
 		f = returnStringUnchanged
 	}
-	return
+	return f, err
 }
 
 // UnicodeTranslatorFromDescriptor returns a function that can be used to
@@ -157,7 +157,7 @@ func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(strin
 	} else {
 		rep = returnStringUnchanged
 	}
-	return
+	return rep
 }
 
 // Transform moves a point by given X, Y offset
@@ -196,6 +196,7 @@ func (s *SizeType) ScaleToHeight(height float64) SizeType {
 
 // The untypedKeyMap structure and its methods are copyrighted 2019 by Arteom Korotkiy (Gmail: arteomkorotkiy).
 // Imitation of untyped Map Array
+// TODO check if this can be replaced
 type untypedKeyMap struct {
 	keySet   []any
 	valueSet []int

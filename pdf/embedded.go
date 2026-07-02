@@ -40,5 +40,5 @@ func (r *Renderer) coreFontReader(familyStr, styleStr string) (rc io.ReadCloser)
 	} else {
 		r.SetErrorf("could not locate \"%s\" among embedded core font definition files", key)
 	}
-	return
+	return rc
 }

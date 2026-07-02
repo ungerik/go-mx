@@ -75,7 +75,7 @@ func oValueGen(userPass, ownerPass []byte) (v []byte) {
 	size := len(userPass)
 	v = make([]byte, size)
 	c.XORKeyStream(v, userPass)
-	return
+	return v
 }
 
 func (p *protectType) uValueGen() (v []byte) {
@@ -84,7 +84,7 @@ func (p *protectType) uValueGen() (v []byte) {
 	size := len(p.padding)
 	v = make([]byte, size)
 	c.XORKeyStream(v, p.padding)
-	return
+	return v
 }
 
 func (p *protectType) setProtection(privFlag byte, userPassStr, ownerPassStr string) {

@@ -20,7 +20,7 @@ func newRBuffer(r io.Reader) (b *rbuffer, err error) {
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(r)
 	b = &rbuffer{p: buf.Bytes()}
-	return
+	return b, err
 }
 
 func (r *rbuffer) Read(p []byte) (int, error) {

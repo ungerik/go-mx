@@ -12,20 +12,19 @@ import (
 	"github.com/domonda/go-errs"
 )
 
+// xmem pools bytes.Buffer values reused across zlib compress/uncompress
+// operations to avoid per-call allocations. Callers must return a buffer
+// with release once done reading its Bytes.
 var xmem = xmempool{
 	Pool: sync.Pool{
-		New: func() any {
-			var m membuffer
-			return &m
-		},
+		New: func() any { return new(bytes.Buffer) },
 	},
 }
 
 type xmempool struct{ sync.Pool }
 
-func (pool *xmempool) compress(data []byte) *membuffer {
-	mem := pool.Get().(*membuffer)
-	buf := &mem.buf
+func (pool *xmempool) compress(data []byte) *bytes.Buffer {
+	buf := pool.Get().(*bytes.Buffer)
 	buf.Grow(len(data))
 
 	zw, err := zlib.NewWriterLevel(buf, zlib.BestSpeed)
@@ -41,40 +40,29 @@ func (pool *xmempool) compress(data []byte) *membuffer {
 	if err != nil {
 		panic(errs.Errorf("could not close zlib writer: %w", err))
 	}
-	return mem
+	return buf
 }
 
-func (pool *xmempool) uncompress(data []byte) (*membuffer, error) {
+func (pool *xmempool) uncompress(data []byte) (*bytes.Buffer, error) {
 	zr, err := zlib.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
 
-	mem := pool.Get().(*membuffer)
-	mem.buf.Reset()
+	buf := pool.Get().(*bytes.Buffer)
+	buf.Reset()
 
-	_, err = mem.buf.ReadFrom(zr)
+	_, err = buf.ReadFrom(zr)
 	if err != nil {
-		mem.release()
+		pool.release(buf)
 		return nil, err
 	}
 
-	return mem, nil
+	return buf, nil
 }
 
-type membuffer struct {
-	buf bytes.Buffer
-}
-
-func (mem *membuffer) bytes() []byte { return mem.buf.Bytes() }
-func (mem *membuffer) release() {
-	mem.buf.Reset()
-	xmem.Put(mem)
-}
-
-func (mem *membuffer) copy() []byte {
-	src := mem.bytes()
-	dst := make([]byte, len(src))
-	copy(dst, src)
-	return dst
+// release resets buf and returns it to the pool for reuse.
+func (pool *xmempool) release(buf *bytes.Buffer) {
+	buf.Reset()
+	pool.Put(buf)
 }

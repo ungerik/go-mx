@@ -40,8 +40,8 @@ func (r *Renderer) writeCompressedFileObject(content []byte) {
 	lenUncompressed := len(content)
 	sum := checksum(content)
 	mem := xmem.compress(content)
-	defer mem.release()
-	compressed := mem.bytes()
+	defer xmem.release(mem)
+	compressed := mem.Bytes()
 	lenCompressed := len(compressed)
 	r.newobj()
 	r.outf("<< /Type /EmbeddedFile /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d >> >>\n",

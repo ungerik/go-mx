@@ -67,19 +67,19 @@ func TtfParse(fileStr string) (TtfRec TtfType, err error) {
 	var t ttfParser
 	t.f, err = os.Open(fileStr)
 	if err != nil {
-		return
+		return TtfRec, err
 	}
 	version, err := t.ReadStr(4)
 	if err != nil {
-		return
+		return TtfRec, err
 	}
 	if version == "OTTO" {
 		err = errs.New("fonts based on PostScript outlines are not supported")
-		return
+		return TtfRec, err
 	}
 	if version != "\x00\x01\x00\x00" {
 		err = errs.New("unrecognized file format")
-		return
+		return TtfRec, err
 	}
 	numTables := int(t.ReadUShort())
 	t.Skip(3 * 2) // searchRange, entrySelector, rangeShift
@@ -88,7 +88,7 @@ func TtfParse(fileStr string) (TtfRec TtfType, err error) {
 	for range numTables {
 		tag, err = t.ReadStr(4)
 		if err != nil {
-			return
+			return TtfRec, err
 		}
 		t.Skip(4) // checkSum
 		offset := t.ReadULong()
@@ -97,37 +97,29 @@ func TtfParse(fileStr string) (TtfRec TtfType, err error) {
 	}
 	err = t.ParseComponents()
 	if err != nil {
-		return
+		return TtfRec, err
 	}
 	t.f.Close()
 	TtfRec = t.rec
-	return
+	return TtfRec, err
 }
 
-func (t *ttfParser) ParseComponents() (err error) {
-	err = t.ParseHead()
-	if err == nil {
-		err = t.ParseHhea()
-		if err == nil {
-			err = t.ParseMaxp()
-			if err == nil {
-				err = t.ParseHmtx()
-				if err == nil {
-					err = t.ParseCmap()
-					if err == nil {
-						err = t.ParseName()
-						if err == nil {
-							err = t.ParseOS2()
-							if err == nil {
-								err = t.ParsePost()
-							}
-						}
-					}
-				}
-			}
+func (t *ttfParser) ParseComponents() error {
+	for _, parse := range []func() error{
+		t.ParseHead,
+		t.ParseHhea,
+		t.ParseMaxp,
+		t.ParseHmtx,
+		t.ParseCmap,
+		t.ParseName,
+		t.ParseOS2,
+		t.ParsePost,
+	} {
+		if err := parse(); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 func (t *ttfParser) ParseHead() (err error) {
@@ -136,7 +128,7 @@ func (t *ttfParser) ParseHead() (err error) {
 	magicNumber := t.ReadULong()
 	if magicNumber != 0x5F0F3CF5 {
 		err = errs.New("incorrect magic number")
-		return
+		return err
 	}
 	t.Skip(2) // flags
 	t.rec.UnitsPerEm = t.ReadUShort()
@@ -145,7 +137,7 @@ func (t *ttfParser) ParseHead() (err error) {
 	t.rec.Ymin = t.ReadShort()
 	t.rec.Xmax = t.ReadShort()
 	t.rec.Ymax = t.ReadShort()
-	return
+	return err
 }
 
 func (t *ttfParser) ParseHhea() (err error) {
@@ -154,7 +146,7 @@ func (t *ttfParser) ParseHhea() (err error) {
 		t.Skip(4 + 15*2)
 		t.numberOfHMetrics = t.ReadUShort()
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParseMaxp() (err error) {
@@ -163,7 +155,7 @@ func (t *ttfParser) ParseMaxp() (err error) {
 		t.Skip(4)
 		t.numGlyphs = t.ReadUShort()
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParseHmtx() (err error) {
@@ -181,13 +173,13 @@ func (t *ttfParser) ParseHmtx() (err error) {
 			}
 		}
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParseCmap() (err error) {
 	var offset int64
 	if err = t.Seek("cmap"); err != nil {
-		return
+		return err
 	}
 	t.Skip(2) // version
 	numTables := int(t.ReadUShort())
@@ -202,7 +194,7 @@ func (t *ttfParser) ParseCmap() (err error) {
 	}
 	if offset31 == 0 {
 		err = errs.New("no Unicode encoding found")
-		return
+		return err
 	}
 	startCount := make([]uint16, 0, 8)
 	endCount := make([]uint16, 0, 8)
@@ -212,12 +204,12 @@ func (t *ttfParser) ParseCmap() (err error) {
 	_, err = t.f.Seek(int64(t.tables["cmap"])+offset31, io.SeekStart)
 	if err != nil {
 		err = errs.Errorf("could not seek to cmap table: %w", err)
-		return
+		return err
 	}
 	format := t.ReadUShort()
 	if format != 4 {
 		err = errs.Errorf("unexpected subtable format: %d", format)
-		return
+		return err
 	}
 	t.Skip(2 * 2) // length, language
 	segCount := int(t.ReadUShort() / 2)
@@ -268,7 +260,7 @@ func (t *ttfParser) ParseCmap() (err error) {
 			}
 		}
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParseName() (err error) {
@@ -288,17 +280,17 @@ func (t *ttfParser) ParseName() (err error) {
 				// PostScript name
 				_, err = t.f.Seek(int64(tableOffset)+int64(stringOffset)+int64(offset), io.SeekStart)
 				if err != nil {
-					return
+					return err
 				}
 				var s string
 				s, err = t.ReadStr(int(length))
 				if err != nil {
-					return
+					return err
 				}
 				s = strings.ReplaceAll(s, "\x00", "")
 				var re *regexp.Regexp
 				if re, err = regexp.Compile(`[(){}<> /%[\]]`); err != nil {
-					return
+					return err
 				}
 				t.rec.PostScriptName = re.ReplaceAllString(s, "")
 			}
@@ -307,7 +299,7 @@ func (t *ttfParser) ParseName() (err error) {
 			err = errs.New("the name PostScript was not found")
 		}
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParseOS2() (err error) {
@@ -330,7 +322,7 @@ func (t *ttfParser) ParseOS2() (err error) {
 			t.rec.CapHeight = 0
 		}
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) ParsePost() (err error) {
@@ -343,7 +335,7 @@ func (t *ttfParser) ParsePost() (err error) {
 		t.rec.UnderlineThickness = t.ReadShort()
 		t.rec.IsFixedPitch = t.ReadULong() != 0
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) Seek(tag string) (err error) {
@@ -356,7 +348,7 @@ func (t *ttfParser) Seek(tag string) (err error) {
 	if err != nil {
 		return errs.Errorf("could not seek to table %q: %w", tag, err)
 	}
-	return
+	return err
 }
 
 func (t *ttfParser) Skip(n int) {
@@ -377,7 +369,7 @@ func (t *ttfParser) ReadStr(length int) (str string, err error) {
 			err = errs.Errorf("unable to read %d bytes", length)
 		}
 	}
-	return
+	return str, err
 }
 
 func (t *ttfParser) ReadUShort() (val uint16) {
@@ -385,7 +377,7 @@ func (t *ttfParser) ReadUShort() (val uint16) {
 	if err != nil {
 		panic(errs.Errorf("could not read u16: %w", err))
 	}
-	return
+	return val
 }
 
 func (t *ttfParser) ReadShort() (val int16) {
@@ -393,7 +385,7 @@ func (t *ttfParser) ReadShort() (val int16) {
 	if err != nil {
 		panic(errs.Errorf("could not read i16: %w", err))
 	}
-	return
+	return val
 }
 
 func (t *ttfParser) ReadULong() (val uint32) {
@@ -401,5 +393,5 @@ func (t *ttfParser) ReadULong() (val uint32) {
 	if err != nil {
 		panic(errs.Errorf("could not read u32: %w", err))
 	}
-	return
+	return val
 }

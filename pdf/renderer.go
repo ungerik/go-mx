@@ -132,7 +132,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 		r.k = 72.0
 	default:
 		r.err = errs.Errorf("incorrect unit %s", unitStr)
-		return
+		return r
 	}
 	r.unitStr = unitStr
 	// Page sizes
@@ -153,7 +153,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	} else {
 		r.defPageSize = r.getpagesizestr(sizeStr)
 		if r.err != nil {
-			return
+			return r
 		}
 	}
 	r.curPageSize = r.defPageSize
@@ -170,7 +170,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 		r.h = r.defPageSize.Wd
 	default:
 		r.err = errs.Errorf("incorrect orientation: %s", orientationStr)
-		return
+		return r
 	}
 	r.curOrientation = r.defOrientation
 	r.wPt = r.w * r.k
@@ -187,7 +187,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	// Default display mode
 	r.SetDisplayMode("default", "default")
 	if r.err != nil {
-		return
+		return r
 	}
 	r.acceptPageBreak = func() bool {
 		return r.autoPageBreak
@@ -215,7 +215,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	// math.MaxInt64  needs 19.
 	// math.MaxUint64 needs 20.
 	r.fmt.buf = make([]byte, 24)
-	return
+	return r
 }
 
 // NewCustom returns a pointer to a new Renderer instance. Its methods are
@@ -305,7 +305,7 @@ func (r *Renderer) Error() error {
 func (r *Renderer) GetPageSize() (width, height float64) {
 	width = r.w
 	height = r.h
-	return
+	return width, height
 }
 
 // GetMargins returns the left, top, right, and bottom margins. The first three
@@ -316,7 +316,7 @@ func (r *Renderer) GetMargins() (left, top, right, bottom float64) {
 	top = r.tMargin
 	right = r.rMargin
 	bottom = r.bMargin
-	return
+	return left, top, right, bottom
 }
 
 // SetMargins defines the left, top and right margins. By default, they equal 1
@@ -514,7 +514,7 @@ func (r *Renderer) SetRightMargin(margin float64) {
 func (r *Renderer) GetAutoPageBreak() (auto bool, margin float64) {
 	auto = r.autoPageBreak
 	margin = r.bMargin
-	return
+	return auto, margin
 }
 
 // SetAutoPageBreak enables or disables the automatic page breaking mode. When
@@ -974,7 +974,7 @@ func (r *Renderer) rgbColorValue(red, green, blue int, grayStr, fullStr string) 
 		r.fmt.col.WriteString(r.fmtF64(clr.b, prec))
 		clr.str = r.fmt.col.String()
 	}
-	return
+	return clr
 }
 
 // SetDrawColor defines the color used for all drawing operations (lines,
@@ -1239,7 +1239,7 @@ func fillDrawOp(styleStr string) (opStr string) {
 	default:
 		opStr = styleStr
 	}
-	return
+	return opStr
 }
 
 // Rect outputs a rectangle of width w and height h with the upper left corner
@@ -3384,7 +3384,7 @@ func (r *Renderer) ImageTypeFromMime(mimeStr string) (tp string) {
 	default:
 		r.SetErrorf("unsupported image type: %s", mimeStr)
 	}
-	return
+	return tp
 }
 
 func (r *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegativeX, flow bool, link int, linkStr string) {
@@ -3554,17 +3554,17 @@ type ImageOptions struct {
 func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptions, rd io.Reader) (info *ImageInfoType) {
 	// Thanks, Ivan Daniluk, for generalizing this code to use the Reader interface.
 	if r.err != nil {
-		return
+		return info
 	}
 	info, ok := r.images[imgName]
 	if ok {
-		return
+		return info
 	}
 
 	// First use of this image, get info
 	if options.ImageType == "" {
 		r.err = errs.New("image type should be specified if reading from custom reader")
-		return
+		return info
 	}
 	options.ImageType = strings.ToLower(options.ImageType)
 	if options.ImageType == "jpeg" {
@@ -3581,15 +3581,15 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 		r.err = errs.Errorf("unsupported image type: %s", options.ImageType)
 	}
 	if r.err != nil {
-		return
+		return info
 	}
 
 	if info.i, r.err = generateImageID(info); r.err != nil {
-		return
+		return info
 	}
 	r.images[imgName] = info
 
-	return
+	return info
 }
 
 // RegisterImage registers an image, adding it to the PDF file but not adding
@@ -3615,13 +3615,13 @@ func (r *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
 func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (info *ImageInfoType) {
 	info, ok := r.images[fileStr]
 	if ok {
-		return
+		return info
 	}
 
 	file, err := os.Open(fileStr)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	defer file.Close()
 
@@ -3630,7 +3630,7 @@ func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (i
 		pos := strings.LastIndex(fileStr, ".")
 		if pos < 0 {
 			r.err = errs.Errorf("image file has no extension and no type was specified: %s", fileStr)
-			return
+			return info
 		}
 		options.ImageType = fileStr[pos+1:]
 	}
@@ -3797,7 +3797,7 @@ func (r *Renderer) Output(w io.Writer) error {
 
 func (r *Renderer) getpagesizestr(sizeStr string) (size SizeType) {
 	if r.err != nil {
-		return
+		return size
 	}
 	sizeStr = strings.ToLower(sizeStr)
 	// dbg("Size [%s]", sizeStr)
@@ -3811,7 +3811,7 @@ func (r *Renderer) getpagesizestr(sizeStr string) (size SizeType) {
 	} else {
 		r.err = errs.Errorf("unknown page size %s", sizeStr)
 	}
-	return
+	return size
 }
 
 // GetPageSizeStr returns the SizeType for the given sizeStr (that is A4, A3, etc..)
@@ -3868,26 +3868,26 @@ func (r *Renderer) endpage() {
 // Load a font definition file from the given Reader
 func (r *Renderer) loadfont(rd io.Reader) (def fontDefType) {
 	if r.err != nil {
-		return
+		return def
 	}
 	// dbg("Loading font [%s]", fontStr)
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(rd)
 	if err != nil {
 		r.err = err
-		return
+		return def
 	}
 	err = json.Unmarshal(buf.Bytes(), &def)
 	if err != nil {
 		r.err = err
-		return
+		return def
 	}
 
 	if def.i, err = generateFontID(def); err != nil {
 		r.err = err
 	}
 	// dump(def)
-	return
+	return def
 }
 
 // Escape special characters in strings
@@ -3916,7 +3916,7 @@ func blankCount(str string) (count int) {
 			count++
 		}
 	}
-	return
+	return count
 }
 
 // GetUnderlineThickness returns the current text underline thickness multiplier.
@@ -3963,14 +3963,14 @@ func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
 	_, err = data.ReadFrom(rd)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	info.data = data.Bytes()
 
 	config, err := jpeg.DecodeConfig(bytes.NewReader(info.data))
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	info.w = float64(config.Width)
 	info.h = float64(config.Height)
@@ -3985,9 +3985,9 @@ func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
 		info.cs = "DeviceCMYK"
 	default:
 		r.err = errs.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
-		return
+		return info
 	}
-	return
+	return info
 }
 
 // parsepng extracts info from a PNG data
@@ -3995,7 +3995,7 @@ func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfoType) {
 	buf, err := newRBuffer(rd)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	return r.parsepngstream(buf, readdpi)
 }
@@ -4005,19 +4005,19 @@ func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfoType) {
 	data, err := newRBuffer(rd)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	var img image.Image
 	img, err = gif.Decode(data)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	pngBuf := new(bytes.Buffer)
 	err = png.Encode(pngBuf, img)
 	if err != nil {
 		r.err = err
-		return
+		return info
 	}
 	return r.parsepngstream(&rbuffer{p: pngBuf.Bytes()}, false)
 }
@@ -4290,10 +4290,10 @@ func (r *Renderer) putpages() {
 		r.newobj()
 		if r.compress {
 			mem := xmem.compress(r.pages[n].Bytes())
-			data := mem.bytes()
+			data := mem.Bytes()
 			r.outf("<</Filter /FlateDecode /Length %d>>", len(data))
 			r.putstream(data)
-			mem.release()
+			xmem.release(mem)
 		} else {
 			r.outf("<</Length %d>>", r.pages[n].Len())
 			r.putstream(r.pages[n].Bytes())
@@ -4520,16 +4520,16 @@ func (r *Renderer) putfonts() {
 				}
 
 				mem := xmem.compress(cidToGidMap)
-				cidToGidMap = mem.bytes()
+				cidToGidMap = mem.Bytes()
 				r.newobj()
 				r.out("<</Length " + strconv.Itoa(len(cidToGidMap)) + "/Filter /FlateDecode>>")
 				r.putstream(cidToGidMap)
 				r.out("endobj")
-				mem.release()
+				xmem.release(mem)
 
 				//Font file
 				mem = xmem.compress(utf8FontStream)
-				compressedFontStream := mem.bytes()
+				compressedFontStream := mem.Bytes()
 				r.newobj()
 				r.out("<</Length " + strconv.Itoa(len(compressedFontStream)))
 				r.out("/Filter /FlateDecode")
@@ -4537,7 +4537,7 @@ func (r *Renderer) putfonts() {
 				r.out(">>")
 				r.putstream(compressedFontStream)
 				r.out("endobj")
-				mem.release()
+				xmem.release(mem)
 
 			default:
 				r.err = errs.Errorf("unsupported font type: %s", tp)
@@ -4795,10 +4795,10 @@ func (r *Renderer) putimage(info *ImageInfoType) {
 		r.newobj()
 		if r.compress {
 			mem := xmem.compress(info.pal)
-			pal := mem.bytes()
+			pal := mem.Bytes()
 			r.outf("<</Filter /FlateDecode /Length %d>>", len(pal))
 			r.putstream(pal)
-			mem.release()
+			xmem.release(mem)
 		} else {
 			r.outf("<</Length %d>>", len(info.pal))
 			r.putstream(info.pal)
@@ -5151,12 +5151,12 @@ func (r *Renderer) putOutputIntentStreams() {
 	for _, oi := range r.outputIntents {
 		r.newobj()
 		mem := xmem.compress(oi.ICCProfile)
-		compressedICC := mem.bytes()
+		compressedICC := mem.Bytes()
 		r.outf("<< /N 3 /Alternate /DeviceRGB /Length %d /Filter /FlateDecode >>", len(compressedICC))
 		r.putstream(compressedICC)
 		r.out("endobj")
 
-		mem.release()
+		xmem.release(mem)
 	}
 }
 

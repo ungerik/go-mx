@@ -66,7 +66,7 @@ func (r *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
 			r.err = errs.Errorf("spot color name \"%s\" is not registered", nameStr)
 		}
 	}
-	return
+	return clr, ok
 }
 
 // SetDrawSpotColor sets the current draw color to the spot color associated

@@ -21,6 +21,7 @@
 package pdf
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -40,7 +41,7 @@ func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	default:
 		r.err = errs.Errorf("unknown color type in PNG buffer: %d", ct)
 	}
-	return
+	return colspace, colorVal
 }
 
 func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoType) {
@@ -48,13 +49,13 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 	// 	Check signature
 	if string(buf.Next(8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
 		r.err = errs.New("not a PNG buffer")
-		return
+		return info
 	}
 	// Read header chunk
 	_ = buf.Next(4)
 	if string(buf.Next(4)) != "IHDR" {
 		r.err = errs.New("incorrect PNG buffer")
-		return
+		return info
 	}
 	w := buf.i32()
 	h := buf.i32()
@@ -69,19 +70,19 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 	var colorVal int
 	colspace, colorVal = r.pngColorSpace(ct)
 	if r.err != nil {
-		return
+		return info
 	}
 	if buf.u8() != 0 {
 		r.err = errs.New("'unknown compression method in PNG buffer")
-		return
+		return info
 	}
 	if buf.u8() != 0 {
 		r.err = errs.New("'unknown filter method in PNG buffer")
-		return
+		return info
 	}
 	if buf.u8() != 0 {
 		r.err = errs.New("interlacing not supported in PNG buffer")
-		return
+		return info
 	}
 	_ = buf.Next(4)
 	dp := fmt.Sprintf("/Predictor 15 /Colors %d /BitsPerComponent %d /Columns %d", colorVal, bpc, w)
@@ -173,30 +174,27 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 		mem, err := xmem.uncompress(data)
 		if err != nil {
 			r.err = err
-			return
+			return info
 		}
-		data = mem.bytes()
-		var (
-			color wbuffer
-			alpha wbuffer
-		)
+		data = mem.Bytes()
+		var color, alpha []byte
 		if ct == 4 {
 			// Gray image
 			width := int(w)
 			height := int(h)
 			length := 2 * width
 			sz := height * (width + 1)
-			color.p = data[:sz] // reuse decompressed data buffer.
-			alpha.p = make([]byte, sz)
+			color = data[:0:sz] // reuse decompressed data buffer.
+			alpha = make([]byte, 0, sz)
 			var pos, elPos int
 			for i := range height {
 				pos = (1 + length) * i
-				color.u8(data[pos])
-				alpha.u8(data[pos])
+				color = append(color, data[pos])
+				alpha = append(alpha, data[pos])
 				elPos = pos + 1
 				for range width {
-					color.u8(data[elPos])
-					alpha.u8(data[elPos+1])
+					color = append(color, data[elPos])
+					alpha = append(alpha, data[elPos+1])
 					elPos += 2
 				}
 			}
@@ -206,41 +204,39 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 			height := int(h)
 			length := 4 * width
 			sz := width * height
-			color.p = data[:sz*3+height] // reuse decompressed data buffer.
-			alpha.p = make([]byte, sz+height)
+			color = data[: 0 : sz*3+height] // reuse decompressed data buffer.
+			alpha = make([]byte, 0, sz+height)
 			var pos, elPos int
 			for i := range height {
 				pos = (1 + length) * i
-				color.u8(data[pos])
-				alpha.u8(data[pos])
+				color = append(color, data[pos])
+				alpha = append(alpha, data[pos])
 				elPos = pos + 1
 				for range width {
 					tmp := data[elPos : elPos+4]
-					color.u8(tmp[0])
-					color.u8(tmp[1])
-					color.u8(tmp[2])
-					alpha.u8(tmp[3])
+					color = append(color, tmp[0], tmp[1], tmp[2])
+					alpha = append(alpha, tmp[3])
 					elPos += 4
 				}
 			}
 		}
 
-		xc := xmem.compress(color.bytes())
-		data = xc.copy()
-		xc.release()
+		xc := xmem.compress(color)
+		data = bytes.Clone(xc.Bytes())
+		xmem.release(xc)
 
 		// release uncompressed data buffer, after the color buffer
 		// has been compressed.
-		mem.release()
+		xmem.release(mem)
 
-		xa := xmem.compress(alpha.bytes())
-		info.smask = xa.copy()
-		xa.release()
+		xa := xmem.compress(alpha)
+		info.smask = bytes.Clone(xa.Bytes())
+		xmem.release(xa)
 
 		if r.pdfVersion < pdfVers1_4 {
 			r.pdfVersion = pdfVers1_4
 		}
 	}
 	info.data = data
-	return
+	return info
 }

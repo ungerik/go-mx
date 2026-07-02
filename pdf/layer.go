@@ -54,7 +54,7 @@ func (r *Renderer) layerInit() {
 func (r *Renderer) AddLayer(name string, visible bool) (layerID int) {
 	layerID = len(r.layer.list)
 	r.layer.list = append(r.layer.list, layerType{name: name, visible: visible})
-	return
+	return layerID
 }
 
 // BeginLayer is called to begin adding content to the specified layer. All

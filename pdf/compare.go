@@ -64,7 +64,7 @@ func checkBytes(pos int, sl1, sl2 []byte, printDiff bool) (eq bool) {
 		writeBytes("<", pos, sl1)
 		writeBytes(">", pos, sl2)
 	}
-	return
+	return eq
 }
 
 // CompareBytes compares the bytes referred to by sl1 with those referred to by
@@ -86,7 +86,7 @@ func CompareBytes(sl1, sl2 []byte, printDiff bool) (err error) {
 	if diffs {
 		err = errs.New("documents are different")
 	}
-	return
+	return err
 }
 
 // ComparePDFs reads and compares the full contents of the two specified
@@ -101,7 +101,7 @@ func ComparePDFs(rdr1, rdr2 io.Reader, printDiff bool) (err error) {
 			err = CompareBytes(b1.Bytes(), b2.Bytes(), printDiff)
 		}
 	}
-	return
+	return err
 }
 
 // ComparePDFFiles reads and compares the full contents of the two specified
@@ -119,5 +119,5 @@ func ComparePDFFiles(file1Str, file2Str string, printDiff bool) (err error) {
 			err = nil
 		}
 	}
-	return
+	return err
 }
