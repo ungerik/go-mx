@@ -12,6 +12,7 @@ work, so the original copyright notices and license terms are reproduced below.
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
 | [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go` (color values only) | MIT |
+| [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf) | `pdf/` engine (inlined source) | MIT |
 
 Runtime dependencies that the `cmd/shadcn-gallery` demo loads from public CDNs
 at runtime — [Shiki](https://github.com/shikijs/shiki) (MIT) and
@@ -344,6 +345,44 @@ highlighting engine itself is original to this project.
 MIT License
 
 Copyright (c) 2020 Primer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## go-pdf/fpdf
+
+Unlike the ports above, the PDF-generation engine of the `pdf/` package is
+**inlined source**: the core of
+[`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) v0.12.0
+(itself derived from Kurt Jung's gofpdf and the PHP FPDF library) was copied
+into `pdf/` — including the embedded core-font metrics in `pdf/font_embed/` —
+and is being adapted to the go-mx component model. The original copyright
+headers are retained in the affected files.
+
+```
+MIT License
+
+Copyright (c) 2021 The Go-PDF authors
+Copyright (c) 2020 David Barnes
+Copyright (c) 2017 Kurt Jung and contributors acknowledged in the documentation
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

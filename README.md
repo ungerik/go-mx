@@ -100,12 +100,13 @@ For streaming output or serving over HTTP, render a `Component` into an
   highlighted HTML components, or as the go-mx source that builds that markup,
   plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See
   [highlight/README.md](highlight/README.md).
-- **`pdf`** — composable PDF rendering primitives mirroring the `html`
-  component model, but drawing into the
-  [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) renderer instead
-  of a markup writer: `pdf.Document`, text/vector/image primitives, and typed
-  enums. A separate module, so the fpdf dependency stays isolated. See
-  [pdf/README.md](pdf/README.md).
+- **`pdf`** — native PDF rendering mirroring the `html` component model, with
+  the [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) engine
+  inlined so there is no external PDF dependency: `pdf.Document`,
+  text/vector/image primitives, and typed enums (component layer in progress).
+  The previous wrapper around the external fpdf module lives on as the
+  **`fpdf`** legacy module only until the native package reaches parity. See
+  [fpdf/README.md](fpdf/README.md).
 - **`wordpress`** — imports a WordPress WXR export into a typed Go model and
   renders it as a static shadcn site plus an import-diagnostics report. Its own
   nested module, so its `golang.org/x/net/html` dependency stays out of core. See
