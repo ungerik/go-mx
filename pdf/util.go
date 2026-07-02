@@ -25,103 +25,26 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf16"
 )
 
-func must(n int, err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func must64(n int64, err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func round(f float64) int {
-	if f < 0 {
-		return -int(math.Floor(-f + 0.5))
-	}
-	return int(math.Floor(f + 0.5))
-}
-
-func sprintf(fmtStr string, args ...any) string {
-	return fmt.Sprintf(fmtStr, args...)
-}
-
-// utf8toutf16 converts UTF-8 to UTF-16BE; from http://www.fpdf.org/
+// utf8toutf16 converts s to UTF-16BE bytes as required by PDF text strings,
+// by default prefixed with a byte order mark.
 func utf8toutf16(s string, withBOM ...bool) string {
-	bom := true
-	if len(withBOM) > 0 {
-		bom = withBOM[0]
-	}
-	res := make([]byte, 0, 8)
+	bom := len(withBOM) == 0 || withBOM[0]
+	units := utf16.Encode([]rune(s))
+	res := make([]byte, 0, 2+2*len(units))
 	if bom {
 		res = append(res, 0xFE, 0xFF)
 	}
-	nb := len(s)
-	i := 0
-	for i < nb {
-		c1 := byte(s[i])
-		i++
-		switch {
-		case c1 >= 224:
-			// 3-byte character
-			c2 := byte(s[i])
-			i++
-			c3 := byte(s[i])
-			i++
-			res = append(res, ((c1&0x0F)<<4)+((c2&0x3C)>>2),
-				((c2&0x03)<<6)+(c3&0x3F))
-		case c1 >= 192:
-			// 2-byte character
-			c2 := byte(s[i])
-			i++
-			res = append(res, ((c1 & 0x1C) >> 2),
-				((c1&0x03)<<6)+(c2&0x3F))
-		default:
-			// Single-byte character
-			res = append(res, 0, c1)
-		}
+	for _, u := range units {
+		res = append(res, byte(u>>8), byte(u))
 	}
 	return string(res)
 }
-
-// intIf returns a if cnd is true, otherwise b
-func intIf(cnd bool, a, b int) int {
-	if cnd {
-		return a
-	}
-	return b
-}
-
-// strIf returns aStr if cnd is true, otherwise bStr
-func strIf(cnd bool, aStr, bStr string) string {
-	if cnd {
-		return aStr
-	}
-	return bStr
-}
-
-// doNothing returns the passed string with no translation.
-func doNothing(s string) string {
-	return s
-}
-
-// Dump the internals of the specified values
-// func dump(fileStr string, a ...interface{}) {
-// 	fl, err := os.OpenFile(fileStr, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-// 	if err == nil {
-// 		fmt.Fprintf(fl, "----------------\n")
-// 		spew.Fdump(fl, a...)
-// 		fl.Close()
-// 	}
-// }
 
 func repClosure(m map[rune]byte) func(string) string {
 	var buf bytes.Buffer
@@ -179,7 +102,7 @@ func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 	if err == nil {
 		f = repClosure(m)
 	} else {
-		f = doNothing
+		f = func(s string) string { return s }
 	}
 	return
 }
@@ -199,7 +122,7 @@ func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error
 		f, err = UnicodeTranslator(fl)
 		fl.Close()
 	} else {
-		f = doNothing
+		f = func(s string) string { return s }
 	}
 	return
 }
@@ -230,7 +153,7 @@ func (f *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(strin
 			rep, f.err = UnicodeTranslatorFromFile(filepath.Join(f.fontpath, cpStr) + ".map")
 		}
 	} else {
-		rep = doNothing
+		rep = func(s string) string { return s }
 	}
 	return
 }

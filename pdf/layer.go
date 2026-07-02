@@ -23,7 +23,10 @@ package pdf
 // Routines in this file are translated from
 // http://www.fpdf.org/en/script/script97.php
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type layerType struct {
 	name    string
@@ -113,14 +116,14 @@ func (f *Renderer) layerPutResourceDict() {
 func (f *Renderer) layerPutCatalog() {
 	if len(f.layer.list) > 0 {
 		var onStr strings.Builder
-		offStr := ""
+		var offStr strings.Builder
 		for _, layer := range f.layer.list {
-			onStr.WriteString(sprintf("%d 0 R ", layer.objNum))
+			onStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
 			if !layer.visible {
-				offStr += sprintf("%d 0 R ", layer.objNum)
+				offStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
 			}
 		}
-		f.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr, onStr.String())
+		f.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr.String(), onStr.String())
 		if f.layer.openLayerPane {
 			f.out("/PageMode /UseOC")
 		}

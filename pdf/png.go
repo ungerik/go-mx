@@ -82,7 +82,7 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 		return
 	}
 	_ = r.Next(4)
-	dp := sprintf("/Predictor 15 /Colors %d /BitsPerComponent %d /Columns %d", colorVal, bpc, w)
+	dp := fmt.Sprintf("/Predictor 15 /Colors %d /BitsPerComponent %d /Columns %d", colorVal, bpc, w)
 	// Scan chunks looking for palette, transparency and image data
 	var (
 		pal  []byte

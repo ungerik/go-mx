@@ -945,14 +945,14 @@ func (f *Renderer) rgbColorValue(r, g, b int, grayStr, fullStr string) (clr colo
 	const prec = 3
 	if len(grayStr) > 0 {
 		if clr.gray {
-			// clr.str = sprintf("%.3f %s", clr.r, grayStr)
+			// clr.str = fmt.Sprintf("%.3f %s", clr.r, grayStr)
 			f.fmt.col.Reset()
 			f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
 			f.fmt.col.WriteString(" ")
 			f.fmt.col.WriteString(grayStr)
 			clr.str = f.fmt.col.String()
 		} else {
-			// clr.str = sprintf("%.3f %.3f %.3f %s", clr.r, clr.g, clr.b, fullStr)
+			// clr.str = fmt.Sprintf("%.3f %.3f %.3f %s", clr.r, clr.g, clr.b, fullStr)
 			f.fmt.col.Reset()
 			f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
 			f.fmt.col.WriteString(" ")
@@ -964,7 +964,7 @@ func (f *Renderer) rgbColorValue(r, g, b int, grayStr, fullStr string) (clr colo
 			clr.str = f.fmt.col.String()
 		}
 	} else {
-		// clr.str = sprintf("%.3f %.3f %.3f", clr.r, clr.g, clr.b)
+		// clr.str = fmt.Sprintf("%.3f %.3f %.3f", clr.r, clr.g, clr.b)
 		f.fmt.col.Reset()
 		f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
 		f.fmt.col.WriteString(" ")
@@ -1551,8 +1551,8 @@ func (f *Renderer) SetAlpha(alpha float64, blendModeStr string) {
 	}
 	f.alpha = alpha
 	f.blendMode = blendModeStr
-	alphaStr := sprintf("%.3f", alpha)
-	keyStr := sprintf("%s %s", alphaStr, blendModeStr)
+	alphaStr := fmt.Sprintf("%.3f", alpha)
+	keyStr := fmt.Sprintf("%s %s", alphaStr, blendModeStr)
 	pos, ok := f.blendMap[keyStr]
 	if !ok {
 		pos = len(f.blendList) // at least 1
@@ -1676,7 +1676,11 @@ func (f *Renderer) ClipRect(x, y, w, h float64, outline bool) {
 	f.putF64(w*f.k, prec)
 	f.put(" ")
 	f.putF64(-h*f.k, prec)
-	f.put(" re W " + strIf(outline, "S", "n") + "\n")
+	op := "n"
+	if outline {
+		op = "S"
+	}
+	f.put(" re W " + op + "\n")
 }
 
 // ClipText begins a clipping operation in which rendering is confined to the
@@ -1696,7 +1700,11 @@ func (f *Renderer) ClipText(x, y float64, txtStr string, outline bool) {
 	f.put(" ")
 	f.putF64((f.h-y)*f.k, prec)
 	f.put(" Td ")
-	f.putInt(intIf(outline, 5, 7))
+	renderMode := 7 // add to clipping path
+	if outline {
+		renderMode = 5 // stroke and add to clipping path
+	}
+	f.putInt(renderMode)
 	f.put(" Tr (")
 	f.put(f.escape(txtStr))
 	f.put(") Tj ET\n")
@@ -1742,7 +1750,11 @@ func (f *Renderer) ClipRoundedRect(x, y, w, h, r float64, outline bool) {
 func (f *Renderer) ClipRoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, outline bool) {
 	f.clipNest++
 	f.roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL)
-	f.outf(" W %s", strIf(outline, "S", "n"))
+	op := "n"
+	if outline {
+		op = "S"
+	}
+	f.outf(" W %s", op)
 }
 
 // add a rectangle path with rounded corners.
@@ -1890,7 +1902,11 @@ func (f *Renderer) ClipEllipse(x, y, rx, ry float64, outline bool) {
 	f.putF64((x+rx)*k, prec)
 	f.put(" ")
 	f.putF64((h-y)*k, prec)
-	f.put(" c W " + strIf(outline, "S", "n") + "\n")
+	op := "n"
+	if outline {
+		op = "S"
+	}
+	f.put(" c W " + op + "\n")
 }
 
 // ClipCircle begins a circular clipping operation. The circle is centered at
@@ -1923,9 +1939,17 @@ func (f *Renderer) ClipPolygon(points []PointType, outline bool) {
 	k := f.k
 	s.printf("q ")
 	for j, pt := range points {
-		s.printf("%.5f %.5f %s ", pt.X*k, (h-pt.Y)*k, strIf(j == 0, "m", "l"))
+		op := "l"
+		if j == 0 {
+			op = "m"
+		}
+		s.printf("%.5f %.5f %s ", pt.X*k, (h-pt.Y)*k, op)
 	}
-	s.printf("h W %s", strIf(outline, "S", "n"))
+	op := "n"
+	if outline {
+		op = "S"
+	}
+	s.printf("h W %s", op)
 	f.out(s.String())
 }
 
@@ -2040,7 +2064,7 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 			FontBBox:     utf8File.Bbox,
 			ItalicAngle:  utf8File.ItalicAngle,
 			StemV:        utf8File.StemV,
-			MissingWidth: round(utf8File.DefaultWidth),
+			MissingWidth: int(math.Round(utf8File.DefaultWidth)),
 		}
 
 		var sbarr map[int]int
@@ -2053,8 +2077,8 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 			Tp:        Type,
 			Name:      fontKey,
 			Desc:      desc,
-			Up:        int(round(utf8File.UnderlinePosition)),
-			Ut:        round(utf8File.UnderlineThickness),
+			Up:        int(math.Round(utf8File.UnderlinePosition)),
+			Ut:        int(math.Round(utf8File.UnderlineThickness)),
 			Cw:        utf8File.CharWidths,
 			usedRunes: sbarr,
 			File:      fileStr,
@@ -2177,7 +2201,7 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			FontBBox:     utf8File.Bbox,
 			ItalicAngle:  utf8File.ItalicAngle,
 			StemV:        utf8File.StemV,
-			MissingWidth: round(utf8File.DefaultWidth),
+			MissingWidth: int(math.Round(utf8File.DefaultWidth)),
 		}
 
 		var sbarr map[int]int
@@ -2190,8 +2214,8 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			Tp:        Type,
 			Name:      fontkey,
 			Desc:      desc,
-			Up:        int(round(utf8File.UnderlinePosition)),
-			Ut:        round(utf8File.UnderlineThickness),
+			Up:        int(math.Round(utf8File.UnderlinePosition)),
+			Ut:        int(math.Round(utf8File.UnderlineThickness)),
 			Cw:        utf8File.CharWidths,
 			utf8File:  utf8File,
 			usedRunes: sbarr,
@@ -2562,7 +2586,7 @@ func (f *Renderer) Text(x, y float64, txtStr string) {
 	} else {
 		txt2 = f.escape(txtStr)
 	}
-	s := sprintf("BT %.2f %.2f Td (%s) Tj ET", x*f.k, (f.h-y)*f.k, txt2)
+	s := fmt.Sprintf("BT %.2f %.2f Td (%s) Tj ET", x*f.k, (f.h-y)*f.k, txt2)
 	if f.underline && txtStr != "" {
 		s += " " + f.dounderline(x, y, txtStr)
 	}
@@ -2570,7 +2594,7 @@ func (f *Renderer) Text(x, y float64, txtStr string) {
 		s += " " + f.dostrikeout(x, y, txtStr)
 	}
 	if f.colorFlag {
-		s = sprintf("q %s %s Q", f.color.text.str, s)
+		s = fmt.Sprintf("q %s %s Q", f.color.text.str, s)
 	}
 	f.out(s)
 }
@@ -2584,7 +2608,7 @@ func (f *Renderer) GetWordSpacing() float64 {
 // WriteAligned() example for a demonstration of its use.
 func (f *Renderer) SetWordSpacing(space float64) {
 	f.ws = space
-	f.out(sprintf("%.5f Tw", space*f.k))
+	f.out(fmt.Sprintf("%.5f Tw", space*f.k))
 }
 
 // SetTextRenderingMode sets the rendering mode of following text.
@@ -2600,7 +2624,7 @@ func (f *Renderer) SetWordSpacing(space float64) {
 // This method is demonstrated in the SetTextRenderingMode example.
 func (f *Renderer) SetTextRenderingMode(mode int) {
 	if mode >= 0 && mode <= 7 {
-		f.out(sprintf("%d Tr", mode))
+		f.out(fmt.Sprintf("%d Tr", mode))
 	}
 }
 
@@ -2865,7 +2889,7 @@ func (f *Renderer) Cell(w, h float64, txtStr string) {
 // links or special alignment. See documentation for the fmt package for
 // details on fmtStr and args.
 func (f *Renderer) Cellf(w, h float64, fmtStr string, args ...any) {
-	f.CellFormat(w, h, sprintf(fmtStr, args...), "", 0, "L", false, 0, "")
+	f.CellFormat(w, h, fmt.Sprintf(fmtStr, args...), "", 0, "L", false, 0, "")
 }
 
 // SplitLines splits text into several lines using the current font. Each line
@@ -3054,7 +3078,9 @@ func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 			}
 			continue
 		}
-		if c == ' ' || isChinese(c) {
+		// Chinese text (CJK Unified Ideographs, U+4E00–U+9FA5) has no word
+		// spaces, so every such character is a permissible break point.
+		if c == ' ' || (c >= 0x4e00 && c <= 0x9fa5) {
 			sep = i
 			ls = l
 			ns++
@@ -3256,7 +3282,7 @@ func (f *Renderer) Write(h float64, txtStr string) {
 // Writef is like Write but uses printf-style formatting. See the documentation
 // for package fmt for more details on fmtStr and args.
 func (f *Renderer) Writef(h float64, fmtStr string, args ...any) {
-	f.write(h, sprintf(fmtStr, args...), 0, "")
+	f.write(h, fmt.Sprintf(fmtStr, args...), 0, "")
 }
 
 // WriteLinkString writes text that when clicked launches an external URL. See
@@ -3905,7 +3931,7 @@ func (f *Renderer) dounderline(x, y float64, txt string) string {
 	up := float64(f.currentFont.Up)
 	ut := float64(f.currentFont.Ut) * f.userUnderlineThickness
 	w := f.GetStringWidth(txt) + f.ws*float64(blankCount(txt))
-	return sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
+	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
 		(f.h-(y-up/1000*f.fontSize))*f.k, w*f.k, -ut/1000*f.fontSizePt)
 }
 
@@ -3913,7 +3939,7 @@ func (f *Renderer) dostrikeout(x, y float64, txt string) string {
 	up := float64(f.currentFont.Up)
 	ut := float64(f.currentFont.Ut)
 	w := f.GetStringWidth(txt) + f.ws*float64(blankCount(txt))
-	return sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
+	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
 		(f.h-(y+4*up/1000*f.fontSize))*f.k, w*f.k, -ut/1000*f.fontSizePt)
 }
 
@@ -4016,11 +4042,11 @@ func (f *Renderer) putstream(b []byte) {
 // out; Add a line to the document
 func (f *Renderer) out(s string) {
 	if f.state == 2 {
-		must(f.pages[f.page].WriteString(s))
-		must(f.pages[f.page].WriteString("\n"))
+		f.pages[f.page].WriteString(s)
+		f.pages[f.page].WriteString("\n")
 	} else {
-		must(f.buffer.WriteString(s))
-		must(f.buffer.WriteString("\n"))
+		f.buffer.WriteString(s)
+		f.buffer.WriteString("\n")
 	}
 }
 
@@ -4032,14 +4058,20 @@ func (f *Renderer) put(s string) {
 	}
 }
 
-// outbuf adds a buffered line to the document
+// outbuf adds a buffered line to the document. Unlike the bytes.Buffer write
+// methods, ReadFrom can fail (RawWriteBuf accepts arbitrary readers); such an
+// error is recorded in the renderer's error state.
 func (f *Renderer) outbuf(r io.Reader) {
 	if f.state == 2 {
-		must64(f.pages[f.page].ReadFrom(r))
-		must(f.pages[f.page].WriteString("\n"))
+		if _, err := f.pages[f.page].ReadFrom(r); err != nil {
+			f.SetError(err)
+		}
+		f.pages[f.page].WriteString("\n")
 	} else {
-		must64(f.buffer.ReadFrom(r))
-		must(f.buffer.WriteString("\n"))
+		if _, err := f.buffer.ReadFrom(r); err != nil {
+			f.SetError(err)
+		}
+		f.buffer.WriteString("\n")
 	}
 }
 
@@ -4061,7 +4093,7 @@ func (f *Renderer) RawWriteBuf(r io.Reader) {
 
 // outf adds a formatted line to the document
 func (f *Renderer) outf(fmtStr string, args ...any) {
-	f.out(sprintf(fmtStr, args...))
+	f.out(fmt.Sprintf(fmtStr, args...))
 }
 
 func (f *Renderer) putF64(v float64, prec int) {
@@ -4193,7 +4225,7 @@ func (f *Renderer) putpages() {
 	nb := f.page
 	if len(f.aliasNbPagesStr) > 0 {
 		// Replace number of pages
-		f.RegisterAlias(f.aliasNbPagesStr, sprintf("%d", nb))
+		f.RegisterAlias(f.aliasNbPagesStr, fmt.Sprintf("%d", nb))
 	}
 	f.replaceAliases()
 	if f.defOrientation == "P" {
@@ -4734,7 +4766,7 @@ func (f *Renderer) putimage(info *ImageInfoType) {
 			cs:    "DeviceGray",
 			bpc:   8,
 			f:     info.f,
-			dp:    sprintf("/Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns %d", int(info.w)),
+			dp:    fmt.Sprintf("/Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns %d", int(info.w)),
 			data:  info.smask,
 			scale: f.k,
 		}
@@ -4959,7 +4991,7 @@ func (f *Renderer) putcatalog() {
 		f.out("/OpenAction [3 0 R /XYZ null null 1]")
 	}
 	// } 	else if !is_string($this->zoomMode))
-	// 		$this->out('/OpenAction [3 0 R /XYZ null null '.sprintf('%.2f',$this->zoomMode/100).']');
+	// 		$this->out('/OpenAction [3 0 R /XYZ null null '.fmt.Sprintf('%.2f',$this->zoomMode/100).']');
 	switch f.layoutMode {
 	case "single", "SinglePage":
 		f.out("/PageLayout /SinglePage")
@@ -5292,10 +5324,7 @@ func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 	y = (f.h - y) * f.k
 	rx *= f.k
 	ry *= f.k
-	segments := int(degEnd-degStart) / 60
-	if segments < 2 {
-		segments = 2
-	}
+	segments := max(int(degEnd-degStart)/60, 2)
 	angleStart := degStart * math.Pi / 180
 	angleEnd := degEnd * math.Pi / 180
 	angleTotal := angleEnd - angleStart
@@ -5367,5 +5396,212 @@ func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 	}
 	if degRotate != 0 {
 		f.out("Q")
+	}
+}
+
+// Routines in this file are translated from the work of Moritz Wagner and
+// Andreas Würmser.
+
+// TransformMatrix is used for generalized transformations of text, drawings
+// and images.
+type TransformMatrix struct {
+	A, B, C, D, E, F float64
+}
+
+// TransformBegin sets up a transformation context for subsequent text,
+// drawings and images. The typical usage is to immediately follow a call to
+// this method with a call to one or more of the transformation methods such as
+// TransformScale(), TransformSkew(), etc. This is followed by text, drawing or
+// image output and finally a call to TransformEnd(). All transformation
+// contexts must be properly ended prior to outputting the document.
+func (f *Renderer) TransformBegin() {
+	f.transformNest++
+	f.out("q")
+}
+
+// TransformScaleX scales the width of the following text, drawings and images.
+// scaleWd is the percentage scaling factor. (x, y) is center of scaling.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformScaleX(scaleWd, x, y float64) {
+	f.TransformScale(scaleWd, 100, x, y)
+}
+
+// TransformScaleY scales the height of the following text, drawings and
+// images. scaleHt is the percentage scaling factor. (x, y) is center of
+// scaling.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformScaleY(scaleHt, x, y float64) {
+	f.TransformScale(100, scaleHt, x, y)
+}
+
+// TransformScaleXY uniformly scales the width and height of the following
+// text, drawings and images. s is the percentage scaling factor for both width
+// and height. (x, y) is center of scaling.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformScaleXY(s, x, y float64) {
+	f.TransformScale(s, s, x, y)
+}
+
+// TransformScale generally scales the following text, drawings and images.
+// scaleWd and scaleHt are the percentage scaling factors for width and height.
+// (x, y) is center of scaling.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
+	if scaleWd == 0 || scaleHt == 0 {
+		f.err = fmt.Errorf("scale factor cannot be zero")
+		return
+	}
+	y = (f.h - y) * f.k
+	x *= f.k
+	scaleWd /= 100
+	scaleHt /= 100
+	f.Transform(TransformMatrix{scaleWd, 0, 0,
+		scaleHt, x * (1 - scaleWd), y * (1 - scaleHt)})
+}
+
+// TransformMirrorHorizontal horizontally mirrors the following text, drawings
+// and images. x is the axis of reflection.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformMirrorHorizontal(x float64) {
+	f.TransformScale(-100, 100, x, f.y)
+}
+
+// TransformMirrorVertical vertically mirrors the following text, drawings and
+// images. y is the axis of reflection.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformMirrorVertical(y float64) {
+	f.TransformScale(100, -100, f.x, y)
+}
+
+// TransformMirrorPoint symmetrically mirrors the following text, drawings and
+// images on the point specified by (x, y).
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformMirrorPoint(x, y float64) {
+	f.TransformScale(-100, -100, x, y)
+}
+
+// TransformMirrorLine symmetrically mirrors the following text, drawings and
+// images on the line defined by angle and the point (x, y). angles is
+// specified in degrees and measured counter-clockwise from the 3 o'clock
+// position.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformMirrorLine(angle, x, y float64) {
+	f.TransformScale(-100, 100, x, y)
+	f.TransformRotate(-2*(angle-90), x, y)
+}
+
+// TransformTranslateX moves the following text, drawings and images
+// horizontally by the amount specified by tx.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformTranslateX(tx float64) {
+	f.TransformTranslate(tx, 0)
+}
+
+// TransformTranslateY moves the following text, drawings and images vertically
+// by the amount specified by ty.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformTranslateY(ty float64) {
+	f.TransformTranslate(0, ty)
+}
+
+// TransformTranslate moves the following text, drawings and images
+// horizontally and vertically by the amounts specified by tx and ty.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformTranslate(tx, ty float64) {
+	f.Transform(TransformMatrix{1, 0, 0, 1, tx * f.k, -ty * f.k})
+}
+
+// TransformRotate rotates the following text, drawings and images around the
+// center point (x, y). angle is specified in degrees and measured
+// counter-clockwise from the 3 o'clock position.
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformRotate(angle, x, y float64) {
+	y = (f.h - y) * f.k
+	x *= f.k
+	angle = angle * math.Pi / 180
+	var tm TransformMatrix
+	tm.A = math.Cos(angle)
+	tm.B = math.Sin(angle)
+	tm.C = -tm.B
+	tm.D = tm.A
+	tm.E = x + tm.B*y - tm.A*x
+	tm.F = y - tm.A*y - tm.B*x
+	f.Transform(tm)
+}
+
+// TransformSkewX horizontally skews the following text, drawings and images
+// keeping the point (x, y) stationary. angleX ranges from -90 degrees (skew to
+// the left) to 90 degrees (skew to the right).
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformSkewX(angleX, x, y float64) {
+	f.TransformSkew(angleX, 0, x, y)
+}
+
+// TransformSkewY vertically skews the following text, drawings and images
+// keeping the point (x, y) stationary. angleY ranges from -90 degrees (skew to
+// the bottom) to 90 degrees (skew to the top).
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformSkewY(angleY, x, y float64) {
+	f.TransformSkew(0, angleY, x, y)
+}
+
+// TransformSkew generally skews the following text, drawings and images
+// keeping the point (x, y) stationary. angleX ranges from -90 degrees (skew to
+// the left) to 90 degrees (skew to the right). angleY ranges from -90 degrees
+// (skew to the bottom) to 90 degrees (skew to the top).
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformSkew(angleX, angleY, x, y float64) {
+	if angleX <= -90 || angleX >= 90 || angleY <= -90 || angleY >= 90 {
+		f.err = fmt.Errorf("skew values must be between -90° and 90°")
+		return
+	}
+	x *= f.k
+	y = (f.h - y) * f.k
+	var tm TransformMatrix
+	tm.A = 1
+	tm.B = math.Tan(angleY * math.Pi / 180)
+	tm.C = math.Tan(angleX * math.Pi / 180)
+	tm.D = 1
+	tm.E = -tm.C * y
+	tm.F = -tm.B * x
+	f.Transform(tm)
+}
+
+// Transform generally transforms the following text, drawings and images
+// according to the specified matrix. It is typically easier to use the various
+// methods such as TransformRotate() and TransformMirrorVertical() instead.
+func (f *Renderer) Transform(tm TransformMatrix) {
+	if f.transformNest > 0 {
+		f.outf("%.5f %.5f %.5f %.5f %.5f %.5f cm",
+			tm.A, tm.B, tm.C, tm.D, tm.E, tm.F)
+	} else if f.err == nil {
+		f.err = fmt.Errorf("transformation context is not active")
+	}
+}
+
+// TransformEnd applies a transformation that was begun with a call to TransformBegin().
+//
+// The TransformBegin() example demonstrates this method.
+func (f *Renderer) TransformEnd() {
+	if f.transformNest > 0 {
+		f.transformNest--
+		f.out("Q")
+	} else {
+		f.err = fmt.Errorf("error attempting to end transformation operation out of sequence")
 	}
 }

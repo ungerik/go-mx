@@ -37,7 +37,9 @@ func (f *Renderer) SplitText(txt string, w float64) (lines []string) {
 			l += cw[c]
 		}
 
-		if unicode.IsSpace(c) || isChinese(c) {
+		// Chinese text (CJK Unified Ideographs, U+4E00–U+9FA5) has no word
+		// spaces, so every such character is a permissible break point.
+		if unicode.IsSpace(c) || (c >= 0x4e00 && c <= 0x9fa5) {
 			sep = i
 		}
 		if c == '\n' || l > wmax {

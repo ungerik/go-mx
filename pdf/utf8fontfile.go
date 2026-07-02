@@ -81,11 +81,12 @@ func (fr *fileReader) Read(s int) []byte {
 }
 
 func (fr *fileReader) seek(shift int64, flag int) (int64, error) {
-	if flag == 0 {
+	switch flag {
+	case 0:
 		fr.readerPosition = shift
-	} else if flag == 1 {
+	case 1:
 		fr.readerPosition += shift
-	} else if flag == 2 {
+	case 2:
 		fr.readerPosition = int64(len(fr.array)) - shift
 	}
 	return int64(fr.readerPosition), nil
