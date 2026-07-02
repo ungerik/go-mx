@@ -3992,23 +3992,23 @@ func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
 
 // parsepng extracts info from a PNG data
 func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfoType) {
-	buf, err := newRBuffer(rd)
+	data, err := io.ReadAll(rd)
 	if err != nil {
 		r.err = err
 		return info
 	}
-	return r.parsepngstream(buf, readdpi)
+	return r.parsepngstream(bytes.NewBuffer(data), readdpi)
 }
 
 // parsegif extracts info from a GIF data (via PNG conversion)
 func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfoType) {
-	data, err := newRBuffer(rd)
+	data, err := io.ReadAll(rd)
 	if err != nil {
 		r.err = err
 		return info
 	}
 	var img image.Image
-	img, err = gif.Decode(data)
+	img, err = gif.Decode(bytes.NewReader(data))
 	if err != nil {
 		r.err = err
 		return info
@@ -4019,7 +4019,7 @@ func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfoType) {
 		r.err = err
 		return info
 	}
-	return r.parsepngstream(&rbuffer{p: pngBuf.Bytes()}, false)
+	return r.parsepngstream(bytes.NewBuffer(pngBuf.Bytes()), false)
 }
 
 // newobj begins a new object
@@ -4549,7 +4549,7 @@ func (r *Renderer) putfonts() {
 
 func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 	rangeID := 0
-	cidArray := make(map[int]*untypedKeyMap)
+	cidArray := make(map[int]*cidWidthRange)
 	cidArrayKeys := make([]int, 0)
 	prevCid := -2
 	prevWidth := -1
@@ -4572,47 +4572,35 @@ func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 
 		if cid == prevCid+1 {
 			if width == prevWidth {
-				if width == cidArray[rangeID].get(0) {
-					cidArray[rangeID].put(nil, width)
+				if width == cidArray[rangeID].firstWidth() {
+					cidArray[rangeID].appendWidth(width)
 				} else {
 					cidArray[rangeID].pop()
 					rangeID = prevCid
-					r := untypedKeyMap{
-						valueSet: make([]int, 0),
-						keySet:   make([]any, 0),
-					}
-					cidArray[rangeID] = &r
+					cidArray[rangeID] = newCIDWidthRange()
 					cidArrayKeys = append(cidArrayKeys, rangeID)
-					cidArray[rangeID].put(nil, prevWidth)
-					cidArray[rangeID].put(nil, width)
+					cidArray[rangeID].appendWidth(prevWidth)
+					cidArray[rangeID].appendWidth(width)
 				}
 				interval = true
-				cidArray[rangeID].put("interval", 1)
+				cidArray[rangeID].interval = true
 			} else {
 				if interval {
 					// new range
 					rangeID = cid
-					r := untypedKeyMap{
-						valueSet: make([]int, 0),
-						keySet:   make([]any, 0),
-					}
-					cidArray[rangeID] = &r
+					cidArray[rangeID] = newCIDWidthRange()
 					cidArrayKeys = append(cidArrayKeys, rangeID)
-					cidArray[rangeID].put(nil, width)
+					cidArray[rangeID].appendWidth(width)
 				} else {
-					cidArray[rangeID].put(nil, width)
+					cidArray[rangeID].appendWidth(width)
 				}
 				interval = false
 			}
 		} else {
 			rangeID = cid
-			r := untypedKeyMap{
-				valueSet: make([]int, 0),
-				keySet:   make([]any, 0),
-			}
-			cidArray[rangeID] = &r
+			cidArray[rangeID] = newCIDWidthRange()
 			cidArrayKeys = append(cidArrayKeys, rangeID)
-			cidArray[rangeID].put(nil, width)
+			cidArray[rangeID].appendWidth(width)
 			interval = false
 		}
 		prevCid = cid
@@ -4625,12 +4613,12 @@ func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 	for g := 0; g < len(cidArrayKeys); {
 		key := cidArrayKeys[g]
 		ws := *cidArray[key]
-		cws := len(ws.keySet)
-		if (key == nextKey) && (!isInterval) && (ws.getIndex("interval") < 0 || cws < 4) {
-			if cidArray[key].getIndex("interval") >= 0 {
-				cidArray[key].delete("interval")
+		cws := ws.entryCount()
+		if (key == nextKey) && (!isInterval) && (!ws.interval || cws < 4) {
+			if cidArray[key].interval {
+				cidArray[key].interval = false
 			}
-			cidArray[previousKey] = arrayMerge(cidArray[previousKey], cidArray[key])
+			cidArray[previousKey] = mergeCIDWidthRanges(cidArray[previousKey], cidArray[key])
 			if i := slices.Index(cidArrayKeys, key); i >= 0 {
 				cidArrayKeys = slices.Delete(cidArrayKeys, i, i+1)
 			}
@@ -4639,15 +4627,13 @@ func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 			previousKey = key
 		}
 		nextKey = key + cws
-		// ui := ws.getIndex("interval")
-		// ui = ui + 1
-		if ws.getIndex("interval") >= 0 {
+		if ws.interval {
 			if cws > 3 {
 				isInterval = true
 			} else {
 				isInterval = false
 			}
-			cidArray[key].delete("interval")
+			cidArray[key].interval = false
 			nextKey--
 		} else {
 			isInterval = false
@@ -4656,13 +4642,76 @@ func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 	var w fmtBuffer
 	for _, k := range cidArrayKeys {
 		ws := cidArray[k]
-		if len(arrayCountValues(ws.valueSet)) == 1 {
-			w.printf(" %d %d %d", k, k+len(ws.valueSet)-1, ws.get(0))
+		if len(arrayCountValues(ws.widths)) == 1 {
+			w.printf(" %d %d %d", k, k+len(ws.widths)-1, ws.firstWidth())
 		} else {
-			w.printf(" %d [ %s ]\n", k, implode(" ", ws.valueSet))
+			w.printf(" %d [ %s ]\n", k, implode(" ", ws.widths))
 		}
 	}
 	r.out("/W [" + w.String() + " ]")
+}
+
+// cidWidthRange is an ordered list of glyph widths for one entry in a PDF CID
+// /W array, optionally marked as an interval run.
+type cidWidthRange struct {
+	widths   []int
+	interval bool
+}
+
+func newCIDWidthRange() *cidWidthRange {
+	return &cidWidthRange{widths: make([]int, 0)}
+}
+
+func (r *cidWidthRange) appendWidth(w int) {
+	r.widths = append(r.widths, w)
+}
+
+func (r *cidWidthRange) pop() {
+	r.widths = r.widths[:len(r.widths)-1]
+}
+
+func (r *cidWidthRange) firstWidth() int {
+	if len(r.widths) == 0 {
+		return 0
+	}
+	return r.widths[0]
+}
+
+// entryCount matches the legacy PHP-array entry count: one slot per width plus
+// one when the interval marker is present.
+func (r cidWidthRange) entryCount() int {
+	n := len(r.widths)
+	if r.interval {
+		n++
+	}
+	return n
+}
+
+func mergeCIDWidthRanges(a, b *cidWidthRange) *cidWidthRange {
+	switch {
+	case a == nil && b == nil:
+		return newCIDWidthRange()
+	case b == nil:
+		return &cidWidthRange{
+			widths:   slices.Clone(a.widths),
+			interval: a.interval,
+		}
+	case a == nil:
+		return &cidWidthRange{
+			widths:   slices.Clone(b.widths),
+			interval: b.interval,
+		}
+	default:
+		merged := &cidWidthRange{
+			widths:   slices.Clone(a.widths),
+			interval: a.interval,
+		}
+		merged.widths = append(merged.widths, b.widths...)
+		if !merged.interval && b.interval {
+			merged.interval = true
+		}
+		return merged
+	}
 }
 
 func implode(sep string, arr []int) string {

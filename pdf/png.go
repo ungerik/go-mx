@@ -22,7 +22,9 @@ package pdf
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/domonda/go-errs"
@@ -44,47 +46,47 @@ func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	return colspace, colorVal
 }
 
-func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoType) {
+func (r *Renderer) parsepngstream(buf *bytes.Buffer, readdpi bool) (info *ImageInfoType) {
 	info = r.newImageInfo()
 	// 	Check signature
-	if string(buf.Next(8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
+	if string(pngNext(buf, 8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
 		r.err = errs.New("not a PNG buffer")
 		return info
 	}
 	// Read header chunk
-	_ = buf.Next(4)
-	if string(buf.Next(4)) != "IHDR" {
+	_ = pngNext(buf, 4)
+	if string(pngNext(buf, 4)) != "IHDR" {
 		r.err = errs.New("incorrect PNG buffer")
 		return info
 	}
-	w := buf.i32()
-	h := buf.i32()
-	bpc := buf.u8()
+	w := pngReadI32(buf)
+	h := pngReadI32(buf)
+	bpc := pngReadU8(buf)
 	if bpc > 8 {
 		if r.pdfVersion < pdfVers1_5 {
 			r.pdfVersion = pdfVers1_5
 		}
 	}
-	ct := buf.u8()
+	ct := pngReadU8(buf)
 	var colspace string
 	var colorVal int
 	colspace, colorVal = r.pngColorSpace(ct)
 	if r.err != nil {
 		return info
 	}
-	if buf.u8() != 0 {
+	if pngReadU8(buf) != 0 {
 		r.err = errs.New("'unknown compression method in PNG buffer")
 		return info
 	}
-	if buf.u8() != 0 {
+	if pngReadU8(buf) != 0 {
 		r.err = errs.New("'unknown filter method in PNG buffer")
 		return info
 	}
-	if buf.u8() != 0 {
+	if pngReadU8(buf) != 0 {
 		r.err = errs.New("interlacing not supported in PNG buffer")
 		return info
 	}
-	_ = buf.Next(4)
+	_ = pngNext(buf, 4)
 	dp := fmt.Sprintf("/Predictor 15 /Colors %d /BitsPerComponent %d /Columns %d", colorVal, bpc, w)
 	// Scan chunks looking for palette, transparency and image data
 	var (
@@ -95,18 +97,18 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 		loop = true
 	)
 	for loop {
-		n := int(buf.i32())
+		n := int(pngReadI32(buf))
 		// dbg("Loop [%d]", n)
-		switch string(buf.Next(4)) {
+		switch string(pngNext(buf, 4)) {
 		case "PLTE":
 			// dbg("PLTE")
 			// Read palette
-			pal = buf.Next(n)
-			_ = buf.Next(4)
+			pal = pngNext(buf, n)
+			_ = pngNext(buf, 4)
 		case "tRNS":
 			// dbg("tRNS")
 			// Read transparency info
-			t := buf.Next(n)
+			t := pngNext(buf, n)
 			switch ct {
 			case 0:
 				trns = []int{int(t[1])} // ord(substr($t,1,1)));
@@ -118,12 +120,12 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 					trns = []int{pos} // array($pos);
 				}
 			}
-			_ = buf.Next(4)
+			_ = pngNext(buf, 4)
 		case "IDAT":
 			// dbg("IDAT")
 			// Read image data block
-			data = append(data, buf.Next(n)...)
-			_ = buf.Next(4)
+			data = append(data, pngNext(buf, n)...)
+			_ = pngNext(buf, 4)
 		case "IEND":
 			// dbg("IEND")
 			loop = false
@@ -133,9 +135,9 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 			// but we ignore files like this
 			// but if they're the same then we can stamp our info
 			// object with it
-			x := int(buf.i32())
-			y := int(buf.i32())
-			units := buf.u8()
+			x := int(pngReadI32(buf))
+			y := int(pngReadI32(buf))
+			units := pngReadU8(buf)
 			// fmt.Printf("got a pHYs block, x=%d, y=%d, u=%d, readdpi=%t\n",
 			// x, y, int(units), readdpi)
 			// only modify the info block if the user wants us to
@@ -148,10 +150,10 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 					info.dpi = float64(x)
 				}
 			}
-			_ = buf.Next(4)
+			_ = pngNext(buf, 4)
 		default:
 			// dbg("default")
-			_ = buf.Next(n + 4)
+			_ = pngNext(buf, n+4)
 		}
 		if loop {
 			loop = n > 0
@@ -239,4 +241,24 @@ func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoTy
 	}
 	info.data = data
 	return info
+}
+
+func pngNext(buf *bytes.Buffer, n int) []byte {
+	b := buf.Next(n)
+	if len(b) < n {
+		panic(io.ErrShortBuffer)
+	}
+	return b
+}
+
+func pngReadU8(buf *bytes.Buffer) byte {
+	b, err := buf.ReadByte()
+	if err != nil {
+		panic(io.ErrShortBuffer)
+	}
+	return b
+}
+
+func pngReadI32(buf *bytes.Buffer) int32 {
+	return int32(binary.BigEndian.Uint32(pngNext(buf, 4)))
 }

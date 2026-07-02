@@ -22,11 +22,11 @@ package pdf
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"unicode/utf16"
 )
@@ -77,8 +77,9 @@ func repClosure(m map[rune]byte) func(string) string {
 // An error occurs only if a line is read that does not conform to the expected
 // format. In this case, the returned function is valid but does not perform
 // any rune translation.
-func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
+func UnicodeTranslator(r io.Reader) (func(string) string, error) {
 	m := make(map[rune]byte)
+	var err error
 	var uPos, cPos uint32
 	var nameStr string
 	sc := bufio.NewScanner(r)
@@ -102,11 +103,9 @@ func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 		err = sc.Err()
 	}
 	if err == nil {
-		f = repClosure(m)
-	} else {
-		f = returnStringUnchanged
+		return repClosure(m), nil
 	}
-	return f, err
+	return returnStringUnchanged, err
 }
 
 // UnicodeTranslatorFromFile returns a function that can be used to translate,
@@ -117,16 +116,13 @@ func UnicodeTranslator(r io.Reader) (f func(string) string, err error) {
 //
 // If an error occurs reading the file, the returned function is valid but does
 // not perform any rune translation.
-func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error) {
-	var fl *os.File
-	fl, err = os.Open(fileStr)
-	if err == nil {
-		f, err = UnicodeTranslator(fl)
-		fl.Close()
-	} else {
-		f = returnStringUnchanged
+func UnicodeTranslatorFromFile(fileStr string) (func(string) string, error) {
+	fl, err := os.Open(fileStr)
+	if err != nil {
+		return returnStringUnchanged, err
 	}
-	return f, err
+	f, err := UnicodeTranslator(fl)
+	return f, errors.Join(err, fl.Close())
 }
 
 // UnicodeTranslatorFromDescriptor returns a function that can be used to
@@ -142,21 +138,22 @@ func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error
 // but does not perform any rune translation.
 //
 // The CellFormat_codepage example demonstrates this method.
-func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(string) string) {
-	if r.err == nil {
-		if len(cpStr) == 0 {
-			cpStr = "cp1252"
-		}
-		emb, err := embFS.Open("font_embed/" + cpStr + ".map")
-		if err == nil {
-			defer emb.Close()
-			rep, r.err = UnicodeTranslator(emb)
-		} else {
-			rep, r.err = UnicodeTranslatorFromFile(filepath.Join(r.fontpath, cpStr) + ".map")
-		}
-	} else {
-		rep = returnStringUnchanged
+func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) func(string) string {
+	if r.err != nil {
+		return returnStringUnchanged
 	}
+	if len(cpStr) == 0 {
+		cpStr = "cp1252"
+	}
+	emb, err := embFS.Open("font_embed/" + cpStr + ".map")
+	if err == nil {
+		defer emb.Close()
+		rep, err := UnicodeTranslator(emb)
+		r.err = err
+		return rep
+	}
+	rep, err := UnicodeTranslatorFromFile(filepath.Join(r.fontpath, cpStr) + ".map")
+	r.err = err
 	return rep
 }
 
@@ -192,104 +189,6 @@ func (s *SizeType) ScaleToWidth(width float64) SizeType {
 func (s *SizeType) ScaleToHeight(height float64) SizeType {
 	width := s.Wd * height / s.Ht
 	return SizeType{width, height}
-}
-
-// The untypedKeyMap structure and its methods are copyrighted 2019 by Arteom Korotkiy (Gmail: arteomkorotkiy).
-// Imitation of untyped Map Array
-// TODO check if this can be replaced
-type untypedKeyMap struct {
-	keySet   []any
-	valueSet []int
-}
-
-// Get position of key=>value in PHP Array
-func (pa *untypedKeyMap) getIndex(key any) int {
-	if key == nil {
-		return -1
-	}
-	return slices.Index(pa.keySet, key)
-}
-
-// Put key=>value in PHP Array
-func (pa *untypedKeyMap) put(key any, value int) {
-	if key == nil {
-		var i int
-		for n := 0; ; n++ {
-			i = pa.getIndex(n)
-			if i < 0 {
-				key = n
-				break
-			}
-		}
-		pa.keySet = append(pa.keySet, key)
-		pa.valueSet = append(pa.valueSet, value)
-	} else {
-		i := pa.getIndex(key)
-		if i < 0 {
-			pa.keySet = append(pa.keySet, key)
-			pa.valueSet = append(pa.valueSet, value)
-		} else {
-			pa.valueSet[i] = value
-		}
-	}
-}
-
-// Delete value in PHP Array
-func (pa *untypedKeyMap) delete(key any) {
-	if pa == nil || pa.keySet == nil || pa.valueSet == nil {
-		return
-	}
-	i := pa.getIndex(key)
-	if i >= 0 {
-		pa.keySet = slices.Delete(pa.keySet, i, i+1)
-		pa.valueSet = slices.Delete(pa.valueSet, i, i+1)
-	}
-}
-
-// Get value from PHP Array
-func (pa *untypedKeyMap) get(key any) int {
-	i := pa.getIndex(key)
-	if i >= 0 {
-		return pa.valueSet[i]
-	}
-	return 0
-}
-
-// Imitation of PHP function pop()
-func (pa *untypedKeyMap) pop() {
-	pa.keySet = pa.keySet[:len(pa.keySet)-1]
-	pa.valueSet = pa.valueSet[:len(pa.valueSet)-1]
-}
-
-// Imitation of PHP function array_merge()
-func arrayMerge(arr1, arr2 *untypedKeyMap) *untypedKeyMap {
-	answer := untypedKeyMap{}
-	switch {
-	case arr1 == nil && arr2 == nil:
-		answer = untypedKeyMap{
-			make([]any, 0),
-			make([]int, 0),
-		}
-	case arr2 == nil:
-		answer.keySet = arr1.keySet[:]
-		answer.valueSet = arr1.valueSet[:]
-	case arr1 == nil:
-		answer.keySet = arr2.keySet[:]
-		answer.valueSet = arr2.valueSet[:]
-	default:
-		answer.keySet = arr1.keySet[:]
-		answer.valueSet = arr1.valueSet[:]
-		for i := range arr2.keySet {
-			if arr2.keySet[i] == "interval" {
-				if arr1.getIndex("interval") < 0 {
-					answer.put("interval", arr2.valueSet[i])
-				}
-			} else {
-				answer.put(nil, arr2.valueSet[i])
-			}
-		}
-	}
-	return &answer
 }
 
 // Condition font family string to PDF name compliance. See section 5.3 (Names)
