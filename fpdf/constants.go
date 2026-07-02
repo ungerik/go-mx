@@ -1,6 +1,6 @@
-//go:generate go -C ../tools tool go-enum ../pdf/$GOFILE
+//go:generate go -C ../tools tool go-enum ../fpdf/$GOFILE
 
-package pdf
+package fpdf
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ func (o Orientation) Valid() bool {
 // Validate returns an error if o is none of the valid values for Orientation
 func (o Orientation) Validate() error {
 	if !o.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.Orientation", o)
+		return fmt.Errorf("invalid value %#v for type fpdf.Orientation", o)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (u Unit) Valid() bool {
 // Validate returns an error if u is none of the valid values for Unit
 func (u Unit) Validate() error {
 	if !u.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.Unit", u)
+		return fmt.Errorf("invalid value %#v for type fpdf.Unit", u)
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func (p PageSize) Valid() bool {
 // Validate returns an error if p is none of the valid values for PageSize
 func (p PageSize) Validate() error {
 	if !p.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.PageSize", p)
+		return fmt.Errorf("invalid value %#v for type fpdf.PageSize", p)
 	}
 	return nil
 }
@@ -316,7 +316,7 @@ func (f FontStyle) Valid() bool {
 // Validate returns an error if f is none of the valid values for FontStyle
 func (f FontStyle) Validate() error {
 	if !f.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.FontStyle", f)
+		return fmt.Errorf("invalid value %#v for type fpdf.FontStyle", f)
 	}
 	return nil
 }
@@ -404,7 +404,7 @@ func (h HAlign) Valid() bool {
 // Validate returns an error if h is none of the valid values for HAlign
 func (h HAlign) Validate() error {
 	if !h.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.HAlign", h)
+		return fmt.Errorf("invalid value %#v for type fpdf.HAlign", h)
 	}
 	return nil
 }
@@ -465,7 +465,7 @@ func (v VAlign) Valid() bool {
 // Validate returns an error if v is none of the valid values for VAlign
 func (v VAlign) Validate() error {
 	if !v.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.VAlign", v)
+		return fmt.Errorf("invalid value %#v for type fpdf.VAlign", v)
 	}
 	return nil
 }
@@ -576,7 +576,7 @@ func (b Border) Valid() bool {
 // Validate returns an error if b is none of the valid values for Border
 func (b Border) Validate() error {
 	if !b.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.Border", b)
+		return fmt.Errorf("invalid value %#v for type fpdf.Border", b)
 	}
 	return nil
 }
@@ -662,7 +662,7 @@ func (d DrawOp) Valid() bool {
 // Validate returns an error if d is none of the valid values for DrawOp
 func (d DrawOp) Validate() error {
 	if !d.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.DrawOp", d)
+		return fmt.Errorf("invalid value %#v for type fpdf.DrawOp", d)
 	}
 	return nil
 }
@@ -718,7 +718,7 @@ func (l LnPos) Valid() bool {
 // Validate returns an error if l is none of the valid values for LnPos
 func (l LnPos) Validate() error {
 	if !l.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.LnPos", l)
+		return fmt.Errorf("invalid value %#v for type fpdf.LnPos", l)
 	}
 	return nil
 }
@@ -768,7 +768,7 @@ func (l LineCapStyle) Valid() bool {
 // Validate returns an error if l is none of the valid values for LineCapStyle
 func (l LineCapStyle) Validate() error {
 	if !l.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.LineCapStyle", l)
+		return fmt.Errorf("invalid value %#v for type fpdf.LineCapStyle", l)
 	}
 	return nil
 }
@@ -823,7 +823,7 @@ func (l LineJoinStyle) Valid() bool {
 // Validate returns an error if l is none of the valid values for LineJoinStyle
 func (l LineJoinStyle) Validate() error {
 	if !l.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.LineJoinStyle", l)
+		return fmt.Errorf("invalid value %#v for type fpdf.LineJoinStyle", l)
 	}
 	return nil
 }
@@ -880,7 +880,7 @@ func (i ImageType) Valid() bool {
 // Validate returns an error if i is none of the valid values for ImageType
 func (i ImageType) Validate() error {
 	if !i.Valid() {
-		return fmt.Errorf("invalid value %#v for type pdf.ImageType", i)
+		return fmt.Errorf("invalid value %#v for type fpdf.ImageType", i)
 	}
 	return nil
 }

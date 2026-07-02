@@ -1,6 +1,12 @@
-// Package pdf provides composable PDF rendering primitives structured like the
-// go-mx html package, but targeting the [codeberg.org/go-pdf/fpdf] renderer
-// instead of an HTML markup writer.
+// Package fpdf provides composable PDF rendering primitives structured like
+// the go-mx html package, but targeting the external [codeberg.org/go-pdf/fpdf]
+// renderer instead of an HTML markup writer.
+//
+// This is the legacy wrapper around the external fpdf module. It is kept only
+// as the byte-for-byte parity baseline while the native
+// github.com/ungerik/go-mx/pdf package (which inlines the fpdf engine) is
+// brought up, and will be deleted afterwards. New code should import
+// github.com/ungerik/go-mx/pdf.
 //
 // The correspondence to the html package is deliberate:
 //
@@ -49,4 +55,4 @@
 //
 // See README.md for the limitations of the fpdf renderer relative to the PDF
 // specification.
-package pdf
+package fpdf

@@ -1,4 +1,4 @@
-package pdf
+package fpdf
 
 import (
 	"testing"

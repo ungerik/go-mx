@@ -1,6 +1,13 @@
-# pdf
+# fpdf (legacy)
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/pdf.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/pdf)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/fpdf.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/fpdf)
+
+**Legacy package.** This is the original wrapper around the external
+[`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) module. It is
+kept only as the byte-for-byte parity baseline while the native
+[`pdf`](../pdf) package (which inlines the fpdf engine) is brought up, and
+will be deleted afterwards. New code should import
+`github.com/ungerik/go-mx/pdf`.
 
 Composable PDF rendering primitives structured like the go-mx
 [`html`](../html) package, but targeting the
@@ -8,16 +15,16 @@ Composable PDF rendering primitives structured like the go-mx
 an HTML markup writer.
 
 ```go
-import "github.com/ungerik/go-mx/pdf"
+import "github.com/ungerik/go-mx/fpdf"
 
-doc := pdf.NewDocument("Invoice",
-    pdf.Font(pdf.Helvetica, pdf.StyleBold, 24),
-    pdf.Paragraph("Hello, PDF!"),
-    pdf.MoveDown(4),
-    pdf.Save( // scoped style — restored after these children
-        pdf.TextColor(pdf.Gray50),
-        pdf.Font(pdf.Helvetica, pdf.StyleRegular, 10),
-        pdf.Paragraph("Generated with go-mx/pdf."),
+doc := fpdf.NewDocument("Invoice",
+    fpdf.Font(fpdf.Helvetica, fpdf.StyleBold, 24),
+    fpdf.Paragraph("Hello, PDF!"),
+    fpdf.MoveDown(4),
+    fpdf.Save( // scoped style — restored after these children
+        fpdf.TextColor(fpdf.Gray50),
+        fpdf.Font(fpdf.Helvetica, fpdf.StyleRegular, 10),
+        fpdf.Paragraph("Generated with go-mx/pdf."),
     ),
 )
 err := doc.OutputFile(ctx, "hello.pdf")
@@ -36,7 +43,7 @@ The mapping to `html` is deliberate, so the two packages feel the same:
 | `Component` (`Render(ctx, Writer)`) | `Component` (`Render(ctx, *Renderer)`) |
 | markup `Writer`                     | `Renderer` (embeds `*fpdf.Fpdf`)       |
 | `Components`, `If`, `ForEach`       | `Components`, `If`, `ForEach`          |
-| `html.Document`                     | `pdf.Document`                         |
+| `html.Document`                     | `fpdf.Document`                         |
 | elements (`Div`, `P`, …)            | primitives (`Paragraph`, `Rect`, …)    |
 | attributes (`Class`, `Style`, …)    | state components (`Font`, `Color`, …)  |
 
@@ -55,10 +62,10 @@ and any primitive can be expressed in raw fpdf when the typed helpers do not
 cover it:
 
 ```go
-r := pdf.NewRendererA4Portrait()
+r := fpdf.NewRendererA4Portrait()
 r.AddPage()
 r.SetDrawColor(255, 0, 0) // raw fpdf
-pdf.Line(10, 10, 100, 10).Render(ctx, r) // typed primitive
+fpdf.Line(10, 10, 100, 10).Render(ctx, r) // typed primitive
 ```
 
 The renderer also adds in-memory asset helpers (`LoadUTF8FontBytes`,
@@ -117,10 +124,10 @@ auto-line-height, left-aligned `MultiCell` — the PDF analog of `<p>`.
 ### Scoping state with `Save`
 
 ```go
-pdf.Save(
-    pdf.TextColor(pdf.Red),
-    pdf.Font(pdf.Times, pdf.StyleItalic, 14),
-    pdf.Paragraph("only this text is red and italic"),
+fpdf.Save(
+    fpdf.TextColor(fpdf.Red),
+    fpdf.Font(fpdf.Times, fpdf.StyleItalic, 14),
+    fpdf.Paragraph("only this text is red and italic"),
 )
 ```
 
@@ -141,7 +148,7 @@ No asset needs to live on disk. Images draw from memory with `ImageReader` /
 `ImageBytes`:
 
 ```go
-pdf.ImageBytes("logo", pdf.ImagePNG, pngBytes, 20, 40, 30, 30)
+fpdf.ImageBytes("logo", fpdf.ImagePNG, pngBytes, 20, 40, 30, 30)
 ```
 
 The `name` argument is fpdf's image cache key — reuse it to draw the same image
@@ -153,8 +160,8 @@ translator to identity so non-Latin text works without any `.ttf` file:
 
 ```go
 r := doc.NewRenderer()
-r.LoadUTF8FontBytes("DejaVu", pdf.StyleRegular, ttfBytes)
-// then select it: pdf.Font("DejaVu", pdf.StyleRegular, 12)
+r.LoadUTF8FontBytes("DejaVu", fpdf.StyleRegular, ttfBytes)
+// then select it: fpdf.Font("DejaVu", fpdf.StyleRegular, 12)
 ```
 
 The remaining fpdf assets are already in-memory-capable on the embedded

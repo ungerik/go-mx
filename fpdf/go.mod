@@ -1,4 +1,4 @@
-module github.com/ungerik/go-mx/pdf
+module github.com/ungerik/go-mx/fpdf
 
 go 1.26
 

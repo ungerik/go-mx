@@ -1,4 +1,4 @@
-package pdf
+package fpdf
 
 import (
 	"bytes"
@@ -87,7 +87,7 @@ func TestGoldenDeterministic(t *testing.T) {
 // TestGoldenPDF renders the document and compares it against the committed
 // reference PDF. Regenerate the reference after an intended change with:
 //
-//	go test ./pdf -run TestGoldenPDF -update
+//	go test ./fpdf -run TestGoldenPDF -update
 func TestGoldenPDF(t *testing.T) {
 	got, err := renderGolden()
 	if err != nil {
@@ -108,10 +108,10 @@ func TestGoldenPDF(t *testing.T) {
 
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read golden reference (create it with `go test ./pdf -run TestGoldenPDF -update`): %v", err)
+		t.Fatalf("read golden reference (create it with `go test ./fpdf -run TestGoldenPDF -update`): %v", err)
 	}
 	if !bytes.Equal(got, want) {
-		t.Errorf("rendered PDF differs from %s (%d vs %d bytes); if the change is intended, regenerate with `go test ./pdf -run TestGoldenPDF -update`",
+		t.Errorf("rendered PDF differs from %s (%d vs %d bytes); if the change is intended, regenerate with `go test ./fpdf -run TestGoldenPDF -update`",
 			path, len(got), len(want))
 	}
 }

@@ -1,4 +1,4 @@
-package pdf
+package fpdf
 
 // The variables in this file are the package-level configuration of the pdf
 // package, mirroring the configuration vars of the mx package. Each has a
