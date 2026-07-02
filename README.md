@@ -106,7 +106,8 @@ For streaming output or serving over HTTP, render a `Component` into an
   text/vector/image primitives, and typed enums. The previous wrapper around
   the external fpdf module lives on as the **`fpdf`** legacy module, whose
   parity test suite asserts byte-identical output from both packages until the
-  legacy module is deleted. See [fpdf/README.md](fpdf/README.md).
+  legacy module is deleted. See [pdf/README.md](pdf/README.md) (and
+  [fpdf/README.md](fpdf/README.md) for the legacy module).
 - **`wordpress`** — imports a WordPress WXR export into a typed Go model and
   renders it as a static shadcn site plus an import-diagnostics report. Its own
   nested module, so its `golang.org/x/net/html` dependency stays out of core. See

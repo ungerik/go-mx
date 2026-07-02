@@ -1,9 +1,11 @@
 # Third-Party Licenses
 
 go-mx is licensed under the MIT License (see [`LICENSE`](LICENSE)). Parts of it
-are **ports or adaptations** of third-party open-source projects — their source
-was reimplemented in Go rather than vendored, but the result is a derivative
-work, so the original copyright notices and license terms are reproduced below.
+are **ports, adaptations, or inlined source** of third-party open-source
+projects. Most were reimplemented in Go rather than vendored; the `pdf/` engine
+is **inlined upstream source** copied into this repository. Either way the
+result is a derivative work, so the original copyright notices and license
+terms are reproduced below.
 
 | Project | Used in | License |
 | ------------------------------------------ | ------------------------- | ------------ |
@@ -376,6 +378,35 @@ Unlike the ports above, the PDF-generation engine of the `pdf/` package is
 into `pdf/` — including the embedded core-font metrics in `pdf/font_embed/` —
 and is being adapted to the go-mx component model. The original copyright
 headers are retained in the affected files.
+
+Several inlined files carry additional upstream attributions, retained in their
+file headers and reproduced here:
+
+- `pdf/label.go` (tick-label spacing) is adapted from Paul Heckbert's "Nice
+  Numbers for Graph Labels" in *Graphics Gems* (Academic Press, 1990).
+- `pdf/subwrite.go`, `pdf/spotcolor.go` and `pdf/protect.go` are adapted from
+  community FPDF scripts (by Wirus, Olivier Plathey, and Klemen Vodopivec
+  respectively), released under the FPDF license — the same permissive
+  "use in any program, free of charge" lineage as the PHP FPDF library above.
+
+The go-pdf/fpdf MIT license below covers the inlined engine as distributed; the
+Graphics Gems code additionally carries its own historical license:
+
+```
+Graphics Gems License
+
+This code repository predates the concept of Open Source, and predates most
+licenses along such lines. As such, the official license truly is:
+
+EULA: The Graphics Gems code is copyright-protected. In other words, you
+cannot claim the text of the code as your own and resell it. Using the code
+is permitted in any program, product, or library, non-commercial or
+commercial. Giving credit is not required, though is a nice gesture. The
+code comes as-is, and if there are any flaws or problems with any Gems code,
+nobody involved with Gems - authors, editors, publishers, or webmasters -
+are to be held responsible. Basically, don't be a jerk, and remember that
+anything free comes with no guarantee.
+```
 
 ```
 MIT License
