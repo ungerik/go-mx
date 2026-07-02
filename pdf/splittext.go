@@ -13,9 +13,9 @@ import (
 // font. Each line has its length limited to a maximum width given by w. This
 // function can be used to determine the total height of wrapped text for
 // vertical placement purposes.
-func (f *Renderer) SplitText(txt string, w float64) (lines []string) {
-	cw := f.currentFont.Cw
-	wmax := int(math.Ceil((w - 2*f.cMargin) * 1000 / f.fontSize))
+func (r *Renderer) SplitText(txt string, w float64) (lines []string) {
+	cw := r.currentFont.Cw
+	wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
 	s := []rune(txt) // Return slice of UTF-8 runes
 	nb := len(s)
 	for nb > 0 && s[nb-1] == '\n' {
@@ -32,7 +32,7 @@ func (f *Renderer) SplitText(txt string, w float64) (lines []string) {
 
 		if int(c) >= len(cw) {
 			// Decimal representation of c is greater than the font width's array size so it can't be used as index.
-			l += cw[f.currentFont.Desc.MissingWidth]
+			l += cw[r.currentFont.Desc.MissingWidth]
 		} else {
 			l += cw[c]
 		}

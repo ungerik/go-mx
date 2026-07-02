@@ -25,7 +25,7 @@ import (
 	"strings"
 )
 
-func (f *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
+func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	colorVal = 1
 	switch ct {
 	case 0, 4:
@@ -36,52 +36,52 @@ func (f *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	case 3:
 		colspace = "Indexed"
 	default:
-		f.err = fmt.Errorf("unknown color type in PNG buffer: %d", ct)
+		r.err = fmt.Errorf("unknown color type in PNG buffer: %d", ct)
 	}
 	return
 }
 
-func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType) {
-	info = f.newImageInfo()
+func (r *Renderer) parsepngstream(buf *rbuffer, readdpi bool) (info *ImageInfoType) {
+	info = r.newImageInfo()
 	// 	Check signature
-	if string(r.Next(8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
-		f.err = fmt.Errorf("not a PNG buffer")
+	if string(buf.Next(8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
+		r.err = fmt.Errorf("not a PNG buffer")
 		return
 	}
 	// Read header chunk
-	_ = r.Next(4)
-	if string(r.Next(4)) != "IHDR" {
-		f.err = fmt.Errorf("incorrect PNG buffer")
+	_ = buf.Next(4)
+	if string(buf.Next(4)) != "IHDR" {
+		r.err = fmt.Errorf("incorrect PNG buffer")
 		return
 	}
-	w := r.i32()
-	h := r.i32()
-	bpc := r.u8()
+	w := buf.i32()
+	h := buf.i32()
+	bpc := buf.u8()
 	if bpc > 8 {
-		if f.pdfVersion < pdfVers1_5 {
-			f.pdfVersion = pdfVers1_5
+		if r.pdfVersion < pdfVers1_5 {
+			r.pdfVersion = pdfVers1_5
 		}
 	}
-	ct := r.u8()
+	ct := buf.u8()
 	var colspace string
 	var colorVal int
-	colspace, colorVal = f.pngColorSpace(ct)
-	if f.err != nil {
+	colspace, colorVal = r.pngColorSpace(ct)
+	if r.err != nil {
 		return
 	}
-	if r.u8() != 0 {
-		f.err = fmt.Errorf("'unknown compression method in PNG buffer")
+	if buf.u8() != 0 {
+		r.err = fmt.Errorf("'unknown compression method in PNG buffer")
 		return
 	}
-	if r.u8() != 0 {
-		f.err = fmt.Errorf("'unknown filter method in PNG buffer")
+	if buf.u8() != 0 {
+		r.err = fmt.Errorf("'unknown filter method in PNG buffer")
 		return
 	}
-	if r.u8() != 0 {
-		f.err = fmt.Errorf("interlacing not supported in PNG buffer")
+	if buf.u8() != 0 {
+		r.err = fmt.Errorf("interlacing not supported in PNG buffer")
 		return
 	}
-	_ = r.Next(4)
+	_ = buf.Next(4)
 	dp := fmt.Sprintf("/Predictor 15 /Colors %d /BitsPerComponent %d /Columns %d", colorVal, bpc, w)
 	// Scan chunks looking for palette, transparency and image data
 	var (
@@ -92,18 +92,18 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 		loop = true
 	)
 	for loop {
-		n := int(r.i32())
+		n := int(buf.i32())
 		// dbg("Loop [%d]", n)
-		switch string(r.Next(4)) {
+		switch string(buf.Next(4)) {
 		case "PLTE":
 			// dbg("PLTE")
 			// Read palette
-			pal = r.Next(n)
-			_ = r.Next(4)
+			pal = buf.Next(n)
+			_ = buf.Next(4)
 		case "tRNS":
 			// dbg("tRNS")
 			// Read transparency info
-			t := r.Next(n)
+			t := buf.Next(n)
 			switch ct {
 			case 0:
 				trns = []int{int(t[1])} // ord(substr($t,1,1)));
@@ -115,12 +115,12 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 					trns = []int{pos} // array($pos);
 				}
 			}
-			_ = r.Next(4)
+			_ = buf.Next(4)
 		case "IDAT":
 			// dbg("IDAT")
 			// Read image data block
-			data = append(data, r.Next(n)...)
-			_ = r.Next(4)
+			data = append(data, buf.Next(n)...)
+			_ = buf.Next(4)
 		case "IEND":
 			// dbg("IEND")
 			loop = false
@@ -130,9 +130,9 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 			// but we ignore files like this
 			// but if they're the same then we can stamp our info
 			// object with it
-			x := int(r.i32())
-			y := int(r.i32())
-			units := r.u8()
+			x := int(buf.i32())
+			y := int(buf.i32())
+			units := buf.u8()
 			// fmt.Printf("got a pHYs block, x=%d, y=%d, u=%d, readdpi=%t\n",
 			// x, y, int(units), readdpi)
 			// only modify the info block if the user wants us to
@@ -145,17 +145,17 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 					info.dpi = float64(x)
 				}
 			}
-			_ = r.Next(4)
+			_ = buf.Next(4)
 		default:
 			// dbg("default")
-			_ = r.Next(n + 4)
+			_ = buf.Next(n + 4)
 		}
 		if loop {
 			loop = n > 0
 		}
 	}
 	if colspace == "Indexed" && len(pal) == 0 {
-		f.err = fmt.Errorf("missing palette in PNG buffer")
+		r.err = fmt.Errorf("missing palette in PNG buffer")
 	}
 	info.w = float64(w)
 	info.h = float64(h)
@@ -170,7 +170,7 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 		// Separate alpha and color channels
 		mem, err := xmem.uncompress(data)
 		if err != nil {
-			f.err = err
+			r.err = err
 			return
 		}
 		data = mem.bytes()
@@ -235,8 +235,8 @@ func (f *Renderer) parsepngstream(r *rbuffer, readdpi bool) (info *ImageInfoType
 		info.smask = xa.copy()
 		xa.release()
 
-		if f.pdfVersion < pdfVers1_4 {
-			f.pdfVersion = pdfVers1_4
+		if r.pdfVersion < pdfVers1_4 {
+			r.pdfVersion = pdfVers1_4
 		}
 	}
 	info.data = data

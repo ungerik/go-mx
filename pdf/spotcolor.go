@@ -37,12 +37,12 @@ func byteBound(v byte) byte {
 // percentages ranging from 0 to 100. Values above this are quietly capped to
 // 100. An error occurs if the specified name is already associated with a
 // color.
-func (f *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
-	if f.err == nil {
-		_, ok := f.spotColorMap[nameStr]
+func (r *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
+	if r.err == nil {
+		_, ok := r.spotColorMap[nameStr]
 		if !ok {
-			id := len(f.spotColorMap) + 1
-			f.spotColorMap[nameStr] = spotColorType{
+			id := len(r.spotColorMap) + 1
+			r.spotColorMap[nameStr] = spotColorType{
 				id: id,
 				val: cmykColorType{
 					c: byteBound(c),
@@ -52,16 +52,16 @@ func (f *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
 				},
 			}
 		} else {
-			f.err = fmt.Errorf("name \"%s\" is already associated with a spot color", nameStr)
+			r.err = fmt.Errorf("name \"%s\" is already associated with a spot color", nameStr)
 		}
 	}
 }
 
-func (f *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
-	if f.err == nil {
-		clr, ok = f.spotColorMap[nameStr]
+func (r *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
+	if r.err == nil {
+		clr, ok = r.spotColorMap[nameStr]
 		if !ok {
-			f.err = fmt.Errorf("spot color name \"%s\" is not registered", nameStr)
+			r.err = fmt.Errorf("spot color name \"%s\" is not registered", nameStr)
 		}
 	}
 	return
@@ -71,17 +71,17 @@ func (f *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
 // with nameStr. An error occurs if the name is not associated with a color.
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
-func (f *Renderer) SetDrawSpotColor(nameStr string, tint byte) {
+func (r *Renderer) SetDrawSpotColor(nameStr string, tint byte) {
 	var clr spotColorType
 	var ok bool
 
-	clr, ok = f.getSpotColor(nameStr)
+	clr, ok = r.getSpotColor(nameStr)
 	if ok {
-		f.color.draw.mode = colorModeSpot
-		f.color.draw.spotStr = nameStr
-		f.color.draw.str = fmt.Sprintf("/CS%d CS %.3f SCN", clr.id, float64(byteBound(tint))/100)
-		if f.page > 0 {
-			f.out(f.color.draw.str)
+		r.color.draw.mode = colorModeSpot
+		r.color.draw.spotStr = nameStr
+		r.color.draw.str = fmt.Sprintf("/CS%d CS %.3f SCN", clr.id, float64(byteBound(tint))/100)
+		if r.page > 0 {
+			r.out(r.color.draw.str)
 		}
 	}
 }
@@ -90,18 +90,18 @@ func (f *Renderer) SetDrawSpotColor(nameStr string, tint byte) {
 // with nameStr. An error occurs if the name is not associated with a color.
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
-func (f *Renderer) SetFillSpotColor(nameStr string, tint byte) {
+func (r *Renderer) SetFillSpotColor(nameStr string, tint byte) {
 	var clr spotColorType
 	var ok bool
 
-	clr, ok = f.getSpotColor(nameStr)
+	clr, ok = r.getSpotColor(nameStr)
 	if ok {
-		f.color.fill.mode = colorModeSpot
-		f.color.fill.spotStr = nameStr
-		f.color.fill.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
-		f.colorFlag = f.color.fill.str != f.color.text.str
-		if f.page > 0 {
-			f.out(f.color.fill.str)
+		r.color.fill.mode = colorModeSpot
+		r.color.fill.spotStr = nameStr
+		r.color.fill.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
+		r.colorFlag = r.color.fill.str != r.color.text.str
+		if r.page > 0 {
+			r.out(r.color.fill.str)
 		}
 	}
 }
@@ -110,26 +110,26 @@ func (f *Renderer) SetFillSpotColor(nameStr string, tint byte) {
 // with nameStr. An error occurs if the name is not associated with a color.
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
-func (f *Renderer) SetTextSpotColor(nameStr string, tint byte) {
+func (r *Renderer) SetTextSpotColor(nameStr string, tint byte) {
 	var clr spotColorType
 	var ok bool
 
-	clr, ok = f.getSpotColor(nameStr)
+	clr, ok = r.getSpotColor(nameStr)
 	if ok {
-		f.color.text.mode = colorModeSpot
-		f.color.text.spotStr = nameStr
-		f.color.text.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
-		f.colorFlag = f.color.fill.str != f.color.text.str
+		r.color.text.mode = colorModeSpot
+		r.color.text.spotStr = nameStr
+		r.color.text.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
+		r.colorFlag = r.color.fill.str != r.color.text.str
 	}
 }
 
-func (f *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte) {
+func (r *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte) {
 	var spotClr spotColorType
 	var ok bool
 
 	name = clr.spotStr
 	if name != "" {
-		spotClr, ok = f.getSpotColor(name)
+		spotClr, ok = r.getSpotColor(name)
 		if ok {
 			c = spotClr.val.c
 			m = spotClr.val.m
@@ -144,45 +144,45 @@ func (f *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte)
 // drawing. This will not be the current drawing color if some other color type
 // such as RGB is active. If no spot color has been set for drawing, zero
 // values are returned.
-func (f *Renderer) GetDrawSpotColor() (name string, c, m, y, k byte) {
-	return f.returnSpotColor(f.color.draw)
+func (r *Renderer) GetDrawSpotColor() (name string, c, m, y, k byte) {
+	return r.returnSpotColor(r.color.draw)
 }
 
 // GetTextSpotColor returns the most recently used spot color information for
 // text output. This will not be the current text color if some other color
 // type such as RGB is active. If no spot color has been set for text, zero
 // values are returned.
-func (f *Renderer) GetTextSpotColor() (name string, c, m, y, k byte) {
-	return f.returnSpotColor(f.color.text)
+func (r *Renderer) GetTextSpotColor() (name string, c, m, y, k byte) {
+	return r.returnSpotColor(r.color.text)
 }
 
 // GetFillSpotColor returns the most recently used spot color information for
 // fill output. This will not be the current fill color if some other color
 // type such as RGB is active. If no fill spot color has been set, zero values
 // are returned.
-func (f *Renderer) GetFillSpotColor() (name string, c, m, y, k byte) {
-	return f.returnSpotColor(f.color.fill)
+func (r *Renderer) GetFillSpotColor() (name string, c, m, y, k byte) {
+	return r.returnSpotColor(r.color.fill)
 }
 
-func (f *Renderer) putSpotColors() {
-	for k, v := range f.spotColorMap {
-		f.newobj()
-		f.outf("[/Separation /%s", strings.Replace(k, " ", "#20", -1))
-		f.out("/DeviceCMYK <<")
-		f.out("/Range [0 1 0 1 0 1 0 1] /C0 [0 0 0 0] ")
-		f.outf("/C1 [%.3f %.3f %.3f %.3f] ", float64(v.val.c)/100, float64(v.val.m)/100,
+func (r *Renderer) putSpotColors() {
+	for k, v := range r.spotColorMap {
+		r.newobj()
+		r.outf("[/Separation /%s", strings.Replace(k, " ", "#20", -1))
+		r.out("/DeviceCMYK <<")
+		r.out("/Range [0 1 0 1 0 1 0 1] /C0 [0 0 0 0] ")
+		r.outf("/C1 [%.3f %.3f %.3f %.3f] ", float64(v.val.c)/100, float64(v.val.m)/100,
 			float64(v.val.y)/100, float64(v.val.k)/100)
-		f.out("/FunctionType 2 /Domain [0 1] /N 1>>]")
-		f.out("endobj")
-		v.objID = f.n
-		f.spotColorMap[k] = v
+		r.out("/FunctionType 2 /Domain [0 1] /N 1>>]")
+		r.out("endobj")
+		v.objID = r.n
+		r.spotColorMap[k] = v
 	}
 }
 
-func (f *Renderer) spotColorPutResourceDict() {
-	f.out("/ColorSpace <<")
-	for _, clr := range f.spotColorMap {
-		f.outf("/CS%d %d 0 R", clr.id, clr.objID)
+func (r *Renderer) spotColorPutResourceDict() {
+	r.out("/ColorSpace <<")
+	for _, clr := range r.spotColorMap {
+		r.outf("/CS%d %d 0 R", clr.id, clr.objID)
 	}
-	f.out(">>")
+	r.out(">>")
 }

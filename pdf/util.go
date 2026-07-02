@@ -140,17 +140,17 @@ func UnicodeTranslatorFromFile(fileStr string) (f func(string) string, err error
 // but does not perform any rune translation.
 //
 // The CellFormat_codepage example demonstrates this method.
-func (f *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(string) string) {
-	if f.err == nil {
+func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) (rep func(string) string) {
+	if r.err == nil {
 		if len(cpStr) == 0 {
 			cpStr = "cp1252"
 		}
 		emb, err := embFS.Open("font_embed/" + cpStr + ".map")
 		if err == nil {
 			defer emb.Close()
-			rep, f.err = UnicodeTranslator(emb)
+			rep, r.err = UnicodeTranslator(emb)
 		} else {
-			rep, f.err = UnicodeTranslatorFromFile(filepath.Join(f.fontpath, cpStr) + ".map")
+			rep, r.err = UnicodeTranslatorFromFile(filepath.Join(r.fontpath, cpStr) + ".map")
 		}
 	} else {
 		rep = func(s string) string { return s }

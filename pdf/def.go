@@ -287,21 +287,21 @@ func (info *ImageInfoType) GobDecode(buf []byte) (err error) {
 // value expressed in the unit of measure specified in New(). Since font
 // management in Renderer uses points, this method can help with line height
 // calculations and other methods that require user units.
-func (f *Renderer) PointConvert(pt float64) (u float64) {
-	return pt / f.k
+func (r *Renderer) PointConvert(pt float64) (u float64) {
+	return pt / r.k
 }
 
 // PointToUnitConvert is an alias for PointConvert.
-func (f *Renderer) PointToUnitConvert(pt float64) (u float64) {
-	return pt / f.k
+func (r *Renderer) PointToUnitConvert(pt float64) (u float64) {
+	return pt / r.k
 }
 
 // UnitToPointConvert returns the value of u, expressed in the unit of measure
 // specified in New(), as a value expressed in points (1/72 inch). Since font
 // management in Renderer uses points, this method can help with setting font sizes
 // based on the sizes of other non-font page elements.
-func (f *Renderer) UnitToPointConvert(u float64) (pt float64) {
-	return u * f.k
+func (r *Renderer) UnitToPointConvert(u float64) (pt float64) {
+	return u * r.k
 }
 
 // Extent returns the width and height of the image in the units of the Renderer

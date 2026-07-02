@@ -60,8 +60,8 @@ func (b *fmtBuffer) printf(fmtStr string, args ...any) {
 	b.Buffer.WriteString(fmt.Sprintf(fmtStr, args...))
 }
 
-func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType) (f *Renderer) {
-	f = new(Renderer)
+func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType) (r *Renderer) {
+	r = new(Renderer)
 	if orientationStr == "" {
 		orientationStr = "p"
 	} else {
@@ -76,41 +76,41 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	if fontDirStr == "" {
 		fontDirStr = "."
 	}
-	f.page = 0
-	f.n = 2
-	f.pages = make([]*bytes.Buffer, 0, 8)
-	f.pages = append(f.pages, bytes.NewBufferString("")) // pages[0] is unused (1-based)
-	f.pageSizes = make(map[int]SizeType)
-	f.pageBoxes = make(map[int]map[string]PageBox)
-	f.defPageBoxes = make(map[string]PageBox)
-	f.state = 0
-	f.fonts = make(map[string]fontDefType)
-	f.fontFiles = make(map[string]fontFileType)
-	f.diffs = make([]string, 0, 8)
-	f.images = make(map[string]*ImageInfoType)
-	f.pageLinks = make([][]linkType, 0, 8)
-	f.pageLinks = append(f.pageLinks, make([]linkType, 0)) // pageLinks[0] is unused (1-based)
-	f.links = make([]intLinkType, 0, 8)
-	f.links = append(f.links, intLinkType{}) // links[0] is unused (1-based)
-	f.pageAttachments = make([][]annotationAttach, 0, 8)
-	f.pageAttachments = append(f.pageAttachments, []annotationAttach{}) //
-	f.aliasMap = make(map[string]string)
-	f.inHeader = false
-	f.inFooter = false
-	f.lasth = 0
-	f.fontFamily = ""
-	f.fontStyle = ""
-	f.SetFontSize(12)
-	f.underline = false
-	f.strikeout = false
-	f.setDrawColor(0, 0, 0)
-	f.setFillColor(0, 0, 0)
-	f.setTextColor(0, 0, 0)
-	f.colorFlag = false
-	f.ws = 0
-	f.fontpath = fontDirStr
+	r.page = 0
+	r.n = 2
+	r.pages = make([]*bytes.Buffer, 0, 8)
+	r.pages = append(r.pages, bytes.NewBufferString("")) // pages[0] is unused (1-based)
+	r.pageSizes = make(map[int]SizeType)
+	r.pageBoxes = make(map[int]map[string]PageBox)
+	r.defPageBoxes = make(map[string]PageBox)
+	r.state = 0
+	r.fonts = make(map[string]fontDefType)
+	r.fontFiles = make(map[string]fontFileType)
+	r.diffs = make([]string, 0, 8)
+	r.images = make(map[string]*ImageInfoType)
+	r.pageLinks = make([][]linkType, 0, 8)
+	r.pageLinks = append(r.pageLinks, make([]linkType, 0)) // pageLinks[0] is unused (1-based)
+	r.links = make([]intLinkType, 0, 8)
+	r.links = append(r.links, intLinkType{}) // links[0] is unused (1-based)
+	r.pageAttachments = make([][]annotationAttach, 0, 8)
+	r.pageAttachments = append(r.pageAttachments, []annotationAttach{}) //
+	r.aliasMap = make(map[string]string)
+	r.inHeader = false
+	r.inFooter = false
+	r.lasth = 0
+	r.fontFamily = ""
+	r.fontStyle = ""
+	r.SetFontSize(12)
+	r.underline = false
+	r.strikeout = false
+	r.setDrawColor(0, 0, 0)
+	r.setFillColor(0, 0, 0)
+	r.setTextColor(0, 0, 0)
+	r.colorFlag = false
+	r.ws = 0
+	r.fontpath = fontDirStr
 	// Core fonts
-	f.coreFonts = map[string]bool{
+	r.coreFonts = map[string]bool{
 		"courier":      true,
 		"helvetica":    true,
 		"times":        true,
@@ -120,98 +120,98 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 	// Scale factor
 	switch unitStr {
 	case "pt", "point":
-		f.k = 1.0
+		r.k = 1.0
 	case "mm":
-		f.k = 72.0 / 25.4
+		r.k = 72.0 / 25.4
 	case "cm":
-		f.k = 72.0 / 2.54
+		r.k = 72.0 / 2.54
 	case "in", "inch":
-		f.k = 72.0
+		r.k = 72.0
 	default:
-		f.err = fmt.Errorf("incorrect unit %s", unitStr)
+		r.err = fmt.Errorf("incorrect unit %s", unitStr)
 		return
 	}
-	f.unitStr = unitStr
+	r.unitStr = unitStr
 	// Page sizes
-	f.stdPageSizes = make(map[string]SizeType)
-	f.stdPageSizes["a3"] = SizeType{841.89, 1190.55}
-	f.stdPageSizes["a4"] = SizeType{595.28, 841.89}
-	f.stdPageSizes["a5"] = SizeType{420.94, 595.28}
-	f.stdPageSizes["a6"] = SizeType{297.64, 420.94}
-	f.stdPageSizes["a7"] = SizeType{209.76, 297.64}
-	f.stdPageSizes["a8"] = SizeType{147.40, 209.76}
-	f.stdPageSizes["a2"] = SizeType{1190.55, 1683.78}
-	f.stdPageSizes["a1"] = SizeType{1683.78, 2383.94}
-	f.stdPageSizes["letter"] = SizeType{612, 792}
-	f.stdPageSizes["legal"] = SizeType{612, 1008}
-	f.stdPageSizes["tabloid"] = SizeType{792, 1224}
+	r.stdPageSizes = make(map[string]SizeType)
+	r.stdPageSizes["a3"] = SizeType{841.89, 1190.55}
+	r.stdPageSizes["a4"] = SizeType{595.28, 841.89}
+	r.stdPageSizes["a5"] = SizeType{420.94, 595.28}
+	r.stdPageSizes["a6"] = SizeType{297.64, 420.94}
+	r.stdPageSizes["a7"] = SizeType{209.76, 297.64}
+	r.stdPageSizes["a8"] = SizeType{147.40, 209.76}
+	r.stdPageSizes["a2"] = SizeType{1190.55, 1683.78}
+	r.stdPageSizes["a1"] = SizeType{1683.78, 2383.94}
+	r.stdPageSizes["letter"] = SizeType{612, 792}
+	r.stdPageSizes["legal"] = SizeType{612, 1008}
+	r.stdPageSizes["tabloid"] = SizeType{792, 1224}
 	if size.Wd > 0 && size.Ht > 0 {
-		f.defPageSize = size
+		r.defPageSize = size
 	} else {
-		f.defPageSize = f.getpagesizestr(sizeStr)
-		if f.err != nil {
+		r.defPageSize = r.getpagesizestr(sizeStr)
+		if r.err != nil {
 			return
 		}
 	}
-	f.curPageSize = f.defPageSize
+	r.curPageSize = r.defPageSize
 	// Page orientation
 	switch orientationStr {
 	case "p", "portrait":
-		f.defOrientation = "P"
-		f.w = f.defPageSize.Wd
-		f.h = f.defPageSize.Ht
-		// dbg("Assign h: %8.2f", f.h)
+		r.defOrientation = "P"
+		r.w = r.defPageSize.Wd
+		r.h = r.defPageSize.Ht
+		// dbg("Assign h: %8.2f", r.h)
 	case "l", "landscape":
-		f.defOrientation = "L"
-		f.w = f.defPageSize.Ht
-		f.h = f.defPageSize.Wd
+		r.defOrientation = "L"
+		r.w = r.defPageSize.Ht
+		r.h = r.defPageSize.Wd
 	default:
-		f.err = fmt.Errorf("incorrect orientation: %s", orientationStr)
+		r.err = fmt.Errorf("incorrect orientation: %s", orientationStr)
 		return
 	}
-	f.curOrientation = f.defOrientation
-	f.wPt = f.w * f.k
-	f.hPt = f.h * f.k
+	r.curOrientation = r.defOrientation
+	r.wPt = r.w * r.k
+	r.hPt = r.h * r.k
 	// Page margins (1 cm)
-	margin := 28.35 / f.k
-	f.SetMargins(margin, margin, margin)
+	margin := 28.35 / r.k
+	r.SetMargins(margin, margin, margin)
 	// Interior cell margin (1 mm)
-	f.cMargin = margin / 10
+	r.cMargin = margin / 10
 	// Line width (0.2 mm)
-	f.lineWidth = 0.567 / f.k
+	r.lineWidth = 0.567 / r.k
 	// 	Automatic page break
-	f.SetAutoPageBreak(true, 2*margin)
+	r.SetAutoPageBreak(true, 2*margin)
 	// Default display mode
-	f.SetDisplayMode("default", "default")
-	if f.err != nil {
+	r.SetDisplayMode("default", "default")
+	if r.err != nil {
 		return
 	}
-	f.acceptPageBreak = func() bool {
-		return f.autoPageBreak
+	r.acceptPageBreak = func() bool {
+		return r.autoPageBreak
 	}
 	// Enable compression
-	f.SetCompression(!gl.noCompress)
-	f.spotColorMap = make(map[string]spotColorType)
-	f.blendList = make([]blendModeType, 0, 8)
-	f.blendList = append(f.blendList, blendModeType{}) // blendList[0] is unused (1-based)
-	f.blendMap = make(map[string]int)
-	f.blendMode = "Normal"
-	f.alpha = 1
-	f.gradientList = make([]gradientType, 0, 8)
-	f.gradientList = append(f.gradientList, gradientType{}) // gradientList[0] is unused
+	r.SetCompression(!gl.noCompress)
+	r.spotColorMap = make(map[string]spotColorType)
+	r.blendList = make([]blendModeType, 0, 8)
+	r.blendList = append(r.blendList, blendModeType{}) // blendList[0] is unused (1-based)
+	r.blendMap = make(map[string]int)
+	r.blendMode = "Normal"
+	r.alpha = 1
+	r.gradientList = make([]gradientType, 0, 8)
+	r.gradientList = append(r.gradientList, gradientType{}) // gradientList[0] is unused
 	// Set default PDF version number
-	f.pdfVersion = pdfVers1_3
-	f.SetProducer("FPDF "+cnFpdfVersion, true)
-	f.layerInit()
-	f.catalogSort = gl.catalogSort
-	f.creationDate = gl.creationDate
-	f.modDate = gl.modDate
-	f.userUnderlineThickness = 1
+	r.pdfVersion = pdfVers1_3
+	r.SetProducer("FPDF "+cnFpdfVersion, true)
+	r.layerInit()
+	r.catalogSort = gl.catalogSort
+	r.creationDate = gl.creationDate
+	r.modDate = gl.modDate
+	r.userUnderlineThickness = 1
 
 	// create a large enough buffer for formatting float64s.
 	// math.MaxInt64  needs 19.
 	// math.MaxUint64 needs 20.
-	f.fmt.buf = make([]byte, 24)
+	r.fmt.buf = make([]byte, 24)
 	return
 }
 
@@ -219,7 +219,7 @@ func fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr string, size SizeType)
 // subsequently called to produce a single PDF document. NewCustom() is an
 // alternative to New() that provides additional customization. The PageSize()
 // example demonstrates this method.
-func NewCustom(init *InitType) (f *Renderer) {
+func NewCustom(init *InitType) (r *Renderer) {
 	return fpdfNew(init.OrientationStr, init.UnitStr, init.SizeStr, init.FontDirStr, init.Size)
 }
 
@@ -243,26 +243,26 @@ func NewCustom(init *InitType) (f *Renderer) {
 // reference an actual directory if a font other than one of the core
 // fonts is used. The core fonts are "courier", "helvetica" (also called
 // "arial"), "times", and "zapfdingbats" (also called "symbol").
-func New(orientationStr, unitStr, sizeStr, fontDirStr string) (f *Renderer) {
+func New(orientationStr, unitStr, sizeStr, fontDirStr string) (r *Renderer) {
 	return fpdfNew(orientationStr, unitStr, sizeStr, fontDirStr, SizeType{0, 0})
 }
 
 // Ok returns true if no processing errors have occurred.
-func (f *Renderer) Ok() bool {
-	return f.err == nil
+func (r *Renderer) Ok() bool {
+	return r.err == nil
 }
 
 // Err returns true if a processing error has occurred.
-func (f *Renderer) Err() bool {
-	return f.err != nil
+func (r *Renderer) Err() bool {
+	return r.err != nil
 }
 
 // ClearError unsets the internal Renderer error. This method should be used with
 // care, as an internal error condition usually indicates an unrecoverable
 // problem with the generation of a document. It is intended to deal with cases
 // in which an error is used to select an alternate form of the document.
-func (f *Renderer) ClearError() {
-	f.err = nil
+func (r *Renderer) ClearError() {
+	r.err = nil
 }
 
 // SetErrorf sets the internal Renderer error with formatted text to halt PDF
@@ -271,92 +271,92 @@ func (f *Renderer) ClearError() {
 //
 // See the documentation for printing in the standard fmt package for details
 // about fmtStr and args.
-func (f *Renderer) SetErrorf(fmtStr string, args ...any) {
-	if f.err == nil {
-		f.err = fmt.Errorf(fmtStr, args...)
+func (r *Renderer) SetErrorf(fmtStr string, args ...any) {
+	if r.err == nil {
+		r.err = fmt.Errorf(fmtStr, args...)
 	}
 }
 
 // String satisfies the fmt.Stringer interface and summarizes the Renderer
 // instance.
-func (f *Renderer) String() string {
+func (r *Renderer) String() string {
 	return "Renderer " + cnFpdfVersion
 }
 
 // SetError sets an error to halt PDF generation. This may facilitate error
 // handling by application. See also Ok(), Err() and Error().
-func (f *Renderer) SetError(err error) {
-	if f.err == nil && err != nil {
-		f.err = err
+func (r *Renderer) SetError(err error) {
+	if r.err == nil && err != nil {
+		r.err = err
 	}
 }
 
 // Error returns the internal Renderer error; this will be nil if no error has occurred.
-func (f *Renderer) Error() error {
-	return f.err
+func (r *Renderer) Error() error {
+	return r.err
 }
 
 // GetPageSize returns the current page's width and height. This is the paper's
 // size. To compute the size of the area being used, subtract the margins (see
 // GetMargins()).
-func (f *Renderer) GetPageSize() (width, height float64) {
-	width = f.w
-	height = f.h
+func (r *Renderer) GetPageSize() (width, height float64) {
+	width = r.w
+	height = r.h
 	return
 }
 
 // GetMargins returns the left, top, right, and bottom margins. The first three
 // are set with the SetMargins() method. The bottom margin is set with the
 // SetAutoPageBreak() method.
-func (f *Renderer) GetMargins() (left, top, right, bottom float64) {
-	left = f.lMargin
-	top = f.tMargin
-	right = f.rMargin
-	bottom = f.bMargin
+func (r *Renderer) GetMargins() (left, top, right, bottom float64) {
+	left = r.lMargin
+	top = r.tMargin
+	right = r.rMargin
+	bottom = r.bMargin
 	return
 }
 
 // SetMargins defines the left, top and right margins. By default, they equal 1
 // cm. Call this method to change them. If the value of the right margin is
 // less than zero, it is set to the same as the left margin.
-func (f *Renderer) SetMargins(left, top, right float64) {
-	f.lMargin = left
-	f.tMargin = top
+func (r *Renderer) SetMargins(left, top, right float64) {
+	r.lMargin = left
+	r.tMargin = top
 	if right < 0 {
 		right = left
 	}
-	f.rMargin = right
+	r.rMargin = right
 }
 
 // SetLeftMargin defines the left margin. The method can be called before
 // creating the first page. If the current abscissa gets out of page, it is
 // brought back to the margin.
-func (f *Renderer) SetLeftMargin(margin float64) {
-	f.lMargin = margin
-	if f.page > 0 && f.x < margin {
-		f.x = margin
+func (r *Renderer) SetLeftMargin(margin float64) {
+	r.lMargin = margin
+	if r.page > 0 && r.x < margin {
+		r.x = margin
 	}
 }
 
 // GetCellMargin returns the cell margin. This is the amount of space before
 // and after the text within a cell that's left blank, and is in units passed
 // to New(). It defaults to 1mm.
-func (f *Renderer) GetCellMargin() float64 {
-	return f.cMargin
+func (r *Renderer) GetCellMargin() float64 {
+	return r.cMargin
 }
 
 // SetCellMargin sets the cell margin. This is the amount of space before and
 // after the text within a cell that's left blank, and is in units passed to
 // New().
-func (f *Renderer) SetCellMargin(margin float64) {
-	f.cMargin = margin
+func (r *Renderer) SetCellMargin(margin float64) {
+	r.cMargin = margin
 }
 
 // SetPageBoxRec sets the page box for the current page, and any following
 // pages. Allowable types are trim, trimbox, crop, cropbox, bleed, bleedbox,
 // art and artbox box types are case insensitive. See SetPageBox() for a method
 // that specifies the coordinates and extent of the page box individually.
-func (f *Renderer) SetPageBoxRec(t string, pb PageBox) {
+func (r *Renderer) SetPageBoxRec(t string, pb PageBox) {
 	switch strings.ToLower(t) {
 	case "trim":
 		fallthrough
@@ -375,61 +375,61 @@ func (f *Renderer) SetPageBoxRec(t string, pb PageBox) {
 	case "artbox":
 		t = "ArtBox"
 	default:
-		f.err = fmt.Errorf("%s is not a valid page box type", t)
+		r.err = fmt.Errorf("%s is not a valid page box type", t)
 		return
 	}
 
-	pb.X = pb.X * f.k
-	pb.Y = pb.Y * f.k
-	pb.Wd = (pb.Wd * f.k) + pb.X
-	pb.Ht = (pb.Ht * f.k) + pb.Y
+	pb.X = pb.X * r.k
+	pb.Y = pb.Y * r.k
+	pb.Wd = (pb.Wd * r.k) + pb.X
+	pb.Ht = (pb.Ht * r.k) + pb.Y
 
-	if f.page > 0 {
-		f.pageBoxes[f.page][t] = pb
+	if r.page > 0 {
+		r.pageBoxes[r.page][t] = pb
 	}
 
 	// always override. page defaults are supplied in addPage function
-	f.defPageBoxes[t] = pb
+	r.defPageBoxes[t] = pb
 }
 
 // SetPageBox sets the page box for the current page, and any following pages.
 // Allowable types are trim, trimbox, crop, cropbox, bleed, bleedbox, art and
 // artbox box types are case insensitive.
-func (f *Renderer) SetPageBox(t string, x, y, wd, ht float64) {
-	f.SetPageBoxRec(t, PageBox{SizeType{Wd: wd, Ht: ht}, PointType{X: x, Y: y}})
+func (r *Renderer) SetPageBox(t string, x, y, wd, ht float64) {
+	r.SetPageBoxRec(t, PageBox{SizeType{Wd: wd, Ht: ht}, PointType{X: x, Y: y}})
 }
 
 // SetPage sets the current page to that of a valid page in the PDF document.
 // pageNum is one-based. The SetPage() example demonstrates this method.
-func (f *Renderer) SetPage(pageNum int) {
-	if (pageNum > 0) && (pageNum < len(f.pages)) {
-		f.page = pageNum
+func (r *Renderer) SetPage(pageNum int) {
+	if (pageNum > 0) && (pageNum < len(r.pages)) {
+		r.page = pageNum
 	}
 }
 
 // PageCount returns the number of pages currently in the document. Since page
 // numbers in gofpdf are one-based, the page count is the same as the page
 // number of the current last page.
-func (f *Renderer) PageCount() int {
-	return len(f.pages) - 1
+func (r *Renderer) PageCount() int {
+	return len(r.pages) - 1
 }
 
 // GetFontLocation returns the location in the file system of the font and font
 // definition files.
-func (f *Renderer) GetFontLocation() string {
-	return f.fontpath
+func (r *Renderer) GetFontLocation() string {
+	return r.fontpath
 }
 
 // SetFontLocation sets the location in the file system of the font and font
 // definition files.
-func (f *Renderer) SetFontLocation(fontDirStr string) {
-	f.fontpath = fontDirStr
+func (r *Renderer) SetFontLocation(fontDirStr string) {
+	r.fontpath = fontDirStr
 }
 
 // GetFontLoader returns the loader used to read font files (.json and .z) from
 // an arbitrary source.
-func (f *Renderer) GetFontLoader() FontLoader {
-	return f.fontLoader
+func (r *Renderer) GetFontLoader() FontLoader {
+	return r.fontLoader
 }
 
 // SetFontLoader sets a loader used to read font files (.json and .z) from an
@@ -437,17 +437,17 @@ func (f *Renderer) GetFontLoader() FontLoader {
 // the named font resources when AddFont() is called. If this operation fails,
 // an attempt is made to load the resources from the configured font directory
 // (see SetFontLocation()).
-func (f *Renderer) SetFontLoader(loader FontLoader) {
-	f.fontLoader = loader
+func (r *Renderer) SetFontLoader(loader FontLoader) {
+	r.fontLoader = loader
 }
 
 // SetHeaderFuncMode sets the function that lets the application render the
 // page header. See SetHeaderFunc() for more details. The value for homeMode
 // should be set to true to have the current position set to the left and top
 // margin after the header function is called.
-func (f *Renderer) SetHeaderFuncMode(fnc func(), homeMode bool) {
-	f.headerFnc = fnc
-	f.headerHomeMode = homeMode
+func (r *Renderer) SetHeaderFuncMode(fnc func(), homeMode bool) {
+	r.headerFnc = fnc
+	r.headerHomeMode = homeMode
 }
 
 // SetHeaderFunc sets the function that lets the application render the page
@@ -463,8 +463,8 @@ func (f *Renderer) SetHeaderFuncMode(fnc func(), homeMode bool) {
 // watermark on each page is demonstrated in the example for TransformRotate.
 //
 // This method is demonstrated in the example for AddPage().
-func (f *Renderer) SetHeaderFunc(fnc func()) {
-	f.headerFnc = fnc
+func (r *Renderer) SetHeaderFunc(fnc func()) {
+	r.headerFnc = fnc
 }
 
 // SetFooterFunc sets the function that lets the application render the page
@@ -476,9 +476,9 @@ func (f *Renderer) SetHeaderFunc(fnc func()) {
 // SetFooterFuncLpi for a similar function that passes a last page indicator.
 //
 // This method is demonstrated in the example for AddPage().
-func (f *Renderer) SetFooterFunc(fnc func()) {
-	f.footerFnc = fnc
-	f.footerFncLpi = nil
+func (r *Renderer) SetFooterFunc(fnc func()) {
+	r.footerFnc = fnc
+	r.footerFncLpi = nil
 }
 
 // SetFooterFuncLpi sets the function that lets the application render the page
@@ -488,29 +488,29 @@ func (f *Renderer) SetFooterFunc(fnc func()) {
 // implementation in Renderer is empty, so you have to provide an appropriate
 // function if you want page footers. fnc will typically be a closure that has
 // access to the Renderer instance and other document generation variables.
-func (f *Renderer) SetFooterFuncLpi(fnc func(lastPage bool)) {
-	f.footerFncLpi = fnc
-	f.footerFnc = nil
+func (r *Renderer) SetFooterFuncLpi(fnc func(lastPage bool)) {
+	r.footerFncLpi = fnc
+	r.footerFnc = nil
 }
 
 // SetTopMargin defines the top margin. The method can be called before
 // creating the first page.
-func (f *Renderer) SetTopMargin(margin float64) {
-	f.tMargin = margin
+func (r *Renderer) SetTopMargin(margin float64) {
+	r.tMargin = margin
 }
 
 // SetRightMargin defines the right margin. The method can be called before
 // creating the first page.
-func (f *Renderer) SetRightMargin(margin float64) {
-	f.rMargin = margin
+func (r *Renderer) SetRightMargin(margin float64) {
+	r.rMargin = margin
 }
 
 // GetAutoPageBreak returns true if automatic pages breaks are enabled, false
 // otherwise. This is followed by the triggering limit from the bottom of the
 // page. This value applies only if automatic page breaks are enabled.
-func (f *Renderer) GetAutoPageBreak() (auto bool, margin float64) {
-	auto = f.autoPageBreak
-	margin = f.bMargin
+func (r *Renderer) GetAutoPageBreak() (auto bool, margin float64) {
+	auto = r.autoPageBreak
+	margin = r.bMargin
 	return
 }
 
@@ -518,15 +518,15 @@ func (f *Renderer) GetAutoPageBreak() (auto bool, margin float64) {
 // enabling, the second parameter is the distance from the bottom of the page
 // that defines the triggering limit. By default, the mode is on and the margin
 // is 2 cm.
-func (f *Renderer) SetAutoPageBreak(auto bool, margin float64) {
-	f.autoPageBreak = auto
-	f.bMargin = margin
-	f.pageBreakTrigger = f.h - margin
+func (r *Renderer) SetAutoPageBreak(auto bool, margin float64) {
+	r.autoPageBreak = auto
+	r.bMargin = margin
+	r.pageBreakTrigger = r.h - margin
 }
 
 // GetDisplayMode returns the current display mode. See SetDisplayMode() for details.
-func (f *Renderer) GetDisplayMode() (zoomStr, layoutStr string) {
-	return f.zoomMode, f.layoutMode
+func (r *Renderer) GetDisplayMode() (zoomStr, layoutStr string) {
+	return r.zoomMode, r.layoutMode
 }
 
 // SetDisplayMode sets advisory display directives for the document viewer.
@@ -548,8 +548,8 @@ func (f *Renderer) GetDisplayMode() (zoomStr, layoutStr string) {
 // time with odd-numbered pages on the left, or "TwoPageRight" to display pages
 // two at a time with odd-numbered pages on the right, or "default" to use
 // viewer default mode.
-func (f *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
-	if f.err != nil {
+func (r *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
+	if r.err != nil {
 		return
 	}
 	if layoutStr == "" {
@@ -557,17 +557,17 @@ func (f *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
 	}
 	switch zoomStr {
 	case "fullpage", "fullwidth", "real", "default":
-		f.zoomMode = zoomStr
+		r.zoomMode = zoomStr
 	default:
-		f.err = fmt.Errorf("incorrect zoom display mode: %s", zoomStr)
+		r.err = fmt.Errorf("incorrect zoom display mode: %s", zoomStr)
 		return
 	}
 	switch layoutStr {
 	case "single", "continuous", "two", "default", "SinglePage", "OneColumn",
 		"TwoColumnLeft", "TwoColumnRight", "TwoPageLeft", "TwoPageRight":
-		f.layoutMode = layoutStr
+		r.layoutMode = layoutStr
 	default:
-		f.err = fmt.Errorf("incorrect layout display mode: %s", layoutStr)
+		r.err = fmt.Errorf("incorrect layout display mode: %s", layoutStr)
 		return
 	}
 }
@@ -580,128 +580,128 @@ func SetDefaultCompression(compress bool) {
 }
 
 // GetCompression returns whether page compression is enabled.
-func (f *Renderer) GetCompression() bool {
-	return f.compress
+func (r *Renderer) GetCompression() bool {
+	return r.compress
 }
 
 // SetCompression activates or deactivates page compression with zlib. When
 // activated, the internal representation of each page is compressed, which
 // leads to a compression ratio of about 2 for the resulting document.
 // Compression is on by default.
-func (f *Renderer) SetCompression(compress bool) {
-	f.compress = compress
+func (r *Renderer) SetCompression(compress bool) {
+	r.compress = compress
 }
 
 // GetProducer returns the producer of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetProducer() string {
-	return f.producer
+func (r *Renderer) GetProducer() string {
+	return r.producer
 }
 
 // SetProducer defines the producer of the document. isUTF8 indicates if the string
 // is encoded in ISO-8859-1 (false) or UTF-8 (true).
-func (f *Renderer) SetProducer(producerStr string, isUTF8 bool) {
+func (r *Renderer) SetProducer(producerStr string, isUTF8 bool) {
 	if isUTF8 {
 		producerStr = utf8toutf16(producerStr)
 	}
-	f.producer = producerStr
+	r.producer = producerStr
 }
 
 // GetTitle returns the title of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetTitle() string {
-	return f.title
+func (r *Renderer) GetTitle() string {
+	return r.title
 }
 
 // SetTitle defines the title of the document. isUTF8 indicates if the string
 // is encoded in ISO-8859-1 (false) or UTF-8 (true).
-func (f *Renderer) SetTitle(titleStr string, isUTF8 bool) {
+func (r *Renderer) SetTitle(titleStr string, isUTF8 bool) {
 	if isUTF8 {
 		titleStr = utf8toutf16(titleStr)
 	}
-	f.title = titleStr
+	r.title = titleStr
 }
 
 // GetSubject returns the subject of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetSubject() string {
-	return f.subject
+func (r *Renderer) GetSubject() string {
+	return r.subject
 }
 
 // SetSubject defines the subject of the document. isUTF8 indicates if the
 // string is encoded in ISO-8859-1 (false) or UTF-8 (true).
-func (f *Renderer) SetSubject(subjectStr string, isUTF8 bool) {
+func (r *Renderer) SetSubject(subjectStr string, isUTF8 bool) {
 	if isUTF8 {
 		subjectStr = utf8toutf16(subjectStr)
 	}
-	f.subject = subjectStr
+	r.subject = subjectStr
 }
 
 // GetAuthor returns the author of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetAuthor() string {
-	return f.author
+func (r *Renderer) GetAuthor() string {
+	return r.author
 }
 
 // SetAuthor defines the author of the document. isUTF8 indicates if the string
 // is encoded in ISO-8859-1 (false) or UTF-8 (true).
-func (f *Renderer) SetAuthor(authorStr string, isUTF8 bool) {
+func (r *Renderer) SetAuthor(authorStr string, isUTF8 bool) {
 	if isUTF8 {
 		authorStr = utf8toutf16(authorStr)
 	}
-	f.author = authorStr
+	r.author = authorStr
 }
 
 // GetLang returns the natural language of the document (e.g. "de-CH").
-func (f *Renderer) GetLang() string {
-	return f.lang
+func (r *Renderer) GetLang() string {
+	return r.lang
 }
 
 // SetLang defines the natural language of the document (e.g. "de-CH").
-func (f *Renderer) SetLang(lang string) {
-	f.lang = lang
+func (r *Renderer) SetLang(lang string) {
+	r.lang = lang
 }
 
 // GetKeywords returns the keywords of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetKeywords() string {
-	return f.keywords
+func (r *Renderer) GetKeywords() string {
+	return r.keywords
 }
 
 // SetKeywords defines the keywords of the document. keywordStr is a
 // space-delimited string, for example "invoice August". isUTF8 indicates if
 // the string is encoded
-func (f *Renderer) SetKeywords(keywordsStr string, isUTF8 bool) {
+func (r *Renderer) SetKeywords(keywordsStr string, isUTF8 bool) {
 	if isUTF8 {
 		keywordsStr = utf8toutf16(keywordsStr)
 	}
-	f.keywords = keywordsStr
+	r.keywords = keywordsStr
 }
 
 // GetCreator returns the creator of the document as ISO-8859-1 or UTF-16BE.
-func (f *Renderer) GetCreator() string {
-	return f.creator
+func (r *Renderer) GetCreator() string {
+	return r.creator
 }
 
 // SetCreator defines the creator of the document. isUTF8 indicates if the
 // string is encoded in ISO-8859-1 (false) or UTF-8 (true).
-func (f *Renderer) SetCreator(creatorStr string, isUTF8 bool) {
+func (r *Renderer) SetCreator(creatorStr string, isUTF8 bool) {
 	if isUTF8 {
 		creatorStr = utf8toutf16(creatorStr)
 	}
-	f.creator = creatorStr
+	r.creator = creatorStr
 }
 
 // GetXmpMetadata returns the XMP metadata that will be embedded with the document.
-func (f *Renderer) GetXmpMetadata() []byte {
-	return []byte(string(f.xmp))
+func (r *Renderer) GetXmpMetadata() []byte {
+	return []byte(string(r.xmp))
 }
 
 // SetXmpMetadata defines XMP metadata that will be embedded with the document.
-func (f *Renderer) SetXmpMetadata(xmpStream []byte) {
-	f.xmp = xmpStream
+func (r *Renderer) SetXmpMetadata(xmpStream []byte) {
+	r.xmp = xmpStream
 }
 
 // AddOutputIntent adds an output intent with ICC color profile
-func (f *Renderer) AddOutputIntent(outputIntent OutputIntentType) {
-	f.outputIntents = append(f.outputIntents, outputIntent)
-	if f.pdfVersion < pdfVers1_4 {
-		f.pdfVersion = pdfVers1_4
+func (r *Renderer) AddOutputIntent(outputIntent OutputIntentType) {
+	r.outputIntents = append(r.outputIntents, outputIntent)
+	if r.pdfVersion < pdfVers1_4 {
+		r.pdfVersion = pdfVers1_4
 	}
 }
 
@@ -710,65 +710,65 @@ func (f *Renderer) AddOutputIntent(outputIntent OutputIntentType) {
 // string "{nb}".
 //
 // See the example for AddPage() for a demonstration of this method.
-func (f *Renderer) AliasNbPages(aliasStr string) {
+func (r *Renderer) AliasNbPages(aliasStr string) {
 	if aliasStr == "" {
 		aliasStr = "{nb}"
 	}
-	f.aliasNbPagesStr = aliasStr
+	r.aliasNbPagesStr = aliasStr
 }
 
 // RTL enables right-to-left mode
-func (f *Renderer) RTL() {
-	f.isRTL = true
+func (r *Renderer) RTL() {
+	r.isRTL = true
 }
 
 // LTR disables right-to-left mode
-func (f *Renderer) LTR() {
-	f.isRTL = false
+func (r *Renderer) LTR() {
+	r.isRTL = false
 }
 
 // open begins a document
-func (f *Renderer) open() {
-	f.state = 1
+func (r *Renderer) open() {
+	r.state = 1
 }
 
 // Close terminates the PDF document. It is not necessary to call this method
 // explicitly because Output(), OutputAndClose() and OutputFileAndClose() do it
 // automatically. If the document contains no page, AddPage() is called to
 // prevent the generation of an invalid document.
-func (f *Renderer) Close() {
-	if f.err == nil {
-		if f.clipNest > 0 {
-			f.err = fmt.Errorf("clip procedure must be explicitly ended")
-		} else if f.transformNest > 0 {
-			f.err = fmt.Errorf("transformation procedure must be explicitly ended")
+func (r *Renderer) Close() {
+	if r.err == nil {
+		if r.clipNest > 0 {
+			r.err = fmt.Errorf("clip procedure must be explicitly ended")
+		} else if r.transformNest > 0 {
+			r.err = fmt.Errorf("transformation procedure must be explicitly ended")
 		}
 	}
-	if f.err != nil {
+	if r.err != nil {
 		return
 	}
-	if f.state == 3 {
+	if r.state == 3 {
 		return
 	}
-	if f.page == 0 {
-		f.AddPage()
-		if f.err != nil {
+	if r.page == 0 {
+		r.AddPage()
+		if r.err != nil {
 			return
 		}
 	}
 	// Page footer
-	f.inFooter = true
-	if f.footerFnc != nil {
-		f.footerFnc()
-	} else if f.footerFncLpi != nil {
-		f.footerFncLpi(true)
+	r.inFooter = true
+	if r.footerFnc != nil {
+		r.footerFnc()
+	} else if r.footerFncLpi != nil {
+		r.footerFncLpi(true)
 	}
-	f.inFooter = false
+	r.inFooter = false
 
 	// Close page
-	f.endpage()
+	r.endpage()
 	// Close document
-	f.enddoc()
+	r.enddoc()
 }
 
 // PageSize returns the width and height of the specified page in the units
@@ -776,14 +776,14 @@ func (f *Renderer) Close() {
 // measure itself. If pageNum is zero or otherwise out of bounds, it returns
 // the default page size, that is, the size of the page that would be added by
 // AddPage().
-func (f *Renderer) PageSize(pageNum int) (wd, ht float64, unitStr string) {
-	sz, ok := f.pageSizes[pageNum]
+func (r *Renderer) PageSize(pageNum int) (wd, ht float64, unitStr string) {
+	sz, ok := r.pageSizes[pageNum]
 	if ok {
-		sz.Wd, sz.Ht = sz.Wd/f.k, sz.Ht/f.k
+		sz.Wd, sz.Ht = sz.Wd/r.k, sz.Ht/r.k
 	} else {
-		sz = f.defPageSize // user units
+		sz = r.defPageSize // user units
 	}
-	return sz.Wd, sz.Ht, f.unitStr
+	return sz.Wd, sz.Ht, r.unitStr
 }
 
 // AddPageFormat adds a new page with non-default orientation or size. See
@@ -794,108 +794,108 @@ func (f *Renderer) PageSize(pageNum int) (wd, ht float64, unitStr string) {
 // size specifies the size of the new page in the units established in New().
 //
 // The PageSize() example demonstrates this method.
-func (f *Renderer) AddPageFormat(orientationStr string, size SizeType) {
-	if f.err != nil {
+func (r *Renderer) AddPageFormat(orientationStr string, size SizeType) {
+	if r.err != nil {
 		return
 	}
-	if f.page != len(f.pages)-1 {
-		f.page = len(f.pages) - 1
+	if r.page != len(r.pages)-1 {
+		r.page = len(r.pages) - 1
 	}
-	if f.state == 0 {
-		f.open()
+	if r.state == 0 {
+		r.open()
 	}
-	familyStr := f.fontFamily
-	style := f.fontStyle
-	if f.underline {
+	familyStr := r.fontFamily
+	style := r.fontStyle
+	if r.underline {
 		style += "U"
 	}
-	if f.strikeout {
+	if r.strikeout {
 		style += "S"
 	}
-	fontsize := f.fontSizePt
-	lw := f.lineWidth
-	dc := f.color.draw
-	fc := f.color.fill
-	tc := f.color.text
-	cf := f.colorFlag
+	fontsize := r.fontSizePt
+	lw := r.lineWidth
+	dc := r.color.draw
+	fc := r.color.fill
+	tc := r.color.text
+	cf := r.colorFlag
 
-	if f.page > 0 {
-		f.inFooter = true
+	if r.page > 0 {
+		r.inFooter = true
 		// Page footer avoid double call on footer.
-		if f.footerFnc != nil {
-			f.footerFnc()
+		if r.footerFnc != nil {
+			r.footerFnc()
 
-		} else if f.footerFncLpi != nil {
-			f.footerFncLpi(false) // not last page.
+		} else if r.footerFncLpi != nil {
+			r.footerFncLpi(false) // not last page.
 		}
-		f.inFooter = false
+		r.inFooter = false
 		// Close page
-		f.endpage()
+		r.endpage()
 	}
 	// Start new page
-	f.beginpage(orientationStr, size)
+	r.beginpage(orientationStr, size)
 	// 	Set line cap style to current value
-	// f.out("2 J")
-	f.outf("%d J", f.capStyle)
+	// r.out("2 J")
+	r.outf("%d J", r.capStyle)
 	// 	Set line join style to current value
-	f.outf("%d j", f.joinStyle)
+	r.outf("%d j", r.joinStyle)
 	// Set line width
-	f.lineWidth = lw
-	f.outf("%.2f w", lw*f.k)
+	r.lineWidth = lw
+	r.outf("%.2f w", lw*r.k)
 	// Set dash pattern
-	if len(f.dashArray) > 0 {
-		f.outputDashPattern()
+	if len(r.dashArray) > 0 {
+		r.outputDashPattern()
 	}
 	// 	Set font
 	if familyStr != "" {
-		f.SetFont(familyStr, style, fontsize)
-		if f.err != nil {
+		r.SetFont(familyStr, style, fontsize)
+		if r.err != nil {
 			return
 		}
 	}
 	// 	Set colors
-	f.color.draw = dc
+	r.color.draw = dc
 	if dc.str != "0 G" {
-		f.out(dc.str)
+		r.out(dc.str)
 	}
-	f.color.fill = fc
+	r.color.fill = fc
 	if fc.str != "0 g" {
-		f.out(fc.str)
+		r.out(fc.str)
 	}
-	f.color.text = tc
-	f.colorFlag = cf
+	r.color.text = tc
+	r.colorFlag = cf
 	// 	Page header
-	if f.headerFnc != nil {
-		f.inHeader = true
-		f.headerFnc()
-		f.inHeader = false
-		if f.headerHomeMode {
-			f.SetHomeXY()
+	if r.headerFnc != nil {
+		r.inHeader = true
+		r.headerFnc()
+		r.inHeader = false
+		if r.headerHomeMode {
+			r.SetHomeXY()
 		}
 	}
 	// 	Restore line width
-	if f.lineWidth != lw {
-		f.lineWidth = lw
-		f.outf("%.2f w", lw*f.k)
+	if r.lineWidth != lw {
+		r.lineWidth = lw
+		r.outf("%.2f w", lw*r.k)
 	}
 	// Restore font
 	if familyStr != "" {
-		f.SetFont(familyStr, style, fontsize)
-		if f.err != nil {
+		r.SetFont(familyStr, style, fontsize)
+		if r.err != nil {
 			return
 		}
 	}
 	// Restore colors
-	if f.color.draw.str != dc.str {
-		f.color.draw = dc
-		f.out(dc.str)
+	if r.color.draw.str != dc.str {
+		r.color.draw = dc
+		r.out(dc.str)
 	}
-	if f.color.fill.str != fc.str {
-		f.color.fill = fc
-		f.out(fc.str)
+	if r.color.fill.str != fc.str {
+		r.color.fill = fc
+		r.out(fc.str)
 	}
-	f.color.text = tc
-	f.colorFlag = cf
+	r.color.text = tc
+	r.colorFlag = cf
 }
 
 // AddPage adds a new page to the document. If a page is already present, the
@@ -912,19 +912,19 @@ func (f *Renderer) AddPageFormat(orientationStr string, size SizeType) {
 //
 // See AddPageFormat() for a version of this method that allows the page size
 // and orientation to be different than the default.
-func (f *Renderer) AddPage() {
-	if f.err != nil {
+func (r *Renderer) AddPage() {
+	if r.err != nil {
 		return
 	}
 	// dbg("AddPage")
-	f.AddPageFormat(f.defOrientation, f.defPageSize)
+	r.AddPageFormat(r.defOrientation, r.defPageSize)
 }
 
 // PageNo returns the current page number.
 //
 // See the example for AddPage() for a demonstration of this method.
-func (f *Renderer) PageNo() int {
-	return f.page
+func (r *Renderer) PageNo() int {
+	return r.page
 }
 
 func colorComp(v int) (int, float64) {
@@ -936,42 +936,42 @@ func colorComp(v int) (int, float64) {
 	return v, float64(v) / 255.0
 }
 
-func (f *Renderer) rgbColorValue(r, g, b int, grayStr, fullStr string) (clr colorType) {
-	clr.ir, clr.r = colorComp(r)
-	clr.ig, clr.g = colorComp(g)
-	clr.ib, clr.b = colorComp(b)
+func (r *Renderer) rgbColorValue(red, green, blue int, grayStr, fullStr string) (clr colorType) {
+	clr.ir, clr.r = colorComp(red)
+	clr.ig, clr.g = colorComp(green)
+	clr.ib, clr.b = colorComp(blue)
 	clr.mode = colorModeRGB
 	clr.gray = clr.ir == clr.ig && clr.r == clr.b
 	const prec = 3
 	if len(grayStr) > 0 {
 		if clr.gray {
 			// clr.str = fmt.Sprintf("%.3f %s", clr.r, grayStr)
-			f.fmt.col.Reset()
-			f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
-			f.fmt.col.WriteString(" ")
-			f.fmt.col.WriteString(grayStr)
-			clr.str = f.fmt.col.String()
+			r.fmt.col.Reset()
+			r.fmt.col.WriteString(r.fmtF64(clr.r, prec))
+			r.fmt.col.WriteString(" ")
+			r.fmt.col.WriteString(grayStr)
+			clr.str = r.fmt.col.String()
 		} else {
 			// clr.str = fmt.Sprintf("%.3f %.3f %.3f %s", clr.r, clr.g, clr.b, fullStr)
-			f.fmt.col.Reset()
-			f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
-			f.fmt.col.WriteString(" ")
-			f.fmt.col.WriteString(f.fmtF64(clr.g, prec))
-			f.fmt.col.WriteString(" ")
-			f.fmt.col.WriteString(f.fmtF64(clr.b, prec))
-			f.fmt.col.WriteString(" ")
-			f.fmt.col.WriteString(fullStr)
-			clr.str = f.fmt.col.String()
+			r.fmt.col.Reset()
+			r.fmt.col.WriteString(r.fmtF64(clr.r, prec))
+			r.fmt.col.WriteString(" ")
+			r.fmt.col.WriteString(r.fmtF64(clr.g, prec))
+			r.fmt.col.WriteString(" ")
+			r.fmt.col.WriteString(r.fmtF64(clr.b, prec))
+			r.fmt.col.WriteString(" ")
+			r.fmt.col.WriteString(fullStr)
+			clr.str = r.fmt.col.String()
 		}
 	} else {
 		// clr.str = fmt.Sprintf("%.3f %.3f %.3f", clr.r, clr.g, clr.b)
-		f.fmt.col.Reset()
-		f.fmt.col.WriteString(f.fmtF64(clr.r, prec))
-		f.fmt.col.WriteString(" ")
-		f.fmt.col.WriteString(f.fmtF64(clr.g, prec))
-		f.fmt.col.WriteString(" ")
-		f.fmt.col.WriteString(f.fmtF64(clr.b, prec))
-		clr.str = f.fmt.col.String()
+		r.fmt.col.Reset()
+		r.fmt.col.WriteString(r.fmtF64(clr.r, prec))
+		r.fmt.col.WriteString(" ")
+		r.fmt.col.WriteString(r.fmtF64(clr.g, prec))
+		r.fmt.col.WriteString(" ")
+		r.fmt.col.WriteString(r.fmtF64(clr.b, prec))
+		clr.str = r.fmt.col.String()
 	}
 	return
 }
@@ -980,92 +980,92 @@ func (f *Renderer) rgbColorValue(r, g, b int, grayStr, fullStr string) (clr colo
 // rectangles and cell borders). It is expressed in RGB components (0 - 255).
 // The method can be called before the first page is created. The value is
 // retained from page to page.
-func (f *Renderer) SetDrawColor(r, g, b int) {
-	f.setDrawColor(r, g, b)
+func (r *Renderer) SetDrawColor(red, green, blue int) {
+	r.setDrawColor(red, green, blue)
 }
 
-func (f *Renderer) setDrawColor(r, g, b int) {
-	f.color.draw = f.rgbColorValue(r, g, b, "G", "RG")
-	if f.page > 0 {
-		f.out(f.color.draw.str)
+func (r *Renderer) setDrawColor(red, green, blue int) {
+	r.color.draw = r.rgbColorValue(red, green, blue, "G", "RG")
+	if r.page > 0 {
+		r.out(r.color.draw.str)
 	}
 }
 
 // GetDrawColor returns the most recently set draw color as RGB components (0 -
 // 255). This will not be the current value if a draw color of some other type
 // (for example, spot) has been more recently set.
-func (f *Renderer) GetDrawColor() (int, int, int) {
-	return f.color.draw.ir, f.color.draw.ig, f.color.draw.ib
+func (r *Renderer) GetDrawColor() (int, int, int) {
+	return r.color.draw.ir, r.color.draw.ig, r.color.draw.ib
 }
 
 // SetFillColor defines the color used for all filling operations (filled
 // rectangles and cell backgrounds). It is expressed in RGB components (0
 // -255). The method can be called before the first page is created and the
 // value is retained from page to page.
-func (f *Renderer) SetFillColor(r, g, b int) {
-	f.setFillColor(r, g, b)
+func (r *Renderer) SetFillColor(red, green, blue int) {
+	r.setFillColor(red, green, blue)
 }
 
-func (f *Renderer) setFillColor(r, g, b int) {
-	f.color.fill = f.rgbColorValue(r, g, b, "g", "rg")
-	f.colorFlag = f.color.fill.str != f.color.text.str
-	if f.page > 0 {
-		f.out(f.color.fill.str)
+func (r *Renderer) setFillColor(red, green, blue int) {
+	r.color.fill = r.rgbColorValue(red, green, blue, "g", "rg")
+	r.colorFlag = r.color.fill.str != r.color.text.str
+	if r.page > 0 {
+		r.out(r.color.fill.str)
 	}
 }
 
 // GetFillColor returns the most recently set fill color as RGB components (0 -
 // 255). This will not be the current value if a fill color of some other type
 // (for example, spot) has been more recently set.
-func (f *Renderer) GetFillColor() (int, int, int) {
-	return f.color.fill.ir, f.color.fill.ig, f.color.fill.ib
+func (r *Renderer) GetFillColor() (int, int, int) {
+	return r.color.fill.ir, r.color.fill.ig, r.color.fill.ib
 }
 
 // SetTextColor defines the color used for text. It is expressed in RGB
 // components (0 - 255). The method can be called before the first page is
 // created. The value is retained from page to page.
-func (f *Renderer) SetTextColor(r, g, b int) {
-	f.setTextColor(r, g, b)
+func (r *Renderer) SetTextColor(red, green, blue int) {
+	r.setTextColor(red, green, blue)
 }
 
-func (f *Renderer) setTextColor(r, g, b int) {
-	f.color.text = f.rgbColorValue(r, g, b, "g", "rg")
-	f.colorFlag = f.color.fill.str != f.color.text.str
+func (r *Renderer) setTextColor(red, green, blue int) {
+	r.color.text = r.rgbColorValue(red, green, blue, "g", "rg")
+	r.colorFlag = r.color.fill.str != r.color.text.str
 }
 
 // GetTextColor returns the most recently set text color as RGB components (0 -
 // 255). This will not be the current value if a text color of some other type
 // (for example, spot) has been more recently set.
-func (f *Renderer) GetTextColor() (int, int, int) {
-	return f.color.text.ir, f.color.text.ig, f.color.text.ib
+func (r *Renderer) GetTextColor() (int, int, int) {
+	return r.color.text.ir, r.color.text.ig, r.color.text.ib
 }
 
 // GetStringWidth returns the length of a string in user units. A font must be
 // currently selected.
-func (f *Renderer) GetStringWidth(s string) float64 {
-	if f.err != nil {
+func (r *Renderer) GetStringWidth(s string) float64 {
+	if r.err != nil {
 		return 0
 	}
-	w := f.GetStringSymbolWidth(s)
-	return float64(w) * f.fontSize / 1000
+	w := r.GetStringSymbolWidth(s)
+	return float64(w) * r.fontSize / 1000
 }
 
 // GetStringSymbolWidth returns the length of a string in glyf units. A font must be
 // currently selected.
-func (f *Renderer) GetStringSymbolWidth(s string) int {
-	if f.err != nil {
+func (r *Renderer) GetStringSymbolWidth(s string) int {
+	if r.err != nil {
 		return 0
 	}
 	w := 0
-	if f.isCurrentUTF8 {
+	if r.isCurrentUTF8 {
 		for _, char := range s {
 			intChar := int(char)
-			if len(f.currentFont.Cw) >= intChar && f.currentFont.Cw[intChar] > 0 {
-				if f.currentFont.Cw[intChar] != 65535 {
-					w += f.currentFont.Cw[intChar]
+			if len(r.currentFont.Cw) >= intChar && r.currentFont.Cw[intChar] > 0 {
+				if r.currentFont.Cw[intChar] != 65535 {
+					w += r.currentFont.Cw[intChar]
 				}
-			} else if f.currentFont.Desc.MissingWidth != 0 {
-				w += f.currentFont.Desc.MissingWidth
+			} else if r.currentFont.Desc.MissingWidth != 0 {
+				w += r.currentFont.Desc.MissingWidth
 			} else {
 				w += 500
 			}
@@ -1075,7 +1075,7 @@ func (f *Renderer) GetStringSymbolWidth(s string) int {
 			if ch == 0 {
 				break
 			}
-			w += f.currentFont.Cw[ch]
+			w += r.currentFont.Cw[ch]
 		}
 	}
 	return w
@@ -1084,25 +1084,25 @@ func (f *Renderer) GetStringSymbolWidth(s string) int {
 // SetLineWidth defines the line width. By default, the value equals 0.2 mm.
 // The method can be called before the first page is created. The value is
 // retained from page to page.
-func (f *Renderer) SetLineWidth(width float64) {
-	f.setLineWidth(width)
+func (r *Renderer) SetLineWidth(width float64) {
+	r.setLineWidth(width)
 }
 
-func (f *Renderer) setLineWidth(width float64) {
-	f.lineWidth = width
-	if f.page > 0 {
-		f.out(f.fmtF64(width*f.k, 2) + " w")
+func (r *Renderer) setLineWidth(width float64) {
+	r.lineWidth = width
+	if r.page > 0 {
+		r.out(r.fmtF64(width*r.k, 2) + " w")
 	}
 }
 
 // GetLineWidth returns the current line thickness.
-func (f *Renderer) GetLineWidth() float64 {
-	return f.lineWidth
+func (r *Renderer) GetLineWidth() float64 {
+	return r.lineWidth
 }
 
 // GetLineCapStyle returns the current line cap style.
-func (f *Renderer) GetLineCapStyle() string {
-	switch f.capStyle {
+func (r *Renderer) GetLineCapStyle() string {
+	switch r.capStyle {
 	case 1:
 		return "round"
 	case 2:
@@ -1116,7 +1116,7 @@ func (f *Renderer) GetLineCapStyle() string {
 // "round" or "square". A square style projects from the end of the line. The
 // method can be called before the first page is created. The value is
 // retained from page to page.
-func (f *Renderer) SetLineCapStyle(styleStr string) {
+func (r *Renderer) SetLineCapStyle(styleStr string) {
 	var capStyle int
 	switch styleStr {
 	case "round":
@@ -1126,15 +1126,15 @@ func (f *Renderer) SetLineCapStyle(styleStr string) {
 	default:
 		capStyle = 0
 	}
-	f.capStyle = capStyle
-	if f.page > 0 {
-		f.outf("%d J", f.capStyle)
+	r.capStyle = capStyle
+	if r.page > 0 {
+		r.outf("%d J", r.capStyle)
 	}
 }
 
 // GetLineJoinStyle returns the current line join style.
-func (f *Renderer) GetLineJoinStyle() string {
-	switch f.joinStyle {
+func (r *Renderer) GetLineJoinStyle() string {
+	switch r.joinStyle {
 	case 1:
 		return "round"
 	case 2:
@@ -1147,7 +1147,7 @@ func (f *Renderer) GetLineJoinStyle() string {
 // SetLineJoinStyle defines the line cap style. styleStr should be "miter",
 // "round" or "bevel". The method can be called before the first page
 // is created. The value is retained from page to page.
-func (f *Renderer) SetLineJoinStyle(styleStr string) {
+func (r *Renderer) SetLineJoinStyle(styleStr string) {
 	var joinStyle int
 	switch styleStr {
 	case "round":
@@ -1157,9 +1157,9 @@ func (f *Renderer) SetLineJoinStyle(styleStr string) {
 	default:
 		joinStyle = 0
 	}
-	f.joinStyle = joinStyle
-	if f.page > 0 {
-		f.outf("%d j", f.joinStyle)
+	r.joinStyle = joinStyle
+	if r.page > 0 {
+		r.outf("%d j", r.joinStyle)
 	}
 }
 
@@ -1171,49 +1171,49 @@ func (f *Renderer) SetLineJoinStyle(styleStr string) {
 // array to restore solid line drawing.
 //
 // The Beziergon() example demonstrates this method.
-func (f *Renderer) SetDashPattern(dashArray []float64, dashPhase float64) {
+func (r *Renderer) SetDashPattern(dashArray []float64, dashPhase float64) {
 	scaled := make([]float64, len(dashArray))
 	for i, value := range dashArray {
-		scaled[i] = value * f.k
+		scaled[i] = value * r.k
 	}
-	dashPhase *= f.k
+	dashPhase *= r.k
 
-	f.dashArray = scaled
-	f.dashPhase = dashPhase
-	if f.page > 0 {
-		f.outputDashPattern()
+	r.dashArray = scaled
+	r.dashPhase = dashPhase
+	if r.page > 0 {
+		r.outputDashPattern()
 	}
 
 }
 
-func (f *Renderer) outputDashPattern() {
+func (r *Renderer) outputDashPattern() {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for i, value := range f.dashArray {
+	for i, value := range r.dashArray {
 		if i > 0 {
 			buf.WriteByte(' ')
 		}
 		buf.WriteString(strconv.FormatFloat(value, 'f', 2, 64))
 	}
 	buf.WriteString("] ")
-	buf.WriteString(strconv.FormatFloat(f.dashPhase, 'f', 2, 64))
+	buf.WriteString(strconv.FormatFloat(r.dashPhase, 'f', 2, 64))
 	buf.WriteString(" d")
-	f.outbuf(&buf)
+	r.outbuf(&buf)
 }
 
 // Line draws a line between points (x1, y1) and (x2, y2) using the current
 // draw color, line width and cap style.
-func (f *Renderer) Line(x1, y1, x2, y2 float64) {
-	// f.outf("%.2f %.2f m %.2f %.2f l S", x1*f.k, (f.h-y1)*f.k, x2*f.k, (f.h-y2)*f.k)
+func (r *Renderer) Line(x1, y1, x2, y2 float64) {
+	// r.outf("%.2f %.2f m %.2f %.2f l S", x1*r.k, (r.h-y1)*r.k, x2*r.k, (r.h-y2)*r.k)
 	const prec = 2
-	f.putF64(x1*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y1)*f.k, prec)
-	f.put(" m ")
-	f.putF64(x2*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y2)*f.k, prec)
-	f.put(" l S\n")
+	r.putF64(x1*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y1)*r.k, prec)
+	r.put(" m ")
+	r.putF64(x2*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y2)*r.k, prec)
+	r.put(" l S\n")
 }
 
 // fillDrawOp corrects path painting operators
@@ -1248,17 +1248,17 @@ func fillDrawOp(styleStr string) (opStr string) {
 // filled. An empty string will be replaced with "D". Drawing uses the current
 // draw color and line width centered on the rectangle's perimeter. Filling
 // uses the current fill color.
-func (f *Renderer) Rect(x, y, w, h float64, styleStr string) {
-	// f.outf("%.2f %.2f %.2f %.2f re %s", x*f.k, (f.h-y)*f.k, w*f.k, -h*f.k, fillDrawOp(styleStr))
+func (r *Renderer) Rect(x, y, w, h float64, styleStr string) {
+	// r.outf("%.2f %.2f %.2f %.2f re %s", x*r.k, (r.h-y)*r.k, w*r.k, -h*r.k, fillDrawOp(styleStr))
 	const prec = 2
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" ")
-	f.putF64(w*f.k, prec)
-	f.put(" ")
-	f.putF64(-h*f.k, prec)
-	f.put(" re " + fillDrawOp(styleStr) + "\n")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" ")
+	r.putF64(w*r.k, prec)
+	r.put(" ")
+	r.putF64(-h*r.k, prec)
+	r.put(" re " + fillDrawOp(styleStr) + "\n")
 }
 
 // RoundedRect outputs a rectangle of width w and height h with the upper left
@@ -1271,32 +1271,32 @@ func (f *Renderer) Rect(x, y, w, h float64, styleStr string) {
 // string that includes "1" to round the upper left corner, "2" to round the
 // upper right corner, "3" to round the lower right corner, and "4" to round
 // the lower left corner. The RoundedRect example demonstrates this method.
-func (f *Renderer) RoundedRect(x, y, w, h, r float64, corners string, stylestr string) {
+func (r *Renderer) RoundedRect(x, y, w, h, radius float64, corners string, stylestr string) {
 	// This routine was adapted by Brigham Thompson from a script by Christophe Prugnaud
 	var rTL, rTR, rBR, rBL float64 // zero means no rounded corner
 	if strings.Contains(corners, "1") {
-		rTL = r
+		rTL = radius
 	}
 	if strings.Contains(corners, "2") {
-		rTR = r
+		rTR = radius
 	}
 	if strings.Contains(corners, "3") {
-		rBR = r
+		rBR = radius
 	}
 	if strings.Contains(corners, "4") {
-		rBL = r
+		rBL = radius
 	}
-	f.RoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL, stylestr)
+	r.RoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL, stylestr)
 }
 
 // RoundedRectExt behaves the same as RoundedRect() but supports a different
 // radius for each corner. A zero radius means squared corner. See
 // RoundedRect() for more details. This method is demonstrated in the
 // RoundedRect() example.
-func (f *Renderer) RoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, stylestr string) {
-	f.roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL)
-	f.out(fillDrawOp(stylestr))
-	f.out("Q")
+func (r *Renderer) RoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, stylestr string) {
+	r.roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL)
+	r.out(fillDrawOp(stylestr))
+	r.out("Q")
 }
 
 // Circle draws a circle centered on point (x, y) with radius r.
@@ -1305,8 +1305,8 @@ func (f *Renderer) RoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, styles
 // outlined and filled. An empty string will be replaced with "D". Drawing uses
 // the current draw color and line width centered on the circle's perimeter.
 // Filling uses the current fill color.
-func (f *Renderer) Circle(x, y, r float64, styleStr string) {
-	f.Ellipse(x, y, r, r, 0, styleStr)
+func (r *Renderer) Circle(x, y, radius float64, styleStr string) {
+	r.Ellipse(x, y, radius, radius, 0, styleStr)
 }
 
 // Ellipse draws an ellipse centered at point (x, y). rx and ry specify its
@@ -1321,8 +1321,8 @@ func (f *Renderer) Circle(x, y, r float64, styleStr string) {
 // Filling uses the current fill color.
 //
 // The Circle() example demonstrates this method.
-func (f *Renderer) Ellipse(x, y, rx, ry, degRotate float64, styleStr string) {
-	f.arc(x, y, rx, ry, degRotate, 0, 360, styleStr, false)
+func (r *Renderer) Ellipse(x, y, rx, ry, degRotate float64, styleStr string) {
+	r.arc(x, y, rx, ry, degRotate, 0, 360, styleStr, false)
 }
 
 // Polygon draws a closed figure defined by a series of vertices specified by
@@ -1334,26 +1334,26 @@ func (f *Renderer) Ellipse(x, y, rx, ry, degRotate float64, styleStr string) {
 // outlined and filled. An empty string will be replaced with "D". Drawing uses
 // the current draw color and line width centered on the ellipse's perimeter.
 // Filling uses the current fill color.
-func (f *Renderer) Polygon(points []PointType, styleStr string) {
+func (r *Renderer) Polygon(points []PointType, styleStr string) {
 	if len(points) > 2 {
 		const prec = 5
 		for j, pt := range points {
 			if j == 0 {
-				f.point(pt.X, pt.Y)
+				r.point(pt.X, pt.Y)
 			} else {
-				// f.outf("%.5f %.5f l ", pt.X*f.k, (f.h-pt.Y)*f.k)
-				f.putF64(pt.X*f.k, prec)
-				f.put(" ")
-				f.putF64((f.h-pt.Y)*f.k, prec)
-				f.put(" l \n")
+				// r.outf("%.5f %.5f l ", pt.X*r.k, (r.h-pt.Y)*r.k)
+				r.putF64(pt.X*r.k, prec)
+				r.put(" ")
+				r.putF64((r.h-pt.Y)*r.k, prec)
+				r.put(" l \n")
 			}
 		}
-		// f.outf("%.5f %.5f l ", points[0].X*f.k, (f.h-points[0].Y)*f.k)
-		f.putF64(points[0].X*f.k, prec)
-		f.put(" ")
-		f.putF64((f.h-points[0].Y)*f.k, prec)
-		f.put(" l \n")
-		f.DrawPath(styleStr)
+		// r.outf("%.5f %.5f l ", points[0].X*r.k, (r.h-points[0].Y)*r.k)
+		r.putF64(points[0].X*r.k, prec)
+		r.put(" ")
+		r.putF64((r.h-points[0].Y)*r.k, prec)
+		r.put(" l \n")
+		r.DrawPath(styleStr)
 	}
 }
 
@@ -1368,54 +1368,54 @@ func (f *Renderer) Polygon(points []PointType, styleStr string) {
 // outlined and filled. An empty string will be replaced with "D". Drawing uses
 // the current draw color and line width centered on the ellipse's perimeter.
 // Filling uses the current fill color.
-func (f *Renderer) Beziergon(points []PointType, styleStr string) {
+func (r *Renderer) Beziergon(points []PointType, styleStr string) {
 
 	// Thanks, Robert Lillack, for contributing this function.
 
 	if len(points) < 4 {
 		return
 	}
-	f.point(points[0].XY())
+	r.point(points[0].XY())
 
 	points = points[1:]
 	for len(points) >= 3 {
 		cx0, cy0 := points[0].XY()
 		cx1, cy1 := points[1].XY()
 		x1, y1 := points[2].XY()
-		f.curve(cx0, cy0, cx1, cy1, x1, y1)
+		r.curve(cx0, cy0, cx1, cy1, x1, y1)
 		points = points[3:]
 	}
 
-	f.DrawPath(styleStr)
+	r.DrawPath(styleStr)
 }
 
 // point outputs current point
-func (f *Renderer) point(x, y float64) {
-	// f.outf("%.2f %.2f m", x*f.k, (f.h-y)*f.k)
-	f.putF64(x*f.k, 2)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, 2)
-	f.put(" m\n")
+func (r *Renderer) point(x, y float64) {
+	// r.outf("%.2f %.2f m", x*r.k, (r.h-y)*r.k)
+	r.putF64(x*r.k, 2)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, 2)
+	r.put(" m\n")
 }
 
 // curve outputs a single cubic Bézier curve segment from current point
-func (f *Renderer) curve(cx0, cy0, cx1, cy1, x, y float64) {
+func (r *Renderer) curve(cx0, cy0, cx1, cy1, x, y float64) {
 	// Thanks, Robert Lillack, for straightening this out
-	// f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c", cx0*f.k, (f.h-cy0)*f.k, cx1*f.k,
-	// 	(f.h-cy1)*f.k, x*f.k, (f.h-y)*f.k)
+	// r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c", cx0*r.k, (r.h-cy0)*r.k, cx1*r.k,
+	// 	(r.h-cy1)*r.k, x*r.k, (r.h-y)*r.k)
 	const prec = 5
-	f.putF64(cx0*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy0)*f.k, prec)
-	f.put(" ")
-	f.putF64(cx1*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy1)*f.k, prec)
-	f.put(" ")
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" c\n")
+	r.putF64(cx0*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy0)*r.k, prec)
+	r.put(" ")
+	r.putF64(cx1*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy1)*r.k, prec)
+	r.put(" ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" c\n")
 }
 
 // Curve draws a single-segment quadratic Bézier curve. The curve starts at
@@ -1431,29 +1431,29 @@ func (f *Renderer) curve(cx0, cy0, cx1, cy1, x, y float64) {
 // path. Filling uses the current fill color.
 //
 // The Circle() example demonstrates this method.
-func (f *Renderer) Curve(x0, y0, cx, cy, x1, y1 float64, styleStr string) {
-	f.point(x0, y0)
-	// f.outf("%.5f %.5f %.5f %.5f v %s", cx*f.k, (f.h-cy)*f.k, x1*f.k, (f.h-y1)*f.k,
+func (r *Renderer) Curve(x0, y0, cx, cy, x1, y1 float64, styleStr string) {
+	r.point(x0, y0)
+	// r.outf("%.5f %.5f %.5f %.5f v %s", cx*r.k, (r.h-cy)*r.k, x1*r.k, (r.h-y1)*r.k,
 	// 	fillDrawOp(styleStr))
 	const prec = 5
-	f.putF64(cx*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy)*f.k, prec)
-	f.put(" ")
-	f.putF64(x1*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y1)*f.k, prec)
-	f.put(" v " + fillDrawOp(styleStr) + "\n")
+	r.putF64(cx*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy)*r.k, prec)
+	r.put(" ")
+	r.putF64(x1*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y1)*r.k, prec)
+	r.put(" v " + fillDrawOp(styleStr) + "\n")
 }
 
 // CurveCubic draws a single-segment cubic Bézier curve. This routine performs
 // the same function as CurveBezierCubic() but has a nonstandard argument order.
 // It is retained to preserve backward compatibility.
-func (f *Renderer) CurveCubic(x0, y0, cx0, cy0, x1, y1, cx1, cy1 float64, styleStr string) {
-	// f.point(x0, y0)
-	// f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c %s", cx0*f.k, (f.h-cy0)*f.k,
-	// cx1*f.k, (f.h-cy1)*f.k, x1*f.k, (f.h-y1)*f.k, fillDrawOp(styleStr))
-	f.CurveBezierCubic(x0, y0, cx0, cy0, cx1, cy1, x1, y1, styleStr)
+func (r *Renderer) CurveCubic(x0, y0, cx0, cy0, x1, y1, cx1, cy1 float64, styleStr string) {
+	// r.point(x0, y0)
+	// r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c %s", cx0*r.k, (r.h-cy0)*r.k,
+	// cx1*r.k, (r.h-cy1)*r.k, x1*r.k, (r.h-y1)*r.k, fillDrawOp(styleStr))
+	r.CurveBezierCubic(x0, y0, cx0, cy0, cx1, cy1, x1, y1, styleStr)
 }
 
 // CurveBezierCubic draws a single-segment cubic Bézier curve. The curve starts at
@@ -1472,23 +1472,23 @@ func (f *Renderer) CurveCubic(x0, y0, cx0, cy0, x1, y1, cx1, cy1 float64, styleS
 // argument order.
 //
 // The Circle() example demonstrates this method.
-func (f *Renderer) CurveBezierCubic(x0, y0, cx0, cy0, cx1, cy1, x1, y1 float64, styleStr string) {
-	f.point(x0, y0)
-	//	f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c %s", cx0*f.k, (f.h-cy0)*f.k,
-	//		cx1*f.k, (f.h-cy1)*f.k, x1*f.k, (f.h-y1)*f.k, fillDrawOp(styleStr))
+func (r *Renderer) CurveBezierCubic(x0, y0, cx0, cy0, cx1, cy1, x1, y1 float64, styleStr string) {
+	r.point(x0, y0)
+	//	r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c %s", cx0*r.k, (r.h-cy0)*r.k,
+	//		cx1*r.k, (r.h-cy1)*r.k, x1*r.k, (r.h-y1)*r.k, fillDrawOp(styleStr))
 	const prec = 5
-	f.putF64(cx0*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy0)*f.k, prec)
-	f.put(" ")
-	f.putF64(cx1*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy1)*f.k, prec)
-	f.put(" ")
-	f.putF64(x1*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y1)*f.k, prec)
-	f.put(" c " + fillDrawOp(styleStr) + "\n")
+	r.putF64(cx0*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy0)*r.k, prec)
+	r.put(" ")
+	r.putF64(cx1*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy1)*r.k, prec)
+	r.put(" ")
+	r.putF64(x1*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y1)*r.k, prec)
+	r.put(" c " + fillDrawOp(styleStr) + "\n")
 }
 
 // Arc draws an elliptical arc centered at point (x, y). rx and ry specify its
@@ -1505,15 +1505,15 @@ func (f *Renderer) CurveBezierCubic(x0, y0, cx0, cy0, cx1, cy1, x1, y1 float64, 
 // path. Filling uses the current fill color.
 //
 // The Circle() example demonstrates this method.
-func (f *Renderer) Arc(x, y, rx, ry, degRotate, degStart, degEnd float64, styleStr string) {
-	f.arc(x, y, rx, ry, degRotate, degStart, degEnd, styleStr, false)
+func (r *Renderer) Arc(x, y, rx, ry, degRotate, degStart, degEnd float64, styleStr string) {
+	r.arc(x, y, rx, ry, degRotate, degStart, degEnd, styleStr, false)
 }
 
 // GetAlpha returns the alpha blending channel, which consists of the
 // alpha transparency value and the blend mode. See SetAlpha for more
 // details.
-func (f *Renderer) GetAlpha() (alpha float64, blendModeStr string) {
-	return f.alpha, f.blendMode
+func (r *Renderer) GetAlpha() (alpha float64, blendModeStr string) {
+	return r.alpha, r.blendMode
 }
 
 // SetAlpha sets the alpha blending channel. The blending effect applies to
@@ -1529,8 +1529,8 @@ func (f *Renderer) GetAlpha() (alpha float64, blendModeStr string) {
 //
 // To reset normal rendering after applying a blending mode, call this method
 // with alpha set to 1.0 and blendModeStr set to "Normal".
-func (f *Renderer) SetAlpha(alpha float64, blendModeStr string) {
-	if f.err != nil {
+func (r *Renderer) SetAlpha(alpha float64, blendModeStr string) {
+	if r.err != nil {
 		return
 	}
 	var bl blendModeType
@@ -1542,71 +1542,71 @@ func (f *Renderer) SetAlpha(alpha float64, blendModeStr string) {
 	case "":
 		bl.modeStr = "Normal"
 	default:
-		f.err = fmt.Errorf("unrecognized blend mode \"%s\"", blendModeStr)
+		r.err = fmt.Errorf("unrecognized blend mode \"%s\"", blendModeStr)
 		return
 	}
 	if alpha < 0.0 || alpha > 1.0 {
-		f.err = fmt.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
+		r.err = fmt.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
 		return
 	}
-	f.alpha = alpha
-	f.blendMode = blendModeStr
+	r.alpha = alpha
+	r.blendMode = blendModeStr
 	alphaStr := fmt.Sprintf("%.3f", alpha)
 	keyStr := fmt.Sprintf("%s %s", alphaStr, blendModeStr)
-	pos, ok := f.blendMap[keyStr]
+	pos, ok := r.blendMap[keyStr]
 	if !ok {
-		pos = len(f.blendList) // at least 1
-		f.blendList = append(f.blendList, blendModeType{alphaStr, alphaStr, blendModeStr, 0})
-		f.blendMap[keyStr] = pos
+		pos = len(r.blendList) // at least 1
+		r.blendList = append(r.blendList, blendModeType{alphaStr, alphaStr, blendModeStr, 0})
+		r.blendMap[keyStr] = pos
 	}
-	if len(f.blendMap) > 0 && f.pdfVersion < pdfVers1_4 {
-		f.pdfVersion = pdfVers1_4
+	if len(r.blendMap) > 0 && r.pdfVersion < pdfVers1_4 {
+		r.pdfVersion = pdfVers1_4
 	}
-	f.outf("/GS%d gs", pos)
+	r.outf("/GS%d gs", pos)
 }
 
-func (f *Renderer) gradientClipStart(x, y, w, h float64) {
+func (r *Renderer) gradientClipStart(x, y, w, h float64) {
 	{
 		const prec = 2
 		// Save current graphic state and set clipping area
-		// f.outf("q %.2f %.2f %.2f %.2f re W n", x*f.k, (f.h-y)*f.k, w*f.k, -h*f.k)
-		f.put("q ")
-		f.putF64(x*f.k, prec)
-		f.put(" ")
-		f.putF64((f.h-y)*f.k, prec)
-		f.put(" ")
-		f.putF64(w*f.k, prec)
-		f.put(" ")
-		f.putF64(-h*f.k, prec)
-		f.put(" re W n\n")
+		// r.outf("q %.2f %.2f %.2f %.2f re W n", x*r.k, (r.h-y)*r.k, w*r.k, -h*r.k)
+		r.put("q ")
+		r.putF64(x*r.k, prec)
+		r.put(" ")
+		r.putF64((r.h-y)*r.k, prec)
+		r.put(" ")
+		r.putF64(w*r.k, prec)
+		r.put(" ")
+		r.putF64(-h*r.k, prec)
+		r.put(" re W n\n")
 	}
 	{
 		const prec = 5
 		// Set up transformation matrix for gradient
-		// f.outf("%.5f 0 0 %.5f %.5f %.5f cm", w*f.k, h*f.k, x*f.k, (f.h-(y+h))*f.k)
-		f.putF64(w*f.k, prec)
-		f.put(" 0 0 ")
-		f.putF64(h*f.k, prec)
-		f.put(" ")
-		f.putF64(x*f.k, prec)
-		f.put(" ")
-		f.putF64((f.h-(y+h))*f.k, prec)
-		f.put(" cm\n")
+		// r.outf("%.5f 0 0 %.5f %.5f %.5f cm", w*r.k, h*r.k, x*r.k, (r.h-(y+h))*r.k)
+		r.putF64(w*r.k, prec)
+		r.put(" 0 0 ")
+		r.putF64(h*r.k, prec)
+		r.put(" ")
+		r.putF64(x*r.k, prec)
+		r.put(" ")
+		r.putF64((r.h-(y+h))*r.k, prec)
+		r.put(" cm\n")
 	}
 }
 
-func (f *Renderer) gradientClipEnd() {
+func (r *Renderer) gradientClipEnd() {
 	// Restore previous graphic state
-	f.out("Q")
+	r.out("Q")
 }
 
-func (f *Renderer) gradient(tp, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, r float64) {
-	pos := len(f.gradientList)
-	clr1 := f.rgbColorValue(r1, g1, b1, "", "")
-	clr2 := f.rgbColorValue(r2, g2, b2, "", "")
-	f.gradientList = append(f.gradientList, gradientType{tp, clr1.str, clr2.str,
-		x1, y1, x2, y2, r, 0})
-	f.outf("/Sh%d sh", pos)
+func (r *Renderer) gradient(tp, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, radius float64) {
+	pos := len(r.gradientList)
+	clr1 := r.rgbColorValue(r1, g1, b1, "", "")
+	clr2 := r.rgbColorValue(r2, g2, b2, "", "")
+	r.gradientList = append(r.gradientList, gradientType{tp, clr1.str, clr2.str,
+		x1, y1, x2, y2, radius, 0})
+	r.outf("/Sh%d sh", pos)
 }
 
 // LinearGradient draws a rectangular area with a blending of one color to
@@ -1625,10 +1625,10 @@ func (f *Renderer) gradient(tp, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, r fl
 // anchored on the rectangle edge. Color 1 is used up to the origin of the
 // vector and color 2 is used beyond the vector's end point. Between the points
 // the colors are gradually blended.
-func (f *Renderer) LinearGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2 float64) {
-	f.gradientClipStart(x, y, w, h)
-	f.gradient(2, r1, g1, b1, r2, g2, b2, x1, y1, x2, y2, 0)
-	f.gradientClipEnd()
+func (r *Renderer) LinearGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2 float64) {
+	r.gradientClipStart(x, y, w, h)
+	r.gradient(2, r1, g1, b1, r2, g2, b2, x1, y1, x2, y2, 0)
+	r.gradientClipEnd()
 }
 
 // RadialGradient draws a rectangular area with a blending of one color to
@@ -1649,10 +1649,10 @@ func (f *Renderer) LinearGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int
 // the circle to avoid rendering problems.
 //
 // The LinearGradient() example demonstrates this method.
-func (f *Renderer) RadialGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, r float64) {
-	f.gradientClipStart(x, y, w, h)
-	f.gradient(3, r1, g1, b1, r2, g2, b2, x1, y1, x2, y2, r)
-	f.gradientClipEnd()
+func (r *Renderer) RadialGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, radius float64) {
+	r.gradientClipStart(x, y, w, h)
+	r.gradient(3, r1, g1, b1, r2, g2, b2, x1, y1, x2, y2, radius)
+	r.gradientClipEnd()
 }
 
 // ClipRect begins a rectangular clipping operation. The rectangle is of width
@@ -1664,23 +1664,23 @@ func (f *Renderer) RadialGradient(x, y, w, h float64, r1, g1, b1, r2, g2, b2 int
 // Call ClipEnd() to restore unclipped operations.
 //
 // This ClipText() example demonstrates this method.
-func (f *Renderer) ClipRect(x, y, w, h float64, outline bool) {
-	f.clipNest++
-	// f.outf("q %.2f %.2f %.2f %.2f re W %s", x*f.k, (f.h-y)*f.k, w*f.k, -h*f.k, strIf(outline, "S", "n"))
+func (r *Renderer) ClipRect(x, y, w, h float64, outline bool) {
+	r.clipNest++
+	// r.outf("q %.2f %.2f %.2f %.2f re W %s", x*r.k, (r.h-y)*r.k, w*r.k, -h*r.k, strIf(outline, "S", "n"))
 	const prec = 2
-	f.put("q ")
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" ")
-	f.putF64(w*f.k, prec)
-	f.put(" ")
-	f.putF64(-h*f.k, prec)
+	r.put("q ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" ")
+	r.putF64(w*r.k, prec)
+	r.put(" ")
+	r.putF64(-h*r.k, prec)
 	op := "n"
 	if outline {
 		op = "S"
 	}
-	f.put(" re W " + op + "\n")
+	r.put(" re W " + op + "\n")
 }
 
 // ClipText begins a clipping operation in which rendering is confined to the
@@ -1691,42 +1691,42 @@ func (f *Renderer) ClipRect(x, y, w, h float64, outline bool) {
 // will be shown. After calling this method, all rendering operations (for
 // example, Image(), LinearGradient(), etc) will be clipped. Call ClipEnd() to
 // restore unclipped operations.
-func (f *Renderer) ClipText(x, y float64, txtStr string, outline bool) {
-	f.clipNest++
-	// f.outf("q BT %.5f %.5f Td %d Tr (%s) Tj ET", x*f.k, (f.h-y)*f.k, intIf(outline, 5, 7), f.escape(txtStr))
+func (r *Renderer) ClipText(x, y float64, txtStr string, outline bool) {
+	r.clipNest++
+	// r.outf("q BT %.5f %.5f Td %d Tr (%s) Tj ET", x*r.k, (r.h-y)*r.k, intIf(outline, 5, 7), r.escape(txtStr))
 	const prec = 5
-	f.put("q BT ")
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" Td ")
+	r.put("q BT ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" Td ")
 	renderMode := 7 // add to clipping path
 	if outline {
 		renderMode = 5 // stroke and add to clipping path
 	}
-	f.putInt(renderMode)
-	f.put(" Tr (")
-	f.put(f.escape(txtStr))
-	f.put(") Tj ET\n")
+	r.putInt(renderMode)
+	r.put(" Tr (")
+	r.put(r.escape(txtStr))
+	r.put(") Tj ET\n")
 }
 
-func (f *Renderer) clipArc(x1, y1, x2, y2, x3, y3 float64) {
-	h := f.h
-	// f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c ", x1*f.k, (h-y1)*f.k,
-	// 	x2*f.k, (h-y2)*f.k, x3*f.k, (h-y3)*f.k)
+func (r *Renderer) clipArc(x1, y1, x2, y2, x3, y3 float64) {
+	h := r.h
+	// r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c ", x1*r.k, (h-y1)*r.k,
+	// 	x2*r.k, (h-y2)*r.k, x3*r.k, (h-y3)*r.k)
 	const prec = 5
-	f.putF64(x1*f.k, prec)
-	f.put(" ")
-	f.putF64((h-y1)*f.k, prec)
-	f.put(" ")
-	f.putF64(x2*f.k, prec)
-	f.put(" ")
-	f.putF64((h-y2)*f.k, prec)
-	f.put(" ")
-	f.putF64(x3*f.k, prec)
-	f.put(" ")
-	f.putF64((h-y3)*f.k, prec)
-	f.put(" c \n")
+	r.putF64(x1*r.k, prec)
+	r.put(" ")
+	r.putF64((h-y1)*r.k, prec)
+	r.put(" ")
+	r.putF64(x2*r.k, prec)
+	r.put(" ")
+	r.putF64((h-y2)*r.k, prec)
+	r.put(" ")
+	r.putF64(x3*r.k, prec)
+	r.put(" ")
+	r.putF64((h-y3)*r.k, prec)
+	r.put(" c \n")
 }
 
 // ClipRoundedRect begins a rectangular clipping operation. The rectangle is of
@@ -1739,77 +1739,77 @@ func (f *Renderer) clipArc(x1, y1, x2, y2, x3, y3 float64) {
 // ClipEnd() to restore unclipped operations.
 //
 // This ClipText() example demonstrates this method.
-func (f *Renderer) ClipRoundedRect(x, y, w, h, r float64, outline bool) {
-	f.ClipRoundedRectExt(x, y, w, h, r, r, r, r, outline)
+func (r *Renderer) ClipRoundedRect(x, y, w, h, radius float64, outline bool) {
+	r.ClipRoundedRectExt(x, y, w, h, radius, radius, radius, radius, outline)
 }
 
 // ClipRoundedRectExt behaves the same as ClipRoundedRect() but supports a
 // different radius for each corner, given by rTL (top-left), rTR (top-right)
 // rBR (bottom-right), rBL (bottom-left). See ClipRoundedRect() for more
 // details. This method is demonstrated in the ClipText() example.
-func (f *Renderer) ClipRoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, outline bool) {
-	f.clipNest++
-	f.roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL)
+func (r *Renderer) ClipRoundedRectExt(x, y, w, h, rTL, rTR, rBR, rBL float64, outline bool) {
+	r.clipNest++
+	r.roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL)
 	op := "n"
 	if outline {
 		op = "S"
 	}
-	f.outf(" W %s", op)
+	r.outf(" W %s", op)
 }
 
 // add a rectangle path with rounded corners.
 // routine shared by RoundedRect() and ClipRoundedRect(), which add the
 // drawing operation
-func (f *Renderer) roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL float64) {
-	k := f.k
-	hp := f.h
+func (r *Renderer) roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL float64) {
+	k := r.k
+	hp := r.h
 	myArc := (4.0 / 3.0) * (math.Sqrt2 - 1.0)
-	// f.outf("q %.5f %.5f m", (x+rTL)*k, (hp-y)*k)
+	// r.outf("q %.5f %.5f m", (x+rTL)*k, (hp-y)*k)
 	const prec = 5
-	f.put("q ")
-	f.putF64((x+rTL)*k, prec)
-	f.put(" ")
-	f.putF64((hp-y)*k, prec)
-	f.put(" m\n")
+	r.put("q ")
+	r.putF64((x+rTL)*k, prec)
+	r.put(" ")
+	r.putF64((hp-y)*k, prec)
+	r.put(" m\n")
 	xc := x + w - rTR
 	yc := y + rTR
-	// f.outf("%.5f %.5f l", xc*k, (hp-y)*k)
-	f.putF64(xc*k, prec)
-	f.put(" ")
-	f.putF64((hp-y)*k, prec)
-	f.put(" l\n")
+	// r.outf("%.5f %.5f l", xc*k, (hp-y)*k)
+	r.putF64(xc*k, prec)
+	r.put(" ")
+	r.putF64((hp-y)*k, prec)
+	r.put(" l\n")
 	if rTR != 0 {
-		f.clipArc(xc+rTR*myArc, yc-rTR, xc+rTR, yc-rTR*myArc, xc+rTR, yc)
+		r.clipArc(xc+rTR*myArc, yc-rTR, xc+rTR, yc-rTR*myArc, xc+rTR, yc)
 	}
 	xc = x + w - rBR
 	yc = y + h - rBR
-	// f.outf("%.5f %.5f l", (x+w)*k, (hp-yc)*k)
-	f.putF64((x+w)*k, prec)
-	f.put(" ")
-	f.putF64((hp-yc)*k, prec)
-	f.put(" l\n")
+	// r.outf("%.5f %.5f l", (x+w)*k, (hp-yc)*k)
+	r.putF64((x+w)*k, prec)
+	r.put(" ")
+	r.putF64((hp-yc)*k, prec)
+	r.put(" l\n")
 	if rBR != 0 {
-		f.clipArc(xc+rBR, yc+rBR*myArc, xc+rBR*myArc, yc+rBR, xc, yc+rBR)
+		r.clipArc(xc+rBR, yc+rBR*myArc, xc+rBR*myArc, yc+rBR, xc, yc+rBR)
 	}
 	xc = x + rBL
 	yc = y + h - rBL
-	// f.outf("%.5f %.5f l", xc*k, (hp-(y+h))*k)
-	f.putF64(xc*k, prec)
-	f.put(" ")
-	f.putF64((hp-(y+h))*k, prec)
-	f.put(" l\n")
+	// r.outf("%.5f %.5f l", xc*k, (hp-(y+h))*k)
+	r.putF64(xc*k, prec)
+	r.put(" ")
+	r.putF64((hp-(y+h))*k, prec)
+	r.put(" l\n")
 	if rBL != 0 {
-		f.clipArc(xc-rBL*myArc, yc+rBL, xc-rBL, yc+rBL*myArc, xc-rBL, yc)
+		r.clipArc(xc-rBL*myArc, yc+rBL, xc-rBL, yc+rBL*myArc, xc-rBL, yc)
 	}
 	xc = x + rTL
 	yc = y + rTL
-	// f.outf("%.5f %.5f l", x*k, (hp-yc)*k)
-	f.putF64(x*k, prec)
-	f.put(" ")
-	f.putF64((hp-yc)*k, prec)
-	f.put(" l\n")
+	// r.outf("%.5f %.5f l", x*k, (hp-yc)*k)
+	r.putF64(x*k, prec)
+	r.put(" ")
+	r.putF64((hp-yc)*k, prec)
+	r.put(" l\n")
 	if rTL != 0 {
-		f.clipArc(xc-rTL, yc-rTL*myArc, xc-rTL*myArc, yc-rTL, xc, yc-rTL)
+		r.clipArc(xc-rTL, yc-rTL*myArc, xc-rTL*myArc, yc-rTL, xc, yc-rTL)
 	}
 }
 
@@ -1822,91 +1822,91 @@ func (f *Renderer) roundedRectPath(x, y, w, h, rTL, rTR, rBR, rBL float64) {
 // Call ClipEnd() to restore unclipped operations.
 //
 // This ClipText() example demonstrates this method.
-func (f *Renderer) ClipEllipse(x, y, rx, ry float64, outline bool) {
-	f.clipNest++
+func (r *Renderer) ClipEllipse(x, y, rx, ry float64, outline bool) {
+	r.clipNest++
 	lx := (4.0 / 3.0) * rx * (math.Sqrt2 - 1)
 	ly := (4.0 / 3.0) * ry * (math.Sqrt2 - 1)
-	k := f.k
-	h := f.h
-	//	f.outf("q %.5f %.5f m %.5f %.5f %.5f %.5f %.5f %.5f c",
+	k := r.k
+	h := r.h
+	//	r.outf("q %.5f %.5f m %.5f %.5f %.5f %.5f %.5f %.5f c",
 	//		(x+rx)*k, (h-y)*k,
 	//		(x+rx)*k, (h-(y-ly))*k,
 	//		(x+lx)*k, (h-(y-ry))*k,
 	//		x*k, (h-(y-ry))*k)
 	const prec = 5
-	f.put("q ")
-	f.putF64((x+rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-y)*k, prec)
-	f.put(" m ")
-	f.putF64((x+rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y-ly))*k, prec)
-	f.put(" ")
-	f.putF64((x+lx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y-ry))*k, prec)
-	f.put(" ")
-	f.putF64(x*k, prec)
-	f.put(" ")
-	f.putF64((h-(y-ry))*k, prec)
-	f.put(" c\n")
+	r.put("q ")
+	r.putF64((x+rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-y)*k, prec)
+	r.put(" m ")
+	r.putF64((x+rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y-ly))*k, prec)
+	r.put(" ")
+	r.putF64((x+lx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y-ry))*k, prec)
+	r.put(" ")
+	r.putF64(x*k, prec)
+	r.put(" ")
+	r.putF64((h-(y-ry))*k, prec)
+	r.put(" c\n")
 
-	//	f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c",
+	//	r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c",
 	//		(x-lx)*k, (h-(y-ry))*k,
 	//		(x-rx)*k, (h-(y-ly))*k,
 	//		(x-rx)*k, (h-y)*k)
-	f.putF64((x-lx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y-ry))*k, prec)
-	f.put(" ")
-	f.putF64((x-rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y-ly))*k, prec)
-	f.put(" ")
-	f.putF64((x-rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-y)*k, prec)
-	f.put(" c\n")
+	r.putF64((x-lx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y-ry))*k, prec)
+	r.put(" ")
+	r.putF64((x-rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y-ly))*k, prec)
+	r.put(" ")
+	r.putF64((x-rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-y)*k, prec)
+	r.put(" c\n")
 
-	//	f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c",
+	//	r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c",
 	//		(x-rx)*k, (h-(y+ly))*k,
 	//		(x-lx)*k, (h-(y+ry))*k,
 	//		x*k, (h-(y+ry))*k)
-	f.putF64((x-rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y+ly))*k, prec)
-	f.put(" ")
-	f.putF64((x-lx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y+ry))*k, prec)
-	f.put(" ")
-	f.putF64(x*k, prec)
-	f.put(" ")
-	f.putF64((h-(y+ry))*k, prec)
-	f.put(" c\n")
+	r.putF64((x-rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y+ly))*k, prec)
+	r.put(" ")
+	r.putF64((x-lx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y+ry))*k, prec)
+	r.put(" ")
+	r.putF64(x*k, prec)
+	r.put(" ")
+	r.putF64((h-(y+ry))*k, prec)
+	r.put(" c\n")
 
-	//	f.outf("%.5f %.5f %.5f %.5f %.5f %.5f c W %s",
+	//	r.outf("%.5f %.5f %.5f %.5f %.5f %.5f c W %s",
 	//		(x+lx)*k, (h-(y+ry))*k,
 	//		(x+rx)*k, (h-(y+ly))*k,
 	//		(x+rx)*k, (h-y)*k,
 	//		strIf(outline, "S", "n"))
-	f.putF64((x+lx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y+ry))*k, prec)
-	f.put(" ")
-	f.putF64((x+rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-(y+ly))*k, prec)
-	f.put(" ")
-	f.putF64((x+rx)*k, prec)
-	f.put(" ")
-	f.putF64((h-y)*k, prec)
+	r.putF64((x+lx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y+ry))*k, prec)
+	r.put(" ")
+	r.putF64((x+rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-(y+ly))*k, prec)
+	r.put(" ")
+	r.putF64((x+rx)*k, prec)
+	r.put(" ")
+	r.putF64((h-y)*k, prec)
 	op := "n"
 	if outline {
 		op = "S"
 	}
-	f.put(" c W " + op + "\n")
+	r.put(" c W " + op + "\n")
 }
 
 // ClipCircle begins a circular clipping operation. The circle is centered at
@@ -1917,8 +1917,8 @@ func (f *Renderer) ClipEllipse(x, y, rx, ry float64, outline bool) {
 // the specified circle. Call ClipEnd() to restore unclipped operations.
 //
 // The ClipText() example demonstrates this method.
-func (f *Renderer) ClipCircle(x, y, r float64, outline bool) {
-	f.ClipEllipse(x, y, r, r, outline)
+func (r *Renderer) ClipCircle(x, y, radius float64, outline bool) {
+	r.ClipEllipse(x, y, radius, radius, outline)
 }
 
 // ClipPolygon begins a clipping operation within a polygon. The figure is
@@ -1932,11 +1932,11 @@ func (f *Renderer) ClipCircle(x, y, r float64, outline bool) {
 // ClipEnd() to restore unclipped operations.
 //
 // The ClipText() example demonstrates this method.
-func (f *Renderer) ClipPolygon(points []PointType, outline bool) {
-	f.clipNest++
+func (r *Renderer) ClipPolygon(points []PointType, outline bool) {
+	r.clipNest++
 	var s fmtBuffer
-	h := f.h
-	k := f.k
+	h := r.h
+	k := r.k
 	s.printf("q ")
 	for j, pt := range points {
 		op := "l"
@@ -1950,7 +1950,7 @@ func (f *Renderer) ClipPolygon(points []PointType, outline bool) {
 		op = "S"
 	}
 	s.printf("h W %s", op)
-	f.out(s.String())
+	r.out(s.String())
 }
 
 // ClipEnd ends a clipping operation that was started with a call to
@@ -1959,13 +1959,13 @@ func (f *Renderer) ClipPolygon(points []PointType, outline bool) {
 // successfully output while a clipping operation is active.
 //
 // The ClipText() example demonstrates this method.
-func (f *Renderer) ClipEnd() {
-	if f.err == nil {
-		if f.clipNest > 0 {
-			f.clipNest--
-			f.out("Q")
+func (r *Renderer) ClipEnd() {
+	if r.err == nil {
+		if r.clipNest > 0 {
+			r.clipNest--
+			r.out("Q")
 		} else {
-			f.err = fmt.Errorf("error attempting to end clip operation out of sequence")
+			r.err = fmt.Errorf("error attempting to end clip operation out of sequence")
 		}
 	}
 }
@@ -1990,8 +1990,8 @@ func (f *Renderer) ClipEnd() {
 // fileStr specifies the base name with ".json" extension of the font
 // definition file to be added. The file will be loaded from the font directory
 // specified in the call to New() or SetFontLocation().
-func (f *Renderer) AddFont(familyStr, styleStr, fileStr string) {
-	f.addFont(fontFamilyEscape(familyStr), styleStr, fileStr, false)
+func (r *Renderer) AddFont(familyStr, styleStr, fileStr string) {
+	r.addFont(fontFamilyEscape(familyStr), styleStr, fileStr, false)
 }
 
 // AddUTF8Font imports a TrueType font with utf-8 symbols and makes it available.
@@ -2014,11 +2014,11 @@ func (f *Renderer) AddFont(familyStr, styleStr, fileStr string) {
 // fileStr specifies the base name with ".json" extension of the font
 // definition file to be added. The file will be loaded from the font directory
 // specified in the call to New() or SetFontLocation().
-func (f *Renderer) AddUTF8Font(familyStr, styleStr, fileStr string) {
-	f.addFont(fontFamilyEscape(familyStr), styleStr, fileStr, true)
+func (r *Renderer) AddUTF8Font(familyStr, styleStr, fileStr string) {
+	r.addFont(fontFamilyEscape(familyStr), styleStr, fileStr, true)
 }
 
-func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
+func (r *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 	if fileStr == "" {
 		if isUTF8 {
 			fileStr = strings.Replace(familyStr, " ", "", -1) + strings.ToLower(styleStr) + ".ttf"
@@ -2028,16 +2028,16 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 	}
 	if isUTF8 {
 		fontKey := getFontKey(familyStr, styleStr)
-		_, ok := f.fonts[fontKey]
+		_, ok := r.fonts[fontKey]
 		if ok {
 			return
 		}
 		var ttfStat os.FileInfo
 		var err error
-		fileStr = path.Join(f.fontpath, fileStr)
+		fileStr = path.Join(r.fontpath, fileStr)
 		ttfStat, err = os.Stat(fileStr)
 		if err != nil {
-			f.SetError(err)
+			r.SetError(err)
 			return
 		}
 		originalSize := ttfStat.Size()
@@ -2045,14 +2045,14 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 		var utf8Bytes []byte
 		utf8Bytes, err = os.ReadFile(fileStr)
 		if err != nil {
-			f.SetError(err)
+			r.SetError(err)
 			return
 		}
 		reader := fileReader{readerPosition: 0, array: utf8Bytes}
 		utf8File := newUTF8Font(&reader)
 		err = utf8File.parseFile()
 		if err != nil {
-			f.SetError(err)
+			r.SetError(err)
 			return
 		}
 
@@ -2068,7 +2068,7 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 		}
 
 		var sbarr map[int]int
-		if f.aliasNbPagesStr == "" {
+		if r.aliasNbPagesStr == "" {
 			sbarr = makeSubsetRange(57)
 		} else {
 			sbarr = makeSubsetRange(32)
@@ -2085,19 +2085,19 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 			utf8File:  utf8File,
 		}
 		def.i, _ = generateFontID(def)
-		f.fonts[fontKey] = def
-		f.fontFiles[fontKey] = fontFileType{
+		r.fonts[fontKey] = def
+		r.fontFiles[fontKey] = fontFileType{
 			length1:  originalSize,
 			fontType: "UTF8",
 		}
-		f.fontFiles[fileStr] = fontFileType{
+		r.fontFiles[fileStr] = fontFileType{
 			fontType: "UTF8",
 		}
 	} else {
-		if f.fontLoader != nil {
-			reader, err := f.fontLoader.Open(fileStr)
+		if r.fontLoader != nil {
+			reader, err := r.fontLoader.Open(fileStr)
 			if err == nil {
-				f.AddFontFromReader(familyStr, styleStr, reader)
+				r.AddFontFromReader(familyStr, styleStr, reader)
 				if closer, ok := reader.(io.Closer); ok {
 					closer.Close()
 				}
@@ -2105,15 +2105,15 @@ func (f *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 			}
 		}
 
-		fileStr = path.Join(f.fontpath, fileStr)
+		fileStr = path.Join(r.fontpath, fileStr)
 		file, err := os.Open(fileStr)
 		if err != nil {
-			f.err = err
+			r.err = err
 			return
 		}
 		defer file.Close()
 
-		f.AddFontFromReader(familyStr, styleStr, file)
+		r.AddFontFromReader(familyStr, styleStr, file)
 	}
 }
 
@@ -2140,8 +2140,8 @@ func makeSubsetRange(end int) map[int]int {
 // jsonFileBytes contain all bytes of JSON file.
 //
 // zFileBytes contain all bytes of Z file.
-func (f *Renderer) AddFontFromBytes(familyStr, styleStr string, jsonFileBytes, zFileBytes []byte) {
-	f.addFontFromBytes(fontFamilyEscape(familyStr), styleStr, jsonFileBytes, zFileBytes, nil)
+func (r *Renderer) AddFontFromBytes(familyStr, styleStr string, jsonFileBytes, zFileBytes []byte) {
+	r.addFontFromBytes(fontFamilyEscape(familyStr), styleStr, jsonFileBytes, zFileBytes, nil)
 }
 
 // AddUTF8FontFromBytes  imports a TrueType font with utf-8 symbols from static
@@ -2159,19 +2159,19 @@ func (f *Renderer) AddFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 // jsonFileBytes contain all bytes of JSON file.
 //
 // zFileBytes contain all bytes of Z file.
-func (f *Renderer) AddUTF8FontFromBytes(familyStr, styleStr string, utf8Bytes []byte) {
-	f.addFontFromBytes(fontFamilyEscape(familyStr), styleStr, nil, nil, utf8Bytes)
+func (r *Renderer) AddUTF8FontFromBytes(familyStr, styleStr string, utf8Bytes []byte) {
+	r.addFontFromBytes(fontFamilyEscape(familyStr), styleStr, nil, nil, utf8Bytes)
 }
 
-func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, zFileBytes, utf8Bytes []byte) {
-	if f.err != nil {
+func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, zFileBytes, utf8Bytes []byte) {
+	if r.err != nil {
 		return
 	}
 
 	// load font key
 	var ok bool
 	fontkey := getFontKey(familyStr, styleStr)
-	_, ok = f.fonts[fontkey]
+	_, ok = r.fonts[fontkey]
 
 	if ok {
 		return
@@ -2205,7 +2205,7 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		}
 
 		var sbarr map[int]int
-		if f.aliasNbPagesStr == "" {
+		if r.aliasNbPagesStr == "" {
 			sbarr = makeSubsetRange(57)
 		} else {
 			sbarr = makeSubsetRange(32)
@@ -2221,22 +2221,22 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			usedRunes: sbarr,
 		}
 		def.i, _ = generateFontID(def)
-		f.fonts[fontkey] = def
+		r.fonts[fontkey] = def
 	} else {
 		// load font definitions
 		var info fontDefType
 		err := json.Unmarshal(jsonFileBytes, &info)
 
 		if err != nil {
-			f.err = err
+			r.err = err
 		}
 
-		if f.err != nil {
+		if r.err != nil {
 			return
 		}
 
 		if info.i, err = generateFontID(info); err != nil {
-			f.err = err
+			r.err = err
 			return
 		}
 
@@ -2244,7 +2244,7 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		if len(info.Diff) > 0 {
 			n := -1
 
-			for j, str := range f.diffs {
+			for j, str := range r.diffs {
 				if str == info.Diff {
 					n = j + 1
 					break
@@ -2252,8 +2252,8 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			}
 
 			if n < 0 {
-				f.diffs = append(f.diffs, info.Diff)
-				n = len(f.diffs)
+				r.diffs = append(r.diffs, info.Diff)
+				n = len(r.diffs)
 			}
 
 			info.DiffN = n
@@ -2262,13 +2262,13 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		// embed font
 		if len(info.File) > 0 {
 			if info.Tp == "TrueType" {
-				f.fontFiles[info.File] = fontFileType{
+				r.fontFiles[info.File] = fontFileType{
 					length1:  int64(info.OriginalSize),
 					embedded: true,
 					content:  zFileBytes,
 				}
 			} else {
-				f.fontFiles[info.File] = fontFileType{
+				r.fontFiles[info.File] = fontFileType{
 					length1:  int64(info.Size1),
 					length2:  int64(info.Size2),
 					embedded: true,
@@ -2277,7 +2277,7 @@ func (f *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			}
 		}
 
-		f.fonts[fontkey] = info
+		r.fonts[fontkey] = info
 	}
 }
 
@@ -2294,34 +2294,34 @@ func getFontKey(familyStr, styleStr string) string {
 // AddFontFromReader imports a TrueType, OpenType or Type1 font and makes it
 // available using a reader that satisifies the io.Reader interface. See
 // AddFont for details about familyStr and styleStr.
-func (f *Renderer) AddFontFromReader(familyStr, styleStr string, r io.Reader) {
-	if f.err != nil {
+func (r *Renderer) AddFontFromReader(familyStr, styleStr string, rd io.Reader) {
+	if r.err != nil {
 		return
 	}
 	// dbg("Adding family [%s], style [%s]", familyStr, styleStr)
 	familyStr = fontFamilyEscape(familyStr)
 	var ok bool
 	fontkey := getFontKey(familyStr, styleStr)
-	_, ok = f.fonts[fontkey]
+	_, ok = r.fonts[fontkey]
 	if ok {
 		return
 	}
-	info := f.loadfont(r)
-	if f.err != nil {
+	info := r.loadfont(rd)
+	if r.err != nil {
 		return
 	}
 	if len(info.Diff) > 0 {
 		// Search existing encodings
 		n := -1
-		for j, str := range f.diffs {
+		for j, str := range r.diffs {
 			if str == info.Diff {
 				n = j + 1
 				break
 			}
 		}
 		if n < 0 {
-			f.diffs = append(f.diffs, info.Diff)
-			n = len(f.diffs)
+			r.diffs = append(r.diffs, info.Diff)
+			n = len(r.diffs)
 		}
 		info.DiffN = n
 	}
@@ -2329,12 +2329,12 @@ func (f *Renderer) AddFontFromReader(familyStr, styleStr string, r io.Reader) {
 	if len(info.File) > 0 {
 		// Embedded font
 		if info.Tp == "TrueType" {
-			f.fontFiles[info.File] = fontFileType{length1: int64(info.OriginalSize)}
+			r.fontFiles[info.File] = fontFileType{length1: int64(info.OriginalSize)}
 		} else {
-			f.fontFiles[info.File] = fontFileType{length1: int64(info.Size1), length2: int64(info.Size2)}
+			r.fontFiles[info.File] = fontFileType{length1: int64(info.Size1), length2: int64(info.Size2)}
 		}
 	}
-	f.fonts[fontkey] = info
+	r.fonts[fontkey] = info
 }
 
 // GetFontDesc returns the font descriptor, which can be used for
@@ -2342,11 +2342,11 @@ func (f *Renderer) AddFontFromReader(familyStr, styleStr string, r io.Reader) {
 // current font descriptor will be returned.
 // See FontDescType for documentation about the font descriptor.
 // See AddFont for details about familyStr and styleStr.
-func (f *Renderer) GetFontDesc(familyStr, styleStr string) FontDescType {
+func (r *Renderer) GetFontDesc(familyStr, styleStr string) FontDescType {
 	if familyStr == "" {
-		return f.currentFont.Desc
+		return r.currentFont.Desc
 	}
-	return f.fonts[getFontKey(fontFamilyEscape(familyStr), styleStr)].Desc
+	return r.fonts[getFontKey(fontFamilyEscape(familyStr), styleStr)].Desc
 }
 
 // SetFont sets the font used to print character strings. It is mandatory to
@@ -2376,45 +2376,45 @@ func (f *Renderer) GetFontDesc(familyStr, styleStr string) FontDescType {
 // size is the font size measured in points. The default value is the current
 // size. If no size has been specified since the beginning of the document, the
 // value taken is 12.
-func (f *Renderer) SetFont(familyStr, styleStr string, size float64) {
-	// dbg("SetFont x %.2f, lMargin %.2f", f.x, f.lMargin)
+func (r *Renderer) SetFont(familyStr, styleStr string, size float64) {
+	// dbg("SetFont x %.2f, lMargin %.2f", r.x, r.lMargin)
 
-	if f.err != nil {
+	if r.err != nil {
 		return
 	}
 	// dbg("SetFont")
 	familyStr = fontFamilyEscape(familyStr)
 	var ok bool
 	if familyStr == "" {
-		familyStr = f.fontFamily
+		familyStr = r.fontFamily
 	} else {
 		familyStr = strings.ToLower(familyStr)
 	}
 	styleStr = strings.ToUpper(styleStr)
-	f.underline = strings.Contains(styleStr, "U")
-	if f.underline {
+	r.underline = strings.Contains(styleStr, "U")
+	if r.underline {
 		styleStr = strings.Replace(styleStr, "U", "", -1)
 	}
-	f.strikeout = strings.Contains(styleStr, "S")
-	if f.strikeout {
+	r.strikeout = strings.Contains(styleStr, "S")
+	if r.strikeout {
 		styleStr = strings.Replace(styleStr, "S", "", -1)
 	}
 	if styleStr == "IB" {
 		styleStr = "BI"
 	}
 	if size == 0.0 {
-		size = f.fontSizePt
+		size = r.fontSizePt
 	}
 
 	// Test if font is already loaded
 	fontKey := familyStr + styleStr
-	_, ok = f.fonts[fontKey]
+	_, ok = r.fonts[fontKey]
 	if !ok {
 		// Test if one of the core fonts
 		if familyStr == "arial" {
 			familyStr = "helvetica"
 		}
-		_, ok = f.coreFonts[familyStr]
+		_, ok = r.coreFonts[familyStr]
 		if ok {
 			if familyStr == "symbol" {
 				familyStr = "zapfdingbats"
@@ -2423,51 +2423,51 @@ func (f *Renderer) SetFont(familyStr, styleStr string, size float64) {
 				styleStr = ""
 			}
 			fontKey = familyStr + styleStr
-			_, ok = f.fonts[fontKey]
+			_, ok = r.fonts[fontKey]
 			if !ok {
-				rdr := f.coreFontReader(familyStr, styleStr)
-				if f.err == nil {
+				rdr := r.coreFontReader(familyStr, styleStr)
+				if r.err == nil {
 					defer rdr.Close()
-					f.AddFontFromReader(familyStr, styleStr, rdr)
+					r.AddFontFromReader(familyStr, styleStr, rdr)
 				}
-				if f.err != nil {
+				if r.err != nil {
 					return
 				}
 			}
 		} else {
-			f.err = fmt.Errorf("undefined font: %s %s", familyStr, styleStr)
+			r.err = fmt.Errorf("undefined font: %s %s", familyStr, styleStr)
 			return
 		}
 	}
 	// Select it
-	f.fontFamily = familyStr
-	f.fontStyle = styleStr
-	f.fontSizePt = size
-	f.fontSize = size / f.k
-	f.currentFont = f.fonts[fontKey]
-	if f.currentFont.Tp == "UTF8" {
-		f.isCurrentUTF8 = true
+	r.fontFamily = familyStr
+	r.fontStyle = styleStr
+	r.fontSizePt = size
+	r.fontSize = size / r.k
+	r.currentFont = r.fonts[fontKey]
+	if r.currentFont.Tp == "UTF8" {
+		r.isCurrentUTF8 = true
 	} else {
-		f.isCurrentUTF8 = false
+		r.isCurrentUTF8 = false
 	}
-	if f.page > 0 {
-		f.outf("BT /F%s %.2f Tf ET", f.currentFont.i, f.fontSizePt)
+	if r.page > 0 {
+		r.outf("BT /F%s %.2f Tf ET", r.currentFont.i, r.fontSizePt)
 	}
 }
 
 // GetFontFamily returns the family of the current font. See SetFont() for details.
-func (f *Renderer) GetFontFamily() string {
-	return f.fontFamily
+func (r *Renderer) GetFontFamily() string {
+	return r.fontFamily
 }
 
 // GetFontStyle returns the style of the current font. See SetFont() for details.
-func (f *Renderer) GetFontStyle() string {
-	styleStr := f.fontStyle
+func (r *Renderer) GetFontStyle() string {
+	styleStr := r.fontStyle
 
-	if f.underline {
+	if r.underline {
 		styleStr += "U"
 	}
-	if f.strikeout {
+	if r.strikeout {
 		styleStr += "S"
 	}
 
@@ -2475,82 +2475,82 @@ func (f *Renderer) GetFontStyle() string {
 }
 
 // SetFontStyle sets the style of the current font. See also SetFont()
-func (f *Renderer) SetFontStyle(styleStr string) {
-	f.SetFont(f.fontFamily, styleStr, f.fontSizePt)
+func (r *Renderer) SetFontStyle(styleStr string) {
+	r.SetFont(r.fontFamily, styleStr, r.fontSizePt)
 }
 
 // SetFontSize defines the size of the current font. Size is specified in
 // points (1/ 72 inch). See also SetFontUnitSize().
-func (f *Renderer) SetFontSize(size float64) {
-	f.fontSizePt = size
-	f.fontSize = size / f.k
-	if f.page > 0 {
-		f.outf("BT /F%s %.2f Tf ET", f.currentFont.i, f.fontSizePt)
+func (r *Renderer) SetFontSize(size float64) {
+	r.fontSizePt = size
+	r.fontSize = size / r.k
+	if r.page > 0 {
+		r.outf("BT /F%s %.2f Tf ET", r.currentFont.i, r.fontSizePt)
 	}
 }
 
 // SetFontUnitSize defines the size of the current font. Size is specified in
 // the unit of measure specified in New(). See also SetFontSize().
-func (f *Renderer) SetFontUnitSize(size float64) {
-	f.fontSizePt = size * f.k
-	f.fontSize = size
-	if f.page > 0 {
-		f.outf("BT /F%s %.2f Tf ET", f.currentFont.i, f.fontSizePt)
+func (r *Renderer) SetFontUnitSize(size float64) {
+	r.fontSizePt = size * r.k
+	r.fontSize = size
+	if r.page > 0 {
+		r.outf("BT /F%s %.2f Tf ET", r.currentFont.i, r.fontSizePt)
 	}
 }
 
 // GetFontSize returns the size of the current font in points followed by the
 // size in the unit of measure specified in New(). The second value can be used
 // as a line height value in drawing operations.
-func (f *Renderer) GetFontSize() (ptSize, unitSize float64) {
-	return f.fontSizePt, f.fontSize
+func (r *Renderer) GetFontSize() (ptSize, unitSize float64) {
+	return r.fontSizePt, r.fontSize
 }
 
 // AddLink creates a new internal link and returns its identifier. An internal
 // link is a clickable area which directs to another place within the document.
 // The identifier can then be passed to Cell(), Write(), Image() or Link(). The
 // destination is defined with SetLink().
-func (f *Renderer) AddLink() int {
-	f.links = append(f.links, intLinkType{})
-	return len(f.links) - 1
+func (r *Renderer) AddLink() int {
+	r.links = append(r.links, intLinkType{})
+	return len(r.links) - 1
 }
 
 // SetLink defines the page and position a link points to. See AddLink().
-func (f *Renderer) SetLink(link int, y float64, page int) {
+func (r *Renderer) SetLink(link int, y float64, page int) {
 	if y == -1 {
-		y = f.y
+		y = r.y
 	}
 	if page == -1 {
-		page = f.page
+		page = r.page
 	}
-	f.links[link] = intLinkType{page, y}
+	r.links[link] = intLinkType{page, y}
 }
 
 // newLink adds a new clickable link on current page
-func (f *Renderer) newLink(x, y, w, h float64, link int, linkStr string) {
-	// linkList, ok := f.pageLinks[f.page]
+func (r *Renderer) newLink(x, y, w, h float64, link int, linkStr string) {
+	// linkList, ok := r.pageLinks[r.page]
 	// if !ok {
 	// linkList = make([]linkType, 0, 8)
-	// f.pageLinks[f.page] = linkList
+	// r.pageLinks[r.page] = linkList
 	// }
-	f.pageLinks[f.page] = append(f.pageLinks[f.page],
-		linkType{x * f.k, f.hPt - y*f.k, w * f.k, h * f.k, link, linkStr})
+	r.pageLinks[r.page] = append(r.pageLinks[r.page],
+		linkType{x * r.k, r.hPt - y*r.k, w * r.k, h * r.k, link, linkStr})
 }
 
 // Link puts a link on a rectangular area of the page. Text or image links are
 // generally put via Cell(), Write() or Image(), but this method can be useful
 // for instance to define a clickable area inside an image. link is the value
 // returned by AddLink().
-func (f *Renderer) Link(x, y, w, h float64, link int) {
-	f.newLink(x, y, w, h, link, "")
+func (r *Renderer) Link(x, y, w, h float64, link int) {
+	r.newLink(x, y, w, h, link, "")
 }
 
 // LinkString puts a link on a rectangular area of the page. Text or image
 // links are generally put via Cell(), Write() or Image(), but this method can
 // be useful for instance to define a clickable area inside an image. linkStr
 // is the target URL.
-func (f *Renderer) LinkString(x, y, w, h float64, linkStr string) {
-	f.newLink(x, y, w, h, 0, linkStr)
+func (r *Renderer) LinkString(x, y, w, h float64, linkStr string) {
+	r.newLink(x, y, w, h, 0, linkStr)
 }
 
 // Bookmark sets a bookmark that will be displayed in a sidebar outline. txtStr
@@ -2558,57 +2558,57 @@ func (f *Renderer) LinkString(x, y, w, h float64, linkStr string) {
 // the outline; 0 is the top level, 1 is just below, and so on. y specifies the
 // vertical position of the bookmark destination in the current page; -1
 // indicates the current position.
-func (f *Renderer) Bookmark(txtStr string, level int, y float64) {
+func (r *Renderer) Bookmark(txtStr string, level int, y float64) {
 	if y == -1 {
-		y = f.y
+		y = r.y
 	}
-	if f.isCurrentUTF8 {
+	if r.isCurrentUTF8 {
 		txtStr = utf8toutf16(txtStr)
 	}
-	f.outlines = append(f.outlines, outlineType{text: txtStr, level: level, y: y, p: f.PageNo(), prev: -1, last: -1, next: -1, first: -1})
+	r.outlines = append(r.outlines, outlineType{text: txtStr, level: level, y: y, p: r.PageNo(), prev: -1, last: -1, next: -1, first: -1})
 }
 
 // Text prints a character string. The origin (x, y) is on the left of the
 // first character at the baseline. This method permits a string to be placed
 // precisely on the page, but it is usually easier to use Cell(), MultiCell()
 // or Write() which are the standard methods to print text.
-func (f *Renderer) Text(x, y float64, txtStr string) {
+func (r *Renderer) Text(x, y float64, txtStr string) {
 	var txt2 string
-	if f.isCurrentUTF8 {
-		if f.isRTL {
+	if r.isCurrentUTF8 {
+		if r.isRTL {
 			txtStr = reverseText(txtStr)
-			x -= f.GetStringWidth(txtStr)
+			x -= r.GetStringWidth(txtStr)
 		}
-		txt2 = f.escape(utf8toutf16(txtStr, false))
+		txt2 = r.escape(utf8toutf16(txtStr, false))
 		for _, uni := range txtStr {
-			f.currentFont.usedRunes[int(uni)] = int(uni)
+			r.currentFont.usedRunes[int(uni)] = int(uni)
 		}
 	} else {
-		txt2 = f.escape(txtStr)
+		txt2 = r.escape(txtStr)
 	}
-	s := fmt.Sprintf("BT %.2f %.2f Td (%s) Tj ET", x*f.k, (f.h-y)*f.k, txt2)
-	if f.underline && txtStr != "" {
-		s += " " + f.dounderline(x, y, txtStr)
+	s := fmt.Sprintf("BT %.2f %.2f Td (%s) Tj ET", x*r.k, (r.h-y)*r.k, txt2)
+	if r.underline && txtStr != "" {
+		s += " " + r.dounderline(x, y, txtStr)
 	}
-	if f.strikeout && txtStr != "" {
-		s += " " + f.dostrikeout(x, y, txtStr)
+	if r.strikeout && txtStr != "" {
+		s += " " + r.dostrikeout(x, y, txtStr)
 	}
-	if f.colorFlag {
-		s = fmt.Sprintf("q %s %s Q", f.color.text.str, s)
+	if r.colorFlag {
+		s = fmt.Sprintf("q %s %s Q", r.color.text.str, s)
 	}
-	f.out(s)
+	r.out(s)
 }
 
 // GetWordSpacing returns the spacing between words of following text.
-func (f *Renderer) GetWordSpacing() float64 {
-	return f.ws
+func (r *Renderer) GetWordSpacing() float64 {
+	return r.ws
 }
 
 // SetWordSpacing sets spacing between words of following text. See the
 // WriteAligned() example for a demonstration of its use.
-func (f *Renderer) SetWordSpacing(space float64) {
-	f.ws = space
-	f.out(fmt.Sprintf("%.5f Tw", space*f.k))
+func (r *Renderer) SetWordSpacing(space float64) {
+	r.ws = space
+	r.out(fmt.Sprintf("%.5f Tw", space*r.k))
 }
 
 // SetTextRenderingMode sets the rendering mode of following text.
@@ -2622,9 +2622,9 @@ func (f *Renderer) SetWordSpacing(space float64) {
 // 6: Fills then stroke text and add to path for clipping
 // 7: Add text to path for clipping
 // This method is demonstrated in the SetTextRenderingMode example.
-func (f *Renderer) SetTextRenderingMode(mode int) {
+func (r *Renderer) SetTextRenderingMode(mode int) {
 	if mode >= 0 && mode <= 7 {
-		f.out(fmt.Sprintf("%d Tr", mode))
+		r.out(fmt.Sprintf("%d Tr", mode))
 	}
 }
 
@@ -2639,8 +2639,8 @@ func (f *Renderer) SetTextRenderingMode(mode int) {
 //
 // See the example for SetLeftMargin() to see how this function can be used to
 // manage multiple columns.
-func (f *Renderer) SetAcceptPageBreakFunc(fnc func() bool) {
-	f.acceptPageBreak = fnc
+func (r *Renderer) SetAcceptPageBreakFunc(fnc func() bool) {
+	r.acceptPageBreak = fnc
 }
 
 // CellFormat prints a rectangular cell with optional borders, background color
@@ -2682,43 +2682,43 @@ func (f *Renderer) SetAcceptPageBreakFunc(fnc func() bool) {
 //
 // linkStr is a target URL or empty for no external link. A non--zero value for
 // link takes precedence over linkStr.
-func (f *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
+func (r *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 	alignStr string, fill bool, link int, linkStr string) {
 	// dbg("CellFormat. h = %.2f, borderStr = %s", h, borderStr)
-	if f.err != nil {
+	if r.err != nil {
 		return
 	}
 
-	if f.currentFont.Name == "" {
-		f.err = fmt.Errorf("font has not been set; unable to render text")
+	if r.currentFont.Name == "" {
+		r.err = fmt.Errorf("font has not been set; unable to render text")
 		return
 	}
 
 	borderStr = strings.ToUpper(borderStr)
-	k := f.k
-	if f.y+h > f.pageBreakTrigger && !f.inHeader && !f.inFooter && f.acceptPageBreak() {
+	k := r.k
+	if r.y+h > r.pageBreakTrigger && !r.inHeader && !r.inFooter && r.acceptPageBreak() {
 		// Automatic page break
-		x := f.x
-		ws := f.ws
+		x := r.x
+		ws := r.ws
 		// dbg("auto page break, x %.2f, ws %.2f", x, ws)
 		if ws > 0 {
-			f.ws = 0
-			f.out("0 Tw")
+			r.ws = 0
+			r.out("0 Tw")
 		}
-		f.AddPageFormat(f.curOrientation, f.curPageSize)
-		if f.err != nil {
+		r.AddPageFormat(r.curOrientation, r.curPageSize)
+		if r.err != nil {
 			return
 		}
-		f.x = x
+		r.x = x
 		if ws > 0 {
-			f.ws = ws
-			// f.outf("%.3f Tw", ws*k)
-			f.putF64(ws*k, 3)
-			f.put(" Tw\n")
+			r.ws = ws
+			// r.outf("%.3f Tw", ws*k)
+			r.putF64(ws*k, 3)
+			r.put(" Tw\n")
 		}
 	}
 	if w == 0 {
-		w = f.w - f.rMargin - f.x
+		w = r.w - r.rMargin - r.x
 	}
 	var s fmtBuffer
 	if h > 0 && (fill || borderStr == "1") {
@@ -2735,17 +2735,17 @@ func (f *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 			// dbg("border is '1', no fill")
 			op = "S"
 		}
-		/// dbg("(CellFormat) f.x %.2f f.k %.2f", f.x, f.k)
-		s.printf("%.2f %.2f %.2f %.2f re %s ", f.x*k, (f.h-f.y)*k, w*k, -h*k, op)
+		/// dbg("(CellFormat) r.x %.2f r.k %.2f", r.x, r.k)
+		s.printf("%.2f %.2f %.2f %.2f re %s ", r.x*k, (r.h-r.y)*k, w*k, -h*k, op)
 	}
 	if len(borderStr) > 0 && borderStr != "1" {
 		// fmt.Printf("border is '%s', no fill\n", borderStr)
-		x := f.x
-		y := f.y
+		x := r.x
+		y := r.y
 		left := x * k
-		top := (f.h - y) * k
+		top := (r.h - y) * k
 		right := (x + w) * k
-		bottom := (f.h - (y + h)) * k
+		bottom := (r.h - (y + h)) * k
 		if strings.Contains(borderStr, "L") {
 			s.printf("%.2f %.2f m %.2f %.2f l S ", left, top, left, bottom)
 		}
@@ -2764,53 +2764,53 @@ func (f *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 		// Horizontal alignment
 		switch {
 		case strings.Contains(alignStr, "R"):
-			dx = w - f.cMargin - f.GetStringWidth(txtStr)
+			dx = w - r.cMargin - r.GetStringWidth(txtStr)
 		case strings.Contains(alignStr, "C"):
-			dx = (w - f.GetStringWidth(txtStr)) / 2
+			dx = (w - r.GetStringWidth(txtStr)) / 2
 		default:
-			dx = f.cMargin
+			dx = r.cMargin
 		}
 
 		// Vertical alignment
 		switch {
 		case strings.Contains(alignStr, "T"):
-			dy = (f.fontSize - h) / 2.0
+			dy = (r.fontSize - h) / 2.0
 		case strings.Contains(alignStr, "B"):
-			dy = (h - f.fontSize) / 2.0
+			dy = (h - r.fontSize) / 2.0
 		case strings.Contains(alignStr, "A"):
 			var descent float64
-			d := f.currentFont.Desc
+			d := r.currentFont.Desc
 			if d.Descent == 0 {
 				// not defined (standard font?), use average of 19%
-				descent = -0.19 * f.fontSize
+				descent = -0.19 * r.fontSize
 			} else {
-				descent = float64(d.Descent) * f.fontSize / float64(d.Ascent-d.Descent)
+				descent = float64(d.Descent) * r.fontSize / float64(d.Ascent-d.Descent)
 			}
-			dy = (h-f.fontSize)/2.0 - descent
+			dy = (h-r.fontSize)/2.0 - descent
 		default:
 			dy = 0
 		}
-		if f.colorFlag {
-			s.printf("q %s ", f.color.text.str)
+		if r.colorFlag {
+			s.printf("q %s ", r.color.text.str)
 		}
 		//If multibyte, Tw has no effect - do word spacing using an adjustment before each space
-		if (f.ws != 0 || alignStr == "J") && f.isCurrentUTF8 { // && f.ws != 0
-			if f.isRTL {
+		if (r.ws != 0 || alignStr == "J") && r.isCurrentUTF8 { // && r.ws != 0
+			if r.isRTL {
 				txtStr = reverseText(txtStr)
 			}
-			wmax := int(math.Ceil((w - 2*f.cMargin) * 1000 / f.fontSize))
+			wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
 			for _, uni := range txtStr {
-				f.currentFont.usedRunes[int(uni)] = int(uni)
+				r.currentFont.usedRunes[int(uni)] = int(uni)
 			}
-			space := f.escape(utf8toutf16(" ", false))
-			strSize := f.GetStringSymbolWidth(txtStr)
-			s.printf("BT 0 Tw %.2f %.2f Td [", (f.x+dx)*k, (f.h-(f.y+.5*h+.3*f.fontSize))*k)
+			space := r.escape(utf8toutf16(" ", false))
+			strSize := r.GetStringSymbolWidth(txtStr)
+			s.printf("BT 0 Tw %.2f %.2f Td [", (r.x+dx)*k, (r.h-(r.y+.5*h+.3*r.fontSize))*k)
 			t := strings.Split(txtStr, " ")
 			shift := float64((wmax - strSize)) / float64(len(t)-1)
 			numt := len(t)
 			for i := range numt {
 				tx := t[i]
-				tx = "(" + f.escape(utf8toutf16(tx, false)) + ")"
+				tx = "(" + r.escape(utf8toutf16(tx, false)) + ")"
 				s.printf("%s ", tx)
 				if (i + 1) < numt {
 					s.printf("%.3f(%s) ", -shift, space)
@@ -2819,13 +2819,13 @@ func (f *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 			s.printf("] TJ ET")
 		} else {
 			var txt2 string
-			if f.isCurrentUTF8 {
-				if f.isRTL {
+			if r.isCurrentUTF8 {
+				if r.isRTL {
 					txtStr = reverseText(txtStr)
 				}
-				txt2 = f.escape(utf8toutf16(txtStr, false))
+				txt2 = r.escape(utf8toutf16(txtStr, false))
 				for _, uni := range txtStr {
-					f.currentFont.usedRunes[int(uni)] = int(uni)
+					r.currentFont.usedRunes[int(uni)] = int(uni)
 				}
 			} else {
 
@@ -2833,38 +2833,38 @@ func (f *Renderer) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 				txt2 = strings.Replace(txt2, "(", "\\(", -1)
 				txt2 = strings.Replace(txt2, ")", "\\)", -1)
 			}
-			bt := (f.x + dx) * k
-			td := (f.h - (f.y + dy + .5*h + .3*f.fontSize)) * k
+			bt := (r.x + dx) * k
+			td := (r.h - (r.y + dy + .5*h + .3*r.fontSize)) * k
 			s.printf("BT %.2f %.2f Td (%s)Tj ET", bt, td, txt2)
-			//BT %.2F %.2F Td (%s) Tj ET',(f.x+dx)*k,(f.h-(f.y+.5*h+.3*f.FontSize))*k,txt2);
+			//BT %.2F %.2F Td (%s) Tj ET',(r.x+dx)*k,(r.h-(r.y+.5*h+.3*r.FontSize))*k,txt2);
 		}
 
-		if f.underline {
-			s.printf(" %s", f.dounderline(f.x+dx, f.y+dy+.5*h+.3*f.fontSize, txtStr))
+		if r.underline {
+			s.printf(" %s", r.dounderline(r.x+dx, r.y+dy+.5*h+.3*r.fontSize, txtStr))
 		}
-		if f.strikeout {
-			s.printf(" %s", f.dostrikeout(f.x+dx, f.y+dy+.5*h+.3*f.fontSize, txtStr))
+		if r.strikeout {
+			s.printf(" %s", r.dostrikeout(r.x+dx, r.y+dy+.5*h+.3*r.fontSize, txtStr))
 		}
-		if f.colorFlag {
+		if r.colorFlag {
 			s.printf(" Q")
 		}
 		if link > 0 || len(linkStr) > 0 {
-			f.newLink(f.x+dx, f.y+dy+.5*h-.5*f.fontSize, f.GetStringWidth(txtStr), f.fontSize, link, linkStr)
+			r.newLink(r.x+dx, r.y+dy+.5*h-.5*r.fontSize, r.GetStringWidth(txtStr), r.fontSize, link, linkStr)
 		}
 	}
 	str := s.String()
 	if len(str) > 0 {
-		f.out(str)
+		r.out(str)
 	}
-	f.lasth = h
+	r.lasth = h
 	if ln > 0 {
 		// Go to next line
-		f.y += h
+		r.y += h
 		if ln == 1 {
-			f.x = f.lMargin
+			r.x = r.lMargin
 		}
 	} else {
-		f.x += w
+		r.x += w
 	}
 }
 
@@ -2881,15 +2881,15 @@ func reverseText(text string) string {
 
 // Cell is a simpler version of CellFormat with no fill, border, links or
 // special alignment. The Cell_strikeout() example demonstrates this method.
-func (f *Renderer) Cell(w, h float64, txtStr string) {
-	f.CellFormat(w, h, txtStr, "", 0, "L", false, 0, "")
+func (r *Renderer) Cell(w, h float64, txtStr string) {
+	r.CellFormat(w, h, txtStr, "", 0, "L", false, 0, "")
 }
 
 // Cellf is a simpler printf-style version of CellFormat with no fill, border,
 // links or special alignment. See documentation for the fmt package for
 // details on fmtStr and args.
-func (f *Renderer) Cellf(w, h float64, fmtStr string, args ...any) {
-	f.CellFormat(w, h, fmt.Sprintf(fmtStr, args...), "", 0, "L", false, 0, "")
+func (r *Renderer) Cellf(w, h float64, fmtStr string, args ...any) {
+	r.CellFormat(w, h, fmt.Sprintf(fmtStr, args...), "", 0, "L", false, 0, "")
 }
 
 // SplitLines splits text into several lines using the current font. Each line
@@ -2902,11 +2902,11 @@ func (f *Renderer) Cellf(w, h float64, fmtStr string, args ...any) {
 //
 // You can use MultiCell if you want to print a text on several lines in a
 // simple way.
-func (f *Renderer) SplitLines(txt []byte, w float64) [][]byte {
+func (r *Renderer) SplitLines(txt []byte, w float64) [][]byte {
 	// Function contributed by Bruno Michel
 	lines := [][]byte{}
-	cw := f.currentFont.Cw
-	wmax := int(math.Ceil((w - 2*f.cMargin) * 1000 / f.fontSize))
+	cw := r.currentFont.Cw
+	wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
 	s := bytes.Replace(txt, []byte("\r"), []byte{}, -1)
 	nb := len(s)
 	for nb > 0 && s[nb-1] == '\n' {
@@ -2969,25 +2969,25 @@ func (f *Renderer) SplitLines(txt []byte, w float64) [][]byte {
 // applications that use UTF-8 fonts and depend on having all trailing newlines
 // removed should call strings.TrimRight(txtStr, "\r\n") before calling this
 // method.
-func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, fill bool) {
-	if f.err != nil {
+func (r *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, fill bool) {
+	if r.err != nil {
 		return
 	}
 	// dbg("MultiCell")
 	if alignStr == "" {
 		alignStr = "J"
 	}
-	cw := f.currentFont.Cw
+	cw := r.currentFont.Cw
 	if w == 0 {
-		w = f.w - f.rMargin - f.x
+		w = r.w - r.rMargin - r.x
 	}
-	wmax := int(math.Ceil((w - 2*f.cMargin) * 1000 / f.fontSize))
+	wmax := int(math.Ceil((w - 2*r.cMargin) * 1000 / r.fontSize))
 	s := strings.Replace(txtStr, "\r", "", -1)
 	srune := []rune(s)
 
 	// remove extra line breaks
 	var nb int
-	if f.isCurrentUTF8 {
+	if r.isCurrentUTF8 {
 		nb = len(srune)
 		for nb > 0 && srune[nb-1] == '\n' {
 			nb--
@@ -3042,30 +3042,30 @@ func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 	for i < nb {
 		// Get next character
 		var c rune
-		if f.isCurrentUTF8 {
+		if r.isCurrentUTF8 {
 			c = srune[i]
 		} else {
 			c = rune(s[i])
 		}
 		if c == '\n' {
 			// Explicit line break
-			if f.ws > 0 {
-				f.ws = 0
-				f.out("0 Tw")
+			if r.ws > 0 {
+				r.ws = 0
+				r.out("0 Tw")
 			}
 
-			if f.isCurrentUTF8 {
+			if r.isCurrentUTF8 {
 				newAlignStr := alignStr
 				if newAlignStr == "J" {
-					if f.isRTL {
+					if r.isRTL {
 						newAlignStr = "R"
 					} else {
 						newAlignStr = "L"
 					}
 				}
-				f.CellFormat(w, h, string(srune[j:i]), b, 2, newAlignStr, fill, 0, "")
+				r.CellFormat(w, h, string(srune[j:i]), b, 2, newAlignStr, fill, 0, "")
 			} else {
-				f.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
+				r.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
 			}
 			i++
 			sep = -1
@@ -3086,11 +3086,11 @@ func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 			ns++
 		}
 		if int(c) >= len(cw) {
-			f.err = fmt.Errorf("character outside the supported range: %s", string(c))
+			r.err = fmt.Errorf("character outside the supported range: %s", string(c))
 			return
 		}
 		if cw[int(c)] == 0 { //Marker width 0 used for missing symbols
-			l += f.currentFont.Desc.MissingWidth
+			l += r.currentFont.Desc.MissingWidth
 		} else if cw[int(c)] != 65535 { //Marker width 65535 used for zero width symbols
 			l += cw[int(c)]
 		}
@@ -3100,30 +3100,30 @@ func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 				if i == j {
 					i++
 				}
-				if f.ws > 0 {
-					f.ws = 0
-					f.out("0 Tw")
+				if r.ws > 0 {
+					r.ws = 0
+					r.out("0 Tw")
 				}
-				if f.isCurrentUTF8 {
-					f.CellFormat(w, h, string(srune[j:i]), b, 2, alignStr, fill, 0, "")
+				if r.isCurrentUTF8 {
+					r.CellFormat(w, h, string(srune[j:i]), b, 2, alignStr, fill, 0, "")
 				} else {
-					f.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
+					r.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
 				}
 			} else {
 				if alignStr == "J" {
 					if ns > 1 {
-						f.ws = float64((wmax-ls)/1000) * f.fontSize / float64(ns-1)
+						r.ws = float64((wmax-ls)/1000) * r.fontSize / float64(ns-1)
 					} else {
-						f.ws = 0
+						r.ws = 0
 					}
-					// f.outf("%.3f Tw", f.ws*f.k)
-					f.putF64(f.ws*f.k, 3)
-					f.put(" Tw\n")
+					// r.outf("%.3f Tw", r.ws*r.k)
+					r.putF64(r.ws*r.k, 3)
+					r.put(" Tw\n")
 				}
-				if f.isCurrentUTF8 {
-					f.CellFormat(w, h, string(srune[j:sep]), b, 2, alignStr, fill, 0, "")
+				if r.isCurrentUTF8 {
+					r.CellFormat(w, h, string(srune[j:sep]), b, 2, alignStr, fill, 0, "")
 				} else {
-					f.CellFormat(w, h, s[j:sep], b, 2, alignStr, fill, 0, "")
+					r.CellFormat(w, h, s[j:sep], b, 2, alignStr, fill, 0, "")
 				}
 				i = sep + 1
 			}
@@ -3140,40 +3140,40 @@ func (f *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 		}
 	}
 	// Last chunk
-	if f.ws > 0 {
-		f.ws = 0
-		f.out("0 Tw")
+	if r.ws > 0 {
+		r.ws = 0
+		r.out("0 Tw")
 	}
 	if len(borderStr) > 0 && strings.Contains(borderStr, "B") {
 		b += "B"
 	}
-	if f.isCurrentUTF8 {
+	if r.isCurrentUTF8 {
 		if alignStr == "J" {
-			if f.isRTL {
+			if r.isRTL {
 				alignStr = "R"
 			} else {
 				alignStr = ""
 			}
 		}
-		f.CellFormat(w, h, string(srune[j:i]), b, 2, alignStr, fill, 0, "")
+		r.CellFormat(w, h, string(srune[j:i]), b, 2, alignStr, fill, 0, "")
 	} else {
-		f.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
+		r.CellFormat(w, h, s[j:i], b, 2, alignStr, fill, 0, "")
 	}
-	f.x = f.lMargin
+	r.x = r.lMargin
 }
 
 // write outputs text in flowing mode
-func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
+func (r *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 	// dbg("Write")
-	cw := f.currentFont.Cw
-	w := f.w - f.rMargin - f.x
-	wmax := (w - 2*f.cMargin) * 1000 / f.fontSize
+	cw := r.currentFont.Cw
+	w := r.w - r.rMargin - r.x
+	wmax := (w - 2*r.cMargin) * 1000 / r.fontSize
 	s := strings.Replace(txtStr, "\r", "", -1)
 	var nb int
-	if f.isCurrentUTF8 {
+	if r.isCurrentUTF8 {
 		nb = len([]rune(s))
 		if nb == 1 && s == " " {
-			f.x += f.GetStringWidth(s)
+			r.x += r.GetStringWidth(s)
 			return
 		}
 	} else {
@@ -3187,26 +3187,26 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 	for i < nb {
 		// Get next character
 		var c rune
-		if f.isCurrentUTF8 {
+		if r.isCurrentUTF8 {
 			c = []rune(s)[i]
 		} else {
 			c = rune(byte(s[i]))
 		}
 		if c == '\n' {
 			// Explicit line break
-			if f.isCurrentUTF8 {
-				f.CellFormat(w, h, string([]rune(s)[j:i]), "", 2, "", false, link, linkStr)
+			if r.isCurrentUTF8 {
+				r.CellFormat(w, h, string([]rune(s)[j:i]), "", 2, "", false, link, linkStr)
 			} else {
-				f.CellFormat(w, h, s[j:i], "", 2, "", false, link, linkStr)
+				r.CellFormat(w, h, s[j:i], "", 2, "", false, link, linkStr)
 			}
 			i++
 			sep = -1
 			j = i
 			l = 0.0
 			if nl == 1 {
-				f.x = f.lMargin
-				w = f.w - f.rMargin - f.x
-				wmax = (w - 2*f.cMargin) * 1000 / f.fontSize
+				r.x = r.lMargin
+				w = r.w - r.rMargin - r.x
+				wmax = (w - 2*r.cMargin) * 1000 / r.fontSize
 			}
 			nl++
 			continue
@@ -3218,12 +3218,12 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 		if l > wmax {
 			// Automatic line break
 			if sep == -1 {
-				if f.x > f.lMargin {
+				if r.x > r.lMargin {
 					// Move to next line
-					f.x = f.lMargin
-					f.y += h
-					w = f.w - f.rMargin - f.x
-					wmax = (w - 2*f.cMargin) * 1000 / f.fontSize
+					r.x = r.lMargin
+					r.y += h
+					w = r.w - r.rMargin - r.x
+					wmax = (w - 2*r.cMargin) * 1000 / r.fontSize
 					i++
 					nl++
 					continue
@@ -3231,16 +3231,16 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 				if i == j {
 					i++
 				}
-				if f.isCurrentUTF8 {
-					f.CellFormat(w, h, string([]rune(s)[j:i]), "", 2, "", false, link, linkStr)
+				if r.isCurrentUTF8 {
+					r.CellFormat(w, h, string([]rune(s)[j:i]), "", 2, "", false, link, linkStr)
 				} else {
-					f.CellFormat(w, h, s[j:i], "", 2, "", false, link, linkStr)
+					r.CellFormat(w, h, s[j:i], "", 2, "", false, link, linkStr)
 				}
 			} else {
-				if f.isCurrentUTF8 {
-					f.CellFormat(w, h, string([]rune(s)[j:sep]), "", 2, "", false, link, linkStr)
+				if r.isCurrentUTF8 {
+					r.CellFormat(w, h, string([]rune(s)[j:sep]), "", 2, "", false, link, linkStr)
 				} else {
-					f.CellFormat(w, h, s[j:sep], "", 2, "", false, link, linkStr)
+					r.CellFormat(w, h, s[j:sep], "", 2, "", false, link, linkStr)
 				}
 				i = sep + 1
 			}
@@ -3248,9 +3248,9 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 			j = i
 			l = 0.0
 			if nl == 1 {
-				f.x = f.lMargin
-				w = f.w - f.rMargin - f.x
-				wmax = (w - 2*f.cMargin) * 1000 / f.fontSize
+				r.x = r.lMargin
+				w = r.w - r.rMargin - r.x
+				wmax = (w - 2*r.cMargin) * 1000 / r.fontSize
 			}
 			nl++
 		} else {
@@ -3259,10 +3259,10 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 	}
 	// Last chunk
 	if i != j {
-		if f.isCurrentUTF8 {
-			f.CellFormat(l/1000*f.fontSize, h, string([]rune(s)[j:]), "", 0, "", false, link, linkStr)
+		if r.isCurrentUTF8 {
+			r.CellFormat(l/1000*r.fontSize, h, string([]rune(s)[j:]), "", 0, "", false, link, linkStr)
 		} else {
-			f.CellFormat(l/1000*f.fontSize, h, s[j:], "", 0, "", false, link, linkStr)
+			r.CellFormat(l/1000*r.fontSize, h, s[j:], "", 0, "", false, link, linkStr)
 		}
 	}
 }
@@ -3275,27 +3275,27 @@ func (f *Renderer) write(h float64, txtStr string, link int, linkStr string) {
 // It is possible to put a link on the text.
 //
 // h indicates the line height in the unit of measure specified in New().
-func (f *Renderer) Write(h float64, txtStr string) {
-	f.write(h, txtStr, 0, "")
+func (r *Renderer) Write(h float64, txtStr string) {
+	r.write(h, txtStr, 0, "")
 }
 
 // Writef is like Write but uses printf-style formatting. See the documentation
 // for package fmt for more details on fmtStr and args.
-func (f *Renderer) Writef(h float64, fmtStr string, args ...any) {
-	f.write(h, fmt.Sprintf(fmtStr, args...), 0, "")
+func (r *Renderer) Writef(h float64, fmtStr string, args ...any) {
+	r.write(h, fmt.Sprintf(fmtStr, args...), 0, "")
 }
 
 // WriteLinkString writes text that when clicked launches an external URL. See
 // Write() for argument details.
-func (f *Renderer) WriteLinkString(h float64, displayStr, targetStr string) {
-	f.write(h, displayStr, 0, targetStr)
+func (r *Renderer) WriteLinkString(h float64, displayStr, targetStr string) {
+	r.write(h, displayStr, 0, targetStr)
 }
 
 // WriteLinkID writes text that when clicked jumps to another location in the
 // PDF. linkID is an identifier returned by AddLink(). See Write() for argument
 // details.
-func (f *Renderer) WriteLinkID(h float64, displayStr string, linkID int) {
-	f.write(h, displayStr, linkID, "")
+func (r *Renderer) WriteLinkID(h float64, displayStr string, linkID int) {
+	r.write(h, displayStr, linkID, "")
 }
 
 // WriteAligned is an implementation of Write that makes it possible to align
@@ -3310,41 +3310,41 @@ func (f *Renderer) WriteLinkID(h float64, displayStr string, linkID int) {
 //
 // alignStr sees to horizontal alignment of the given textStr. The options are
 // "L", "C" and "R" (Left, Center, Right). The default is "L".
-func (f *Renderer) WriteAligned(width, lineHeight float64, textStr, alignStr string) {
-	lMargin, _, rMargin, _ := f.GetMargins()
+func (r *Renderer) WriteAligned(width, lineHeight float64, textStr, alignStr string) {
+	lMargin, _, rMargin, _ := r.GetMargins()
 
-	pageWidth, _ := f.GetPageSize()
+	pageWidth, _ := r.GetPageSize()
 	if width == 0 {
 		width = pageWidth - (lMargin + rMargin)
 	}
 
 	var lines []string
 
-	if f.isCurrentUTF8 {
-		lines = f.SplitText(textStr, width)
+	if r.isCurrentUTF8 {
+		lines = r.SplitText(textStr, width)
 	} else {
-		for _, line := range f.SplitLines([]byte(textStr), width) {
+		for _, line := range r.SplitLines([]byte(textStr), width) {
 			lines = append(lines, string(line))
 		}
 	}
 
 	for _, lineBt := range lines {
 		lineStr := string(lineBt)
-		lineWidth := f.GetStringWidth(lineStr)
+		lineWidth := r.GetStringWidth(lineStr)
 
 		switch alignStr {
 		case "C":
-			f.SetLeftMargin(lMargin + ((width - lineWidth) / 2))
-			f.Write(lineHeight, lineStr)
-			f.SetLeftMargin(lMargin)
+			r.SetLeftMargin(lMargin + ((width - lineWidth) / 2))
+			r.Write(lineHeight, lineStr)
+			r.SetLeftMargin(lMargin)
 		case "R":
-			f.SetLeftMargin(lMargin + (width - lineWidth) - 2.01*f.cMargin)
-			f.Write(lineHeight, lineStr)
-			f.SetLeftMargin(lMargin)
+			r.SetLeftMargin(lMargin + (width - lineWidth) - 2.01*r.cMargin)
+			r.Write(lineHeight, lineStr)
+			r.SetLeftMargin(lMargin)
 		default:
-			f.SetRightMargin(pageWidth - lMargin - width)
-			f.Write(lineHeight, lineStr)
-			f.SetRightMargin(rMargin)
+			r.SetRightMargin(pageWidth - lMargin - width)
+			r.Write(lineHeight, lineStr)
+			r.SetRightMargin(rMargin)
 		}
 	}
 }
@@ -3354,12 +3354,12 @@ func (f *Renderer) WriteAligned(width, lineHeight float64, textStr, alignStr str
 // value of h indicates the height of the last printed cell.
 //
 // This method is demonstrated in the example for MultiCell.
-func (f *Renderer) Ln(h float64) {
-	f.x = f.lMargin
+func (r *Renderer) Ln(h float64) {
+	r.x = r.lMargin
 	if h < 0 {
-		f.y += f.lasth
+		r.y += r.lasth
 	} else {
-		f.y += h
+		r.y += h
 	}
 }
 
@@ -3367,7 +3367,7 @@ func (f *Renderer) Ln(h float64) {
 // functions (for example, Image()) that is associated with the specified MIME
 // type. For example, "jpg" is returned if mimeStr is "image/jpeg". An error is
 // set if the specified MIME type is not supported.
-func (f *Renderer) ImageTypeFromMime(mimeStr string) (tp string) {
+func (r *Renderer) ImageTypeFromMime(mimeStr string) (tp string) {
 	switch mimeStr {
 	case "image/png":
 		tp = "png"
@@ -3378,12 +3378,12 @@ func (f *Renderer) ImageTypeFromMime(mimeStr string) (tp string) {
 	case "image/gif":
 		tp = "gif"
 	default:
-		f.SetErrorf("unsupported image type: %s", mimeStr)
+		r.SetErrorf("unsupported image type: %s", mimeStr)
 	}
 	return
 }
 
-func (f *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegativeX, flow bool, link int, linkStr string) {
+func (r *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegativeX, flow bool, link int, linkStr string) {
 	// Automatic width and height calculation if needed
 	if w == 0 && h == 0 {
 		// Put image at 96 dpi
@@ -3401,10 +3401,10 @@ func (f *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegati
 		h = -info.dpi
 	}
 	if w < 0 {
-		w = -info.w * 72.0 / w / f.k
+		w = -info.w * 72.0 / w / r.k
 	}
 	if h < 0 {
-		h = -info.h * 72.0 / h / f.k
+		h = -info.h * 72.0 / h / r.k
 	}
 	if w == 0 {
 		w = h * info.w / info.h
@@ -3414,38 +3414,38 @@ func (f *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegati
 	}
 	// Flowing mode
 	if flow {
-		if f.y+h > f.pageBreakTrigger && !f.inHeader && !f.inFooter && f.acceptPageBreak() {
+		if r.y+h > r.pageBreakTrigger && !r.inHeader && !r.inFooter && r.acceptPageBreak() {
 			// Automatic page break
-			x2 := f.x
-			f.AddPageFormat(f.curOrientation, f.curPageSize)
-			if f.err != nil {
+			x2 := r.x
+			r.AddPageFormat(r.curOrientation, r.curPageSize)
+			if r.err != nil {
 				return
 			}
-			f.x = x2
+			r.x = x2
 		}
-		y = f.y
-		f.y += h
+		y = r.y
+		r.y += h
 	}
 	if !allowNegativeX {
 		if x < 0 {
-			x = f.x
+			x = r.x
 		}
 	}
 	// dbg("h %.2f", h)
 	// q 85.04 0 0 NaN 28.35 NaN cm /I2 Do Q
-	// f.outf("q %.5f 0 0 %.5f %.5f %.5f cm /I%s Do Q", w*f.k, h*f.k, x*f.k, (f.h-(y+h))*f.k, info.i)
+	// r.outf("q %.5f 0 0 %.5f %.5f %.5f cm /I%s Do Q", w*r.k, h*r.k, x*r.k, (r.h-(y+h))*r.k, info.i)
 	const prec = 5
-	f.put("q ")
-	f.putF64(w*f.k, prec)
-	f.put(" 0 0 ")
-	f.putF64(h*f.k, prec)
-	f.put(" ")
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-(y+h))*f.k, prec)
-	f.put(" cm /I" + info.i + " Do Q\n")
+	r.put("q ")
+	r.putF64(w*r.k, prec)
+	r.put(" 0 0 ")
+	r.putF64(h*r.k, prec)
+	r.put(" ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-(y+h))*r.k, prec)
+	r.put(" cm /I" + info.i + " Do Q\n")
 	if link > 0 || len(linkStr) > 0 {
-		f.newLink(x, y, w, h, link, linkStr)
+		r.newLink(x, y, w, h, link, linkStr)
 	}
 }
 
@@ -3453,12 +3453,12 @@ func (f *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegati
 //
 // Deprecated in favor of ImageOptions -- see that function for
 // details on the behavior of arguments
-func (f *Renderer) Image(imageNameStr string, x, y, w, h float64, flow bool, tp string, link int, linkStr string) {
+func (r *Renderer) Image(imageNameStr string, x, y, w, h float64, flow bool, tp string, link int, linkStr string) {
 	options := ImageOptions{
 		ReadDpi:   false,
 		ImageType: tp,
 	}
-	f.ImageOptions(imageNameStr, x, y, w, h, flow, options, link, linkStr)
+	r.ImageOptions(imageNameStr, x, y, w, h, flow, options, link, linkStr)
 }
 
 // ImageOptions puts a JPEG, PNG or GIF image in the current page. The size it
@@ -3497,27 +3497,27 @@ func (f *Renderer) Image(imageNameStr string, x, y, w, h float64, flow bool, tp 
 // If link refers to an internal page anchor (that is, it is non-zero; see
 // AddLink()), the image will be a clickable internal link. Otherwise, if
 // linkStr specifies a URL, the image will be a clickable external link.
-func (f *Renderer) ImageOptions(imageNameStr string, x, y, w, h float64, flow bool, options ImageOptions, link int, linkStr string) {
-	if f.err != nil {
+func (r *Renderer) ImageOptions(imageNameStr string, x, y, w, h float64, flow bool, options ImageOptions, link int, linkStr string) {
+	if r.err != nil {
 		return
 	}
-	info := f.RegisterImageOptions(imageNameStr, options)
-	if f.err != nil {
+	info := r.RegisterImageOptions(imageNameStr, options)
+	if r.err != nil {
 		return
 	}
-	f.imageOut(info, x, y, w, h, options.AllowNegativePosition, flow, link, linkStr)
+	r.imageOut(info, x, y, w, h, options.AllowNegativePosition, flow, link, linkStr)
 }
 
 // RegisterImageReader registers an image, reading it from Reader r, adding it
 // to the PDF file but not adding it to the page.
 //
 // This function is now deprecated in favor of RegisterImageOptionsReader
-func (f *Renderer) RegisterImageReader(imgName, tp string, r io.Reader) (info *ImageInfoType) {
+func (r *Renderer) RegisterImageReader(imgName, tp string, rd io.Reader) (info *ImageInfoType) {
 	options := ImageOptions{
 		ReadDpi:   false,
 		ImageType: tp,
 	}
-	return f.RegisterImageOptionsReader(imgName, options, r)
+	return r.RegisterImageOptionsReader(imgName, options, rd)
 }
 
 // ImageOptions provides a place to hang any options we want to use while
@@ -3547,19 +3547,19 @@ type ImageOptions struct {
 // case.
 //
 // See Image() for restrictions on the image and the options parameters.
-func (f *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptions, r io.Reader) (info *ImageInfoType) {
+func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptions, rd io.Reader) (info *ImageInfoType) {
 	// Thanks, Ivan Daniluk, for generalizing this code to use the Reader interface.
-	if f.err != nil {
+	if r.err != nil {
 		return
 	}
-	info, ok := f.images[imgName]
+	info, ok := r.images[imgName]
 	if ok {
 		return
 	}
 
 	// First use of this image, get info
 	if options.ImageType == "" {
-		f.err = fmt.Errorf("image type should be specified if reading from custom reader")
+		r.err = fmt.Errorf("image type should be specified if reading from custom reader")
 		return
 	}
 	options.ImageType = strings.ToLower(options.ImageType)
@@ -3568,22 +3568,22 @@ func (f *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 	}
 	switch options.ImageType {
 	case "jpg":
-		info = f.parsejpg(r)
+		info = r.parsejpg(rd)
 	case "png":
-		info = f.parsepng(r, options.ReadDpi)
+		info = r.parsepng(rd, options.ReadDpi)
 	case "gif":
-		info = f.parsegif(r)
+		info = r.parsegif(rd)
 	default:
-		f.err = fmt.Errorf("unsupported image type: %s", options.ImageType)
+		r.err = fmt.Errorf("unsupported image type: %s", options.ImageType)
 	}
-	if f.err != nil {
+	if r.err != nil {
 		return
 	}
 
-	if info.i, f.err = generateImageID(info); f.err != nil {
+	if info.i, r.err = generateImageID(info); r.err != nil {
 		return
 	}
-	f.images[imgName] = info
+	r.images[imgName] = info
 
 	return
 }
@@ -3595,12 +3595,12 @@ func (f *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 //
 // This function is now deprecated in favor of RegisterImageOptions.
 // See Image() for restrictions on the image and the "tp" parameters.
-func (f *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
+func (r *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
 	options := ImageOptions{
 		ReadDpi:   false,
 		ImageType: tp,
 	}
-	return f.RegisterImageOptions(fileStr, options)
+	return r.RegisterImageOptions(fileStr, options)
 }
 
 // RegisterImageOptions registers an image, adding it to the PDF file but not
@@ -3608,15 +3608,15 @@ func (f *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
 // to the page. Note that Image() calls this function, so this function is only
 // necessary if you need information about the image before placing it. See
 // Image() for restrictions on the image and the "tp" parameters.
-func (f *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (info *ImageInfoType) {
-	info, ok := f.images[fileStr]
+func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (info *ImageInfoType) {
+	info, ok := r.images[fileStr]
 	if ok {
 		return
 	}
 
 	file, err := os.Open(fileStr)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	defer file.Close()
@@ -3625,26 +3625,26 @@ func (f *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (i
 	if options.ImageType == "" {
 		pos := strings.LastIndex(fileStr, ".")
 		if pos < 0 {
-			f.err = fmt.Errorf("image file has no extension and no type was specified: %s", fileStr)
+			r.err = fmt.Errorf("image file has no extension and no type was specified: %s", fileStr)
 			return
 		}
 		options.ImageType = fileStr[pos+1:]
 	}
 
-	return f.RegisterImageOptionsReader(fileStr, options, file)
+	return r.RegisterImageOptionsReader(fileStr, options, file)
 }
 
 // GetImageInfo returns information about the registered image specified by
 // imageStr. If the image has not been registered, nil is returned. The
 // internal error is not modified by this method.
-func (f *Renderer) GetImageInfo(imageStr string) (info *ImageInfoType) {
-	return f.images[imageStr]
+func (r *Renderer) GetImageInfo(imageStr string) (info *ImageInfoType) {
+	return r.images[imageStr]
 }
 
 // GetConversionRatio returns the conversion ratio based on the unit given when
 // creating the PDF.
-func (f *Renderer) GetConversionRatio() float64 {
-	return f.k
+func (r *Renderer) GetConversionRatio() float64 {
+	return r.k
 }
 
 // GetXY returns the abscissa and ordinate of the current position.
@@ -3653,8 +3653,8 @@ func (f *Renderer) GetConversionRatio() float64 {
 // cell margin. To account for this, you may need to either add the value
 // returned by GetCellMargin() to it or call SetCellMargin(0) to remove the
 // cell margin.
-func (f *Renderer) GetXY() (float64, float64) {
-	return f.x, f.y
+func (r *Renderer) GetXY() (float64, float64) {
+	return r.x, r.y
 }
 
 // GetX returns the abscissa of the current position.
@@ -3662,51 +3662,51 @@ func (f *Renderer) GetXY() (float64, float64) {
 // Note: the value returned will be affected by the current cell margin. To
 // account for this, you may need to either add the value returned by
 // GetCellMargin() to it or call SetCellMargin(0) to remove the cell margin.
-func (f *Renderer) GetX() float64 {
-	return f.x
+func (r *Renderer) GetX() float64 {
+	return r.x
 }
 
 // SetX defines the abscissa of the current position. If the passed value is
 // negative, it is relative to the right of the page.
-func (f *Renderer) SetX(x float64) {
+func (r *Renderer) SetX(x float64) {
 	if x >= 0 {
-		f.x = x
+		r.x = x
 	} else {
-		f.x = f.w + x
+		r.x = r.w + x
 	}
 }
 
 // GetY returns the ordinate of the current position.
-func (f *Renderer) GetY() float64 {
-	return f.y
+func (r *Renderer) GetY() float64 {
+	return r.y
 }
 
 // SetY moves the current abscissa back to the left margin and sets the
 // ordinate. If the passed value is negative, it is relative to the bottom of
 // the page.
-func (f *Renderer) SetY(y float64) {
-	// dbg("SetY x %.2f, lMargin %.2f", f.x, f.lMargin)
-	f.x = f.lMargin
+func (r *Renderer) SetY(y float64) {
+	// dbg("SetY x %.2f, lMargin %.2f", r.x, r.lMargin)
+	r.x = r.lMargin
 	if y >= 0 {
-		f.y = y
+		r.y = y
 	} else {
-		f.y = f.h + y
+		r.y = r.h + y
 	}
 }
 
 // SetHomeXY is a convenience method that sets the current position to the left
 // and top margins.
-func (f *Renderer) SetHomeXY() {
-	f.SetY(f.tMargin)
-	f.SetX(f.lMargin)
+func (r *Renderer) SetHomeXY() {
+	r.SetY(r.tMargin)
+	r.SetX(r.lMargin)
 }
 
 // SetXY defines the abscissa and ordinate of the current position. If the
 // passed values are negative, they are relative respectively to the right and
 // bottom of the page.
-func (f *Renderer) SetXY(x, y float64) {
-	f.SetY(y)
-	f.SetX(x)
+func (r *Renderer) SetXY(x, y float64) {
+	r.SetY(y)
+	r.SetX(x)
 }
 
 // SetProtection applies certain constraints on the finished PDF document.
@@ -3727,23 +3727,23 @@ func (f *Renderer) SetXY(x, y float64) {
 // full access to the document regardless of the actionFlag value. An empty
 // string for this argument will be replaced with a random value, effectively
 // prohibiting full access to the document.
-func (f *Renderer) SetProtection(actionFlag byte, userPassStr, ownerPassStr string) {
-	if f.err != nil {
+func (r *Renderer) SetProtection(actionFlag byte, userPassStr, ownerPassStr string) {
+	if r.err != nil {
 		return
 	}
-	f.protect.setProtection(actionFlag, userPassStr, ownerPassStr)
+	r.protect.setProtection(actionFlag, userPassStr, ownerPassStr)
 }
 
 // OutputAndClose sends the PDF document to the writer specified by w. This
 // method will close both f and w, even if an error is detected and no document
 // is produced.
-func (f *Renderer) OutputAndClose(w io.WriteCloser) error {
-	_ = f.Output(w)
+func (r *Renderer) OutputAndClose(w io.WriteCloser) error {
+	_ = r.Output(w)
 	err := w.Close()
 	if err != nil {
 		return fmt.Errorf("could not close writer: %w", err)
 	}
-	return f.err
+	return r.err
 }
 
 // OutputFileAndClose creates or truncates the file specified by fileStr and
@@ -3751,143 +3751,143 @@ func (f *Renderer) OutputAndClose(w io.WriteCloser) error {
 // written file, even if an error is detected and no document is produced.
 //
 // Most examples demonstrate the use of this method.
-func (f *Renderer) OutputFileAndClose(fileStr string) error {
-	if f.err != nil {
-		return f.err
+func (r *Renderer) OutputFileAndClose(fileStr string) error {
+	if r.err != nil {
+		return r.err
 	}
 
 	pdfFile, err := os.Create(fileStr)
 	if err != nil {
-		f.err = err
-		return f.err
+		r.err = err
+		return r.err
 	}
 
-	_ = f.Output(pdfFile)
+	_ = r.Output(pdfFile)
 
 	err = pdfFile.Close()
 	if err != nil {
 		return fmt.Errorf("could not close output file: %w", err)
 	}
 
-	return f.err
+	return r.err
 }
 
 // Output sends the PDF document to the writer specified by w. No output will
 // take place if an error has occurred in the document generation process. w
 // remains open after this function returns. After returning, f is in a closed
 // state and its methods should not be called.
-func (f *Renderer) Output(w io.Writer) error {
-	if f.err != nil {
-		return f.err
+func (r *Renderer) Output(w io.Writer) error {
+	if r.err != nil {
+		return r.err
 	}
 	// dbg("Output")
-	if f.state < 3 {
-		f.Close()
+	if r.state < 3 {
+		r.Close()
 	}
-	_, err := f.buffer.WriteTo(w)
+	_, err := r.buffer.WriteTo(w)
 	if err != nil {
-		f.err = err
+		r.err = err
 	}
-	return f.err
+	return r.err
 }
 
-func (f *Renderer) getpagesizestr(sizeStr string) (size SizeType) {
-	if f.err != nil {
+func (r *Renderer) getpagesizestr(sizeStr string) (size SizeType) {
+	if r.err != nil {
 		return
 	}
 	sizeStr = strings.ToLower(sizeStr)
 	// dbg("Size [%s]", sizeStr)
 	var ok bool
-	size, ok = f.stdPageSizes[sizeStr]
+	size, ok = r.stdPageSizes[sizeStr]
 	if ok {
 		// dbg("found %s", sizeStr)
-		size.Wd /= f.k
-		size.Ht /= f.k
+		size.Wd /= r.k
+		size.Ht /= r.k
 
 	} else {
-		f.err = fmt.Errorf("unknown page size %s", sizeStr)
+		r.err = fmt.Errorf("unknown page size %s", sizeStr)
 	}
 	return
 }
 
 // GetPageSizeStr returns the SizeType for the given sizeStr (that is A4, A3, etc..)
-func (f *Renderer) GetPageSizeStr(sizeStr string) (size SizeType) {
-	return f.getpagesizestr(sizeStr)
+func (r *Renderer) GetPageSizeStr(sizeStr string) (size SizeType) {
+	return r.getpagesizestr(sizeStr)
 }
 
-func (f *Renderer) beginpage(orientationStr string, size SizeType) {
-	if f.err != nil {
+func (r *Renderer) beginpage(orientationStr string, size SizeType) {
+	if r.err != nil {
 		return
 	}
-	f.page++
+	r.page++
 	// add the default page boxes, if any exist, to the page
-	f.pageBoxes[f.page] = make(map[string]PageBox)
-	maps.Copy(f.pageBoxes[f.page], f.defPageBoxes)
-	f.pages = append(f.pages, bytes.NewBufferString(""))
-	f.pageLinks = append(f.pageLinks, make([]linkType, 0))
-	f.pageAttachments = append(f.pageAttachments, []annotationAttach{})
-	f.state = 2
-	f.x = f.lMargin
-	f.y = f.tMargin
-	f.fontFamily = ""
+	r.pageBoxes[r.page] = make(map[string]PageBox)
+	maps.Copy(r.pageBoxes[r.page], r.defPageBoxes)
+	r.pages = append(r.pages, bytes.NewBufferString(""))
+	r.pageLinks = append(r.pageLinks, make([]linkType, 0))
+	r.pageAttachments = append(r.pageAttachments, []annotationAttach{})
+	r.state = 2
+	r.x = r.lMargin
+	r.y = r.tMargin
+	r.fontFamily = ""
 	// Check page size and orientation
 	if orientationStr == "" {
-		orientationStr = f.defOrientation
+		orientationStr = r.defOrientation
 	} else {
 		orientationStr = strings.ToUpper(orientationStr[0:1])
 	}
-	if orientationStr != f.curOrientation || size.Wd != f.curPageSize.Wd || size.Ht != f.curPageSize.Ht {
+	if orientationStr != r.curOrientation || size.Wd != r.curPageSize.Wd || size.Ht != r.curPageSize.Ht {
 		// New size or orientation
 		if orientationStr == "P" {
-			f.w = size.Wd
-			f.h = size.Ht
+			r.w = size.Wd
+			r.h = size.Ht
 		} else {
-			f.w = size.Ht
-			f.h = size.Wd
+			r.w = size.Ht
+			r.h = size.Wd
 		}
-		f.wPt = f.w * f.k
-		f.hPt = f.h * f.k
-		f.pageBreakTrigger = f.h - f.bMargin
-		f.curOrientation = orientationStr
-		f.curPageSize = size
+		r.wPt = r.w * r.k
+		r.hPt = r.h * r.k
+		r.pageBreakTrigger = r.h - r.bMargin
+		r.curOrientation = orientationStr
+		r.curPageSize = size
 	}
-	if orientationStr != f.defOrientation || size.Wd != f.defPageSize.Wd || size.Ht != f.defPageSize.Ht {
-		f.pageSizes[f.page] = SizeType{f.wPt, f.hPt}
+	if orientationStr != r.defOrientation || size.Wd != r.defPageSize.Wd || size.Ht != r.defPageSize.Ht {
+		r.pageSizes[r.page] = SizeType{r.wPt, r.hPt}
 	}
 }
 
-func (f *Renderer) endpage() {
-	f.EndLayer()
-	f.state = 1
+func (r *Renderer) endpage() {
+	r.EndLayer()
+	r.state = 1
 }
 
 // Load a font definition file from the given Reader
-func (f *Renderer) loadfont(r io.Reader) (def fontDefType) {
-	if f.err != nil {
+func (r *Renderer) loadfont(rd io.Reader) (def fontDefType) {
+	if r.err != nil {
 		return
 	}
 	// dbg("Loading font [%s]", fontStr)
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
+	_, err := buf.ReadFrom(rd)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	err = json.Unmarshal(buf.Bytes(), &def)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 
 	if def.i, err = generateFontID(def); err != nil {
-		f.err = err
+		r.err = err
 	}
 	// dump(def)
 	return
 }
 
 // Escape special characters in strings
-func (f *Renderer) escape(s string) string {
+func (r *Renderer) escape(s string) string {
 	s = strings.Replace(s, "\\", "\\\\", -1)
 	s = strings.Replace(s, "(", "\\(", -1)
 	s = strings.Replace(s, ")", "\\)", -1)
@@ -3896,13 +3896,13 @@ func (f *Renderer) escape(s string) string {
 }
 
 // textstring formats a text string
-func (f *Renderer) textstring(s string) string {
-	if f.protect.encrypted {
+func (r *Renderer) textstring(s string) string {
+	if r.protect.encrypted {
 		b := []byte(s)
-		f.protect.rc4(uint32(f.n), &b)
+		r.protect.rc4(uint32(r.n), &b)
 		s = string(b)
 	}
-	return "(" + f.escape(s) + ")"
+	return "(" + r.escape(s) + ")"
 }
 
 func blankCount(str string) (count int) {
@@ -3916,56 +3916,56 @@ func blankCount(str string) (count int) {
 }
 
 // GetUnderlineThickness returns the current text underline thickness multiplier.
-func (f *Renderer) GetUnderlineThickness() float64 {
-	return f.userUnderlineThickness
+func (r *Renderer) GetUnderlineThickness() float64 {
+	return r.userUnderlineThickness
 }
 
 // SetUnderlineThickness accepts a multiplier for adjusting the text underline
 // thickness, defaulting to 1. See SetUnderlineThickness example.
-func (f *Renderer) SetUnderlineThickness(thickness float64) {
-	f.userUnderlineThickness = thickness
+func (r *Renderer) SetUnderlineThickness(thickness float64) {
+	r.userUnderlineThickness = thickness
 }
 
 // Underline text
-func (f *Renderer) dounderline(x, y float64, txt string) string {
-	up := float64(f.currentFont.Up)
-	ut := float64(f.currentFont.Ut) * f.userUnderlineThickness
-	w := f.GetStringWidth(txt) + f.ws*float64(blankCount(txt))
-	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
-		(f.h-(y-up/1000*f.fontSize))*f.k, w*f.k, -ut/1000*f.fontSizePt)
+func (r *Renderer) dounderline(x, y float64, txt string) string {
+	up := float64(r.currentFont.Up)
+	ut := float64(r.currentFont.Ut) * r.userUnderlineThickness
+	w := r.GetStringWidth(txt) + r.ws*float64(blankCount(txt))
+	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*r.k,
+		(r.h-(y-up/1000*r.fontSize))*r.k, w*r.k, -ut/1000*r.fontSizePt)
 }
 
-func (f *Renderer) dostrikeout(x, y float64, txt string) string {
-	up := float64(f.currentFont.Up)
-	ut := float64(f.currentFont.Ut)
-	w := f.GetStringWidth(txt) + f.ws*float64(blankCount(txt))
-	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*f.k,
-		(f.h-(y+4*up/1000*f.fontSize))*f.k, w*f.k, -ut/1000*f.fontSizePt)
+func (r *Renderer) dostrikeout(x, y float64, txt string) string {
+	up := float64(r.currentFont.Up)
+	ut := float64(r.currentFont.Ut)
+	w := r.GetStringWidth(txt) + r.ws*float64(blankCount(txt))
+	return fmt.Sprintf("%.2f %.2f %.2f %.2f re f", x*r.k,
+		(r.h-(y+4*up/1000*r.fontSize))*r.k, w*r.k, -ut/1000*r.fontSizePt)
 }
 
-func (f *Renderer) newImageInfo() *ImageInfoType {
+func (r *Renderer) newImageInfo() *ImageInfoType {
 	// default dpi to 72 unless told otherwise
-	return &ImageInfoType{scale: f.k, dpi: 72}
+	return &ImageInfoType{scale: r.k, dpi: 72}
 }
 
 // parsejpg extracts info from io.Reader with JPEG data
 // Thank you, Bruno Michel, for providing this code.
-func (f *Renderer) parsejpg(r io.Reader) (info *ImageInfoType) {
-	info = f.newImageInfo()
+func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
+	info = r.newImageInfo()
 	var (
 		data bytes.Buffer
 		err  error
 	)
-	_, err = data.ReadFrom(r)
+	_, err = data.ReadFrom(rd)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	info.data = data.Bytes()
 
 	config, err := jpeg.DecodeConfig(bytes.NewReader(info.data))
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	info.w = float64(config.Width)
@@ -3980,98 +3980,98 @@ func (f *Renderer) parsejpg(r io.Reader) (info *ImageInfoType) {
 	case color.CMYKModel:
 		info.cs = "DeviceCMYK"
 	default:
-		f.err = fmt.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
+		r.err = fmt.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
 		return
 	}
 	return
 }
 
 // parsepng extracts info from a PNG data
-func (f *Renderer) parsepng(r io.Reader, readdpi bool) (info *ImageInfoType) {
-	buf, err := newRBuffer(r)
+func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfoType) {
+	buf, err := newRBuffer(rd)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
-	return f.parsepngstream(buf, readdpi)
+	return r.parsepngstream(buf, readdpi)
 }
 
 // parsegif extracts info from a GIF data (via PNG conversion)
-func (f *Renderer) parsegif(r io.Reader) (info *ImageInfoType) {
-	data, err := newRBuffer(r)
+func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfoType) {
+	data, err := newRBuffer(rd)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	var img image.Image
 	img, err = gif.Decode(data)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
 	pngBuf := new(bytes.Buffer)
 	err = png.Encode(pngBuf, img)
 	if err != nil {
-		f.err = err
+		r.err = err
 		return
 	}
-	return f.parsepngstream(&rbuffer{p: pngBuf.Bytes()}, false)
+	return r.parsepngstream(&rbuffer{p: pngBuf.Bytes()}, false)
 }
 
 // newobj begins a new object
-func (f *Renderer) newobj() {
+func (r *Renderer) newobj() {
 	// dbg("newobj")
-	f.n++
-	for j := len(f.offsets); j <= f.n; j++ {
-		f.offsets = append(f.offsets, 0)
+	r.n++
+	for j := len(r.offsets); j <= r.n; j++ {
+		r.offsets = append(r.offsets, 0)
 	}
-	f.offsets[f.n] = f.buffer.Len()
-	f.outf("%d 0 obj", f.n)
+	r.offsets[r.n] = r.buffer.Len()
+	r.outf("%d 0 obj", r.n)
 }
 
-func (f *Renderer) putstream(b []byte) {
+func (r *Renderer) putstream(b []byte) {
 	// dbg("putstream")
-	if f.protect.encrypted {
-		f.protect.rc4(uint32(f.n), &b)
+	if r.protect.encrypted {
+		r.protect.rc4(uint32(r.n), &b)
 	}
-	f.out("stream")
-	f.out(string(b))
-	f.out("endstream")
+	r.out("stream")
+	r.out(string(b))
+	r.out("endstream")
 }
 
 // out; Add a line to the document
-func (f *Renderer) out(s string) {
-	if f.state == 2 {
-		f.pages[f.page].WriteString(s)
-		f.pages[f.page].WriteString("\n")
+func (r *Renderer) out(s string) {
+	if r.state == 2 {
+		r.pages[r.page].WriteString(s)
+		r.pages[r.page].WriteString("\n")
 	} else {
-		f.buffer.WriteString(s)
-		f.buffer.WriteString("\n")
+		r.buffer.WriteString(s)
+		r.buffer.WriteString("\n")
 	}
 }
 
-func (f *Renderer) put(s string) {
-	if f.state == 2 {
-		f.pages[f.page].WriteString(s)
+func (r *Renderer) put(s string) {
+	if r.state == 2 {
+		r.pages[r.page].WriteString(s)
 	} else {
-		f.buffer.WriteString(s)
+		r.buffer.WriteString(s)
 	}
 }
 
 // outbuf adds a buffered line to the document. Unlike the bytes.Buffer write
 // methods, ReadFrom can fail (RawWriteBuf accepts arbitrary readers); such an
 // error is recorded in the renderer's error state.
-func (f *Renderer) outbuf(r io.Reader) {
-	if f.state == 2 {
-		if _, err := f.pages[f.page].ReadFrom(r); err != nil {
-			f.SetError(err)
+func (r *Renderer) outbuf(rd io.Reader) {
+	if r.state == 2 {
+		if _, err := r.pages[r.page].ReadFrom(rd); err != nil {
+			r.SetError(err)
 		}
-		f.pages[f.page].WriteString("\n")
+		r.pages[r.page].WriteString("\n")
 	} else {
-		if _, err := f.buffer.ReadFrom(r); err != nil {
-			f.SetError(err)
+		if _, err := r.buffer.ReadFrom(rd); err != nil {
+			r.SetError(err)
 		}
-		f.buffer.WriteString("\n")
+		r.buffer.WriteString("\n")
 	}
 }
 
@@ -4079,38 +4079,38 @@ func (f *Renderer) outbuf(r io.Reader) {
 // low-level function that is not required for normal PDF construction. An
 // understanding of the PDF specification is needed to use this method
 // correctly.
-func (f *Renderer) RawWriteStr(str string) {
-	f.out(str)
+func (r *Renderer) RawWriteStr(str string) {
+	r.out(str)
 }
 
 // RawWriteBuf writes the contents of the specified buffer directly to the PDF
 // generation buffer. This is a low-level function that is not required for
 // normal PDF construction. An understanding of the PDF specification is needed
 // to use this method correctly.
-func (f *Renderer) RawWriteBuf(r io.Reader) {
-	f.outbuf(r)
+func (r *Renderer) RawWriteBuf(rd io.Reader) {
+	r.outbuf(rd)
 }
 
 // outf adds a formatted line to the document
-func (f *Renderer) outf(fmtStr string, args ...any) {
-	f.out(fmt.Sprintf(fmtStr, args...))
+func (r *Renderer) outf(fmtStr string, args ...any) {
+	r.out(fmt.Sprintf(fmtStr, args...))
 }
 
-func (f *Renderer) putF64(v float64, prec int) {
-	f.put(f.fmtF64(v, prec))
+func (r *Renderer) putF64(v float64, prec int) {
+	r.put(r.fmtF64(v, prec))
 }
 
 // fmtF64 converts the floating-point number f to a string with precision prec.
-func (f *Renderer) fmtF64(v float64, prec int) string {
-	return string(strconv.AppendFloat(f.fmt.buf[:0], v, 'f', prec, 64))
+func (r *Renderer) fmtF64(v float64, prec int) string {
+	return string(strconv.AppendFloat(r.fmt.buf[:0], v, 'f', prec, 64))
 }
 
-func (f *Renderer) putInt(v int) {
-	f.put(f.fmtInt(v))
+func (r *Renderer) putInt(v int) {
+	r.put(r.fmtInt(v))
 }
 
-func (f *Renderer) fmtInt(v int) string {
-	return string(strconv.AppendInt(f.fmt.buf[:0], int64(v), 10))
+func (r *Renderer) fmtInt(v int) string {
+	return string(strconv.AppendInt(r.fmt.buf[:0], int64(v), 10))
 }
 
 // SetDefaultCatalogSort sets the default value of the catalog sort flag that
@@ -4121,15 +4121,15 @@ func SetDefaultCatalogSort(flag bool) {
 }
 
 // GetCatalogSort returns the document's internal catalog sort flag.
-func (f *Renderer) GetCatalogSort() bool {
-	return f.catalogSort
+func (r *Renderer) GetCatalogSort() bool {
+	return r.catalogSort
 }
 
 // SetCatalogSort sets a flag that will be used, if true, to consistently order
 // the document's internal resource catalogs. This method is typically only
 // used for test purposes to facilitate PDF comparison.
-func (f *Renderer) SetCatalogSort(flag bool) {
-	f.catalogSort = flag
+func (r *Renderer) SetCatalogSort(flag bool) {
+	r.catalogSort = flag
 }
 
 // SetDefaultCreationDate sets the default value of the document creation date
@@ -4147,199 +4147,199 @@ func SetDefaultModificationDate(tm time.Time) {
 }
 
 // GetCreationDate returns the document's internal CreationDate value.
-func (f *Renderer) GetCreationDate() time.Time {
-	return f.creationDate
+func (r *Renderer) GetCreationDate() time.Time {
+	return r.creationDate
 }
 
 // SetCreationDate fixes the document's internal CreationDate value. By
 // default, the time when the document is generated is used for this value.
 // This method is typically only used for testing purposes to facilitate PDF
 // comparison. Specify a zero-value time to revert to the default behavior.
-func (f *Renderer) SetCreationDate(tm time.Time) {
-	f.creationDate = tm
+func (r *Renderer) SetCreationDate(tm time.Time) {
+	r.creationDate = tm
 }
 
 // GetModificationDate returns the document's internal ModDate value.
-func (f *Renderer) GetModificationDate() time.Time {
-	return f.modDate
+func (r *Renderer) GetModificationDate() time.Time {
+	return r.modDate
 }
 
 // SetModificationDate fixes the document's internal ModDate value.
 // See `SetCreationDate` for more details.
-func (f *Renderer) SetModificationDate(tm time.Time) {
-	f.modDate = tm
+func (r *Renderer) SetModificationDate(tm time.Time) {
+	r.modDate = tm
 }
 
 // GetJavascript returns the Adobe JavaScript for the document.
 //
 // GetJavascript returns an empty string if no javascript was
 // previously defined.
-func (f *Renderer) GetJavascript() string {
-	if f.javascript == nil {
+func (r *Renderer) GetJavascript() string {
+	if r.javascript == nil {
 		return ""
 	}
-	return *f.javascript
+	return *r.javascript
 }
 
 // SetJavascript adds Adobe JavaScript to the document.
-func (f *Renderer) SetJavascript(script string) {
-	f.javascript = &script
+func (r *Renderer) SetJavascript(script string) {
+	r.javascript = &script
 }
 
 // RegisterAlias adds an (alias, replacement) pair to the document so we can
 // replace all occurrences of that alias after writing but before the document
 // is closed. Functions ExampleFpdf_RegisterAlias() and
 // ExampleFpdf_RegisterAlias_utf8() in fpdf_test.go demonstrate this method.
-func (f *Renderer) RegisterAlias(alias, replacement string) {
+func (r *Renderer) RegisterAlias(alias, replacement string) {
 	// Note: map[string]string assignments embed literal escape ("\00") sequences
 	// into utf16 key and value strings. Consequently, subsequent search/replace
 	// operations will fail unexpectedly if utf8toutf16() conversions take place
 	// here. Instead, conversions are deferred until the actual search/replace
 	// operation takes place when the PDF output is generated.
-	f.aliasMap[alias] = replacement
+	r.aliasMap[alias] = replacement
 }
 
-func (f *Renderer) replaceAliases() {
+func (r *Renderer) replaceAliases() {
 	for mode := range 2 {
-		for alias, replacement := range f.aliasMap {
+		for alias, replacement := range r.aliasMap {
 			if mode == 1 {
 				alias = utf8toutf16(alias, false)
 				replacement = utf8toutf16(replacement, false)
 			}
-			for n := 1; n <= f.page; n++ {
-				s := f.pages[n].String()
+			for n := 1; n <= r.page; n++ {
+				s := r.pages[n].String()
 				if strings.Contains(s, alias) {
 					s = strings.Replace(s, alias, replacement, -1)
-					f.pages[n].Truncate(0)
-					f.pages[n].WriteString(s)
+					r.pages[n].Truncate(0)
+					r.pages[n].WriteString(s)
 				}
 			}
 		}
 	}
 }
 
-func (f *Renderer) putpages() {
+func (r *Renderer) putpages() {
 	var wPt, hPt float64
 	var pageSize SizeType
 	var ok bool
-	nb := f.page
-	if len(f.aliasNbPagesStr) > 0 {
+	nb := r.page
+	if len(r.aliasNbPagesStr) > 0 {
 		// Replace number of pages
-		f.RegisterAlias(f.aliasNbPagesStr, fmt.Sprintf("%d", nb))
+		r.RegisterAlias(r.aliasNbPagesStr, fmt.Sprintf("%d", nb))
 	}
-	f.replaceAliases()
-	if f.defOrientation == "P" {
-		wPt = f.defPageSize.Wd * f.k
-		hPt = f.defPageSize.Ht * f.k
+	r.replaceAliases()
+	if r.defOrientation == "P" {
+		wPt = r.defPageSize.Wd * r.k
+		hPt = r.defPageSize.Ht * r.k
 	} else {
-		wPt = f.defPageSize.Ht * f.k
-		hPt = f.defPageSize.Wd * f.k
+		wPt = r.defPageSize.Ht * r.k
+		hPt = r.defPageSize.Wd * r.k
 	}
 	pagesObjectNumbers := make([]int, nb+1) // 1-based
 	for n := 1; n <= nb; n++ {
 		// Page
-		f.newobj()
-		pagesObjectNumbers[n] = f.n // save for /Kids
-		f.out("<</Type /Page")
-		f.out("/Parent 1 0 R")
-		pageSize, ok = f.pageSizes[n]
+		r.newobj()
+		pagesObjectNumbers[n] = r.n // save for /Kids
+		r.out("<</Type /Page")
+		r.out("/Parent 1 0 R")
+		pageSize, ok = r.pageSizes[n]
 		if ok {
-			f.outf("/MediaBox [0 0 %.2f %.2f]", pageSize.Wd, pageSize.Ht)
+			r.outf("/MediaBox [0 0 %.2f %.2f]", pageSize.Wd, pageSize.Ht)
 		}
-		for t, pb := range f.pageBoxes[n] {
-			f.outf("/%s [%.2f %.2f %.2f %.2f]", t, pb.X, pb.Y, pb.Wd, pb.Ht)
+		for t, pb := range r.pageBoxes[n] {
+			r.outf("/%s [%.2f %.2f %.2f %.2f]", t, pb.X, pb.Y, pb.Wd, pb.Ht)
 		}
-		f.out("/Resources 2 0 R")
+		r.out("/Resources 2 0 R")
 		// Links
-		if len(f.pageLinks[n])+len(f.pageAttachments[n]) > 0 {
+		if len(r.pageLinks[n])+len(r.pageAttachments[n]) > 0 {
 			var annots fmtBuffer
 			annots.printf("/Annots [")
-			for _, pl := range f.pageLinks[n] {
+			for _, pl := range r.pageLinks[n] {
 				annots.printf("<</Type /Annot /Subtype /Link /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0] ",
 					pl.x, pl.y, pl.x+pl.wd, pl.y-pl.ht)
 				if pl.link == 0 {
-					annots.printf("/A <</S /URI /URI %s>>>>", f.textstring(pl.linkStr))
+					annots.printf("/A <</S /URI /URI %s>>>>", r.textstring(pl.linkStr))
 				} else {
-					l := f.links[pl.link]
+					l := r.links[pl.link]
 					var sz SizeType
 					var h float64
-					sz, ok = f.pageSizes[l.page]
+					sz, ok = r.pageSizes[l.page]
 					if ok {
 						h = sz.Ht
 					} else {
 						h = hPt
 					}
-					// dbg("h [%.2f], l.y [%.2f] f.k [%.2f]\n", h, l.y, f.k)
-					annots.printf("/Dest [%d 0 R /XYZ 0 %.2f null]>>", 1+2*l.page, h-l.y*f.k)
+					// dbg("h [%.2f], l.y [%.2f] r.k [%.2f]\n", h, l.y, r.k)
+					annots.printf("/Dest [%d 0 R /XYZ 0 %.2f null]>>", 1+2*l.page, h-l.y*r.k)
 				}
 			}
-			f.putAttachmentAnnotationLinks(&annots, n)
+			r.putAttachmentAnnotationLinks(&annots, n)
 			annots.printf("]")
-			f.out(annots.String())
+			r.out(annots.String())
 		}
-		if f.pdfVersion > pdfVers1_3 {
-			f.out("/Group <</Type /Group /S /Transparency /CS /DeviceRGB>>")
+		if r.pdfVersion > pdfVers1_3 {
+			r.out("/Group <</Type /Group /S /Transparency /CS /DeviceRGB>>")
 		}
-		f.outf("/Contents %d 0 R>>", f.n+1)
-		f.out("endobj")
+		r.outf("/Contents %d 0 R>>", r.n+1)
+		r.out("endobj")
 		// Page content
-		f.newobj()
-		if f.compress {
-			mem := xmem.compress(f.pages[n].Bytes())
+		r.newobj()
+		if r.compress {
+			mem := xmem.compress(r.pages[n].Bytes())
 			data := mem.bytes()
-			f.outf("<</Filter /FlateDecode /Length %d>>", len(data))
-			f.putstream(data)
+			r.outf("<</Filter /FlateDecode /Length %d>>", len(data))
+			r.putstream(data)
 			mem.release()
 		} else {
-			f.outf("<</Length %d>>", f.pages[n].Len())
-			f.putstream(f.pages[n].Bytes())
+			r.outf("<</Length %d>>", r.pages[n].Len())
+			r.putstream(r.pages[n].Bytes())
 		}
-		f.out("endobj")
+		r.out("endobj")
 	}
 	// Pages root
-	f.offsets[1] = f.buffer.Len()
-	f.out("1 0 obj")
-	f.out("<</Type /Pages")
+	r.offsets[1] = r.buffer.Len()
+	r.out("1 0 obj")
+	r.out("<</Type /Pages")
 	var kids fmtBuffer
 	kids.printf("/Kids [")
 	for i := 1; i <= nb; i++ {
 		kids.printf("%d 0 R ", pagesObjectNumbers[i])
 	}
 	kids.printf("]")
-	f.out(kids.String())
-	f.outf("/Count %d", nb)
-	f.outf("/MediaBox [0 0 %.2f %.2f]", wPt, hPt)
-	f.out(">>")
-	f.out("endobj")
+	r.out(kids.String())
+	r.outf("/Count %d", nb)
+	r.outf("/MediaBox [0 0 %.2f %.2f]", wPt, hPt)
+	r.out(">>")
+	r.out("endobj")
 }
 
-func (f *Renderer) putfonts() {
-	if f.err != nil {
+func (r *Renderer) putfonts() {
+	if r.err != nil {
 		return
 	}
-	nf := f.n
-	for _, diff := range f.diffs {
+	nf := r.n
+	for _, diff := range r.diffs {
 		// Encodings
-		f.newobj()
-		f.outf("<</Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [%s]>>", diff)
-		f.out("endobj")
+		r.newobj()
+		r.outf("<</Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [%s]>>", diff)
+		r.out("endobj")
 	}
 	{
 		var fileList []string
 		var info fontFileType
 		var file string
-		for file = range f.fontFiles {
+		for file = range r.fontFiles {
 			fileList = append(fileList, file)
 		}
-		if f.catalogSort {
+		if r.catalogSort {
 			sort.SliceStable(fileList, func(i, j int) bool { return fileList[i] < fileList[j] })
 		}
 		for _, file = range fileList {
-			info = f.fontFiles[file]
+			info = r.fontFiles[file]
 			if info.fontType != "UTF8" {
-				f.newobj()
-				info.n = f.n
-				f.fontFiles[file] = info
+				r.newobj()
+				info.n = r.n
+				r.fontFiles[file] = info
 
 				var font []byte
 
@@ -4347,9 +4347,9 @@ func (f *Renderer) putfonts() {
 					font = info.content
 				} else {
 					var err error
-					font, err = f.loadFontFile(file)
+					font, err = r.loadFontFile(file)
 					if err != nil {
-						f.err = err
+						r.err = err
 						return
 					}
 				}
@@ -4359,17 +4359,17 @@ func (f *Renderer) putfonts() {
 					buf = append(buf, font[6+info.length1+6:info.length2]...)
 					font = buf
 				}
-				f.outf("<</Length %d", len(font))
+				r.outf("<</Length %d", len(font))
 				if compressed {
-					f.out("/Filter /FlateDecode")
+					r.out("/Filter /FlateDecode")
 				}
-				f.outf("/Length1 %d", info.length1)
+				r.outf("/Length1 %d", info.length1)
 				if info.length2 > 0 {
-					f.outf("/Length2 %d /Length3 0", info.length2)
+					r.outf("/Length2 %d /Length3 0", info.length2)
 				}
-				f.out(">>")
-				f.putstream(font)
-				f.out("endobj")
+				r.out(">>")
+				r.putstream(font)
+				r.out("endobj")
 			}
 		}
 	}
@@ -4377,61 +4377,61 @@ func (f *Renderer) putfonts() {
 		var keyList []string
 		var font fontDefType
 		var key string
-		for key = range f.fonts {
+		for key = range r.fonts {
 			keyList = append(keyList, key)
 		}
-		if f.catalogSort {
+		if r.catalogSort {
 			sort.SliceStable(keyList, func(i, j int) bool { return keyList[i] < keyList[j] })
 		}
 		for _, key = range keyList {
-			font = f.fonts[key]
+			font = r.fonts[key]
 			// Font objects
-			font.N = f.n + 1
-			f.fonts[key] = font
+			font.N = r.n + 1
+			r.fonts[key] = font
 			tp := font.Tp
 			name := font.Name
 			switch tp {
 			case "Core":
 				// Core font
-				f.newobj()
-				f.out("<</Type /Font")
-				f.outf("/BaseFont /%s", name)
-				f.out("/Subtype /Type1")
+				r.newobj()
+				r.out("<</Type /Font")
+				r.outf("/BaseFont /%s", name)
+				r.out("/Subtype /Type1")
 				if name != "Symbol" && name != "ZapfDingbats" {
-					f.out("/Encoding /WinAnsiEncoding")
+					r.out("/Encoding /WinAnsiEncoding")
 				}
-				f.out(">>")
-				f.out("endobj")
+				r.out(">>")
+				r.out("endobj")
 			case "Type1":
 				fallthrough
 			case "TrueType":
 				// Additional Type1 or TrueType/OpenType font
-				f.newobj()
-				f.out("<</Type /Font")
-				f.outf("/BaseFont /%s", name)
-				f.outf("/Subtype /%s", tp)
-				f.out("/FirstChar 32 /LastChar 255")
-				f.outf("/Widths %d 0 R", f.n+1)
-				f.outf("/FontDescriptor %d 0 R", f.n+2)
+				r.newobj()
+				r.out("<</Type /Font")
+				r.outf("/BaseFont /%s", name)
+				r.outf("/Subtype /%s", tp)
+				r.out("/FirstChar 32 /LastChar 255")
+				r.outf("/Widths %d 0 R", r.n+1)
+				r.outf("/FontDescriptor %d 0 R", r.n+2)
 				if font.DiffN > 0 {
-					f.outf("/Encoding %d 0 R", nf+font.DiffN)
+					r.outf("/Encoding %d 0 R", nf+font.DiffN)
 				} else {
-					f.out("/Encoding /WinAnsiEncoding")
+					r.out("/Encoding /WinAnsiEncoding")
 				}
-				f.out(">>")
-				f.out("endobj")
+				r.out(">>")
+				r.out("endobj")
 				// Widths
-				f.newobj()
+				r.newobj()
 				var s fmtBuffer
 				s.WriteString("[")
 				for j := 32; j < 256; j++ {
 					s.printf("%d ", font.Cw[j])
 				}
 				s.WriteString("]")
-				f.out(s.String())
-				f.out("endobj")
+				r.out(s.String())
+				r.out("endobj")
 				// Descriptor
-				f.newobj()
+				r.newobj()
 				s.Truncate(0)
 				s.printf("<</Type /FontDescriptor /FontName /%s ", name)
 				s.printf("/Ascent %d ", font.Desc.Ascent)
@@ -4447,9 +4447,9 @@ func (f *Renderer) putfonts() {
 				if tp != "Type1" {
 					suffix = "2"
 				}
-				s.printf("/FontFile%s %d 0 R>>", suffix, f.fontFiles[font.File].n)
-				f.out(s.String())
-				f.out("endobj")
+				s.printf("/FontFile%s %d 0 R>>", suffix, r.fontFiles[font.File].n)
+				r.out(s.String())
+				r.out("endobj")
 			case "UTF8":
 				fontName := "utf8" + font.Name
 				usedRunes := font.usedRunes
@@ -4459,31 +4459,31 @@ func (f *Renderer) putfonts() {
 				CodeSignDictionary := font.utf8File.CodeSymbolDictionary
 				delete(CodeSignDictionary, 0)
 
-				f.newobj()
-				f.out(fmt.Sprintf("<</Type /Font\n/Subtype /Type0\n/BaseFont /%s\n/Encoding /Identity-H\n/DescendantFonts [%d 0 R]\n/ToUnicode %d 0 R>>\n"+"endobj", fontName, f.n+1, f.n+2))
+				r.newobj()
+				r.out(fmt.Sprintf("<</Type /Font\n/Subtype /Type0\n/BaseFont /%s\n/Encoding /Identity-H\n/DescendantFonts [%d 0 R]\n/ToUnicode %d 0 R>>\n"+"endobj", fontName, r.n+1, r.n+2))
 
-				f.newobj()
-				f.out("<</Type /Font\n/Subtype /CIDFontType2\n/BaseFont /" + fontName + "\n" +
-					"/CIDSystemInfo " + strconv.Itoa(f.n+2) + " 0 R\n/FontDescriptor " + strconv.Itoa(f.n+3) + " 0 R")
+				r.newobj()
+				r.out("<</Type /Font\n/Subtype /CIDFontType2\n/BaseFont /" + fontName + "\n" +
+					"/CIDSystemInfo " + strconv.Itoa(r.n+2) + " 0 R\n/FontDescriptor " + strconv.Itoa(r.n+3) + " 0 R")
 				if font.Desc.MissingWidth != 0 {
-					f.out("/DW " + strconv.Itoa(font.Desc.MissingWidth))
+					r.out("/DW " + strconv.Itoa(font.Desc.MissingWidth))
 				}
-				f.generateCIDFontMap(&font, font.utf8File.LastRune)
-				f.out("/CIDToGIDMap " + strconv.Itoa(f.n+4) + " 0 R>>")
-				f.out("endobj")
+				r.generateCIDFontMap(&font, font.utf8File.LastRune)
+				r.out("/CIDToGIDMap " + strconv.Itoa(r.n+4) + " 0 R>>")
+				r.out("endobj")
 
-				f.newobj()
-				f.out("<</Length " + strconv.Itoa(len(toUnicode)) + ">>")
-				f.putstream([]byte(toUnicode))
-				f.out("endobj")
+				r.newobj()
+				r.out("<</Length " + strconv.Itoa(len(toUnicode)) + ">>")
+				r.putstream([]byte(toUnicode))
+				r.out("endobj")
 
 				// CIDInfo
-				f.newobj()
-				f.out("<</Registry (Adobe)\n/Ordering (UCS)\n/Supplement 0>>")
-				f.out("endobj")
+				r.newobj()
+				r.out("<</Registry (Adobe)\n/Ordering (UCS)\n/Supplement 0>>")
+				r.out("endobj")
 
 				// Font descriptor
-				f.newobj()
+				r.newobj()
 				var s fmtBuffer
 				s.printf("<</Type /FontDescriptor /FontName /%s\n /Ascent %d", fontName, font.Desc.Ascent)
 				s.printf(" /Descent %d", font.Desc.Descent)
@@ -4497,10 +4497,10 @@ func (f *Renderer) putfonts() {
 				s.printf(" /ItalicAngle %d", font.Desc.ItalicAngle)
 				s.printf(" /StemV %d", font.Desc.StemV)
 				s.printf(" /MissingWidth %d", font.Desc.MissingWidth)
-				s.printf("/FontFile2 %d 0 R", f.n+2)
+				s.printf("/FontFile2 %d 0 R", r.n+2)
 				s.printf(">>")
-				f.out(s.String())
-				f.out("endobj")
+				r.out(s.String())
+				r.out("endobj")
 
 				// Embed CIDToGIDMap
 				cidToGidMap := make([]byte, 256*256*2)
@@ -4512,32 +4512,32 @@ func (f *Renderer) putfonts() {
 
 				mem := xmem.compress(cidToGidMap)
 				cidToGidMap = mem.bytes()
-				f.newobj()
-				f.out("<</Length " + strconv.Itoa(len(cidToGidMap)) + "/Filter /FlateDecode>>")
-				f.putstream(cidToGidMap)
-				f.out("endobj")
+				r.newobj()
+				r.out("<</Length " + strconv.Itoa(len(cidToGidMap)) + "/Filter /FlateDecode>>")
+				r.putstream(cidToGidMap)
+				r.out("endobj")
 				mem.release()
 
 				//Font file
 				mem = xmem.compress(utf8FontStream)
 				compressedFontStream := mem.bytes()
-				f.newobj()
-				f.out("<</Length " + strconv.Itoa(len(compressedFontStream)))
-				f.out("/Filter /FlateDecode")
-				f.out("/Length1 " + strconv.Itoa(utf8FontSize))
-				f.out(">>")
-				f.putstream(compressedFontStream)
-				f.out("endobj")
+				r.newobj()
+				r.out("<</Length " + strconv.Itoa(len(compressedFontStream)))
+				r.out("/Filter /FlateDecode")
+				r.out("/Length1 " + strconv.Itoa(utf8FontSize))
+				r.out(">>")
+				r.putstream(compressedFontStream)
+				r.out("endobj")
 				mem.release()
 			default:
-				f.err = fmt.Errorf("unsupported font type: %s", tp)
+				r.err = fmt.Errorf("unsupported font type: %s", tp)
 				return
 			}
 		}
 	}
 }
 
-func (f *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
+func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 	rangeID := 0
 	cidArray := make(map[int]*untypedKeyMap)
 	cidArrayKeys := make([]int, 0)
@@ -4651,7 +4651,7 @@ func (f *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
 			w.printf(" %d [ %s ]\n", k, implode(" ", ws.valueSet))
 		}
 	}
-	f.out("/W [" + w.String() + " ]")
+	r.out("/W [" + w.String() + " ]")
 }
 
 func implode(sep string, arr []int) string {
@@ -4675,9 +4675,9 @@ func arrayCountValues(mp []int) map[int]int {
 	return answer
 }
 
-func (f *Renderer) loadFontFile(name string) ([]byte, error) {
-	if f.fontLoader != nil {
-		reader, err := f.fontLoader.Open(name)
+func (r *Renderer) loadFontFile(name string) ([]byte, error) {
+	if r.fontLoader != nil {
+		reader, err := r.fontLoader.Open(name)
 		if err == nil {
 			data, err := io.ReadAll(reader)
 			if closer, ok := reader.(io.Closer); ok {
@@ -4686,19 +4686,19 @@ func (f *Renderer) loadFontFile(name string) ([]byte, error) {
 			return data, err
 		}
 	}
-	return os.ReadFile(path.Join(f.fontpath, name))
+	return os.ReadFile(path.Join(r.fontpath, name))
 }
 
-func (f *Renderer) putimages() {
+func (r *Renderer) putimages() {
 	var keyList []string
 	var key string
-	for key = range f.images {
+	for key = range r.images {
 		keyList = append(keyList, key)
 	}
 
 	// Sort the keyList []string by the corresponding image's width.
-	if f.catalogSort {
-		sort.SliceStable(keyList, func(i, j int) bool { return f.images[keyList[i]].w < f.images[keyList[j]].w })
+	if r.catalogSort {
+		sort.SliceStable(keyList, func(i, j int) bool { return r.images[keyList[i]].w < r.images[keyList[j]].w })
 	}
 
 	// Maintain a list of inserted image SHA-1 hashes, with their
@@ -4706,7 +4706,7 @@ func (f *Renderer) putimages() {
 	insertedImages := map[string]int{}
 
 	for _, key = range keyList {
-		image := f.images[key]
+		image := r.images[key]
 
 		// Check if this image has already been inserted using it's SHA-1 hash.
 		insertedImageObjN, isFound := insertedImages[image.i]
@@ -4717,47 +4717,47 @@ func (f *Renderer) putimages() {
 		if isFound {
 			image.n = insertedImageObjN
 		} else {
-			f.putimage(image)
+			r.putimage(image)
 			insertedImages[image.i] = image.n
 		}
 	}
 }
 
-func (f *Renderer) putimage(info *ImageInfoType) {
-	f.newobj()
-	info.n = f.n
-	f.out("<</Type /XObject")
-	f.out("/Subtype /Image")
-	f.outf("/Width %d", int(info.w))
-	f.outf("/Height %d", int(info.h))
+func (r *Renderer) putimage(info *ImageInfoType) {
+	r.newobj()
+	info.n = r.n
+	r.out("<</Type /XObject")
+	r.out("/Subtype /Image")
+	r.outf("/Width %d", int(info.w))
+	r.outf("/Height %d", int(info.h))
 	if info.cs == "Indexed" {
-		f.outf("/ColorSpace [/Indexed /DeviceRGB %d %d 0 R]", len(info.pal)/3-1, f.n+1)
+		r.outf("/ColorSpace [/Indexed /DeviceRGB %d %d 0 R]", len(info.pal)/3-1, r.n+1)
 	} else {
-		f.outf("/ColorSpace /%s", info.cs)
+		r.outf("/ColorSpace /%s", info.cs)
 		if info.cs == "DeviceCMYK" {
-			f.out("/Decode [1 0 1 0 1 0 1 0]")
+			r.out("/Decode [1 0 1 0 1 0 1 0]")
 		}
 	}
-	f.outf("/BitsPerComponent %d", info.bpc)
+	r.outf("/BitsPerComponent %d", info.bpc)
 	if len(info.f) > 0 {
-		f.outf("/Filter /%s", info.f)
+		r.outf("/Filter /%s", info.f)
 	}
 	if len(info.dp) > 0 {
-		f.outf("/DecodeParms <<%s>>", info.dp)
+		r.outf("/DecodeParms <<%s>>", info.dp)
 	}
 	if len(info.trns) > 0 {
 		var trns fmtBuffer
 		for _, v := range info.trns {
 			trns.printf("%d %d ", v, v)
 		}
-		f.outf("/Mask [%s]", trns.String())
+		r.outf("/Mask [%s]", trns.String())
 	}
 	if info.smask != nil {
-		f.outf("/SMask %d 0 R", f.n+1)
+		r.outf("/SMask %d 0 R", r.n+1)
 	}
-	f.outf("/Length %d>>", len(info.data))
-	f.putstream(info.data)
-	f.out("endobj")
+	r.outf("/Length %d>>", len(info.data))
+	r.putstream(info.data)
+	r.out("endobj")
 	// 	Soft mask
 	if len(info.smask) > 0 {
 		smask := &ImageInfoType{
@@ -4768,177 +4768,177 @@ func (f *Renderer) putimage(info *ImageInfoType) {
 			f:     info.f,
 			dp:    fmt.Sprintf("/Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns %d", int(info.w)),
 			data:  info.smask,
-			scale: f.k,
+			scale: r.k,
 		}
-		f.putimage(smask)
+		r.putimage(smask)
 	}
 	// 	Palette
 	if info.cs == "Indexed" {
-		f.newobj()
-		if f.compress {
+		r.newobj()
+		if r.compress {
 			mem := xmem.compress(info.pal)
 			pal := mem.bytes()
-			f.outf("<</Filter /FlateDecode /Length %d>>", len(pal))
-			f.putstream(pal)
+			r.outf("<</Filter /FlateDecode /Length %d>>", len(pal))
+			r.putstream(pal)
 			mem.release()
 		} else {
-			f.outf("<</Length %d>>", len(info.pal))
-			f.putstream(info.pal)
+			r.outf("<</Length %d>>", len(info.pal))
+			r.putstream(info.pal)
 		}
-		f.out("endobj")
+		r.out("endobj")
 	}
 }
 
-func (f *Renderer) putxobjectdict() {
+func (r *Renderer) putxobjectdict() {
 	{
 		var image *ImageInfoType
 		var key string
 		var keyList []string
-		for key = range f.images {
+		for key = range r.images {
 			keyList = append(keyList, key)
 		}
-		if f.catalogSort {
-			sort.SliceStable(keyList, func(i, j int) bool { return f.images[keyList[i]].i < f.images[keyList[j]].i })
+		if r.catalogSort {
+			sort.SliceStable(keyList, func(i, j int) bool { return r.images[keyList[i]].i < r.images[keyList[j]].i })
 		}
 		for _, key = range keyList {
-			image = f.images[key]
-			f.outf("/I%s %d 0 R", image.i, image.n)
+			image = r.images[key]
+			r.outf("/I%s %d 0 R", image.i, image.n)
 		}
 	}
 }
 
-func (f *Renderer) putresourcedict() {
-	f.out("/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]")
-	f.out("/Font <<")
+func (r *Renderer) putresourcedict() {
+	r.out("/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]")
+	r.out("/Font <<")
 	{
 		var keyList []string
 		var font fontDefType
 		var key string
-		for key = range f.fonts {
+		for key = range r.fonts {
 			keyList = append(keyList, key)
 		}
-		if f.catalogSort {
-			sort.SliceStable(keyList, func(i, j int) bool { return f.fonts[keyList[i]].i < f.fonts[keyList[j]].i })
+		if r.catalogSort {
+			sort.SliceStable(keyList, func(i, j int) bool { return r.fonts[keyList[i]].i < r.fonts[keyList[j]].i })
 		}
 		for _, key = range keyList {
-			font = f.fonts[key]
-			f.outf("/F%s %d 0 R", font.i, font.N)
+			font = r.fonts[key]
+			r.outf("/F%s %d 0 R", font.i, font.N)
 		}
 	}
-	f.out(">>")
-	f.out("/XObject <<")
-	f.putxobjectdict()
-	f.out(">>")
-	count := len(f.blendList)
+	r.out(">>")
+	r.out("/XObject <<")
+	r.putxobjectdict()
+	r.out(">>")
+	count := len(r.blendList)
 	if count > 1 {
-		f.out("/ExtGState <<")
+		r.out("/ExtGState <<")
 		for j := 1; j < count; j++ {
-			f.outf("/GS%d %d 0 R", j, f.blendList[j].objNum)
+			r.outf("/GS%d %d 0 R", j, r.blendList[j].objNum)
 		}
-		f.out(">>")
+		r.out(">>")
 	}
-	count = len(f.gradientList)
+	count = len(r.gradientList)
 	if count > 1 {
-		f.out("/Shading <<")
+		r.out("/Shading <<")
 		for j := 1; j < count; j++ {
-			f.outf("/Sh%d %d 0 R", j, f.gradientList[j].objNum)
+			r.outf("/Sh%d %d 0 R", j, r.gradientList[j].objNum)
 		}
-		f.out(">>")
+		r.out(">>")
 	}
 	// Layers
-	f.layerPutResourceDict()
-	f.spotColorPutResourceDict()
+	r.layerPutResourceDict()
+	r.spotColorPutResourceDict()
 }
 
-func (f *Renderer) putBlendModes() {
-	count := len(f.blendList)
+func (r *Renderer) putBlendModes() {
+	count := len(r.blendList)
 	for j := 1; j < count; j++ {
-		bl := f.blendList[j]
-		f.newobj()
-		f.blendList[j].objNum = f.n
-		f.outf("<</Type /ExtGState /ca %s /CA %s /BM /%s>>",
+		bl := r.blendList[j]
+		r.newobj()
+		r.blendList[j].objNum = r.n
+		r.outf("<</Type /ExtGState /ca %s /CA %s /BM /%s>>",
 			bl.fillStr, bl.strokeStr, bl.modeStr)
-		f.out("endobj")
+		r.out("endobj")
 	}
 }
 
-func (f *Renderer) putGradients() {
-	count := len(f.gradientList)
+func (r *Renderer) putGradients() {
+	count := len(r.gradientList)
 	for j := 1; j < count; j++ {
 		var f1 int
-		gr := f.gradientList[j]
+		gr := r.gradientList[j]
 		if gr.tp == 2 || gr.tp == 3 {
-			f.newobj()
-			f.outf("<</FunctionType 2 /Domain [0.0 1.0] /C0 [%s] /C1 [%s] /N 1>>", gr.clr1Str, gr.clr2Str)
-			f.out("endobj")
-			f1 = f.n
+			r.newobj()
+			r.outf("<</FunctionType 2 /Domain [0.0 1.0] /C0 [%s] /C1 [%s] /N 1>>", gr.clr1Str, gr.clr2Str)
+			r.out("endobj")
+			f1 = r.n
 		}
-		f.newobj()
-		f.outf("<</ShadingType %d /ColorSpace /DeviceRGB", gr.tp)
+		r.newobj()
+		r.outf("<</ShadingType %d /ColorSpace /DeviceRGB", gr.tp)
 		if gr.tp == 2 {
-			f.outf("/Coords [%.5f %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
+			r.outf("/Coords [%.5f %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
 				gr.x1, gr.y1, gr.x2, gr.y2, f1)
 		} else if gr.tp == 3 {
-			f.outf("/Coords [%.5f %.5f 0 %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
+			r.outf("/Coords [%.5f %.5f 0 %.5f %.5f %.5f] /Function %d 0 R /Extend [true true]>>",
 				gr.x1, gr.y1, gr.x2, gr.y2, gr.r, f1)
 		}
-		f.out("endobj")
-		f.gradientList[j].objNum = f.n
+		r.out("endobj")
+		r.gradientList[j].objNum = r.n
 	}
 }
 
-func (f *Renderer) putjavascript() {
-	if f.javascript == nil {
+func (r *Renderer) putjavascript() {
+	if r.javascript == nil {
 		return
 	}
 
-	f.newobj()
-	f.nJs = f.n
-	f.out("<<")
-	f.outf("/Names [(EmbeddedJS) %d 0 R]", f.n+1)
-	f.out(">>")
-	f.out("endobj")
-	f.newobj()
-	f.out("<<")
-	f.out("/S /JavaScript")
-	f.outf("/JS %s", f.textstring(*f.javascript))
-	f.out(">>")
-	f.out("endobj")
+	r.newobj()
+	r.nJs = r.n
+	r.out("<<")
+	r.outf("/Names [(EmbeddedJS) %d 0 R]", r.n+1)
+	r.out(">>")
+	r.out("endobj")
+	r.newobj()
+	r.out("<<")
+	r.out("/S /JavaScript")
+	r.outf("/JS %s", r.textstring(*r.javascript))
+	r.out(">>")
+	r.out("endobj")
 }
 
-func (f *Renderer) putresources() {
-	if f.err != nil {
+func (r *Renderer) putresources() {
+	if r.err != nil {
 		return
 	}
-	f.layerPutLayers()
-	f.putBlendModes()
-	f.putGradients()
-	f.putSpotColors()
-	f.putfonts()
-	if f.err != nil {
+	r.layerPutLayers()
+	r.putBlendModes()
+	r.putGradients()
+	r.putSpotColors()
+	r.putfonts()
+	if r.err != nil {
 		return
 	}
-	f.putimages()
+	r.putimages()
 	// 	Resource dictionary
-	f.offsets[2] = f.buffer.Len()
-	f.out("2 0 obj")
-	f.out("<<")
-	f.putresourcedict()
-	f.out(">>")
-	f.out("endobj")
-	f.putjavascript()
-	if f.protect.encrypted {
-		f.newobj()
-		f.protect.objNum = f.n
-		f.out("<<")
-		f.out("/Filter /Standard")
-		f.out("/V 1")
-		f.out("/R 2")
-		f.outf("/O (%s)", f.escape(string(f.protect.oValue)))
-		f.outf("/U (%s)", f.escape(string(f.protect.uValue)))
-		f.outf("/P %d", f.protect.pValue)
-		f.out(">>")
-		f.out("endobj")
+	r.offsets[2] = r.buffer.Len()
+	r.out("2 0 obj")
+	r.out("<<")
+	r.putresourcedict()
+	r.out(">>")
+	r.out("endobj")
+	r.putjavascript()
+	if r.protect.encrypted {
+		r.newobj()
+		r.protect.objNum = r.n
+		r.out("<<")
+		r.out("/Filter /Standard")
+		r.out("/V 1")
+		r.out("/R 2")
+		r.outf("/O (%s)", r.escape(string(r.protect.oValue)))
+		r.outf("/U (%s)", r.escape(string(r.protect.uValue)))
+		r.outf("/P %d", r.protect.pValue)
+		r.out(">>")
+		r.out("endobj")
 	}
 }
 
@@ -4950,252 +4950,252 @@ func timeOrNow(tm time.Time) time.Time {
 	return tm
 }
 
-func (f *Renderer) putinfo() {
-	if len(f.producer) > 0 {
-		f.outf("/Producer %s", f.textstring(f.producer))
+func (r *Renderer) putinfo() {
+	if len(r.producer) > 0 {
+		r.outf("/Producer %s", r.textstring(r.producer))
 	}
-	if len(f.title) > 0 {
-		f.outf("/Title %s", f.textstring(f.title))
+	if len(r.title) > 0 {
+		r.outf("/Title %s", r.textstring(r.title))
 	}
-	if len(f.subject) > 0 {
-		f.outf("/Subject %s", f.textstring(f.subject))
+	if len(r.subject) > 0 {
+		r.outf("/Subject %s", r.textstring(r.subject))
 	}
-	if len(f.author) > 0 {
-		f.outf("/Author %s", f.textstring(f.author))
+	if len(r.author) > 0 {
+		r.outf("/Author %s", r.textstring(r.author))
 	}
-	if len(f.keywords) > 0 {
-		f.outf("/Keywords %s", f.textstring(f.keywords))
+	if len(r.keywords) > 0 {
+		r.outf("/Keywords %s", r.textstring(r.keywords))
 	}
-	if len(f.creator) > 0 {
-		f.outf("/Creator %s", f.textstring(f.creator))
+	if len(r.creator) > 0 {
+		r.outf("/Creator %s", r.textstring(r.creator))
 	}
-	creation := timeOrNow(f.creationDate)
-	f.outf("/CreationDate %s", f.textstring("D:"+creation.Format("20060102150405")))
-	mod := timeOrNow(f.modDate)
-	f.outf("/ModDate %s", f.textstring("D:"+mod.Format("20060102150405")))
+	creation := timeOrNow(r.creationDate)
+	r.outf("/CreationDate %s", r.textstring("D:"+creation.Format("20060102150405")))
+	mod := timeOrNow(r.modDate)
+	r.outf("/ModDate %s", r.textstring("D:"+mod.Format("20060102150405")))
 }
 
-func (f *Renderer) putcatalog() {
-	f.out("/Type /Catalog")
-	f.out("/Pages 1 0 R")
-	f.putOutputIntents()
-	if f.lang != "" {
-		f.outf("/Lang (%s)", f.lang)
+func (r *Renderer) putcatalog() {
+	r.out("/Type /Catalog")
+	r.out("/Pages 1 0 R")
+	r.putOutputIntents()
+	if r.lang != "" {
+		r.outf("/Lang (%s)", r.lang)
 	}
-	switch f.zoomMode {
+	switch r.zoomMode {
 	case "fullpage":
-		f.out("/OpenAction [3 0 R /Fit]")
+		r.out("/OpenAction [3 0 R /Fit]")
 	case "fullwidth":
-		f.out("/OpenAction [3 0 R /FitH null]")
+		r.out("/OpenAction [3 0 R /FitH null]")
 	case "real":
-		f.out("/OpenAction [3 0 R /XYZ null null 1]")
+		r.out("/OpenAction [3 0 R /XYZ null null 1]")
 	}
 	// } 	else if !is_string($this->zoomMode))
 	// 		$this->out('/OpenAction [3 0 R /XYZ null null '.fmt.Sprintf('%.2f',$this->zoomMode/100).']');
-	switch f.layoutMode {
+	switch r.layoutMode {
 	case "single", "SinglePage":
-		f.out("/PageLayout /SinglePage")
+		r.out("/PageLayout /SinglePage")
 	case "continuous", "OneColumn":
-		f.out("/PageLayout /OneColumn")
+		r.out("/PageLayout /OneColumn")
 	case "two", "TwoColumnLeft":
-		f.out("/PageLayout /TwoColumnLeft")
+		r.out("/PageLayout /TwoColumnLeft")
 	case "TwoColumnRight":
-		f.out("/PageLayout /TwoColumnRight")
+		r.out("/PageLayout /TwoColumnRight")
 	case "TwoPageLeft", "TwoPageRight":
-		if f.pdfVersion < pdfVers1_5 {
-			f.pdfVersion = pdfVers1_5
+		if r.pdfVersion < pdfVers1_5 {
+			r.pdfVersion = pdfVers1_5
 		}
-		f.out("/PageLayout /" + f.layoutMode)
+		r.out("/PageLayout /" + r.layoutMode)
 	}
 	// Bookmarks
-	if len(f.outlines) > 0 {
-		f.outf("/Outlines %d 0 R", f.outlineRoot)
-		f.out("/PageMode /UseOutlines")
+	if len(r.outlines) > 0 {
+		r.outf("/Outlines %d 0 R", r.outlineRoot)
+		r.out("/PageMode /UseOutlines")
 	}
 	// Layers
-	f.layerPutCatalog()
+	r.layerPutCatalog()
 	// XMP metadata
-	if len(f.xmp) != 0 {
-		f.outf("/Metadata %d 0 R", f.nXMP)
+	if len(r.xmp) != 0 {
+		r.outf("/Metadata %d 0 R", r.nXMP)
 	}
 	// Name dictionary :
 	//	-> Javascript
 	//	-> Embedded files
-	f.out("/Names <<")
+	r.out("/Names <<")
 	// JavaScript
-	if f.javascript != nil {
-		f.outf("/JavaScript %d 0 R", f.nJs)
+	if r.javascript != nil {
+		r.outf("/JavaScript %d 0 R", r.nJs)
 	}
 	// Embedded files
-	f.outf("/EmbeddedFiles %s", f.getEmbeddedFiles())
-	f.out(">>")
+	r.outf("/EmbeddedFiles %s", r.getEmbeddedFiles())
+	r.out(">>")
 }
 
-func (f *Renderer) putheader() {
-	f.outf("%%PDF-%s", f.pdfVersion)
-	f.out("%µ¶")
+func (r *Renderer) putheader() {
+	r.outf("%%PDF-%s", r.pdfVersion)
+	r.out("%µ¶")
 }
 
-func (f *Renderer) puttrailer() {
-	f.outf("/Size %d", f.n+1)
-	f.outf("/Root %d 0 R", f.n)
-	f.outf("/Info %d 0 R", f.n-1)
-	if f.protect.encrypted {
-		f.outf("/Encrypt %d 0 R", f.protect.objNum)
-		f.out("/ID [()()]")
+func (r *Renderer) puttrailer() {
+	r.outf("/Size %d", r.n+1)
+	r.outf("/Root %d 0 R", r.n)
+	r.outf("/Info %d 0 R", r.n-1)
+	if r.protect.encrypted {
+		r.outf("/Encrypt %d 0 R", r.protect.objNum)
+		r.out("/ID [()()]")
 	}
 }
 
-func (f *Renderer) putxmp() {
-	if len(f.xmp) == 0 {
+func (r *Renderer) putxmp() {
+	if len(r.xmp) == 0 {
 		return
 	}
-	f.newobj()
-	f.nXMP = f.n
-	f.outf("<< /Type /Metadata /Subtype /XML /Length %d >>", len(f.xmp))
-	f.putstream(f.xmp)
-	f.out("endobj")
+	r.newobj()
+	r.nXMP = r.n
+	r.outf("<< /Type /Metadata /Subtype /XML /Length %d >>", len(r.xmp))
+	r.putstream(r.xmp)
+	r.out("endobj")
 }
 
-func (f *Renderer) putbookmarks() {
-	nb := len(f.outlines)
+func (r *Renderer) putbookmarks() {
+	nb := len(r.outlines)
 	if nb > 0 {
 		lru := make(map[int]int)
 		level := 0
-		for i, o := range f.outlines {
+		for i, o := range r.outlines {
 			if o.level > 0 {
 				parent := lru[o.level-1]
-				f.outlines[i].parent = parent
-				f.outlines[parent].last = i
+				r.outlines[i].parent = parent
+				r.outlines[parent].last = i
 				if o.level > level {
-					f.outlines[parent].first = i
+					r.outlines[parent].first = i
 				}
 			} else {
-				f.outlines[i].parent = nb
+				r.outlines[i].parent = nb
 			}
 			if o.level <= level && i > 0 {
 				prev := lru[o.level]
-				f.outlines[prev].next = i
-				f.outlines[i].prev = prev
+				r.outlines[prev].next = i
+				r.outlines[i].prev = prev
 			}
 			lru[o.level] = i
 			level = o.level
 		}
-		n := f.n + 1
-		for _, o := range f.outlines {
-			f.newobj()
-			f.outf("<</Title %s", f.textstring(o.text))
-			f.outf("/Parent %d 0 R", n+o.parent)
+		n := r.n + 1
+		for _, o := range r.outlines {
+			r.newobj()
+			r.outf("<</Title %s", r.textstring(o.text))
+			r.outf("/Parent %d 0 R", n+o.parent)
 			if o.prev != -1 {
-				f.outf("/Prev %d 0 R", n+o.prev)
+				r.outf("/Prev %d 0 R", n+o.prev)
 			}
 			if o.next != -1 {
-				f.outf("/Next %d 0 R", n+o.next)
+				r.outf("/Next %d 0 R", n+o.next)
 			}
 			if o.first != -1 {
-				f.outf("/First %d 0 R", n+o.first)
+				r.outf("/First %d 0 R", n+o.first)
 			}
 			if o.last != -1 {
-				f.outf("/Last %d 0 R", n+o.last)
+				r.outf("/Last %d 0 R", n+o.last)
 			}
-			f.outf("/Dest [%d 0 R /XYZ 0 %.2f null]", 1+2*o.p, (f.h-o.y)*f.k)
-			f.out("/Count 0>>")
-			f.out("endobj")
+			r.outf("/Dest [%d 0 R /XYZ 0 %.2f null]", 1+2*o.p, (r.h-o.y)*r.k)
+			r.out("/Count 0>>")
+			r.out("endobj")
 		}
-		f.newobj()
-		f.outlineRoot = f.n
-		f.outf("<</Type /Outlines /First %d 0 R", n)
-		f.outf("/Last %d 0 R>>", n+lru[0])
-		f.out("endobj")
+		r.newobj()
+		r.outlineRoot = r.n
+		r.outf("<</Type /Outlines /First %d 0 R", n)
+		r.outf("/Last %d 0 R>>", n+lru[0])
+		r.out("endobj")
 	}
 }
 
-func (f *Renderer) putOutputIntents() {
-	if len(f.outputIntents) <= 0 {
+func (r *Renderer) putOutputIntents() {
+	if len(r.outputIntents) <= 0 {
 		return
 	}
 
-	f.out("/OutputIntents [")
-	for index, oi := range f.outputIntents {
+	r.out("/OutputIntents [")
+	for index, oi := range r.outputIntents {
 		infoSegment := ""
 		if oi.Info != "" {
 			infoSegment = fmt.Sprintf("/Info (%s) ", oi.Info)
 		}
-		f.outf(
+		r.outf(
 			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier (%s) %s/DestOutputProfile %d 0 R >>`,
-			oi.SubtypeIdent, oi.OutputConditionIdentifier, infoSegment, f.outputIntentStartN+index,
+			oi.SubtypeIdent, oi.OutputConditionIdentifier, infoSegment, r.outputIntentStartN+index,
 		)
 	}
-	f.out("]")
+	r.out("]")
 }
 
-func (f *Renderer) putOutputIntentStreams() {
-	if len(f.outputIntents) <= 0 {
+func (r *Renderer) putOutputIntentStreams() {
+	if len(r.outputIntents) <= 0 {
 		return
 	}
 
-	f.outputIntentStartN = f.n + 1
-	for _, oi := range f.outputIntents {
-		f.newobj()
+	r.outputIntentStartN = r.n + 1
+	for _, oi := range r.outputIntents {
+		r.newobj()
 		mem := xmem.compress(oi.ICCProfile)
 		compressedICC := mem.bytes()
-		f.outf("<< /N 3 /Alternate /DeviceRGB /Length %d /Filter /FlateDecode >>", len(compressedICC))
-		f.putstream(compressedICC)
-		f.out("endobj")
+		r.outf("<< /N 3 /Alternate /DeviceRGB /Length %d /Filter /FlateDecode >>", len(compressedICC))
+		r.putstream(compressedICC)
+		r.out("endobj")
 
 		mem.release()
 	}
 }
 
-func (f *Renderer) enddoc() {
-	if f.err != nil {
+func (r *Renderer) enddoc() {
+	if r.err != nil {
 		return
 	}
-	f.layerEndDoc()
-	f.putheader()
+	r.layerEndDoc()
+	r.putheader()
 	// Embedded files
-	f.putAttachments()
-	f.putAnnotationsAttachments()
-	f.putpages()
-	f.putresources()
-	if f.err != nil {
+	r.putAttachments()
+	r.putAnnotationsAttachments()
+	r.putpages()
+	r.putresources()
+	if r.err != nil {
 		return
 	}
 	// Bookmarks
-	f.putbookmarks()
+	r.putbookmarks()
 	// Metadata
-	f.putxmp()
+	r.putxmp()
 	// 	Info
-	f.newobj()
-	f.out("<<")
-	f.putinfo()
-	f.out(">>")
-	f.out("endobj")
+	r.newobj()
+	r.out("<<")
+	r.putinfo()
+	r.out(">>")
+	r.out("endobj")
 	// Output intent color profile streams
-	f.putOutputIntentStreams()
+	r.putOutputIntentStreams()
 	// 	Catalog
-	f.newobj()
-	f.out("<<")
-	f.putcatalog()
-	f.out(">>")
-	f.out("endobj")
+	r.newobj()
+	r.out("<<")
+	r.putcatalog()
+	r.out(">>")
+	r.out("endobj")
 	// Cross-ref
-	o := f.buffer.Len()
-	f.out("xref")
-	f.outf("0 %d", f.n+1)
-	f.out("0000000000 65535 f ")
-	for j := 1; j <= f.n; j++ {
-		f.outf("%010d 00000 n ", f.offsets[j])
+	o := r.buffer.Len()
+	r.out("xref")
+	r.outf("0 %d", r.n+1)
+	r.out("0000000000 65535 f ")
+	for j := 1; j <= r.n; j++ {
+		r.outf("%010d 00000 n ", r.offsets[j])
 	}
 	// Trailer
-	f.out("trailer")
-	f.out("<<")
-	f.puttrailer()
-	f.out(">>")
-	f.out("startxref")
-	f.outf("%d", o)
-	f.out("%%EOF")
-	f.state = 3
+	r.out("trailer")
+	r.out("<<")
+	r.puttrailer()
+	r.out(">>")
+	r.out("startxref")
+	r.outf("%d", o)
+	r.out("%%EOF")
+	r.state = 3
 }
 
 // Path Drawing
@@ -5210,9 +5210,9 @@ func (f *Renderer) enddoc() {
 // using the path drawing routines rather than multiple Renderer.Line is
 // that PDF creates nice line joins at the angles, rather than just
 // overlaying the lines.
-func (f *Renderer) MoveTo(x, y float64) {
-	f.point(x, y)
-	f.x, f.y = x, y
+func (r *Renderer) MoveTo(x, y float64) {
+	r.point(x, y)
+	r.x, r.y = x, y
 }
 
 // LineTo creates a line from the current stylus location to (x, y), which
@@ -5220,16 +5220,16 @@ func (f *Renderer) MoveTo(x, y float64) {
 // the path; it does not actually draw the line on the page.
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) LineTo(x, y float64) {
-	// f.outf("%.2f %.2f l", x*f.k, (f.h-y)*f.k)
+func (r *Renderer) LineTo(x, y float64) {
+	// r.outf("%.2f %.2f l", x*r.k, (r.h-y)*r.k)
 	const prec = 2
-	f.putF64(x*f.k, prec)
-	f.put(" ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
 
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" l\n")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" l\n")
 
-	f.x, f.y = x, y
+	r.x, r.y = x, y
 }
 
 // CurveTo creates a single-segment quadratic Bézier curve. The curve starts at
@@ -5240,18 +5240,18 @@ func (f *Renderer) LineTo(x, y float64) {
 // the end point and the control point.
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) CurveTo(cx, cy, x, y float64) {
-	// f.outf("%.5f %.5f %.5f %.5f v", cx*f.k, (f.h-cy)*f.k, x*f.k, (f.h-y)*f.k)
+func (r *Renderer) CurveTo(cx, cy, x, y float64) {
+	// r.outf("%.5f %.5f %.5f %.5f v", cx*r.k, (r.h-cy)*r.k, x*r.k, (r.h-y)*r.k)
 	const prec = 5
-	f.putF64(cx*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-cy)*f.k, prec)
-	f.put(" ")
-	f.putF64(x*f.k, prec)
-	f.put(" ")
-	f.putF64((f.h-y)*f.k, prec)
-	f.put(" v\n")
-	f.x, f.y = x, y
+	r.putF64(cx*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-cy)*r.k, prec)
+	r.put(" ")
+	r.putF64(x*r.k, prec)
+	r.put(" ")
+	r.putF64((r.h-y)*r.k, prec)
+	r.put(" v\n")
+	r.x, r.y = x, y
 }
 
 // CurveBezierCubicTo creates a single-segment cubic Bézier curve. The curve
@@ -5263,9 +5263,9 @@ func (f *Renderer) CurveTo(cx, cy, x, y float64) {
 // control point (cx1, cy1).
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) CurveBezierCubicTo(cx0, cy0, cx1, cy1, x, y float64) {
-	f.curve(cx0, cy0, cx1, cy1, x, y)
-	f.x, f.y = x, y
+func (r *Renderer) CurveBezierCubicTo(cx0, cy0, cx1, cy1, x, y float64) {
+	r.curve(cx0, cy0, cx1, cy1, x, y)
+	r.x, r.y = x, y
 }
 
 // ClosePath creates a line from the current location to the last MoveTo point
@@ -5273,8 +5273,8 @@ func (f *Renderer) CurveBezierCubicTo(cx0, cy0, cx1, cy1, x, y float64) {
 // join nicely.
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) ClosePath() {
-	f.outf("h")
+func (r *Renderer) ClosePath() {
+	r.outf("h")
 }
 
 // DrawPath actually draws the path on the page.
@@ -5295,8 +5295,8 @@ func (f *Renderer) ClosePath() {
 // path. Filling uses the current fill color.
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) DrawPath(styleStr string) {
-	f.outf("%s", fillDrawOp(styleStr))
+func (r *Renderer) DrawPath(styleStr string) {
+	r.outf("%s", fillDrawOp(styleStr))
 }
 
 // ArcTo draws an elliptical arc centered at point (x, y). rx and ry specify its
@@ -5314,16 +5314,16 @@ func (f *Renderer) DrawPath(styleStr string) {
 // path. Filling uses the current fill color.
 //
 // The MoveTo() example demonstrates this method.
-func (f *Renderer) ArcTo(x, y, rx, ry, degRotate, degStart, degEnd float64) {
-	f.arc(x, y, rx, ry, degRotate, degStart, degEnd, "", true)
+func (r *Renderer) ArcTo(x, y, rx, ry, degRotate, degStart, degEnd float64) {
+	r.arc(x, y, rx, ry, degRotate, degStart, degEnd, "", true)
 }
 
-func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
+func (r *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 	styleStr string, path bool) {
-	x *= f.k
-	y = (f.h - y) * f.k
-	rx *= f.k
-	ry *= f.k
+	x *= r.k
+	y = (r.h - y) * r.k
+	rx *= r.k
+	ry *= r.k
 	segments := max(int(degEnd-degStart)/60, 2)
 	angleStart := degStart * math.Pi / 180
 	angleEnd := degEnd * math.Pi / 180
@@ -5333,23 +5333,23 @@ func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 	if degRotate != 0 {
 		a := -degRotate * math.Pi / 180
 		sin, cos := math.Sincos(a)
-		//	f.outf("q %.5f %.5f %.5f %.5f %.5f %.5f cm",
+		//	r.outf("q %.5f %.5f %.5f %.5f %.5f %.5f cm",
 		//		math.Cos(a), -1*math.Sin(a),
 		//		math.Sin(a), math.Cos(a), x, y)
 		const prec = 5
-		f.put("q ")
-		f.putF64(cos, prec)
-		f.put(" ")
-		f.putF64(-1*sin, prec)
-		f.put(" ")
-		f.putF64(sin, prec)
-		f.put(" ")
-		f.putF64(cos, prec)
-		f.put(" ")
-		f.putF64(x, prec)
-		f.put(" ")
-		f.putF64(y, prec)
-		f.put(" cm\n")
+		r.put("q ")
+		r.putF64(cos, prec)
+		r.put(" ")
+		r.putF64(-1*sin, prec)
+		r.put(" ")
+		r.putF64(sin, prec)
+		r.put(" ")
+		r.putF64(cos, prec)
+		r.put(" ")
+		r.putF64(x, prec)
+		r.put(" ")
+		r.putF64(y, prec)
+		r.put(" cm\n")
 
 		x = 0
 		y = 0
@@ -5359,15 +5359,15 @@ func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 	b0 := y + ry*math.Sin(t)
 	c0 := -rx * math.Sin(t)
 	d0 := ry * math.Cos(t)
-	sx := a0 / f.k // start point of arc
-	sy := f.h - (b0 / f.k)
+	sx := a0 / r.k // start point of arc
+	sy := r.h - (b0 / r.k)
 	if path {
-		if f.x != sx || f.y != sy {
+		if r.x != sx || r.y != sy {
 			// Draw connecting line to start point
-			f.LineTo(sx, sy)
+			r.LineTo(sx, sy)
 		}
 	} else {
-		f.point(sx, sy)
+		r.point(sx, sy)
 	}
 	for j := 1; j <= segments; j++ {
 		// Draw this bit of the total curve
@@ -5376,26 +5376,26 @@ func (f *Renderer) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 		b1 := y + ry*math.Sin(t)
 		c1 := -rx * math.Sin(t)
 		d1 := ry * math.Cos(t)
-		f.curve((a0+(c0*dtm))/f.k,
-			f.h-((b0+(d0*dtm))/f.k),
-			(a1-(c1*dtm))/f.k,
-			f.h-((b1-(d1*dtm))/f.k),
-			a1/f.k,
-			f.h-(b1/f.k))
+		r.curve((a0+(c0*dtm))/r.k,
+			r.h-((b0+(d0*dtm))/r.k),
+			(a1-(c1*dtm))/r.k,
+			r.h-((b1-(d1*dtm))/r.k),
+			a1/r.k,
+			r.h-(b1/r.k))
 		a0 = a1
 		b0 = b1
 		c0 = c1
 		d0 = d1
 		if path {
-			f.x = a1 / f.k
-			f.y = f.h - (b1 / f.k)
+			r.x = a1 / r.k
+			r.y = r.h - (b1 / r.k)
 		}
 	}
 	if !path {
-		f.out(fillDrawOp(styleStr))
+		r.out(fillDrawOp(styleStr))
 	}
 	if degRotate != 0 {
-		f.out("Q")
+		r.out("Q")
 	}
 }
 
@@ -5414,17 +5414,17 @@ type TransformMatrix struct {
 // TransformScale(), TransformSkew(), etc. This is followed by text, drawing or
 // image output and finally a call to TransformEnd(). All transformation
 // contexts must be properly ended prior to outputting the document.
-func (f *Renderer) TransformBegin() {
-	f.transformNest++
-	f.out("q")
+func (r *Renderer) TransformBegin() {
+	r.transformNest++
+	r.out("q")
 }
 
 // TransformScaleX scales the width of the following text, drawings and images.
 // scaleWd is the percentage scaling factor. (x, y) is center of scaling.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformScaleX(scaleWd, x, y float64) {
-	f.TransformScale(scaleWd, 100, x, y)
+func (r *Renderer) TransformScaleX(scaleWd, x, y float64) {
+	r.TransformScale(scaleWd, 100, x, y)
 }
 
 // TransformScaleY scales the height of the following text, drawings and
@@ -5432,8 +5432,8 @@ func (f *Renderer) TransformScaleX(scaleWd, x, y float64) {
 // scaling.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformScaleY(scaleHt, x, y float64) {
-	f.TransformScale(100, scaleHt, x, y)
+func (r *Renderer) TransformScaleY(scaleHt, x, y float64) {
+	r.TransformScale(100, scaleHt, x, y)
 }
 
 // TransformScaleXY uniformly scales the width and height of the following
@@ -5441,8 +5441,8 @@ func (f *Renderer) TransformScaleY(scaleHt, x, y float64) {
 // and height. (x, y) is center of scaling.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformScaleXY(s, x, y float64) {
-	f.TransformScale(s, s, x, y)
+func (r *Renderer) TransformScaleXY(s, x, y float64) {
+	r.TransformScale(s, s, x, y)
 }
 
 // TransformScale generally scales the following text, drawings and images.
@@ -5450,16 +5450,16 @@ func (f *Renderer) TransformScaleXY(s, x, y float64) {
 // (x, y) is center of scaling.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
+func (r *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
 	if scaleWd == 0 || scaleHt == 0 {
-		f.err = fmt.Errorf("scale factor cannot be zero")
+		r.err = fmt.Errorf("scale factor cannot be zero")
 		return
 	}
-	y = (f.h - y) * f.k
-	x *= f.k
+	y = (r.h - y) * r.k
+	x *= r.k
 	scaleWd /= 100
 	scaleHt /= 100
-	f.Transform(TransformMatrix{scaleWd, 0, 0,
+	r.Transform(TransformMatrix{scaleWd, 0, 0,
 		scaleHt, x * (1 - scaleWd), y * (1 - scaleHt)})
 }
 
@@ -5467,24 +5467,24 @@ func (f *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
 // and images. x is the axis of reflection.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformMirrorHorizontal(x float64) {
-	f.TransformScale(-100, 100, x, f.y)
+func (r *Renderer) TransformMirrorHorizontal(x float64) {
+	r.TransformScale(-100, 100, x, r.y)
 }
 
 // TransformMirrorVertical vertically mirrors the following text, drawings and
 // images. y is the axis of reflection.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformMirrorVertical(y float64) {
-	f.TransformScale(100, -100, f.x, y)
+func (r *Renderer) TransformMirrorVertical(y float64) {
+	r.TransformScale(100, -100, r.x, y)
 }
 
 // TransformMirrorPoint symmetrically mirrors the following text, drawings and
 // images on the point specified by (x, y).
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformMirrorPoint(x, y float64) {
-	f.TransformScale(-100, -100, x, y)
+func (r *Renderer) TransformMirrorPoint(x, y float64) {
+	r.TransformScale(-100, -100, x, y)
 }
 
 // TransformMirrorLine symmetrically mirrors the following text, drawings and
@@ -5493,33 +5493,33 @@ func (f *Renderer) TransformMirrorPoint(x, y float64) {
 // position.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformMirrorLine(angle, x, y float64) {
-	f.TransformScale(-100, 100, x, y)
-	f.TransformRotate(-2*(angle-90), x, y)
+func (r *Renderer) TransformMirrorLine(angle, x, y float64) {
+	r.TransformScale(-100, 100, x, y)
+	r.TransformRotate(-2*(angle-90), x, y)
 }
 
 // TransformTranslateX moves the following text, drawings and images
 // horizontally by the amount specified by tx.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformTranslateX(tx float64) {
-	f.TransformTranslate(tx, 0)
+func (r *Renderer) TransformTranslateX(tx float64) {
+	r.TransformTranslate(tx, 0)
 }
 
 // TransformTranslateY moves the following text, drawings and images vertically
 // by the amount specified by ty.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformTranslateY(ty float64) {
-	f.TransformTranslate(0, ty)
+func (r *Renderer) TransformTranslateY(ty float64) {
+	r.TransformTranslate(0, ty)
 }
 
 // TransformTranslate moves the following text, drawings and images
 // horizontally and vertically by the amounts specified by tx and ty.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformTranslate(tx, ty float64) {
-	f.Transform(TransformMatrix{1, 0, 0, 1, tx * f.k, -ty * f.k})
+func (r *Renderer) TransformTranslate(tx, ty float64) {
+	r.Transform(TransformMatrix{1, 0, 0, 1, tx * r.k, -ty * r.k})
 }
 
 // TransformRotate rotates the following text, drawings and images around the
@@ -5527,9 +5527,9 @@ func (f *Renderer) TransformTranslate(tx, ty float64) {
 // counter-clockwise from the 3 o'clock position.
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformRotate(angle, x, y float64) {
-	y = (f.h - y) * f.k
-	x *= f.k
+func (r *Renderer) TransformRotate(angle, x, y float64) {
+	y = (r.h - y) * r.k
+	x *= r.k
 	angle = angle * math.Pi / 180
 	var tm TransformMatrix
 	tm.A = math.Cos(angle)
@@ -5538,7 +5538,7 @@ func (f *Renderer) TransformRotate(angle, x, y float64) {
 	tm.D = tm.A
 	tm.E = x + tm.B*y - tm.A*x
 	tm.F = y - tm.A*y - tm.B*x
-	f.Transform(tm)
+	r.Transform(tm)
 }
 
 // TransformSkewX horizontally skews the following text, drawings and images
@@ -5546,8 +5546,8 @@ func (f *Renderer) TransformRotate(angle, x, y float64) {
 // the left) to 90 degrees (skew to the right).
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformSkewX(angleX, x, y float64) {
-	f.TransformSkew(angleX, 0, x, y)
+func (r *Renderer) TransformSkewX(angleX, x, y float64) {
+	r.TransformSkew(angleX, 0, x, y)
 }
 
 // TransformSkewY vertically skews the following text, drawings and images
@@ -5555,8 +5555,8 @@ func (f *Renderer) TransformSkewX(angleX, x, y float64) {
 // the bottom) to 90 degrees (skew to the top).
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformSkewY(angleY, x, y float64) {
-	f.TransformSkew(0, angleY, x, y)
+func (r *Renderer) TransformSkewY(angleY, x, y float64) {
+	r.TransformSkew(0, angleY, x, y)
 }
 
 // TransformSkew generally skews the following text, drawings and images
@@ -5565,13 +5565,13 @@ func (f *Renderer) TransformSkewY(angleY, x, y float64) {
 // (skew to the bottom) to 90 degrees (skew to the top).
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformSkew(angleX, angleY, x, y float64) {
+func (r *Renderer) TransformSkew(angleX, angleY, x, y float64) {
 	if angleX <= -90 || angleX >= 90 || angleY <= -90 || angleY >= 90 {
-		f.err = fmt.Errorf("skew values must be between -90° and 90°")
+		r.err = fmt.Errorf("skew values must be between -90° and 90°")
 		return
 	}
-	x *= f.k
-	y = (f.h - y) * f.k
+	x *= r.k
+	y = (r.h - y) * r.k
 	var tm TransformMatrix
 	tm.A = 1
 	tm.B = math.Tan(angleY * math.Pi / 180)
@@ -5579,29 +5579,29 @@ func (f *Renderer) TransformSkew(angleX, angleY, x, y float64) {
 	tm.D = 1
 	tm.E = -tm.C * y
 	tm.F = -tm.B * x
-	f.Transform(tm)
+	r.Transform(tm)
 }
 
 // Transform generally transforms the following text, drawings and images
 // according to the specified matrix. It is typically easier to use the various
 // methods such as TransformRotate() and TransformMirrorVertical() instead.
-func (f *Renderer) Transform(tm TransformMatrix) {
-	if f.transformNest > 0 {
-		f.outf("%.5f %.5f %.5f %.5f %.5f %.5f cm",
+func (r *Renderer) Transform(tm TransformMatrix) {
+	if r.transformNest > 0 {
+		r.outf("%.5f %.5f %.5f %.5f %.5f %.5f cm",
 			tm.A, tm.B, tm.C, tm.D, tm.E, tm.F)
-	} else if f.err == nil {
-		f.err = fmt.Errorf("transformation context is not active")
+	} else if r.err == nil {
+		r.err = fmt.Errorf("transformation context is not active")
 	}
 }
 
 // TransformEnd applies a transformation that was begun with a call to TransformBegin().
 //
 // The TransformBegin() example demonstrates this method.
-func (f *Renderer) TransformEnd() {
-	if f.transformNest > 0 {
-		f.transformNest--
-		f.out("Q")
+func (r *Renderer) TransformEnd() {
+	if r.transformNest > 0 {
+		r.transformNest--
+		r.out("Q")
 	} else {
-		f.err = fmt.Errorf("error attempting to end transformation operation out of sequence")
+		r.err = fmt.Errorf("error attempting to end transformation operation out of sequence")
 	}
 }

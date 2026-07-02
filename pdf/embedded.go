@@ -31,14 +31,14 @@ import (
 //go:embed font_embed/*.json font_embed/*.map
 var embFS embed.FS
 
-func (f *Renderer) coreFontReader(familyStr, styleStr string) (r io.ReadCloser) {
+func (r *Renderer) coreFontReader(familyStr, styleStr string) (rc io.ReadCloser) {
 	key := familyStr + styleStr
 	key = strings.ToLower(key)
 	emb, err := embFS.Open("font_embed/" + key + ".json")
 	if err == nil {
-		r = emb
+		rc = emb
 	} else {
-		f.SetErrorf("could not locate \"%s\" among embedded core font definition files", key)
+		r.SetErrorf("could not locate \"%s\" among embedded core font definition files", key)
 	}
 	return
 }

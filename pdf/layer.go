@@ -40,10 +40,10 @@ type layerRecType struct {
 	openLayerPane bool
 }
 
-func (f *Renderer) layerInit() {
-	f.layer.list = make([]layerType, 0)
-	f.layer.currentLayer = -1
-	f.layer.openLayerPane = false
+func (r *Renderer) layerInit() {
+	r.layer.list = make([]layerType, 0)
+	r.layer.currentLayer = -1
+	r.layer.openLayerPane = false
 }
 
 // AddLayer defines a layer that can be shown or hidden when the document is
@@ -51,9 +51,9 @@ func (f *Renderer) layerInit() {
 // display in the layer list. visible specifies whether the layer will be
 // initially visible. The return value is an integer ID that is used in a call
 // to BeginLayer().
-func (f *Renderer) AddLayer(name string, visible bool) (layerID int) {
-	layerID = len(f.layer.list)
-	f.layer.list = append(f.layer.list, layerType{name: name, visible: visible})
+func (r *Renderer) AddLayer(name string, visible bool) (layerID int) {
+	layerID = len(r.layer.list)
+	r.layer.list = append(r.layer.list, layerType{name: name, visible: visible})
 	return
 }
 
@@ -61,71 +61,71 @@ func (f *Renderer) AddLayer(name string, visible bool) (layerID int) {
 // content added to the page between a call to BeginLayer and a call to
 // EndLayer is added to the layer specified by id. See AddLayer for more
 // details.
-func (f *Renderer) BeginLayer(id int) {
-	f.EndLayer()
-	if id >= 0 && id < len(f.layer.list) {
-		f.outf("/OC /OC%d BDC", id)
-		f.layer.currentLayer = id
+func (r *Renderer) BeginLayer(id int) {
+	r.EndLayer()
+	if id >= 0 && id < len(r.layer.list) {
+		r.outf("/OC /OC%d BDC", id)
+		r.layer.currentLayer = id
 	}
 }
 
 // EndLayer is called to stop adding content to the currently active layer. See
 // BeginLayer for more details.
-func (f *Renderer) EndLayer() {
-	if f.layer.currentLayer >= 0 {
-		f.out("EMC")
-		f.layer.currentLayer = -1
+func (r *Renderer) EndLayer() {
+	if r.layer.currentLayer >= 0 {
+		r.out("EMC")
+		r.layer.currentLayer = -1
 	}
 }
 
 // OpenLayerPane advises the document reader to open the layer pane when the
 // document is initially displayed.
-func (f *Renderer) OpenLayerPane() {
-	f.layer.openLayerPane = true
+func (r *Renderer) OpenLayerPane() {
+	r.layer.openLayerPane = true
 }
 
-func (f *Renderer) layerEndDoc() {
-	if len(f.layer.list) == 0 {
+func (r *Renderer) layerEndDoc() {
+	if len(r.layer.list) == 0 {
 		return
 	}
-	if f.pdfVersion < pdfVers1_5 {
-		f.pdfVersion = pdfVers1_5
+	if r.pdfVersion < pdfVers1_5 {
+		r.pdfVersion = pdfVers1_5
 	}
 }
 
-func (f *Renderer) layerPutLayers() {
-	for j, l := range f.layer.list {
-		f.newobj()
-		f.layer.list[j].objNum = f.n
-		f.outf("<</Type /OCG /Name %s>>", f.textstring(utf8toutf16(l.name)))
-		f.out("endobj")
+func (r *Renderer) layerPutLayers() {
+	for j, l := range r.layer.list {
+		r.newobj()
+		r.layer.list[j].objNum = r.n
+		r.outf("<</Type /OCG /Name %s>>", r.textstring(utf8toutf16(l.name)))
+		r.out("endobj")
 	}
 }
 
-func (f *Renderer) layerPutResourceDict() {
-	if len(f.layer.list) > 0 {
-		f.out("/Properties <<")
-		for j, layer := range f.layer.list {
-			f.outf("/OC%d %d 0 R", j, layer.objNum)
+func (r *Renderer) layerPutResourceDict() {
+	if len(r.layer.list) > 0 {
+		r.out("/Properties <<")
+		for j, layer := range r.layer.list {
+			r.outf("/OC%d %d 0 R", j, layer.objNum)
 		}
-		f.out(">>")
+		r.out(">>")
 	}
 
 }
 
-func (f *Renderer) layerPutCatalog() {
-	if len(f.layer.list) > 0 {
+func (r *Renderer) layerPutCatalog() {
+	if len(r.layer.list) > 0 {
 		var onStr strings.Builder
 		var offStr strings.Builder
-		for _, layer := range f.layer.list {
+		for _, layer := range r.layer.list {
 			onStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
 			if !layer.visible {
 				offStr.WriteString(fmt.Sprintf("%d 0 R ", layer.objNum))
 			}
 		}
-		f.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr.String(), onStr.String())
-		if f.layer.openLayerPane {
-			f.out("/PageMode /UseOC")
+		r.outf("/OCProperties <</OCGs [%s] /D <</OFF [%s] /Order [%s]>>>>", onStr.String(), offStr.String(), onStr.String())
+		if r.layer.openLayerPane {
+			r.out("/PageMode /UseOC")
 		}
 	}
 }

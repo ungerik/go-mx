@@ -36,37 +36,37 @@ func checksum(data []byte) string {
 
 // Writes a compressed file like object as "/EmbeddedFile". Compressing is
 // done with deflate. Includes length, compressed length and MD5 checksum.
-func (f *Renderer) writeCompressedFileObject(content []byte) {
+func (r *Renderer) writeCompressedFileObject(content []byte) {
 	lenUncompressed := len(content)
 	sum := checksum(content)
 	mem := xmem.compress(content)
 	defer mem.release()
 	compressed := mem.bytes()
 	lenCompressed := len(compressed)
-	f.newobj()
-	f.outf("<< /Type /EmbeddedFile /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d >> >>\n",
+	r.newobj()
+	r.outf("<< /Type /EmbeddedFile /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d >> >>\n",
 		lenCompressed, sum, lenUncompressed)
-	f.putstream(compressed)
-	f.out("endobj")
+	r.putstream(compressed)
+	r.out("endobj")
 }
 
 // Embed includes the content of `a`, and update its internal reference.
-func (f *Renderer) embed(a *Attachment) {
+func (r *Renderer) embed(a *Attachment) {
 	if a.objectNumber != 0 { // already embedded (objectNumber start at 2)
 		return
 	}
-	oldState := f.state
-	f.state = 1 // we write file content in the main buffer
-	f.writeCompressedFileObject(a.Content)
-	streamID := f.n
-	f.newobj()
-	f.outf("<< /Type /Filespec /F () /UF %s /EF << /F %d 0 R >> /Desc %s\n>>",
-		f.textstring(utf8toutf16(a.Filename)),
+	oldState := r.state
+	r.state = 1 // we write file content in the main buffer
+	r.writeCompressedFileObject(a.Content)
+	streamID := r.n
+	r.newobj()
+	r.outf("<< /Type /Filespec /F () /UF %s /EF << /F %d 0 R >> /Desc %s\n>>",
+		r.textstring(utf8toutf16(a.Filename)),
 		streamID,
-		f.textstring(utf8toutf16(a.Description)))
-	f.out("endobj")
-	a.objectNumber = f.n
-	f.state = oldState
+		r.textstring(utf8toutf16(a.Description)))
+	r.out("endobj")
+	a.objectNumber = r.n
+	r.state = oldState
 }
 
 // SetAttachments writes attachments as embedded files (document attachment).
@@ -75,23 +75,23 @@ func (f *Renderer) embed(a *Attachment) {
 // useful, previous calls are discarded. Be aware that not all PDF readers
 // support document attachments. See the SetAttachment example for a
 // demonstration of this method.
-func (f *Renderer) SetAttachments(as []Attachment) {
-	f.attachments = as
+func (r *Renderer) SetAttachments(as []Attachment) {
+	r.attachments = as
 }
 
 // embed current attachments. store object numbers
 // for later use by getEmbeddedFiles()
-func (f *Renderer) putAttachments() {
-	for i, a := range f.attachments {
-		f.embed(&a)
-		f.attachments[i] = a
+func (r *Renderer) putAttachments() {
+	for i, a := range r.attachments {
+		r.embed(&a)
+		r.attachments[i] = a
 	}
 }
 
 // return /EmbeddedFiles tree name catalog entry.
-func (f Renderer) getEmbeddedFiles() string {
-	names := make([]string, len(f.attachments))
-	for i, as := range f.attachments {
+func (r Renderer) getEmbeddedFiles() string {
+	names := make([]string, len(r.attachments))
+	for i, as := range r.attachments {
 		names[i] = fmt.Sprintf("(Attachement%d) %d 0 R ", i+1, as.objectNumber)
 	}
 	nameTree := fmt.Sprintf("<< /Names [\n %s \n] >>", strings.Join(names, "\n"))
@@ -116,34 +116,34 @@ type annotationAttach struct {
 // shared amongst all links. Be aware that not all PDF readers support
 // annotated attachments. See the AddAttachmentAnnotation example for a
 // demonstration of this method.
-func (f *Renderer) AddAttachmentAnnotation(a *Attachment, x, y, w, h float64) {
+func (r *Renderer) AddAttachmentAnnotation(a *Attachment, x, y, w, h float64) {
 	if a == nil {
 		return
 	}
-	f.pageAttachments[f.page] = append(f.pageAttachments[f.page], annotationAttach{
+	r.pageAttachments[r.page] = append(r.pageAttachments[r.page], annotationAttach{
 		Attachment: a,
-		x:          x * f.k, y: f.hPt - y*f.k, w: w * f.k, h: h * f.k,
+		x:          x * r.k, y: r.hPt - y*r.k, w: w * r.k, h: h * r.k,
 	})
 }
 
 // embed current annotations attachments. store object numbers
 // for later use by putAttachmentAnnotationLinks(), which is
 // called for each page.
-func (f *Renderer) putAnnotationsAttachments() {
+func (r *Renderer) putAnnotationsAttachments() {
 	// avoid duplication
 	m := map[*Attachment]bool{}
-	for _, l := range f.pageAttachments {
+	for _, l := range r.pageAttachments {
 		for _, an := range l {
 			if m[an.Attachment] { // already embedded
 				continue
 			}
-			f.embed(an.Attachment)
+			r.embed(an.Attachment)
 		}
 	}
 }
 
-func (f *Renderer) putAttachmentAnnotationLinks(out *fmtBuffer, page int) {
-	for _, an := range f.pageAttachments[page] {
+func (r *Renderer) putAttachmentAnnotationLinks(out *fmtBuffer, page int) {
+	for _, an := range r.pageAttachments[page] {
 		x1, y1, x2, y2 := an.x, an.y, an.x+an.w, an.y-an.h
 		as := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [%.2f %.2f %.2f %.2f] /Length 0 >>",
 			x1, y1, x2, y2)
@@ -151,8 +151,8 @@ func (f *Renderer) putAttachmentAnnotationLinks(out *fmtBuffer, page int) {
 
 		out.printf("<< /Type /Annot /Subtype /FileAttachment /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0]\n",
 			x1, y1, x2, y2)
-		out.printf("/Contents %s ", f.textstring(utf8toutf16(an.Description)))
-		out.printf("/T %s ", f.textstring(utf8toutf16(an.Filename)))
+		out.printf("/Contents %s ", r.textstring(utf8toutf16(an.Description)))
+		out.printf("/T %s ", r.textstring(utf8toutf16(an.Filename)))
 		out.printf("/AP << /N %s>>", as)
 		out.printf("/FS %d 0 R >>\n", an.objectNumber)
 	}

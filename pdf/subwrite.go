@@ -16,24 +16,24 @@ package pdf
 // precedence over linkStr.
 //
 // The SubWrite example demonstrates this method.
-func (f *Renderer) SubWrite(ht float64, str string, subFontSize, subOffset float64, link int, linkStr string) {
-	if f.err != nil {
+func (r *Renderer) SubWrite(ht float64, str string, subFontSize, subOffset float64, link int, linkStr string) {
+	if r.err != nil {
 		return
 	}
 	// resize font
-	subFontSizeOld := f.fontSizePt
-	f.SetFontSize(subFontSize)
+	subFontSizeOld := r.fontSizePt
+	r.SetFontSize(subFontSize)
 	// reposition y
-	subOffset = (((subFontSize - subFontSizeOld) / f.k) * 0.3) + (subOffset / f.k)
-	subX := f.x
-	subY := f.y
-	f.SetXY(subX, subY-subOffset)
+	subOffset = (((subFontSize - subFontSizeOld) / r.k) * 0.3) + (subOffset / r.k)
+	subX := r.x
+	subY := r.y
+	r.SetXY(subX, subY-subOffset)
 	//Output text
-	f.write(ht, str, link, linkStr)
+	r.write(ht, str, link, linkStr)
 	// restore y position
-	subX = f.x
-	subY = f.y
-	f.SetXY(subX, subY+subOffset)
+	subX = r.x
+	subY = r.y
+	r.SetXY(subX, subY+subOffset)
 	// restore font size
-	f.SetFontSize(subFontSizeOld)
+	r.SetFontSize(subFontSizeOld)
 }
