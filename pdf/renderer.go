@@ -5078,55 +5078,56 @@ func (r *Renderer) putxmp() {
 
 func (r *Renderer) putbookmarks() {
 	nb := len(r.outlines)
-	if nb > 0 {
-		lru := make(map[int]int)
-		level := 0
-		for i, o := range r.outlines {
-			if o.level > 0 {
-				parent := lru[o.level-1]
-				r.outlines[i].parent = parent
-				r.outlines[parent].last = i
-				if o.level > level {
-					r.outlines[parent].first = i
-				}
-			} else {
-				r.outlines[i].parent = nb
+	if nb == 0 {
+		return
+	}
+	lru := make(map[int]int)
+	level := 0
+	for i, o := range r.outlines {
+		if o.level > 0 {
+			parent := lru[o.level-1]
+			r.outlines[i].parent = parent
+			r.outlines[parent].last = i
+			if o.level > level {
+				r.outlines[parent].first = i
 			}
-			if o.level <= level && i > 0 {
-				prev := lru[o.level]
-				r.outlines[prev].next = i
-				r.outlines[i].prev = prev
-			}
-			lru[o.level] = i
-			level = o.level
+		} else {
+			r.outlines[i].parent = nb
 		}
-		n := r.n + 1
-		for _, o := range r.outlines {
-			r.newobj()
-			r.outf("<</Title %s", r.textstring(o.text))
-			r.outf("/Parent %d 0 R", n+o.parent)
-			if o.prev != -1 {
-				r.outf("/Prev %d 0 R", n+o.prev)
-			}
-			if o.next != -1 {
-				r.outf("/Next %d 0 R", n+o.next)
-			}
-			if o.first != -1 {
-				r.outf("/First %d 0 R", n+o.first)
-			}
-			if o.last != -1 {
-				r.outf("/Last %d 0 R", n+o.last)
-			}
-			r.outf("/Dest [%d 0 R /XYZ 0 %.2f null]", 1+2*o.p, (r.h-o.y)*r.k)
-			r.out("/Count 0>>")
-			r.out("endobj")
+		if o.level <= level && i > 0 {
+			prev := lru[o.level]
+			r.outlines[prev].next = i
+			r.outlines[i].prev = prev
 		}
+		lru[o.level] = i
+		level = o.level
+	}
+	n := r.n + 1
+	for _, o := range r.outlines {
 		r.newobj()
-		r.outlineRoot = r.n
-		r.outf("<</Type /Outlines /First %d 0 R", n)
-		r.outf("/Last %d 0 R>>", n+lru[0])
+		r.outf("<</Title %s", r.textstring(o.text))
+		r.outf("/Parent %d 0 R", n+o.parent)
+		if o.prev != -1 {
+			r.outf("/Prev %d 0 R", n+o.prev)
+		}
+		if o.next != -1 {
+			r.outf("/Next %d 0 R", n+o.next)
+		}
+		if o.first != -1 {
+			r.outf("/First %d 0 R", n+o.first)
+		}
+		if o.last != -1 {
+			r.outf("/Last %d 0 R", n+o.last)
+		}
+		r.outf("/Dest [%d 0 R /XYZ 0 %.2f null]", 1+2*o.p, (r.h-o.y)*r.k)
+		r.out("/Count 0>>")
 		r.out("endobj")
 	}
+	r.newobj()
+	r.outlineRoot = r.n
+	r.outf("<</Type /Outlines /First %d 0 R", n)
+	r.outf("/Last %d 0 R>>", n+lru[0])
+	r.out("endobj")
 }
 
 func (r *Renderer) putOutputIntents() {

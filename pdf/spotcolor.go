@@ -109,25 +109,20 @@ func (r *Renderer) SetFillSpotColor(nameStr string, tint byte) {
 // The value for tint ranges from 0 (no intensity) to 100 (full intensity). It
 // is quietly bounded to this range.
 func (r *Renderer) SetTextSpotColor(nameStr string, tint byte) {
-	var clr spotColorType
-	var ok bool
-
-	clr, ok = r.getSpotColor(nameStr)
-	if ok {
-		r.color.text.mode = colorModeSpot
-		r.color.text.spotStr = nameStr
-		r.color.text.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
-		r.colorFlag = r.color.fill.str != r.color.text.str
+	clr, ok := r.getSpotColor(nameStr)
+	if !ok {
+		return
 	}
+	r.color.text.mode = colorModeSpot
+	r.color.text.spotStr = nameStr
+	r.color.text.str = fmt.Sprintf("/CS%d cs %.3f scn", clr.id, float64(byteBound(tint))/100)
+	r.colorFlag = r.color.fill.str != r.color.text.str
 }
 
 func (r *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte) {
-	var spotClr spotColorType
-	var ok bool
-
 	name = clr.spotStr
 	if name != "" {
-		spotClr, ok = r.getSpotColor(name)
+		spotClr, ok := r.getSpotColor(name)
 		if ok {
 			c = spotClr.val.c
 			m = spotClr.val.m
@@ -135,7 +130,7 @@ func (r *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte)
 			k = spotClr.val.k
 		}
 	}
-	return
+	return name, c, m, y, k
 }
 
 // GetDrawSpotColor returns the most recently used spot color information for
