@@ -24,7 +24,7 @@ doc := fpdf.NewDocument("Invoice",
     fpdf.Save( // scoped style — restored after these children
         fpdf.TextColor(fpdf.Gray50),
         fpdf.Font(fpdf.Helvetica, fpdf.StyleRegular, 10),
-        fpdf.Paragraph("Generated with go-mx/pdf."),
+        fpdf.Paragraph("Generated with go-mx/fpdf."),
     ),
 )
 err := doc.OutputFile(ctx, "hello.pdf")
@@ -38,7 +38,7 @@ same patterns against a different renderer.
 
 The mapping to `html` is deliberate, so the two packages feel the same:
 
-| `html` / `mx`                       | `pdf`                                  |
+| `html` / `mx`                       | `fpdf`                                 |
 | ----------------------------------- | -------------------------------------- |
 | `Component` (`Render(ctx, Writer)`) | `Component` (`Render(ctx, *Renderer)`) |
 | markup `Writer`                     | `Renderer` (embeds `*fpdf.Fpdf`)       |

@@ -96,7 +96,6 @@ Helpers and escape hatches:
 |---------------------------------------|----------------------------------|
 | `Element(name, attribsChildren...)`   | Any element by name, incl. custom/web-component tags |
 | `VoidElement(name, attribs...)`       | Any void element by name         |
-| `Hyperlink(href, text, attribs...)`   | Shortcut for `A(HRef(href), …, text)` |
 | `Textf(format, args...)`              | `fmt`-formatted escaped text node |
 
 `InputType*` constructors prepend the matching `type` attribute, so you don't
