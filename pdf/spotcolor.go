@@ -192,3 +192,14 @@ func (r *Renderer) spotColorPutResourceDict() {
 	}
 	r.out(">>")
 }
+
+// spotColorType specifies a named spot color value.
+type spotColorType struct {
+	id, objID int
+	val       cmykColorType
+}
+
+// cmykColorType specifies an ink-based CMYK color value.
+type cmykColorType struct {
+	c, m, y, k byte // 0% to 100%
+}

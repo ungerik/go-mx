@@ -30,7 +30,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"time"
 )
 
 // Version of FPDF from which this package is derived
@@ -48,33 +47,6 @@ type gradientType struct {
 	clr1Str, clr2Str  string
 	x1, y1, x2, y2, r float64
 	objNum            int
-}
-
-type colorMode int
-
-const (
-	colorModeRGB colorMode = iota
-	colorModeSpot
-)
-
-type colorType struct {
-	r, g, b    float64
-	ir, ig, ib int
-	mode       colorMode
-	spotStr    string // name of current spot color
-	gray       bool
-	str        string
-}
-
-// SpotColorType specifies a named spot color value
-type spotColorType struct {
-	id, objID int
-	val       cmykColorType
-}
-
-// cmykColorType specifies an ink-based CMYK color value
-type cmykColorType struct {
-	c, m, y, k byte // 0% to 100%
 }
 
 // SizeType fields Wd and Ht specify the horizontal and vertical extents of a
@@ -325,121 +297,6 @@ type OutputIntentType struct {
 type PageBox struct {
 	SizeType
 	PointType
-}
-
-// Renderer is the principal structure for creating a single PDF document
-type Renderer struct {
-	isCurrentUTF8    bool                       // is current font used in utf-8 mode
-	isRTL            bool                       // is is right to left mode enabled
-	page             int                        // current page number
-	n                int                        // current object number
-	offsets          []int                      // array of object offsets
-	buffer           bytes.Buffer               // buffer holding in-memory PDF
-	pages            []*bytes.Buffer            // slice[page] of page content; 1-based
-	state            int                        // current document state
-	compress         bool                       // compression flag
-	k                float64                    // scale factor (number of points in user unit)
-	defOrientation   Orientation                // default orientation
-	curOrientation   Orientation                // current orientation
-	defPageSize      SizeType                   // default page size
-	defPageBoxes     map[string]PageBox         // default page size
-	curPageSize      SizeType                   // current page size
-	pageSizes        map[int]SizeType           // used for pages with non default sizes or orientations
-	pageBoxes        map[int]map[string]PageBox // used to define the crop, trim, bleed and art boxes
-	unit             Unit                       // unit of measure for all rendered objects except fonts
-	wPt, hPt         float64                    // dimensions of current page in points
-	w, h             float64                    // dimensions of current page in user unit
-	lMargin          float64                    // left margin
-	tMargin          float64                    // top margin
-	rMargin          float64                    // right margin
-	bMargin          float64                    // page break margin
-	cMargin          float64                    // cell margin
-	x, y             float64                    // current position in user unit
-	lasth            float64                    // height of last printed cell
-	lineWidth        float64                    // line width in user unit
-	fontpath         string                     // path containing fonts
-	fontLoader       FontLoader                 // used to load font files from arbitrary locations
-	coreFonts        map[string]bool            // array of core font names
-	fonts            map[string]fontDefType     // array of used fonts
-	fontFiles        map[string]fontFileType    // array of font files
-	diffs            []string                   // array of encoding differences
-	fontFamily       string                     // current font family
-	fontStyle        string                     // current font style
-	underline        bool                       // underlining flag
-	strikeout        bool                       // strike out flag
-	currentFont      fontDefType                // current font info
-	fontSizePt       float64                    // current font size in points
-	fontSize         float64                    // current font size in user unit
-	ws               float64                    // word spacing
-	images           map[string]*ImageInfoType  // array of used images
-	aliasMap         map[string]string          // map of alias->replacement
-	pageLinks        [][]linkType               // pageLinks[page][link], both 1-based
-	links            []intLinkType              // array of internal links
-	attachments      []Attachment               // slice of content to embed globally
-	pageAttachments  [][]annotationAttach       // 1-based array of annotation for file attachments (per page)
-	outlines         []outlineType              // array of outlines
-	outlineRoot      int                        // root of outlines
-	autoPageBreak    bool                       // automatic page breaking
-	acceptPageBreak  func() bool                // returns true to accept page break
-	pageBreakTrigger float64                    // threshold used to trigger page breaks
-	inHeader         bool                       // flag set when processing header
-	headerFnc        func()                     // function provided by app and called to write header
-	headerHomeMode   bool                       // set position to home after headerFnc is called
-	inFooter         bool                       // flag set when processing footer
-	footerFnc        func()                     // function provided by app and called to write footer
-	footerFncLpi     func(bool)                 // function provided by app and called to write footer with last page flag
-	zoomMode         string                     // zoom display mode
-	layoutMode       string                     // layout display mode
-	nXMP             int                        // XMP object number
-	xmp              []byte                     // XMP metadata
-	producer         string                     // producer
-	title            string                     // title
-	subject          string                     // subject
-	author           string                     // author
-	lang             string                     // lang
-	keywords         string                     // keywords
-	creator          string                     // creator
-	creationDate     time.Time                  // override for document CreationDate value
-	modDate          time.Time                  // override for document ModDate value
-	aliasNbPagesStr  string                     // alias for total number of pages
-	pdfVersion       pdfVersion                 // PDF version number
-	fontDirStr       string                     // location of font definition files
-	capStyle         int                        // line cap style: butt 0, round 1, square 2
-	joinStyle        int                        // line segment join style: miter 0, round 1, bevel 2
-	dashArray        []float64                  // dash array
-	dashPhase        float64                    // dash phase
-	blendList        []blendModeType            // slice[idx] of alpha transparency modes, 1-based
-	blendMap         map[string]int             // map into blendList
-	blendMode        BlendMode                  // current blend mode
-	alpha            float64                    // current transpacency
-	gradientList     []gradientType             // slice[idx] of gradient records
-	clipNest         int                        // Number of active clipping contexts
-	transformNest    int                        // Number of active transformation contexts
-	err              error                      // Set if error occurs during life cycle of instance
-	protect          protectType                // document protection structure
-	layer            layerRecType               // manages optional layers in document
-	catalogSort      bool                       // sort resource catalogs in document
-	nJs              int                        // JavaScript object number
-	javascript       *string                    // JavaScript code to include in the PDF
-	colorFlag        bool                       // indicates whether fill and text colors are different
-	color            struct {
-		// Composite values of colors
-		draw, fill, text colorType
-	}
-	spotColorMap           map[string]spotColorType // Map of named ink-based colors
-	outputIntents          []OutputIntentType       // OutputIntents
-	outputIntentStartN     int                      // Start object number for
-	userUnderlineThickness float64                  // A custom user underline thickness multiplier.
-
-	// translate maps UTF-8 to the encoding of the current standard (core)
-	// font, which uses cp1252 (Western Europe). Applied automatically by the
-	// text components via tr. Has no effect on UTF-8 fonts added with
-	// AddUTF8Font; reset it with SetTranslator when switching font encodings.
-	translate func(string) string
-	// lineHeight is the default line height in document units used by flowing
-	// text components (Text, Paragraph, NewLine) when no explicit height is
-	// given. Zero means "derive from the current font size".
-	lineHeight float64
 }
 
 const (

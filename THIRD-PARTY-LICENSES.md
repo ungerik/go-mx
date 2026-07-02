@@ -14,7 +14,7 @@ terms are reproduced below.
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
 | [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go` (color values only) | MIT |
-| [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf) | `pdf/` engine (inlined source) | MIT |
+| [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf)                       | `pdf/` engine (inlined source) | MIT |
 
 Runtime dependencies that the `cmd/shadcn-gallery` demo loads from public CDNs
 at runtime — [Shiki](https://github.com/shikijs/shiki) (MIT) and

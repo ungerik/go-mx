@@ -18,6 +18,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"testing"
 	"time"
 
@@ -27,52 +28,68 @@ import (
 
 var fixedDate = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-func renderLegacy(t *testing.T, doc *legacy.Document, compress bool) []byte {
+// renderer is the determinism-setup surface shared by the legacy and native
+// Renderer types, so both pipelines are guaranteed to render with identical
+// settings.
+type renderer interface {
+	SetCreationDate(time.Time)
+	SetModificationDate(time.Time)
+	SetCompression(bool)
+	SetCatalogSort(bool)
+	Output(io.Writer) error
+}
+
+// renderDeterministic pins the determinism knobs on r, runs render, and
+// returns the produced PDF. side names the pipeline in failure messages.
+func renderDeterministic(t *testing.T, side string, r renderer, compress bool, render func() error) []byte {
 	t.Helper()
-	r := doc.NewRenderer()
 	r.SetCreationDate(fixedDate)
 	r.SetModificationDate(fixedDate)
 	r.SetCompression(compress)
 	r.SetCatalogSort(true)
-	if err := doc.Render(context.Background(), r); err != nil {
-		t.Fatalf("legacy render: %v", err)
+	if err := render(); err != nil {
+		t.Fatalf("%s render: %v", side, err)
 	}
 	var buf bytes.Buffer
 	if err := r.Output(&buf); err != nil {
-		t.Fatalf("legacy output: %v", err)
+		t.Fatalf("%s output: %v", side, err)
 	}
 	return buf.Bytes()
+}
+
+func renderLegacy(t *testing.T, doc *legacy.Document, compress bool) []byte {
+	t.Helper()
+	r := doc.NewRenderer()
+	return renderDeterministic(t, "legacy", r, compress, func() error {
+		return doc.Render(context.Background(), r)
+	})
 }
 
 func renderNative(t *testing.T, doc *native.Document, compress bool) []byte {
 	t.Helper()
 	r := doc.NewRenderer()
-	r.SetCreationDate(fixedDate)
-	r.SetModificationDate(fixedDate)
-	r.SetCompression(compress)
-	r.SetCatalogSort(true)
-	if err := doc.Render(context.Background(), r); err != nil {
-		t.Fatalf("native render: %v", err)
+	return renderDeterministic(t, "native", r, compress, func() error {
+		return doc.Render(context.Background(), r)
+	})
+}
+
+// assertSamePDF fails the test when the two renders differ, dumping a
+// normalized byte diff for diagnosis.
+func assertSamePDF(t *testing.T, compress bool, legacyPDF, nativePDF []byte) {
+	t.Helper()
+	if !bytes.Equal(legacyPDF, nativePDF) {
+		t.Errorf("compress=%t: legacy (%d bytes) and native (%d bytes) output differ",
+			compress, len(legacyPDF), len(nativePDF))
+		if err := native.CompareBytes(legacyPDF, nativePDF, true); err != nil {
+			t.Log(err)
+		}
 	}
-	var buf bytes.Buffer
-	if err := r.Output(&buf); err != nil {
-		t.Fatalf("native output: %v", err)
-	}
-	return buf.Bytes()
 }
 
 func assertParity(t *testing.T, doc1 *legacy.Document, doc2 *native.Document) {
 	t.Helper()
 	for _, compress := range []bool{false, true} {
-		got1 := renderLegacy(t, doc1, compress)
-		got2 := renderNative(t, doc2, compress)
-		if !bytes.Equal(got1, got2) {
-			t.Errorf("compress=%t: legacy (%d bytes) and native (%d bytes) output differ",
-				compress, len(got1), len(got2))
-			if err := native.CompareBytes(got1, got2, true); err != nil {
-				t.Log(err)
-			}
-		}
+		assertSamePDF(t, compress, renderLegacy(t, doc1, compress), renderNative(t, doc2, compress))
 	}
 }
 
@@ -476,15 +493,7 @@ func TestParityImages(t *testing.T) {
 				native.ImageBytes("png8", native.ImagePNG, pngData, 140, 20, 20, 20),
 			},
 		}
-		got1 := renderLegacy(t, legacyDoc, compress)
-		got2 := renderNative(t, nativeDoc, compress)
-		if !bytes.Equal(got1, got2) {
-			t.Errorf("compress=%t: legacy (%d bytes) and native (%d bytes) output differ",
-				compress, len(got1), len(got2))
-			if err := native.CompareBytes(got1, got2, true); err != nil {
-				t.Log(err)
-			}
-		}
+		assertSamePDF(t, compress, renderLegacy(t, legacyDoc, compress), renderNative(t, nativeDoc, compress))
 	}
 }
 

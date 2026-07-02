@@ -56,38 +56,36 @@ adversarial re-review; several reproduced with standalone programs).
       first (ties lexicographic), so interacting aliases produce correct,
       deterministic output (inherited; test `TestReplaceAliasesInteracting`).
 
-## Cleanup
+## Cleanup — all done
 
 - [x] `rbuffer` and the PHP-array `untypedKeyMap` replaced with std types.
-- [ ] **`transform.go` misattribution** — the file's only header credits the
-      transform authors ("translated from the work of Moritz Wagner and
-      Andreas Würmser"), but the file also contains the unrelated renderer
-      helpers (`NewRenderer*`, `Str`, `SetTranslator`, `LoadUTF8Font*`,
-      `LineHeight`, `ensurePage`, `tr`). Move the helpers to their own file so
-      the attribution and file name stay truthful.
-- [ ] **errs stragglers** — `getters_test.go` uses `errors.New` and
-      `color.go` `Hex` uses `fmt.Errorf`; repo convention is
-      `errs.New`/`errs.Errorf` (both files otherwise converted).
-- [ ] **`keySortStrings`/`keySortInt`/`keySortArrayRangeMap` triplication** —
-      `utf8fontfile.go`: all three are `slices.Sorted(maps.Keys(m))`.
-- [ ] **Unpadded license-table row** — `THIRD-PARTY-LICENSES.md`: the new
-      go-pdf/fpdf row is unpadded while sibling rows pad (repo markdown rule:
-      pad tables up to 50-char columns).
-- [ ] **Hand-rolled big-endian readers** — `utf8fontfile.go`
-      `readUint16`/`readUint32`/`readInt16`/`getUint16` predate the
-      `binary.BigEndian` conversion applied to the write side of the same
-      file; `readInt16` carries a dead sign-adjust branch.
-- [ ] **Parity-suite duplication** — `fpdf/parity_test.go`:
-      `renderLegacy`/`renderNative` are identical bodies (a tiny local
-      interface covers both), and `TestParityImages` copy-pastes
-      `assertParity`'s comparison block. The determinism knobs must stay in
-      lockstep across copies.
-- [ ] **Dead field `fontDirStr`** — `def.go`: no readers or writers (the live
-      field is `fontpath`).
-- [ ] **Minor** — `generateCMAP` duplicates `parseCMAPTable`'s scan and its
-      missing-cmap error is created at the caller; `utf8toutf16` (2
-      intermediate slices) and `repClosure` (`strings.Builder` would save the
-      final copy) allocate more than needed on hot text paths.
+- [x] **`transform.go` misattribution** — the renderer convenience helpers
+      (`NewRenderer*`, `Str`, `SetTranslator`, `LoadUTF8Font*`, `LineHeight`,
+      `ensurePage`, `tr`) moved to `convenience.go`; `transform.go` now
+      contains only the code the Wagner/Würmser attribution covers.
+- [x] **errs stragglers** — `getters_test.go` uses `errs.New` and `color.go`
+      `Hex` uses `errs.Errorf`.
+- [x] **`keySort*` triplication** — replaced by `slices.Sorted(maps.Keys(m))`
+      at the call sites; the three helpers are deleted.
+- [x] **Unpadded license-table row** — the go-pdf/fpdf row in
+      `THIRD-PARTY-LICENSES.md` is padded like its siblings.
+- [x] **Hand-rolled big-endian readers** —
+      `readUint16`/`readUint32`/`readInt16`/`getUint16` use
+      `binary.BigEndian`; `readInt16`'s dead sign-adjust branch is gone.
+- [x] **Parity-suite duplication** — `renderLegacy`/`renderNative` share
+      `renderDeterministic` (via a small `renderer` interface), and both
+      `assertParity` and `TestParityImages` compare through `assertSamePDF`,
+      so the determinism knobs and failure reporting live in one place each.
+- [x] **Dead field `fontDirStr`** — removed while moving the `Renderer`
+      struct.
+- [x] **Minor** — `generateCMAP` reuses `parseCMAPTable`'s subtable scan and
+      returns the error where it is detected; `utf8toutf16` encodes in a
+      single pass without intermediate slices; `repClosure` builds through
+      `strings.Builder` (no final copy).
+- [x] **Types moved to their matching files** — the `Renderer` struct lives in
+      `renderer.go`, `colorMode`/`colorType` in `color.go`, and
+      `spotColorType`/`cmykColorType` in `spotcolor.go`; `def.go` keeps only
+      the types without a natural home file.
 
 ## Known intentional divergences from the legacy stack (documented, not bugs)
 

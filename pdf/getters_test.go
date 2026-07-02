@@ -5,12 +5,13 @@
 package pdf
 
 import (
-	"errors"
 	"io"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/domonda/go-errs"
 )
 
 var floatEpsilon = math.Nextafter(1.0, 2.0) - 1.0
@@ -265,7 +266,7 @@ func (tfl *testFontLoader) Open(name string) (io.Reader, error) {
 }
 
 func TestGetFontLoader(t *testing.T) {
-	testErr := errors.New("TestGetFontLoader error")
+	testErr := errs.New("TestGetFontLoader error")
 	tfl := &testFontLoader{
 		reader: strings.NewReader("TestGetFontLoader reader"),
 		err:    testErr,

@@ -33,33 +33,41 @@ import (
 )
 
 // utf8toutf16 converts s to UTF-16BE bytes as required by PDF text strings,
-// by default prefixed with a byte order mark.
+// by default prefixed with a byte order mark. Runes above the Basic
+// Multilingual Plane are encoded as surrogate pairs. This helper is on the
+// hot path of every text operation with a UTF-8 font, so it encodes in a
+// single pass without intermediate rune/uint16 slices.
 func utf8toutf16(s string, withBOM ...bool) string {
 	bom := len(withBOM) == 0 || withBOM[0]
-	units := utf16.Encode([]rune(s))
-	res := make([]byte, 0, 2+2*len(units))
+	res := make([]byte, 0, 2+2*len(s))
 	if bom {
 		res = append(res, 0xFE, 0xFF)
 	}
-	for _, u := range units {
-		res = append(res, byte(u>>8), byte(u))
+	for _, r := range s {
+		if r <= 0xFFFF {
+			res = append(res, byte(r>>8), byte(r))
+		} else {
+			hi, lo := utf16.EncodeRune(r)
+			res = append(res, byte(hi>>8), byte(hi), byte(lo>>8), byte(lo))
+		}
 	}
 	return string(res)
 }
 
 func repClosure(m map[rune]byte) func(string) string {
 	return func(str string) string {
-		buf := make([]byte, 0, len(str))
+		var b strings.Builder
+		b.Grow(len(str))
 		for _, r := range str {
 			ch := byte('.')
 			if r < 0x80 {
 				ch = byte(r)
-			} else if b, ok := m[r]; ok {
-				ch = b
+			} else if c, ok := m[r]; ok {
+				ch = c
 			}
-			buf = append(buf, ch)
+			b.WriteByte(ch)
 		}
-		return string(buf)
+		return b.String()
 	}
 }
 

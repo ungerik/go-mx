@@ -22,8 +22,9 @@ package pdf
 
 import (
 	"encoding/binary"
+	"maps"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/domonda/go-errs"
 )
@@ -153,13 +154,11 @@ func (utf *utf8FontFile) readTableName() string {
 }
 
 func (utf *utf8FontFile) readUint16() int {
-	s := utf.fileReader.Read(2)
-	return (int(s[0]) << 8) + int(s[1])
+	return int(binary.BigEndian.Uint16(utf.fileReader.Read(2)))
 }
 
 func (utf *utf8FontFile) readUint32() int {
-	s := utf.fileReader.Read(4)
-	return (int(s[0]) * 16777216) + (int(s[1]) << 16) + (int(s[2]) << 8) + int(s[3]) // 	16777216  = 1<<24
+	return int(binary.BigEndian.Uint32(utf.fileReader.Read(4)))
 }
 
 func (utf *utf8FontFile) calcInt32(x, y []int) []int {
@@ -218,18 +217,12 @@ func (utf *utf8FontFile) seekTable(name string, offsetInTable int) int {
 }
 
 func (utf *utf8FontFile) readInt16() int16 {
-	s := utf.fileReader.Read(2)
-	a := (int16(s[0]) << 8) + int16(s[1])
-	if (int(a) & (1 << 15)) == 0 {
-		a = int16(int(a) - (1 << 16))
-	}
-	return a
+	return int16(binary.BigEndian.Uint16(utf.fileReader.Read(2)))
 }
 
 func (utf *utf8FontFile) getUint16(pos int) int {
 	_, _ = utf.fileReader.seek(int64(pos), 0)
-	s := utf.fileReader.Read(2)
-	return (int(s[0]) << 8) + int(s[1])
+	return int(binary.BigEndian.Uint16(utf.fileReader.Read(2)))
 }
 
 func splice(stream []byte, offset int, value []byte) []byte {
@@ -389,31 +382,26 @@ func (utf *utf8FontFile) parsePOSTTable(weight int) {
 	}
 }
 
+// parseCMAPTable locates the format-4 Microsoft/Unicode cmap subtable and
+// returns its absolute position, or an error if the font has none.
 func (utf *utf8FontFile) parseCMAPTable() (int, error) {
 	cmapPosition := utf.SeekTable("cmap")
 	utf.skip(2)
 	cmapTableCount := utf.readUint16()
-	cidCMAPPosition := 0
 	for range cmapTableCount {
 		system := utf.readUint16()
 		coded := utf.readUint16()
 		position := utf.readUint32()
 		oldReaderPosition := utf.fileReader.readerPosition
 		if (system == 3 && coded == 1) || system == 0 { // Microsoft, Unicode
-			v := utf.getUint16(cmapPosition + position)
-			if v == 4 {
-				if cidCMAPPosition == 0 {
-					cidCMAPPosition = cmapPosition + position
-				}
-				break
+			format := utf.getUint16(cmapPosition + position)
+			if format == 4 {
+				return cmapPosition + position, nil
 			}
 		}
 		utf.seek(int(oldReaderPosition))
 	}
-	if cidCMAPPosition == 0 {
-		return 0, errs.New("font does not have a cmap for Unicode")
-	}
-	return cidCMAPPosition, nil
+	return 0, errs.New("font does not have a cmap for Unicode")
 }
 
 func (utf *utf8FontFile) parseTables() error {
@@ -447,28 +435,10 @@ func (utf *utf8FontFile) parseTables() error {
 	return nil
 }
 
-func (utf *utf8FontFile) generateCMAP() map[int][]int {
-	cmapPosition := utf.SeekTable("cmap")
-	utf.skip(2)
-	cmapTableCount := utf.readUint16()
-	runeCmapPosition := 0
-	for range cmapTableCount {
-		system := utf.readUint16()
-		coder := utf.readUint16()
-		position := utf.readUint32()
-		oldPosition := utf.fileReader.readerPosition
-		if (system == 3 && coder == 1) || system == 0 {
-			format := utf.getUint16(cmapPosition + position)
-			if format == 4 {
-				runeCmapPosition = cmapPosition + position
-				break
-			}
-		}
-		utf.seek(int(oldPosition))
-	}
-
-	if runeCmapPosition == 0 {
-		return nil // no cmap for Unicode; the caller reports the error
+func (utf *utf8FontFile) generateCMAP() (map[int][]int, error) {
+	runeCmapPosition, err := utf.parseCMAPTable()
+	if err != nil {
+		return nil, err
 	}
 
 	symbolCharDictionary := make(map[int][]int)
@@ -477,7 +447,7 @@ func (utf *utf8FontFile) generateCMAP() map[int][]int {
 
 	utf.charSymbolDictionary = charSymbolDictionary
 
-	return symbolCharDictionary
+	return symbolCharDictionary, nil
 }
 
 func (utf *utf8FontFile) parseSymbols(usedRunes map[int]int) (map[int]int, map[int]int, map[int]int, []int) {
@@ -495,7 +465,7 @@ func (utf *utf8FontFile) parseSymbols(usedRunes map[int]int) (map[int]int, map[i
 	begin := utf.tableDescriptions["glyf"].position
 
 	symbolArray := make(map[int]int)
-	symbolCollectionKeys := keySortInt(symbolCollection)
+	symbolCollectionKeys := slices.Sorted(maps.Keys(symbolCollection))
 
 	symbolCounter := 0
 	maxRune := 0
@@ -504,14 +474,14 @@ func (utf *utf8FontFile) parseSymbols(usedRunes map[int]int) (map[int]int, map[i
 		symbolArray[oldSymbolIndex] = symbolCounter
 		symbolCounter++
 	}
-	charSymbolPairCollectionKeys := keySortInt(charSymbolPairCollection)
+	charSymbolPairCollectionKeys := slices.Sorted(maps.Keys(charSymbolPairCollection))
 	runeSymbolPairCollection := make(map[int]int)
 	for _, runa := range charSymbolPairCollectionKeys {
 		runeSymbolPairCollection[runa] = symbolArray[charSymbolPairCollection[runa]]
 	}
 	utf.CodeSymbolDictionary = runeSymbolPairCollection
 
-	symbolCollectionKeys = keySortInt(symbolCollection)
+	symbolCollectionKeys = slices.Sorted(maps.Keys(symbolCollection))
 	for _, oldSymbolIndex := range symbolCollectionKeys {
 		_, symbolArray, symbolCollection, symbolCollectionKeys = utf.getSymbols(oldSymbolIndex, &begin, symbolArray, symbolCollection, symbolCollectionKeys)
 	}
@@ -520,7 +490,7 @@ func (utf *utf8FontFile) parseSymbols(usedRunes map[int]int) (map[int]int, map[i
 }
 
 func (utf *utf8FontFile) generateCMAPTable(cidSymbolPairCollection map[int]int, numSymbols int) []byte {
-	cidSymbolPairCollectionKeys := keySortInt(cidSymbolPairCollection)
+	cidSymbolPairCollectionKeys := slices.Sorted(maps.Keys(cidSymbolPairCollection))
 	cidID := 0
 	cidArray := make(map[int][]int)
 	prevCid := -2
@@ -539,7 +509,7 @@ func (utf *utf8FontFile) generateCMAPTable(cidSymbolPairCollection map[int]int, 
 		prevCid = cid
 		prevSymbol = cidSymbolPairCollection[cid]
 	}
-	cidArrayKeys := keySortArrayRangeMap(cidArray)
+	cidArrayKeys := slices.Sorted(maps.Keys(cidArray))
 	segCount := len(cidArray) + 1
 
 	searchRange := 1
@@ -617,9 +587,9 @@ func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) (data []byte, er
 	utf.skip(4)
 	numSymbols := utf.readUint16()
 
-	symbolCharDictionary := utf.generateCMAP()
-	if symbolCharDictionary == nil {
-		return nil, errs.New("font does not have a cmap for Unicode")
+	symbolCharDictionary, err := utf.generateCMAP()
+	if err != nil {
+		return nil, err
 	}
 
 	utf.parseHMTXTable(metricsCount, numSymbols, symbolCharDictionary, 1.0)
@@ -955,7 +925,7 @@ func (utf *utf8FontFile) assembleTables() []byte {
 		tables[k] = make([]byte, len(v))
 		copy(tables[k], v)
 	}
-	tablesNames := keySortStrings(tables)
+	tablesNames := slices.Sorted(maps.Keys(tables))
 
 	offset := 12 + tablesCount*16
 	begin := 0
@@ -1033,39 +1003,6 @@ func packUint32(n1 int) []byte {
 
 func packUint16(n1 int) []byte {
 	return binary.BigEndian.AppendUint16(nil, uint16(n1))
-}
-
-func keySortStrings(s map[string][]byte) []string {
-	keys := make([]string, len(s))
-	i := 0
-	for key := range s {
-		keys[i] = key
-		i++
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func keySortInt(s map[int]int) []int {
-	keys := make([]int, len(s))
-	i := 0
-	for key := range s {
-		keys[i] = key
-		i++
-	}
-	sort.Ints(keys)
-	return keys
-}
-
-func keySortArrayRangeMap(s map[int][]int) []int {
-	keys := make([]int, len(s))
-	i := 0
-	for key := range s {
-		keys[i] = key
-		i++
-	}
-	sort.Ints(keys)
-	return keys
 }
 
 // UTF8CutFont is a utility function that generates a TrueType font composed
