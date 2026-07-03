@@ -1,15 +1,15 @@
 # pdftable
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/pkg/pdftable.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/pkg/pdftable)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/pdf/pdftable.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/pdf/pdftable)
 
-Data tables for the go-mx [`pdf`](../../pdf) package: measured columns,
+Data tables for the go-mx [`pdf`](../) package: measured columns,
 wrapped and aligned cell text, styled header rows, grid rules, and automatic
 page breaks between rows with the header repeated on every page.
 
 ```go
 import (
     "github.com/ungerik/go-mx/pdf"
-    "github.com/ungerik/go-mx/pkg/pdftable"
+    "github.com/ungerik/go-mx/pdf/pdftable"
 )
 
 table := pdftable.New(
@@ -138,4 +138,4 @@ top-aligned.
 
 The committed visual reference is `testdata/table_reference.pdf`, rendered
 by `TestGoldenPDF` (regenerate with
-`go test ./pkg/pdftable -run TestGoldenPDF -update`).
+`go test ./pdf/pdftable -run TestGoldenPDF -update`).

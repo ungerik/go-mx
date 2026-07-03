@@ -1,4 +1,4 @@
-//go:generate go -C ../../tools tool go-enum ../pkg/pdftable/$GOFILE
+//go:generate go -C ../../tools tool go-enum ../pdf/pdftable/$GOFILE
 
 package pdftable
 

@@ -89,7 +89,7 @@ respect the margins and the page-break trigger.
 - **State** — `Font`, `FontSize`, `TextColor`, `FillColor`, `DrawColor`,
   `LineWidth`, `LineCap`, `LineJoin`, `X`, `Y`, `XY`, `MoveDown`, `MoveRight`.
 - **Layout** — `Page`, `PageFormat`, `Document`.
-- **Tables** — the separate [`pkg/pdftable`](../pkg/pdftable) package builds
+- **Tables** — the separate [`pdf/pdftable`](pdftable) package builds
   data tables on these primitives: measured columns, wrapped cells, styled
   headers, grid rules and page-breaking rows.
 
