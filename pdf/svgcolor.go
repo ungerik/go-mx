@@ -159,6 +159,22 @@ func parseAlphaValue(s string) (float64, error) {
 	return math.Min(1, math.Max(0, v*scale)), nil
 }
 
+// parseHSLPercent parses an hsl() saturation or lightness value, which the
+// spec requires to be a percentage, into a fraction in [0, 1]. A bare number
+// without the '%' unit is rejected rather than silently read as a tiny
+// percentage.
+func parseHSLPercent(s string) (float64, error) {
+	p, ok := strings.CutSuffix(strings.TrimSpace(s), "%")
+	if !ok {
+		return 0, errs.Errorf("invalid hsl() value %q, expected a percentage", s)
+	}
+	v, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
+	if err != nil {
+		return 0, errs.Errorf("invalid hsl() percentage %q", s)
+	}
+	return math.Min(1, math.Max(0, v/100)), nil
+}
+
 func parseRGBFunction(args []string) (Color, float64, error) {
 	if len(args) != 3 && len(args) != 4 {
 		return Color{}, 0, errs.Errorf("rgb() needs 3 or 4 arguments, got %d", len(args))
@@ -190,11 +206,11 @@ func parseHSLFunction(args []string) (Color, float64, error) {
 	if err != nil {
 		return Color{}, 0, errs.Errorf("invalid hsl() hue %q", args[0])
 	}
-	s, err := parseAlphaValue(strings.TrimSuffix(args[1], "%") + "%")
+	s, err := parseHSLPercent(args[1])
 	if err != nil {
 		return Color{}, 0, err
 	}
-	l, err := parseAlphaValue(strings.TrimSuffix(args[2], "%") + "%")
+	l, err := parseHSLPercent(args[2])
 	if err != nil {
 		return Color{}, 0, err
 	}

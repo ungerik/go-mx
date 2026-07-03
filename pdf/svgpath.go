@@ -162,6 +162,7 @@ func renderSVGPathData(d string, sink pathSink) error {
 	sc := svgScanner{s: d}
 	var (
 		cmd          byte    // current command letter
+		started      bool    // an initial moveto has been seen
 		x, y         float64 // current point
 		startX       float64 // subpath start for Z
 		startY       float64
@@ -170,15 +171,24 @@ func renderSVGPathData(d string, sink pathSink) error {
 	)
 	for !sc.atEnd() {
 		c := sc.s[sc.i]
-		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+		switch {
+		case (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'):
 			cmd = c
 			sc.i++
-		} else if cmd == 0 {
-			return errs.Errorf("SVG path data must start with a command: %q", d)
-		} else if !sc.hasNumber() {
+		case cmd == 0:
+			return errs.Errorf("SVG path data must start with a moveto command: %q", d)
+		case cmd == 'Z' || cmd == 'z':
+			// After a closepath only a new command may follow. A coordinate
+			// here has no command to consume it, so without this guard the
+			// current position never advances and the loop spins forever.
+			return errs.Errorf("SVG path data has a coordinate after closepath (Z): %q", sc.s[sc.i:])
+		case !sc.hasNumber():
 			return errs.Errorf("unexpected character %q in SVG path data", string(sc.s[sc.i]))
 		}
-		// A path must begin with a moveto, and after Z only a command may follow.
+		// A path must begin with a moveto.
+		if !started && cmd != 'M' && cmd != 'm' {
+			return errs.Errorf("SVG path data must start with a moveto command: %q", d)
+		}
 		if cmd == 'Z' || cmd == 'z' {
 			sink.closePath()
 			x, y = startX, startY
@@ -203,6 +213,7 @@ func renderSVGPathData(d string, sink pathSink) error {
 			x, y = rx+mx, ry+my
 			startX, startY = x, y
 			sink.moveTo(x, y)
+			started = true
 			// Further coordinate pairs are implicit lineto commands.
 			if cmd == 'M' {
 				cmd = 'L'

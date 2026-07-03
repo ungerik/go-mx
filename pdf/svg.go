@@ -105,12 +105,18 @@ func resolveSVGBoxSize(attrs map[string]string, w, h float64) (float64, float64,
 	}
 	iw, ih := intrinsic("width"), intrinsic("height")
 	if iw <= 0 || ih <= 0 {
+		// Fill a missing intrinsic dimension from the viewBox, but keep the
+		// aspect ratio consistent: pairing an absolute attribute on one axis
+		// with the raw viewBox extent on the other would distort the SVG, so
+		// derive the missing axis from the present one via the viewBox ratio.
 		if vals, err := parseSVGNumberList(attrs["viewBox"]); err == nil && len(vals) == 4 && vals[2] > 0 && vals[3] > 0 {
-			if iw <= 0 {
-				iw = vals[2]
-			}
-			if ih <= 0 {
-				ih = vals[3]
+			switch {
+			case iw <= 0 && ih <= 0:
+				iw, ih = vals[2], vals[3]
+			case iw <= 0:
+				iw = ih * vals[2] / vals[3]
+			default:
+				ih = iw * vals[3] / vals[2]
 			}
 		}
 	}
@@ -152,8 +158,14 @@ type svgRenderer struct {
 // rendering an SVG, mirroring what Save restores plus the alpha and dash
 // state (readable here because the engine is part of this package).
 type svgSavedState struct {
-	family, fontStyle     string
-	fontSizePt            float64
+	// Font state is captured as raw renderer fields so restore can bypass
+	// SetFont, whose empty-family and zero-size special cases would not restore
+	// an unset or partially-set ambient font exactly.
+	fontFamily, fontStyle string
+	underline, strikeout  bool
+	currentFont           fontDefType
+	fontSizePt, fontSize  float64
+	isCurrentUTF8         bool
 	textColor, fill, draw Color
 	lineWidth             float64
 	capStyle, joinStyle   string
@@ -167,9 +179,14 @@ type svgSavedState struct {
 func (sr *svgRenderer) saveState() svgSavedState {
 	r := sr.r
 	var s svgSavedState
-	s.family = r.GetFontFamily()
-	s.fontStyle = r.GetFontStyle()
-	s.fontSizePt, _ = r.GetFontSize()
+	s.fontFamily = r.fontFamily
+	s.fontStyle = r.fontStyle
+	s.underline = r.underline
+	s.strikeout = r.strikeout
+	s.currentFont = r.currentFont
+	s.fontSizePt = r.fontSizePt
+	s.fontSize = r.fontSize
+	s.isCurrentUTF8 = r.isCurrentUTF8
 	s.textColor.R, s.textColor.G, s.textColor.B = r.GetTextColor()
 	s.fill.R, s.fill.G, s.fill.B = r.GetFillColor()
 	s.draw.R, s.draw.G, s.draw.B = r.GetDrawColor()
@@ -200,14 +217,31 @@ func (sr *svgRenderer) saveState() svgSavedState {
 
 func (sr *svgRenderer) restoreState(s svgSavedState) {
 	r := sr.r
-	r.SetFont(s.family, s.fontStyle, s.fontSizePt)
+	// Restore the font by assigning the captured fields directly rather than
+	// through SetFont, whose empty-family and zero-size branches would not
+	// round-trip an unset ambient font. Re-emit the Tf operator (when a font
+	// was set) so later text uses the restored font, not the SVG's last font.
+	r.fontFamily = s.fontFamily
+	r.fontStyle = s.fontStyle
+	r.underline = s.underline
+	r.strikeout = s.strikeout
+	r.currentFont = s.currentFont
+	r.fontSizePt = s.fontSizePt
+	r.fontSize = s.fontSize
+	r.isCurrentUTF8 = s.isCurrentUTF8
+	if r.page > 0 && s.fontFamily != "" {
+		r.outf("BT /F%s %.2f Tf ET", r.currentFont.i, r.fontSizePt)
+	}
 	r.SetTextColor(s.textColor.R, s.textColor.G, s.textColor.B)
 	r.SetFillColor(s.fill.R, s.fill.G, s.fill.B)
 	r.SetDrawColor(s.draw.R, s.draw.G, s.draw.B)
 	r.SetLineWidth(s.lineWidth)
 	r.SetLineCapStyle(s.capStyle)
 	r.SetLineJoinStyle(s.joinStyle)
-	r.SetXY(s.x, s.y)
+	// Assign the current position directly: SetXY reinterprets negative
+	// coordinates as page-edge-relative, which would corrupt a negative
+	// ambient position (SVG rendering itself never sets a negative one).
+	r.x, r.y = s.x, s.y
 	if sr.alphaTouched {
 		r.SetAlpha(s.alpha, s.blendMode)
 	}
@@ -257,6 +291,23 @@ func svgAttribMap(ctx context.Context, el *mx.Element) (map[string]string, error
 	return m, nil
 }
 
+// applySVGTransform applies the element's transform attribute, if any, and
+// returns a function that ends the transform scope; the caller must defer it.
+// With no transform it returns a no-op, so the caller can defer unconditionally.
+func (sr *svgRenderer) applySVGTransform(attrs map[string]string) (end func(), err error) {
+	t := attrs["transform"]
+	if t == "" {
+		return func() {}, nil
+	}
+	m, err := parseSVGTransform(t)
+	if err != nil {
+		return func() {}, err
+	}
+	sr.r.TransformBegin()
+	sr.r.transformSVG(m)
+	return sr.r.TransformEnd, nil
+}
+
 func (sr *svgRenderer) renderRoot(ctx context.Context, root *mx.Element, attrs map[string]string, x, y, w, h float64) error {
 	st := svgDefaultStyle()
 	if err := st.apply(attrs, svgViewport{w, h}); err != nil {
@@ -265,15 +316,11 @@ func (sr *svgRenderer) renderRoot(ctx context.Context, root *mx.Element, attrs m
 	if st.displayNone {
 		return nil
 	}
-	if t := attrs["transform"]; t != "" {
-		m, err := parseSVGTransform(t)
-		if err != nil {
-			return err
-		}
-		sr.r.TransformBegin()
-		defer sr.r.TransformEnd()
-		sr.r.transformSVG(m)
+	end, err := sr.applySVGTransform(attrs)
+	if err != nil {
+		return err
 	}
+	defer end()
 	return sr.renderViewport(ctx, root, attrs, st, x, y, w, h)
 }
 
@@ -412,15 +459,11 @@ func (sr *svgRenderer) renderElement(ctx context.Context, el *mx.Element, st svg
 	if st.displayNone {
 		return nil
 	}
-	if t := attrs["transform"]; t != "" {
-		m, err := parseSVGTransform(t)
-		if err != nil {
-			return err
-		}
-		sr.r.TransformBegin()
-		defer sr.r.TransformEnd()
-		sr.r.transformSVG(m)
+	end, err := sr.applySVGTransform(attrs)
+	if err != nil {
+		return err
 	}
+	defer end()
 
 	switch el.Name {
 	case "svg":
@@ -452,9 +495,10 @@ func (sr *svgRenderer) renderElement(ctx context.Context, el *mx.Element, st svg
 		return sr.renderChildren(ctx, el.Children, st, vp)
 
 	case "switch":
-		// Best effort without conditional-processing support: render the
-		// first element child.
-		if first := firstElementChild(el.Children); first != nil {
+		// Best effort without conditional-processing support: render the first
+		// child the walker can actually draw, skipping unsupported elements
+		// (foreignObject, image, …) so a supported fallback sibling still shows.
+		if first := firstRenderableChild(el.Children); first != nil {
 			return sr.renderElement(ctx, first, st, vp)
 		}
 		return nil
@@ -477,13 +521,18 @@ func (sr *svgRenderer) renderElement(ctx context.Context, el *mx.Element, st svg
 	return nil
 }
 
-func firstElementChild(children mx.Components) *mx.Element {
+// firstRenderableChild returns the first child element the walker can render,
+// flattening mx.Components grouping wrappers. Used by <switch> to select its
+// first usable child.
+func firstRenderableChild(children mx.Components) *mx.Element {
 	for _, child := range children {
 		switch c := child.(type) {
 		case *mx.Element:
-			return c
+			if svgRenderedElements[c.Name] {
+				return c
+			}
 		case mx.Components:
-			if e := firstElementChild(c); e != nil {
+			if e := firstRenderableChild(c); e != nil {
 				return e
 			}
 		}
@@ -790,7 +839,36 @@ func (sr *svgRenderer) renderText(ctx context.Context, el *mx.Element, attrs map
 	if err := positionSVGTextCursor(attrs, vp, cur); err != nil {
 		return err
 	}
-	return sr.renderTextContent(ctx, el.Children, st, vp, cur)
+	// text-anchor aligns the whole text chunk, not each run: lay the content
+	// out first to measure its total advance width, shift the start so the
+	// anchor point lands correctly, then draw the runs left to right.
+	startX := cur.x
+	var runs []svgGlyphRun
+	// Measure with page emission suppressed: selectSVGFont would otherwise
+	// write font operators for this throwaway pass. The draw loop below
+	// re-selects the fonts and emits for real.
+	r := sr.r
+	pageSave := r.page
+	r.page = 0
+	err := sr.layoutTextContent(ctx, el.Children, st, vp, cur, &runs)
+	r.page = pageSave
+	if err != nil {
+		return err
+	}
+	shift := 0.0
+	switch st.textAnchor {
+	case "middle":
+		shift = -(cur.x - startX) / 2
+	case "end":
+		shift = -(cur.x - startX)
+	}
+	for i := range runs {
+		sr.drawGlyphRun(&runs[i], shift)
+		if err := sr.r.Error(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // positionSVGTextCursor applies the x, y, dx and dy attributes of <text> or
@@ -832,16 +910,32 @@ func positionSVGTextCursor(attrs map[string]string, vp svgViewport, cur *svgText
 	return nil
 }
 
-func (sr *svgRenderer) renderTextContent(ctx context.Context, children mx.Components, st svgStyle, vp svgViewport, cur *svgTextCursor) error {
+// svgGlyphRun is one laid-out run of character data: its baseline position
+// before the text-anchor shift, the normalized text, and the style to paint
+// it with (font re-selected at draw time).
+type svgGlyphRun struct {
+	x, y  float64
+	text  string
+	style svgStyle
+}
+
+// layoutTextContent walks the text content, appending a run for each piece of
+// character data and advancing cur by its width, without drawing. A tspan
+// applies its own style and position like a nested text element.
+func (sr *svgRenderer) layoutTextContent(ctx context.Context, children mx.Components, st svgStyle, vp svgViewport, cur *svgTextCursor, runs *[]svgGlyphRun) error {
 	for _, child := range children {
 		switch c := child.(type) {
 		case mx.Text:
-			sr.drawTextRun(string(c), &st, cur)
-			if err := sr.r.Error(); err != nil {
-				return err
+			text := normalizeSVGText(string(c))
+			if text == "" {
+				continue
 			}
+			sr.selectSVGFont(&st)
+			width := sr.r.GetStringWidth(sr.r.tr(text))
+			*runs = append(*runs, svgGlyphRun{x: cur.x, y: cur.y, text: text, style: st})
+			cur.x += width
 		case mx.Components:
-			if err := sr.renderTextContent(ctx, c, st, vp, cur); err != nil {
+			if err := sr.layoutTextContent(ctx, c, st, vp, cur, runs); err != nil {
 				return err
 			}
 		case *mx.Element:
@@ -865,7 +959,7 @@ func (sr *svgRenderer) renderTextContent(ctx context.Context, children mx.Compon
 			if err = positionSVGTextCursor(attrs, vp, cur); err != nil {
 				return err
 			}
-			if err = sr.renderTextContent(ctx, c.Children, spanStyle, vp, cur); err != nil {
+			if err = sr.layoutTextContent(ctx, c.Children, spanStyle, vp, cur, runs); err != nil {
 				return err
 			}
 		}
@@ -873,41 +967,36 @@ func (sr *svgRenderer) renderTextContent(ctx context.Context, children mx.Compon
 	return nil
 }
 
-// drawTextRun draws one run of text at the cursor and advances it by the
-// text width. The run is anchored per text-anchor and painted with the fill
-// paint; stroked text is not supported.
-func (sr *svgRenderer) drawTextRun(s string, st *svgStyle, cur *svgTextCursor) {
-	text := normalizeSVGText(s)
-	if text == "" {
+// drawGlyphRun paints one laid-out run at its baseline, offset by the
+// text-anchor shift, with the run's fill paint. Stroked text is not supported.
+func (sr *svgRenderer) drawGlyphRun(run *svgGlyphRun, shift float64) {
+	st := &run.style
+	if !st.visible {
+		return
+	}
+	fillColor, fillAlpha, hasFill := resolveSVGPaint(st.fill, st.color, st.opacity*st.fillOpacity)
+	if !hasFill {
 		return
 	}
 	r := sr.r
 	sr.selectSVGFont(st)
-	translated := r.tr(text)
-	width := r.GetStringWidth(translated)
-	x := cur.x
-	switch st.textAnchor {
-	case "middle":
-		x -= width / 2
-	case "end":
-		x -= width
-	}
-	fillColor, fillAlpha, hasFill := resolveSVGPaint(st.fill, st.color, st.opacity*st.fillOpacity)
-	if st.visible && hasFill {
-		r.SetTextColor(fillColor.R, fillColor.G, fillColor.B)
-		sr.withAlpha(fillAlpha, func() {
-			r.Text(x, cur.y, translated)
-		})
-	}
-	cur.x = x + width
+	r.SetTextColor(fillColor.R, fillColor.G, fillColor.B)
+	sr.withAlpha(fillAlpha, func() {
+		r.Text(run.x+shift, run.y, r.tr(run.text))
+	})
 }
 
 // normalizeSVGText collapses whitespace runs into single spaces, keeping one
 // leading/trailing space so runs split across tspans keep their separation.
 func normalizeSVGText(s string) string {
+	if s == "" {
+		return ""
+	}
 	fields := strings.Fields(s)
 	if len(fields) == 0 {
-		return ""
+		// A run of only whitespace collapses to a single space so it still
+		// separates the runs on either side instead of vanishing.
+		return " "
 	}
 	joined := strings.Join(fields, " ")
 	if unicode.IsSpace(rune(s[0])) {
@@ -1143,9 +1232,10 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 	case "font-family":
 		st.fontFamilies = strings.Split(value, ",")
 	case "font-size":
-		// Percentages and em are relative to the inherited font size.
-		if em, ok := strings.CutSuffix(value, "em"); ok {
-			f, err := strconv.ParseFloat(strings.TrimSpace(em), 64)
+		// em (but not rem, which parseSVGLength leaves unhandled) and
+		// percentages are relative to the inherited font size.
+		if strings.HasSuffix(value, "em") && !strings.HasSuffix(value, "rem") {
+			f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(value, "em")), 64)
 			if err != nil {
 				return errs.Errorf("invalid font-size %q", value)
 			}
@@ -1154,7 +1244,7 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 		}
 		size, err := parseSVGLength(value, st.fontSize)
 		if err != nil {
-			return nil // keyword sizes like "medium" keep the inherited size
+			return nil // keyword sizes ("medium") and unsupported units ("rem") keep the inherited size
 		}
 		if size > 0 {
 			st.fontSize = size
@@ -1178,8 +1268,15 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 			st.italic = false
 		}
 	case "text-decoration":
-		st.underline = strings.Contains(value, "underline")
-		st.strikeout = strings.Contains(value, "line-through")
+		// A decoration set on an ancestor is drawn across its descendants and a
+		// descendant cannot switch it off (CSS text-decoration propagates rather
+		// than inherits), so accumulate onto the inherited value.
+		if strings.Contains(value, "underline") {
+			st.underline = true
+		}
+		if strings.Contains(value, "line-through") {
+			st.strikeout = true
+		}
 	case "text-anchor":
 		switch value {
 		case "start", "middle", "end":
