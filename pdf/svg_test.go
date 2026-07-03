@@ -153,6 +153,53 @@ func TestSVG_opacityUsesAlpha(t *testing.T) {
 	}
 }
 
+func TestSVGStyleOpacityAttributeAndStyle(t *testing.T) {
+	vp := svgViewport{100, 100}
+	tests := []struct {
+		name  string
+		attrs map[string]string
+		want  float64
+	}{
+		{"none keeps default", map[string]string{}, 1},
+		{"attribute only", map[string]string{"opacity": "0.5"}, 0.5},
+		{"style only", map[string]string{"style": "opacity:0.5"}, 0.5},
+		// Set both ways, style wins (0.3), not multiplied (would be 0.15).
+		{"style overrides attribute", map[string]string{"opacity": "0.5", "style": "opacity:0.3"}, 0.3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st := svgDefaultStyle()
+			if err := st.apply(tt.attrs, vp); err != nil {
+				t.Fatal(err)
+			}
+			if st.opacity != tt.want {
+				t.Errorf("opacity = %v, want %v", st.opacity, tt.want)
+			}
+		})
+	}
+}
+
+func TestSVGStyleOpacityInheritsMultiplicatively(t *testing.T) {
+	vp := svgViewport{100, 100}
+	// A group's opacity multiplies into each child's own opacity (best-effort
+	// group-opacity approximation): a 0.5 group holding a 0.5 element yields an
+	// effective 0.25.
+	group := svgDefaultStyle()
+	if err := group.apply(map[string]string{"opacity": "0.5"}, vp); err != nil {
+		t.Fatal(err)
+	}
+	child := group // renderElement passes the style by value to children
+	if err := child.apply(map[string]string{"opacity": "0.5"}, vp); err != nil {
+		t.Fatal(err)
+	}
+	if child.opacity != 0.25 {
+		t.Errorf("inherited opacity = %v, want 0.25", child.opacity)
+	}
+	if group.opacity != 0.5 {
+		t.Errorf("group opacity changed to %v, want 0.5", group.opacity)
+	}
+}
+
 func TestSVG_displayNoneRendersNothing(t *testing.T) {
 	empty := renderSVGToContent(t, SVG(
 		svg.SVG(svg.ViewBox(0, 0, 10, 10)),

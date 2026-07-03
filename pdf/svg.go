@@ -1033,8 +1033,15 @@ func svgDefaultStyle() svgStyle {
 }
 
 // apply merges an element's presentation attributes and inline style="…"
-// declarations into the style; style declarations win, matching CSS.
+// declarations into the style; style declarations win, matching CSS. The
+// `opacity` property is special: st.opacity carries the accumulated parent
+// opacity, and the element's own opacity multiplies into it exactly once. So
+// the accumulated value is snapshotted and st.opacity reset to 1 while the
+// property is read (setProperty overrides it, style winning over attribute
+// like any other property), then the element's value is multiplied back in.
 func (st *svgStyle) apply(attrs map[string]string, vp svgViewport) error {
+	inheritedOpacity := st.opacity
+	st.opacity = 1
 	for name, value := range attrs {
 		if name == "style" {
 			continue
@@ -1054,6 +1061,7 @@ func (st *svgStyle) apply(attrs map[string]string, vp svgViewport) error {
 			}
 		}
 	}
+	st.opacity *= inheritedOpacity
 	return nil
 }
 
@@ -1128,11 +1136,10 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 		}
 		st.dashOffset = offset
 	case "opacity":
-		var o float64
-		if err := setSVGOpacity(&o, value); err != nil {
-			return err
-		}
-		st.opacity *= o
+		// The element's own opacity; apply() resets st.opacity to 1 first and
+		// multiplies the accumulated parent opacity back in, so this overrides
+		// (style winning over attribute) instead of multiplying per source.
+		return setSVGOpacity(&st.opacity, value)
 	case "font-family":
 		st.fontFamilies = strings.Split(value, ",")
 	case "font-size":
