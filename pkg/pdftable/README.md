@@ -115,12 +115,26 @@ pdftable.Cell{
 }
 ```
 
-## Limitations
+## Non-goals for v1
 
-No `colspan`/`rowspan`, no nested tables, and no arbitrary `pdf.Component`
-children in cells (components are not measurable — the `Draw` callback is
-the escape hatch). `Draw` cells are not split across pages. Rows split
-across pages lose per-row `MinHeight` leftovers and are always top-aligned.
+Deliberately out of scope for this first version:
+
+- **No `colspan`/`rowspan`** — every row has one cell per column.
+- **No nested tables** — a `Table` is not a valid cell content.
+- **No per-cell border overrides beyond `Grid`** — rules are a table-level
+  choice (the `pdf.Border` enum stays what it is: the per-box border of
+  `pdf.CellFormat`).
+- **No arbitrary `pdf.Component` children in cells** — components are not
+  measurable; the `Draw` callback is the escape hatch.
+- **No generic `TableOf[T]`** (column definitions with `func(T) string`
+  extractors, the table analog of `pdf.ForEach`) yet.
+
+All of these are documented limitations, not accidents — and `colspan` plus
+`TableOf` are the natural phase 2.
+
+Smaller behavioral limitations: `Draw` cells are not split across pages, and
+rows split across pages lose per-row `MinHeight` leftovers and are always
+top-aligned.
 
 The committed visual reference is `testdata/table_reference.pdf`, rendered
 by `TestGoldenPDF` (regenerate with
