@@ -110,6 +110,10 @@ For streaming output or serving over HTTP, render a `Component` into an
   packages until the legacy module is deleted. See
   [pdf/README.md](pdf/README.md) (and [fpdf/README.md](fpdf/README.md) for the
   legacy module).
+- **`pkg/pdftable`** — data tables for `pdf`: measured fixed/weighted/auto
+  columns, wrapped and aligned cell text with a style cascade, header rows
+  repeated across automatic page breaks, grid rules, and custom-drawn cells
+  (e.g. SVG icons). See [pkg/pdftable/README.md](pkg/pdftable/README.md).
 - **`wordpress`** — imports a WordPress WXR export into a typed Go model and
   renders it as a static shadcn site plus an import-diagnostics report. Its own
   nested module, so its `golang.org/x/net/html` dependency stays out of core. See

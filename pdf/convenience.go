@@ -95,6 +95,31 @@ func (r *Renderer) lineHt(h float64) float64 {
 	return unitSize * 1.15
 }
 
+// ContentWidth returns the printable width of a page in document units: the
+// page width minus the left and right margins.
+func (r *Renderer) ContentWidth() float64 {
+	left, _, right, _ := r.GetMargins()
+	width, _ := r.GetPageSize()
+	return width - left - right
+}
+
+// ContentHeight returns the printable height of a page in document units: the
+// page height minus the top margin and the bottom (auto page break) margin.
+func (r *Renderer) ContentHeight() float64 {
+	_, top, _, bottom := r.GetMargins()
+	_, height := r.GetPageSize()
+	return height - top - bottom
+}
+
+// RemainingHeight returns the vertical space in document units between the
+// current cursor position and the bottom (auto page break) margin — the height
+// a block must fit into to avoid a page break.
+func (r *Renderer) RemainingHeight() float64 {
+	_, _, _, bottom := r.GetMargins()
+	_, height := r.GetPageSize()
+	return height - bottom - r.GetY()
+}
+
 // ensurePage adds the first page if none has been started yet, so a component
 // can draw without the caller having to remember an explicit AddPage / Page.
 func (r *Renderer) ensurePage() {

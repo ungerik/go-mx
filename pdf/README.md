@@ -73,7 +73,9 @@ Component-model constructors build a renderer from typed values:
 constructors `New(orientationStr, unitStr, sizeStr, fontDirStr)` and
 `NewCustom(*InitType)` are also exported for full control. The renderer also
 adds in-memory asset helpers (`LoadUTF8FontBytes`, `LoadUTF8FontReader`) — see
-[In-memory assets](#in-memory-assets).
+[In-memory assets](#in-memory-assets) — and page-measurement helpers
+(`ContentWidth`, `ContentHeight`, `RemainingHeight`) for layout code that must
+respect the margins and the page-break trigger.
 
 ## Primitives
 
@@ -87,6 +89,9 @@ adds in-memory asset helpers (`LoadUTF8FontBytes`, `LoadUTF8FontReader`) — see
 - **State** — `Font`, `FontSize`, `TextColor`, `FillColor`, `DrawColor`,
   `LineWidth`, `LineCap`, `LineJoin`, `X`, `Y`, `XY`, `MoveDown`, `MoveRight`.
 - **Layout** — `Page`, `PageFormat`, `Document`.
+- **Tables** — the separate [`pkg/pdftable`](../pkg/pdftable) package builds
+  data tables on these primitives: measured columns, wrapped cells, styled
+  headers, grid rules and page-breaking rows.
 
 The first drawing primitive (or the first `Page`) automatically opens page one,
 so a one-page document does not need an explicit `Page`.
