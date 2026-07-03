@@ -23,6 +23,7 @@
 //   - text:    [Text], [Textf], [Cell], [CellFormat], [MultiCell],
 //     [Paragraph], [TextAt], [Ln], [NewLine]
 //   - vector:  [Line], [Rect], [RoundedRect], [Circle], [Ellipse], [Polygon]
+//   - svg:     [SVG] draws an svg-package element tree as vector graphics
 //   - images:  [Image] (file), [ImageReader] / [ImageBytes] (in memory)
 //   - state:   [Font], [FontSize], [TextColor], [FillColor], [DrawColor],
 //     [LineWidth], [LineCap], [LineJoin], [X], [Y], [XY], [MoveDown],

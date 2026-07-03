@@ -167,7 +167,9 @@ intrinsic size. The rendering is a deliberate **best effort**, not a full SVG
 engine. Supported: the shape elements (`rect`, `circle`, `ellipse`, `line`,
 `polyline`, `polygon` and `path` with the complete `d` syntax including
 arcs), the containers (`svg` incl. nested viewports with `viewBox` and
-`preserveAspectRatio`, `g`, `a`, `switch`), basic `text`/`tspan`, and the
+`preserveAspectRatio`, `g`, and `a`/`switch` as plain groups — `a` adds no
+PDF link, and `switch` renders its first child with no conditional
+processing), basic `text`/`tspan` (filled, never stroked), and the
 common presentation attributes — fill (`fill-rule`, `fill-opacity`), stroke
 (width, opacity, linecap, linejoin, dasharray, dashoffset), `opacity`,
 `color`/`currentColor`, `transform`, `display`, `visibility`, font and
