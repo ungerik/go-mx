@@ -16,6 +16,13 @@ doc := svg.Root(
 // <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>...
 ```
 
+## Rendering to PDF
+
+Besides rendering to markup, an `svg`-built element tree can be drawn into a
+PDF as native vector graphics with the [`pdf`](../pdf) package's `pdf.SVG`
+component (a best-effort renderer covering shapes, paths, transforms,
+viewports and basic text — see [`pdf/README.md`](../pdf/README.md#svg-rendering)).
+
 ## Relationship to the `html` package
 
 The [`html`](../html) package has no `<svg>` constructor of its own — it does not

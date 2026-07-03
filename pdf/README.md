@@ -80,6 +80,9 @@ adds in-memory asset helpers (`LoadUTF8FontBytes`, `LoadUTF8FontReader`) — see
 - **Text** — `Text`, `Textf`, `Cell`, `CellFormat`, `MultiCell`, `Paragraph`,
   `TextAt`, `Ln`, `NewLine`. A bare `string` child becomes flowing `Text`.
 - **Vector** — `Line`, `Rect`, `RoundedRect`, `Circle`, `Ellipse`, `Polygon`.
+- **SVG** — `SVG` renders an element tree built with the go-mx
+  [`svg`](../svg) package as native vector graphics (best effort, see
+  [below](#svg-rendering)).
 - **Images** — `Image` (file path), `ImageReader` / `ImageBytes` (in memory).
 - **State** — `Font`, `FontSize`, `TextColor`, `FillColor`, `DrawColor`,
   `LineWidth`, `LineCap`, `LineJoin`, `X`, `Y`, `XY`, `MoveDown`, `MoveRight`.
@@ -144,6 +147,43 @@ setting); reset those explicitly if you change them inside the scope. The cursor
 restore assumes children stay on the same page — if they trigger an automatic
 page break, the restored position lands on the new page, so `Save` is for
 scoping style, not page flow.
+
+## SVG rendering
+
+`SVG` draws an SVG element tree from the go-mx [`svg`](../svg) package into a
+box, as native PDF vector graphics — the vector counterpart of `Image`:
+
+```go
+icon := svg.SVG(
+    svg.ViewBox(0, 0, 24, 24),
+    svg.Circle(svg.CX(12), svg.CY(12), svg.R(10), svg.Fill("tomato")),
+    svg.Path(svg.D("M6 12 L18 12"), svg.Stroke("white"), svg.StrokeWidth(2)),
+)
+pdf.SVG(icon, 20, 40, 30, 30) // x, y, w, h in document units
+```
+
+A zero `w` or `h` is derived from the SVG's aspect ratio; both zero uses its
+intrinsic size. The rendering is a deliberate **best effort**, not a full SVG
+engine. Supported: the shape elements (`rect`, `circle`, `ellipse`, `line`,
+`polyline`, `polygon` and `path` with the complete `d` syntax including
+arcs), the containers (`svg` incl. nested viewports with `viewBox` and
+`preserveAspectRatio`, `g`, `a`, `switch`), basic `text`/`tspan`, and the
+common presentation attributes — fill (`fill-rule`, `fill-opacity`), stroke
+(width, opacity, linecap, linejoin, dasharray, dashoffset), `opacity`,
+`color`/`currentColor`, `transform`, `display`, `visibility`, font and
+`text-anchor` properties, and inline `style="…"` declarations of the same
+properties. Colors may be hex, `rgb()`/`rgba()`, `hsl()`/`hsla()` or CSS
+keywords. Gradients, patterns, clip paths, masks, filters, markers,
+`use`/`symbol`, images, animation, CSS stylesheets and `foreignObject` are
+skipped silently; group opacity is approximated by multiplying it into the
+children. Malformed values (colors, lengths, transforms, path data) return an
+error. Text maps generic font families to the core fonts and matches any
+family registered on the renderer by name. Like `Save`, the graphics state is
+restored afterwards.
+
+The committed visual reference for the supported feature set is
+`testdata/svg_reference.pdf`, rendered by `TestSVGGoldenPDF` (regenerate with
+`go test ./pdf -run TestSVGGoldenPDF -update`).
 
 ## In-memory assets
 
@@ -282,8 +322,9 @@ or post-process the output with a more complete library.
 
 ### Other
 
-- **No SVG import.** The upstream `SVGBasicWrite` / `SVGBasicDraw` helpers were
-  dropped when the engine was inlined, so this package has no SVG support at
-  all; rasterize or convert SVG before placing it.
+- **No SVG file import.** The upstream `SVGBasicWrite` / `SVGBasicDraw`
+  helpers were dropped when the engine was inlined; there is no SVG *markup*
+  parser. SVG element trees built with the go-mx [`svg`](../svg) package can
+  be drawn with the [`SVG` component](#svg-rendering) (best effort).
 - **No page transitions, multimedia, 3D, embedded-file UI, or digital
   signatures.**
