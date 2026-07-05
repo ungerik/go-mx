@@ -43,3 +43,31 @@ func TestGenericAttribs(t *testing.T) {
 		})
 	}
 }
+
+func TestPopoverCommandAttribs(t *testing.T) {
+	// The popover invoker attributes render as plain string id references.
+	require.Equal(t,
+		`<button popovertarget='menu'>Open</button>`,
+		Button(PopoverTarget("menu"), "Open").String(),
+	)
+	require.Equal(t,
+		`<button commandfor='dialog'>Open</button>`,
+		Button(CommandFor("dialog"), "Open").String(),
+	)
+
+	// Built-in command keyword constants render as command='<keyword>'.
+	require.Equal(t,
+		`<button command='show-modal' commandfor='dialog'>Open</button>`,
+		Button(CommandShowModal, CommandFor("dialog"), "Open").String(),
+	)
+	require.Equal(t,
+		`<button command='toggle-popover'>Open</button>`,
+		Button(CommandTogglePopover, "Open").String(),
+	)
+
+	// The Command constructor accepts author-defined custom commands (must start with --).
+	require.Equal(t,
+		`<button command='--rotate' commandfor='img'>Rotate</button>`,
+		Button(Command("--rotate"), CommandFor("img"), "Rotate").String(),
+	)
+}
