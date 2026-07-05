@@ -36,6 +36,7 @@ task recipes see:
   - [Boolean attributes](#boolean-attributes)
   - [Fixed-value constants](#fixed-value-constants)
   - [Strict keyword enums](#strict-keyword-enums)
+  - [Popover API and command buttons](#popover-api-and-command-buttons)
   - [Typed and numeric helpers](#typed-and-numeric-helpers)
   - [`data-*` attributes](#data--attributes)
   - [Event handlers](#event-handlers)
@@ -227,7 +228,9 @@ html.Form(html.AutoCompleteOff)             // autocomplete="off"
 
 Includes `TargetSelf` / `TargetBlank` / `TargetParent` / `TargetTop` /
 `TargetUnfencedTop`, `AutoCompleteOn` / `AutoCompleteOff`, and
-`HiddenUntilFound`.
+`HiddenUntilFound`. The invoker `command` attribute has a built-in set too:
+`CommandTogglePopover` / `CommandShowPopover` / `CommandHidePopover` for popovers
+and `CommandShowModal` / `CommandClose` / `CommandRequestClose` for `<dialog>`.
 
 ### Strict keyword enums
 
@@ -256,10 +259,41 @@ run with `go generate ./html/...`.
 Covered attributes: `autocapitalize`, `autocorrect`, `contenteditable`,
 `crossorigin`, `decoding`, `dir`, `enctype`, `enterkeyhint`, `fetchpriority`,
 `formenctype`, `formmethod`, `http-equiv`, `inputmode`, `kind`, `loading`,
-`method`, `referrerpolicy`, `shape`, `as`, `capture`, `preload`, `scope`,
-`spellcheck`, `translate` and `wrap`. Attributes whose value can be a keyword
+`method`, `popover`, `popovertargetaction`, `referrerpolicy`, `shape`, `as`,
+`capture`, `preload`, `scope`, `spellcheck`, `translate` and `wrap`. Attributes whose value can be a keyword
 *or* a free value (`target`, `autocomplete`) stay loose, as do space-separated
 token lists (`rel`, `class`).
+
+### Popover API and command buttons
+
+Native popovers and invoker buttons wire up without JavaScript. Mark an element
+as a popover with the `Popover` enum (`PopoverAuto`, `PopoverManual`,
+`PopoverHint`), then point a control at it by id:
+
+- `PopoverTarget(id)` — the `popovertarget` attribute of a `<button>` or
+  `<input>`, naming the popover it toggles.
+- The `PopoverTargetAction` enum (`PopoverTargetActionToggle`,
+  `PopoverTargetActionShow`, `PopoverTargetActionHide`) picks the action; toggle
+  is the default when omitted.
+
+```go
+html.Button(html.PopoverTarget("menu"), "Open menu")
+html.DivID("menu", html.PopoverAuto, html.P("Popover contents"))
+// <button popovertarget="menu">Open menu</button>
+// <div id="menu" popover="auto"><p>Popover contents</p></div>
+```
+
+The newer invoker-commands API generalizes this to `<dialog>` as well:
+`CommandFor(id)` names the target and a `command` attribute picks the action. For
+a built-in action use a `Command*` constant directly (they are `mx.ConstAttrib`,
+see [Fixed-value constants](#fixed-value-constants)); for an author-defined custom
+command — which must start with two hyphens — use the `Command(value)`
+constructor, e.g. `Command("--rotate")`:
+
+```go
+html.Button(html.CommandFor("dlg"), html.CommandShowModal, "Edit")
+// <button commandfor="dlg" command="show-modal">Edit</button>
+```
 
 ### Typed and numeric helpers
 
