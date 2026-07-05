@@ -98,11 +98,11 @@ Helpers and escape hatches:
 | `VoidElement(name, attribs...)`       | Any void element by name         |
 | `Textf(format, args...)`              | `fmt`-formatted escaped text node |
 
-`InputType*` constructors prepend the matching `type` attribute, so you don't
-repeat it: `html.InputTypeEmail(html.Name("email"))` renders
+`Input*` constructors prepend the matching `type` attribute, so you don't
+repeat it: `html.InputEmail(html.Name("email"))` renders
 `<input type="email" name="email"/>`. The full set covers every HTML input type
-(`InputTypeText`, `InputTypeCheckbox`, `InputTypeDate`, `InputTypeFile`,
-`InputTypeNumber`, `InputTypePassword`, `InputTypeSubmit`, …).
+(`InputText`, `InputCheckbox`, `InputDate`, `InputFile`,
+`InputNumber`, `InputPassword`, `InputSubmit`, …).
 
 The same prepend-the-`type` pattern gives typed `<button>` and `<ol>`
 constructors. `SubmitButton`, `ResetButton`, and `ButtonButton` set
@@ -117,7 +117,7 @@ explicit.
 
 ## Convenience constructors
 
-The `*Button`, `OL*`, and `InputType*` families above bake a common attribute
+The `*Button`, `OL*`, and `Input*` families above bake a common attribute
 into an element. `shortcuts.go` extends that idea to the element-and-attribute
 pairings you write in almost every document — `<meta>`, `<script>`, and
 `<link>` — so one call replaces the boilerplate:
