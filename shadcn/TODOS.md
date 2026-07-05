@@ -23,7 +23,10 @@ HTMX (`hx/`) for anything needing a server round-trip.
 - A `cva`-style variant component also exports a `…Classes(variant)` helper
   (the `buttonVariants` equivalent — see `ButtonClasses`).
 - Class strings are transcribed verbatim from shadcn/ui new-york-v4 (TW v4),
-  minus Radix-only positioning/animation classes.
+  minus Radix-only positioning/animation classes. **new-york-v4 is frozen
+  upstream since July 2026** — for new ports see
+  [Upstream restructure (July 2026)](#upstream-restructure-july-2026--findings--porting-guide)
+  below for where class strings now live and how to extract them.
 
 ## Status legend
 
@@ -281,3 +284,165 @@ Label ─────────► Form
 
 `Sidebar` and `DataTable` are the convergence points — everything else
 should land before them.
+
+---
+
+## Upstream restructure (July 2026) — findings & porting guide
+
+Verified against the `shadcn-ui/ui` repo and the
+[July 2026 changelog](https://ui.shadcn.com/docs/changelog/2026-07-base-ui-default)
+on 2026-07-05. Everything below was confirmed by fetching actual upstream
+sources (paths and commands included), so a future port can start from here
+without re-analyzing upstream.
+
+### What changed upstream
+
+1. **Base UI is the default primitive library.** New shadcn projects and the
+   docs default to [Base UI](https://base-ui.com); Radix remains fully
+   supported (`shadcn init -b radix`), and "every update and new component
+   will ship for both libraries (unless a component only exists in Base UI)".
+   React's `asChild` prop became `render` — irrelevant to this port.
+2. **Two parallel registries.** Canonical component sources moved to
+   `apps/v4/registry/bases/base/ui/*.tsx` (Base UI) and
+   `apps/v4/registry/bases/radix/ui/*.tsx` (Radix). Upstream keeps them in
+   parity (`apps/v4/registry/bases/README.md`); verified: `switch.tsx` is
+   byte-identical between the two apart from imports.
+3. **Utility classes moved out of the components** (the bigger change for
+   us). Component `.tsx` files now carry only a `cn-<component>-<part>`
+   class plus skeleton positioning classes; the styling lives in eight named
+   style sheets `apps/v4/registry/styles/style-{vega,nova,maia,lyra,mira,
+   luma,rhea,sera}.css` as `@apply` rules scoped under `.style-<name>`,
+   distributed via a new `shadcn/tailwind.css` package. `shadcn eject`
+   inlines them back into the components. `vega` is listed first
+   ("Clean, neutral, and familiar" — closest to the classic look);
+   `nova` is "Reduced padding and margins".
+4. **Our baseline is legacy but still published.** The registry this port
+   transcribed its class strings from still exists, frozen, at
+   `apps/v4/registry/new-york-v4/ui/*.tsx` (see `_legacy-styles.ts`).
+5. **The shared style CSS is written against Base UI's data attributes** —
+   bare boolean attributes (`data-open:`, `data-checked:`) instead of
+   Radix's `data-[state=open]:` — even for the Radix registry.
+6. **`data-slot` part names are unchanged.** E.g. Base UI's
+   `DialogPrimitive.Backdrop` still gets `data-slot="dialog-overlay"`. Our
+   `finish(e, "<slot>", …)` conventions stay aligned with upstream.
+
+### Impact on this port
+
+**Nothing breaks and no existing component needs changes.** This port never
+used Radix or Base UI JS — behavior is native web platform, and Radix-only
+selectors were already rewritten. The impact is entirely on *future* work:
+
+- Existing components stay pinned to the frozen `new-york-v4` class strings
+  (self-contained, no external CSS artifact). This is a deliberate pin.
+- New components must be sourced from the new registry (some exist only
+  there), which requires the class-string reconstruction below.
+- Upstream `Form` exists only in the Radix registry; Base UI replaces it
+  with `Field`.
+
+### Porting guide for new components
+
+**Step 1 — fetch the sources.** For component `<name>`:
+
+```bash
+# component skeleton (prefer the Base UI variant; parity with radix anyway)
+gh api repos/shadcn-ui/ui/contents/apps/v4/registry/bases/base/ui/<name>.tsx \
+  --jq .content | base64 -d
+
+# the style layer (vega = reference style for this port)
+gh api repos/shadcn-ui/ui/contents/apps/v4/registry/styles/style-vega.css \
+  --jq .content | base64 -d | grep -A8 'cn-<name>'
+```
+
+**Step 2 — reconstruct the full class string per part.** Concatenate the
+skeleton classes from the `.tsx` with the `@apply` list of the matching
+`.cn-<component>-<part>` rule (drop the `cn-*` class name itself). This is
+exactly what `shadcn eject` produces, i.e. the equivalent of the old
+new-york-v4 one-string-per-part. Example (`switch`):
+
+- tsx: `cn-switch peer group/switch relative inline-flex items-center …`
+- css: `.cn-switch { @apply data-checked:bg-primary data-unchecked:bg-input
+  … data-[size=sm]:h-[14px] …; }`
+- port: skeleton + @apply classes merged into one string, then rewritten
+  per the table below.
+
+**Step 3 — rewrite Base UI data-attribute selectors to native ones.** Same
+policy as the existing Radix `data-[state=*]` rewrites; the Base UI names
+are just the bare-boolean spellings:
+
+| Base UI selector      | Radix equivalent        | Native rewrite in this port           |
+|-----------------------|-------------------------|---------------------------------------|
+| `data-open:`          | `data-[state=open]:`    | `[open]`/`group-open:` on `<details>`/`<dialog>`; `aria-expanded:` on triggers; `:popover-open` on popovers |
+| `data-closed:`        | `data-[state=closed]:`  | usually the unprefixed base state; often paired with enter/exit animations → drop |
+| `data-checked:`       | `data-[state=checked]:` | `checked:` on native inputs           |
+| `data-unchecked:`     | `data-[state=unchecked]:` | unprefixed base classes             |
+| `data-highlighted:`   | `data-[highlighted]:`   | `focus:` (menu items receive focus)   |
+| `data-disabled:`      | `data-[disabled]:`      | `disabled:` (native controls) or keep if we set the attribute ourselves |
+| `data-starting-style:` / `data-ending-style:` | (Radix: `animate-in/out` pairs) | transition hooks for JS-driven mount/unmount → drop (same policy as Radix enter/exit animations) |
+| `data-[side=…]:` etc. | same                    | keep — author-set attributes we render ourselves (like existing `data-size`, `data-variant`, `data-inset`) |
+
+Keep the existing test convention: each `_test.go` asserts the
+library-only selectors were rewritten/dropped (grep for `data-open:` /
+`data-closed:` the way current tests grep for `data-[state=`).
+
+**Step 4 — map Base UI structural parts to the native infra** (all already
+proven in this port):
+
+| Base UI part          | Native equivalent here                     |
+|-----------------------|--------------------------------------------|
+| `Portal`              | none needed — top layer via `popover` / `<dialog>` |
+| `Backdrop`            | `::backdrop` (dialogs) or overlay `<div>`; keeps `data-slot="…-overlay"` |
+| `Positioner` + `Popup`| `popover` + CSS anchor positioning helpers in `popover.go` |
+| `Trigger render={…}`  | N/A — Go composition instead of React Slot |
+| `IconPlaceholder` (multi icon lib) | inline lucide SVG from `icons.go` |
+
+**Step 5 — everything else is unchanged**: signature conventions,
+`finish(e, "<slot>", base)`, `data-slot` names (upstream kept them),
+`…Classes` helpers, gallery example + regeneration
+(`go run ./cmd/shadcn-gallery …`, see CLAUDE.md).
+
+Note: the new style sheets use a few `cn-` utility tokens beyond
+component parts (e.g. `cn-font-heading` on titles) — resolve them from the
+style CSS / `shadcn/tailwind.css` the same way, or substitute the concrete
+classes they expand to.
+
+### Phase 6 — new upstream components (post-restructure, untriaged)
+
+Components in `apps/v4/registry/bases/base/ui/` with no counterpart in
+this port (as of 2026-07-05). Not yet rated; triage each with the guide
+above before building. First-glance notes:
+
+- [ ] **Kbd** — styled `<kbd>`; likely Cx 1, pure markup.
+- [ ] **Spinner** — spinning loader icon; likely Cx 1.
+- [ ] **Empty** — empty-state layout block; likely Cx 1–2.
+- [ ] **Item** — generic media-object/list-item layout; likely Cx 2.
+- [ ] **ButtonGroup** — grouped buttons; likely Cx 2, deps ButtonClasses.
+- [ ] **InputGroup** — input with addons/prefix/suffix; likely Cx 2–3.
+- [ ] **NativeSelect** — styled native `<select>`; overlaps with our
+  existing `Select` (which is already native) — may be a rename/merge
+  question rather than a new port.
+- [ ] **Field** — Base UI's replacement for Form parts; compare with our
+  existing `form.go` before porting (may supersede or complement it).
+- [ ] **Combobox** — now a real upstream primitive (Base UI Combobox), no
+  longer a copy-paste recipe; we ship a Popover+Command gallery recipe —
+  decide whether to keep the recipe or port the primitive.
+- [ ] **Attachment / Bubble / Message / MessageScroller** — chat/AI
+  conversation components; triage as a group.
+- [ ] **Marker** — untriaged.
+- [ ] **Direction** — RTL direction provider; likely N/A server-side
+  (render `dir="rtl"` directly).
+
+### Open decision — adopt the `cn-*` style-sheet architecture?
+
+- [ ] **Decide** whether this port stays on inlined utility strings
+  (status quo) or adopts upstream's `cn-*` classes + a shipped CSS file.
+  - **Status quo (current)**: classes inlined in Go source, fully
+    self-contained, `Cn`/twmerge work on plain utilities. Cost: we are
+    pinned to one look (frozen new-york-v4 ≈ vega-ish).
+  - **Adopt `cn-*`**: components emit `cn-dialog-content …` and we ship /
+    generate the style CSS; users could switch between upstream's eight
+    named styles by swapping a stylesheet. Costs: an external CSS artifact
+    (against the current zero-asset model), twmerge cannot resolve
+    conflicts hidden inside `cn-*` rules, and the gallery/CDN setup needs
+    the extra stylesheet.
+  - No urgency: upstream keeps publishing both, and `shadcn eject` proves
+    the inlined form remains first-class.
