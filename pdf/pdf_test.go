@@ -75,7 +75,7 @@ func TestMultiPage(t *testing.T) {
 	doc := NewDocument("Multi",
 		Page(Paragraph("page one")),
 		Page(Paragraph("page two")),
-		PageFormat(Landscape, A5, Paragraph("page three landscape A5")),
+		PageFormat(OrientationLandscape, PageSizeA5, Paragraph("page three landscape A5")),
 	)
 	r := doc.NewRenderer()
 	if err := doc.Render(context.Background(), r); err != nil {

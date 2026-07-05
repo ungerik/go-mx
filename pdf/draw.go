@@ -3,8 +3,6 @@ package pdf
 import (
 	"bytes"
 	"io"
-
-	"codeberg.org/go-pdf/fpdf"
 )
 
 // Line strokes a straight line from (x1, y1) to (x2, y2) using the current draw
@@ -67,18 +65,28 @@ func Image(file string, x, y, w, h float64) Component {
 // ImageReader draws an image read from src into the box at (x, y) of width w and
 // height h, without touching the filesystem. Sizing follows [Image].
 //
-// Because the source has no filename, name is used as fpdf's cache key: draw the
-// same image again by passing the same name (the bytes are decoded only once),
-// and give distinct images distinct names. imageType gives the encoding.
+// Because the source has no filename, name is used as the renderer's cache key:
+// draw the same image again by passing the same name (the bytes are decoded only
+// once), and give distinct images distinct names. imageType gives the encoding.
+//
+// Because src is consumed on first use, the returned component draws correctly
+// only into renderers that have the name cached or a live reader; to render the
+// same component into multiple renderers use [ImageBytes], which is re-renderable.
 func ImageReader(name string, imageType ImageType, src io.Reader, x, y, w, h float64) Component {
 	return drawing(func(r *Renderer) {
-		options := fpdf.ImageOptions{ImageType: string(imageType)}
+		options := ImageOptions{ImageType: string(imageType)}
 		r.RegisterImageOptionsReader(name, options, src)
 		r.ImageOptions(name, x, y, w, h, false, options, 0, "")
 	})
 }
 
-// ImageBytes is [ImageReader] for an in-memory byte slice.
+// ImageBytes is [ImageReader] for an in-memory byte slice. Unlike ImageReader
+// it creates a fresh reader on every render, so the component can be rendered
+// any number of times, into any number of renderers.
 func ImageBytes(name string, imageType ImageType, data []byte, x, y, w, h float64) Component {
-	return ImageReader(name, imageType, bytes.NewReader(data), x, y, w, h)
+	return drawing(func(r *Renderer) {
+		options := ImageOptions{ImageType: string(imageType)}
+		r.RegisterImageOptionsReader(name, options, bytes.NewReader(data))
+		r.ImageOptions(name, x, y, w, h, false, options, 0, "")
+	})
 }

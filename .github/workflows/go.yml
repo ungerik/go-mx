@@ -21,11 +21,24 @@ jobs:
       with:
         go-version: '1.26'
 
+    # go test ./... only covers the current module even in workspace mode, so
+    # each nested module needs its own step. The fpdf module carries the
+    # byte-parity suite comparing the legacy wrapper against the native pdf
+    # package.
     - name: Build
       run: go build -v ./...
 
     - name: Test
       run: go test -v ./...
+
+    - name: Test fpdf module (byte-parity suite)
+      run: go test -C fpdf -v ./...
+
+    - name: Test wordpress module
+      run: go test -C wordpress -v ./...
+
+    - name: Build tools module
+      run: go build -C tools ./...
 
   gallery:
     name: Gallery up to date

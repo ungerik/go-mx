@@ -1,6 +1,6 @@
 package pdf
 
-import "fmt"
+import "github.com/domonda/go-errs"
 
 // Color is an 8-bit-per-channel RGB color, the form fpdf uses for the draw,
 // fill and text colors. fpdf has no notion of alpha in colors; use the
@@ -62,7 +62,7 @@ func Hex(s string) (Color, error) {
 			return c, nil
 		}
 	}
-	return Color{}, fmt.Errorf("invalid hex color %q", s)
+	return Color{}, errs.Errorf("invalid hex color %q", s)
 }
 
 // MustHex is [Hex] that panics on an invalid string, for use with constant
@@ -89,3 +89,22 @@ var (
 	Silver  = Color{192, 192, 192}
 	Orange  = Color{255, 165, 0}
 )
+
+// colorMode selects between plain RGB and named spot color state on the
+// renderer.
+type colorMode int
+
+const (
+	colorModeRGB colorMode = iota
+	colorModeSpot
+)
+
+// colorType holds the renderer's internal draw/fill/text color state.
+type colorType struct {
+	r, g, b    float64
+	ir, ig, ib int
+	mode       colorMode
+	spotStr    string // name of current spot color
+	gray       bool
+	str        string
+}

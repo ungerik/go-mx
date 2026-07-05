@@ -1,9 +1,11 @@
 # Third-Party Licenses
 
 go-mx is licensed under the MIT License (see [`LICENSE`](LICENSE)). Parts of it
-are **ports or adaptations** of third-party open-source projects — their source
-was reimplemented in Go rather than vendored, but the result is a derivative
-work, so the original copyright notices and license terms are reproduced below.
+are **ports, adaptations, or inlined source** of third-party open-source
+projects. Most were reimplemented in Go rather than vendored; the `pdf/` engine
+is **inlined upstream source** copied into this repository. Either way the
+result is a derivative work, so the original copyright notices and license
+terms are reproduced below.
 
 | Project | Used in | License |
 | ------------------------------------------ | ------------------------- | ------------ |
@@ -12,6 +14,7 @@ work, so the original copyright notices and license terms are reproduced below.
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
 | [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go` (color values only) | MIT |
+| [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf)                       | `pdf/` engine (inlined source) | MIT |
 
 Runtime dependencies that the `cmd/shadcn-gallery` demo loads from public CDNs
 at runtime — [Shiki](https://github.com/shikijs/shiki) (MIT) and
@@ -344,6 +347,73 @@ highlighting engine itself is original to this project.
 MIT License
 
 Copyright (c) 2020 Primer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## go-pdf/fpdf
+
+Unlike the ports above, the PDF-generation engine of the `pdf/` package is
+**inlined source**: the core of
+[`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) v0.12.0
+(itself derived from Kurt Jung's gofpdf and the PHP FPDF library) was copied
+into `pdf/` — including the embedded core-font metrics in `pdf/font_embed/` —
+and is being adapted to the go-mx component model. The original copyright
+headers are retained in the affected files.
+
+Several inlined files carry additional upstream attributions, retained in their
+file headers and reproduced here:
+
+- `pdf/label.go` (tick-label spacing) is adapted from Paul Heckbert's "Nice
+  Numbers for Graph Labels" in *Graphics Gems* (Academic Press, 1990).
+- `pdf/subwrite.go`, `pdf/spotcolor.go` and `pdf/protect.go` are adapted from
+  community FPDF scripts (by Wirus, Olivier Plathey, and Klemen Vodopivec
+  respectively), released under the FPDF license — the same permissive
+  "use in any program, free of charge" lineage as the PHP FPDF library above.
+
+The go-pdf/fpdf MIT license below covers the inlined engine as distributed; the
+Graphics Gems code additionally carries its own historical license:
+
+```
+Graphics Gems License
+
+This code repository predates the concept of Open Source, and predates most
+licenses along such lines. As such, the official license truly is:
+
+EULA: The Graphics Gems code is copyright-protected. In other words, you
+cannot claim the text of the code as your own and resell it. Using the code
+is permitted in any program, product, or library, non-commercial or
+commercial. Giving credit is not required, though is a nice gesture. The
+code comes as-is, and if there are any flaws or problems with any Gems code,
+nobody involved with Gems - authors, editors, publishers, or webmasters -
+are to be held responsible. Basically, don't be a jerk, and remember that
+anything free comes with no guarantee.
+```
+
+```
+MIT License
+
+Copyright (c) 2021 The Go-PDF authors
+Copyright (c) 2020 David Barnes
+Copyright (c) 2017 Kurt Jung and contributors acknowledged in the documentation
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
