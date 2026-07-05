@@ -1,7 +1,7 @@
 package html
 
 // This file holds convenience constructors that bake a conventional attribute
-// into a common element, the same pattern as InputType*, the *Button family and
+// into a common element, the same pattern as Input*, the *Button family and
 // the OL* family in elements.go. They cut the boilerplate of writing the same
 // element + attribute pairing (meta charset, script src, stylesheet link, …) at
 // every call site.

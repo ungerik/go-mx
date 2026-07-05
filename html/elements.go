@@ -287,113 +287,113 @@ func ImgSrc(url string, attribs ...mx.Attrib) *mx.Element {
 // and has no children; the type attribute determines the kind of control.
 func Input(attribs ...mx.Attrib) *mx.Element { return VoidElement("input", attribs...) }
 
-// InputTypeButton creates an <input type="button"> push button with no default behavior.
-func InputTypeButton(attribs ...mx.Attrib) *mx.Element {
+// InputButton creates an <input type="button"> push button with no default behavior.
+func InputButton(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "button", attribs)...)
 }
 
-// InputTypeCheckbox creates an <input type="checkbox"> toggle control.
-func InputTypeCheckbox(attribs ...mx.Attrib) *mx.Element {
+// InputCheckbox creates an <input type="checkbox"> toggle control.
+func InputCheckbox(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "checkbox", attribs)...)
 }
 
-// InputTypeColor creates an <input type="color"> color picker control.
-func InputTypeColor(attribs ...mx.Attrib) *mx.Element {
+// InputColor creates an <input type="color"> color picker control.
+func InputColor(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "color", attribs)...)
 }
 
-// InputTypeDate creates an <input type="date"> date picker (year, month, day).
-func InputTypeDate(attribs ...mx.Attrib) *mx.Element {
+// InputDate creates an <input type="date"> date picker (year, month, day).
+func InputDate(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "date", attribs)...)
 }
 
-// InputTypeDatetimeLocal creates an <input type="datetime-local"> date and time picker without time zone.
-func InputTypeDatetimeLocal(attribs ...mx.Attrib) *mx.Element {
+// InputDatetimeLocal creates an <input type="datetime-local"> date and time picker without time zone.
+func InputDatetimeLocal(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "datetime-local", attribs)...)
 }
 
-// InputTypeEmail creates an <input type="email"> field for an email address with validation.
-func InputTypeEmail(attribs ...mx.Attrib) *mx.Element {
+// InputEmail creates an <input type="email"> field for an email address with validation.
+func InputEmail(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "email", attribs)...)
 }
 
-// InputTypeFile creates an <input type="file"> control for selecting files to upload.
-func InputTypeFile(attribs ...mx.Attrib) *mx.Element {
+// InputFile creates an <input type="file"> control for selecting files to upload.
+func InputFile(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "file", attribs)...)
 }
 
-// InputTypeHidden creates an <input type="hidden"> control submitted with the form but not displayed.
-func InputTypeHidden(attribs ...mx.Attrib) *mx.Element {
+// InputHidden creates an <input type="hidden"> control submitted with the form but not displayed.
+func InputHidden(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "hidden", attribs)...)
 }
 
-// InputTypeImage creates an <input type="image"> graphical submit button.
-func InputTypeImage(attribs ...mx.Attrib) *mx.Element {
+// InputImage creates an <input type="image"> graphical submit button.
+func InputImage(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "image", attribs)...)
 }
 
-// InputTypeMonth creates an <input type="month"> month and year picker.
-func InputTypeMonth(attribs ...mx.Attrib) *mx.Element {
+// InputMonth creates an <input type="month"> month and year picker.
+func InputMonth(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "month", attribs)...)
 }
 
-// InputTypeNumber creates an <input type="number"> numeric entry control.
-func InputTypeNumber(attribs ...mx.Attrib) *mx.Element {
+// InputNumber creates an <input type="number"> numeric entry control.
+func InputNumber(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "number", attribs)...)
 }
 
-// InputTypePassword creates an <input type="password"> field whose value is obscured.
-func InputTypePassword(attribs ...mx.Attrib) *mx.Element {
+// InputPassword creates an <input type="password"> field whose value is obscured.
+func InputPassword(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "password", attribs)...)
 }
 
-// InputTypeRadio creates an <input type="radio"> radio button; same-name radios form an exclusive group.
-func InputTypeRadio(attribs ...mx.Attrib) *mx.Element {
+// InputRadio creates an <input type="radio"> radio button; same-name radios form an exclusive group.
+func InputRadio(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "radio", attribs)...)
 }
 
-// InputTypeRange creates an <input type="range"> slider for a value within a range.
-func InputTypeRange(attribs ...mx.Attrib) *mx.Element {
+// InputRange creates an <input type="range"> slider for a value within a range.
+func InputRange(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "range", attribs)...)
 }
 
-// InputTypeReset creates an <input type="reset"> button that resets the form's controls.
-func InputTypeReset(attribs ...mx.Attrib) *mx.Element {
+// InputReset creates an <input type="reset"> button that resets the form's controls.
+func InputReset(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "reset", attribs)...)
 }
 
-// InputTypeSearch creates an <input type="search"> single-line text field for search queries.
-func InputTypeSearch(attribs ...mx.Attrib) *mx.Element {
+// InputSearch creates an <input type="search"> single-line text field for search queries.
+func InputSearch(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "search", attribs)...)
 }
 
-// InputTypeSubmit creates an <input type="submit"> button that submits the form.
-func InputTypeSubmit(attribs ...mx.Attrib) *mx.Element {
+// InputSubmit creates an <input type="submit"> button that submits the form.
+func InputSubmit(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "submit", attribs)...)
 }
 
-// InputTypeTel creates an <input type="tel"> field for a telephone number.
-func InputTypeTel(attribs ...mx.Attrib) *mx.Element {
+// InputTel creates an <input type="tel"> field for a telephone number.
+func InputTel(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "tel", attribs)...)
 }
 
-// InputTypeText creates an <input type="text"> single-line text field.
-func InputTypeText(attribs ...mx.Attrib) *mx.Element {
+// InputText creates an <input type="text"> single-line text field.
+func InputText(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "text", attribs)...)
 }
 
-// InputTypeTime creates an <input type="time"> time picker without a time zone.
-func InputTypeTime(attribs ...mx.Attrib) *mx.Element {
+// InputTime creates an <input type="time"> time picker without a time zone.
+func InputTime(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "time", attribs)...)
 }
 
-// InputTypeURL creates an <input type="url"> field for a URL with validation.
-func InputTypeURL(attribs ...mx.Attrib) *mx.Element {
+// InputURL creates an <input type="url"> field for a URL with validation.
+func InputURL(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "url", attribs)...)
 }
 
-// InputTypeWeek creates an <input type="week"> week and year picker.
-func InputTypeWeek(attribs ...mx.Attrib) *mx.Element {
+// InputWeek creates an <input type="week"> week and year picker.
+func InputWeek(attribs ...mx.Attrib) *mx.Element {
 	return mx.NewVoidElement("input", mx.PrependAttrib("type", "week", attribs)...)
 }
 
