@@ -198,6 +198,29 @@ func Cols(numChars int) mx.Attrib { return mx.NewAttrib("cols", strconv.Itoa(num
 // ColSpan sets the colspan attribute, the number of columns a table cell spans.
 func ColSpan(numCols int) mx.Attrib { return mx.NewAttrib("colspan", strconv.Itoa(numCols)) }
 
+// Command sets the command attribute of a <button>, the action it invokes on its CommandFor target.
+// Pass a built-in keyword (the Command* constants) or an author-defined custom command, which
+// must start with two hyphens (e.g. Command("--rotate")).
+func Command(value string) mx.Attrib { return mx.NewAttrib("command", value) }
+
+const (
+	// CommandTogglePopover toggles the targeted popover between shown and hidden.
+	CommandTogglePopover = mx.ConstAttrib("command=toggle-popover")
+	// CommandShowPopover shows the targeted popover.
+	CommandShowPopover = mx.ConstAttrib("command=show-popover")
+	// CommandHidePopover hides the targeted popover.
+	CommandHidePopover = mx.ConstAttrib("command=hide-popover")
+	// CommandShowModal opens the targeted <dialog> as a modal.
+	CommandShowModal = mx.ConstAttrib("command=show-modal")
+	// CommandClose closes the targeted <dialog>.
+	CommandClose = mx.ConstAttrib("command=close")
+	// CommandRequestClose requests closing the targeted <dialog>, firing a cancelable close request.
+	CommandRequestClose = mx.ConstAttrib("command=request-close")
+)
+
+// CommandFor sets the commandfor attribute of a <button>, the id of the element its Command acts on.
+func CommandFor(id string) mx.Attrib { return mx.NewAttrib("commandfor", id) }
+
 // ContentAttr sets the content attribute, the value associated with a <meta> name or http-equiv.
 func ContentAttr(text string) mx.Attrib { return mx.NewAttrib("content", text) }
 
@@ -497,6 +520,9 @@ func Placeholderf(valueFmt string, a ...any) mx.Attrib {
 
 // PlaysInline is the boolean playsinline attribute hinting that video should play inline rather than fullscreen.
 const PlaysInline = BoolAttrib("playsinline")
+
+// PopoverTarget sets the popovertarget attribute of a <button> or <input>, the id of the popover element it controls.
+func PopoverTarget(id string) mx.Attrib { return mx.NewAttrib("popovertarget", id) }
 
 // Poster sets the poster attribute, the image shown for a <video> before playback begins.
 func Poster(value string) mx.Attrib { return mx.NewAttrib("poster", value) }

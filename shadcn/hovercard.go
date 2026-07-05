@@ -102,7 +102,7 @@ func HoverCardContent(hoverCardID string, side PopoverSide, openDelayMs, closeDe
 		e.Attribs = append(e.Attribs, html.ID(hoverCardID))
 	}
 	if e.AttribIndex("popover") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popover", "auto"))
+		e.Attribs = append(e.Attribs, html.PopoverAuto)
 	}
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("dialog"))

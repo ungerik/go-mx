@@ -61,10 +61,10 @@ func NavigationMenuTrigger(navID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Type("button"))
 	}
 	if e.AttribIndex("popovertarget") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertarget", navID))
+		e.Attribs = append(e.Attribs, html.PopoverTarget(navID))
 	}
 	if e.AttribIndex("popovertargetaction") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertargetaction", "toggle"))
+		e.Attribs = append(e.Attribs, html.PopoverTargetActionToggle)
 	}
 	if e.AttribIndex("aria-haspopup") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-haspopup", "menu"))
@@ -92,7 +92,7 @@ func NavigationMenuContent(navID string, side PopoverSide, attribsChildren ...an
 		e.Attribs = append(e.Attribs, html.ID(navID))
 	}
 	if e.AttribIndex("popover") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popover", "auto"))
+		e.Attribs = append(e.Attribs, html.PopoverAuto)
 	}
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menu"))

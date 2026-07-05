@@ -1701,6 +1701,132 @@ func (v Wrap) AttribName() string { return "wrap" }
 // so rendering an invalid value fails with a descriptive error.
 func (v Wrap) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
 
+// Popover is the HTML popover global attribute, marking an element as a popover and setting its dismissal behavior.
+type Popover string //#enum
+
+const (
+	// PopoverAuto makes the element a popover that light-dismisses and closes other auto popovers when shown (the default).
+	PopoverAuto Popover = "auto"
+	// PopoverManual makes the element a popover that must be shown and hidden explicitly, without light dismissal.
+	PopoverManual Popover = "manual"
+	// PopoverHint makes the element a hint popover that light-dismisses without closing open auto popovers.
+	PopoverHint Popover = "hint"
+)
+
+// Valid indicates if v is any of the valid values for Popover
+func (v Popover) Valid() bool {
+	switch v {
+	case
+		PopoverAuto,
+		PopoverManual,
+		PopoverHint:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if v is none of the valid values for Popover
+func (v Popover) Validate() error {
+	if !v.Valid() {
+		return fmt.Errorf("invalid value %#v for type html.Popover", v)
+	}
+	return nil
+}
+
+// Enums returns all valid values for Popover
+func (Popover) Enums() []Popover {
+	return []Popover{
+		PopoverAuto,
+		PopoverManual,
+		PopoverHint,
+	}
+}
+
+// EnumStrings returns all valid values for Popover as strings
+func (Popover) EnumStrings() []string {
+	return []string{
+		"auto",
+		"manual",
+		"hint",
+	}
+}
+
+// String implements the fmt.Stringer interface for Popover
+func (v Popover) String() string {
+	return string(v)
+}
+
+// AttribName returns the "popover" attribute name.
+func (v Popover) AttribName() string { return "popover" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
+func (v Popover) AttribValue(context.Context) (string, error) { return string(v), v.Validate() }
+
+// PopoverTargetAction is the HTML popovertargetaction attribute, the action a button performs on its PopoverTarget.
+type PopoverTargetAction string //#enum
+
+const (
+	// PopoverTargetActionToggle toggles the targeted popover between shown and hidden (the default).
+	PopoverTargetActionToggle PopoverTargetAction = "toggle"
+	// PopoverTargetActionShow shows the targeted popover.
+	PopoverTargetActionShow PopoverTargetAction = "show"
+	// PopoverTargetActionHide hides the targeted popover.
+	PopoverTargetActionHide PopoverTargetAction = "hide"
+)
+
+// Valid indicates if v is any of the valid values for PopoverTargetAction
+func (v PopoverTargetAction) Valid() bool {
+	switch v {
+	case
+		PopoverTargetActionToggle,
+		PopoverTargetActionShow,
+		PopoverTargetActionHide:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if v is none of the valid values for PopoverTargetAction
+func (v PopoverTargetAction) Validate() error {
+	if !v.Valid() {
+		return fmt.Errorf("invalid value %#v for type html.PopoverTargetAction", v)
+	}
+	return nil
+}
+
+// Enums returns all valid values for PopoverTargetAction
+func (PopoverTargetAction) Enums() []PopoverTargetAction {
+	return []PopoverTargetAction{
+		PopoverTargetActionToggle,
+		PopoverTargetActionShow,
+		PopoverTargetActionHide,
+	}
+}
+
+// EnumStrings returns all valid values for PopoverTargetAction as strings
+func (PopoverTargetAction) EnumStrings() []string {
+	return []string{
+		"toggle",
+		"show",
+		"hide",
+	}
+}
+
+// String implements the fmt.Stringer interface for PopoverTargetAction
+func (v PopoverTargetAction) String() string {
+	return string(v)
+}
+
+// AttribName returns the "popovertargetaction" attribute name.
+func (v PopoverTargetAction) AttribName() string { return "popovertargetaction" }
+
+// AttribValue returns the keyword value together with the result of Validate,
+// so rendering an invalid value fails with a descriptive error.
+func (v PopoverTargetAction) AttribValue(context.Context) (string, error) {
+	return string(v), v.Validate()
+}
+
 // Compile-time checks that every enum type is usable directly as an attribute.
 var (
 	_ mx.Attrib = AutoCapitalize("")
@@ -1728,4 +1854,6 @@ var (
 	_ mx.Attrib = SpellCheck("")
 	_ mx.Attrib = Translate("")
 	_ mx.Attrib = Wrap("")
+	_ mx.Attrib = Popover("")
+	_ mx.Attrib = PopoverTargetAction("")
 )

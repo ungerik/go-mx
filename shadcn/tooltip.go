@@ -83,7 +83,7 @@ func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) 
 		e.Attribs = append(e.Attribs, html.ID(tooltipID))
 	}
 	if e.AttribIndex("popover") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popover", "auto"))
+		e.Attribs = append(e.Attribs, html.PopoverAuto)
 	}
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("tooltip"))

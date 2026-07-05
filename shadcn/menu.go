@@ -57,7 +57,7 @@ func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu boo
 		e.Attribs = append(e.Attribs, html.ID(popoverID))
 	}
 	if e.AttribIndex("popover") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popover", "auto"))
+		e.Attribs = append(e.Attribs, html.PopoverAuto)
 	}
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menu"))
@@ -204,10 +204,10 @@ func menuSubTrigger(slot, popoverID string, attribsChildren ...any) *mx.Element 
 		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
 	if e.AttribIndex("popovertarget") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertarget", popoverID))
+		e.Attribs = append(e.Attribs, html.PopoverTarget(popoverID))
 	}
 	if e.AttribIndex("popovertargetaction") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertargetaction", "toggle"))
+		e.Attribs = append(e.Attribs, html.PopoverTargetActionToggle)
 	}
 	if e.AttribIndex("aria-haspopup") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-haspopup", "menu"))

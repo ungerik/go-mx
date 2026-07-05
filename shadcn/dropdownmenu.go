@@ -32,10 +32,10 @@ func DropdownMenuTrigger(menuID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Type("button"))
 	}
 	if e.AttribIndex("popovertarget") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertarget", menuID))
+		e.Attribs = append(e.Attribs, html.PopoverTarget(menuID))
 	}
 	if e.AttribIndex("popovertargetaction") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("popovertargetaction", "toggle"))
+		e.Attribs = append(e.Attribs, html.PopoverTargetActionToggle)
 	}
 	if e.AttribIndex("aria-haspopup") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-haspopup", "menu"))
