@@ -4,12 +4,20 @@ Deferred work. The older `mx` reflection to-do list lives in `README.md`.
 
 ## mx reflected forms
 
-Deferred from the per-request select options ship review (2026-07-06):
+Surfaced by the adversarial review of the out-of-list placeholder (2026-07-06):
 
-- [ ] Render a disabled placeholder option when a select's current value is
-      not in the per-request option list. Today no option is marked selected
-      (the browser shows the first one), and saving requires re-picking
-      because POST membership validation rejects out-of-list values.
+- [ ] A select with an EMPTY current value and no empty-valued option still
+      lets the browser display and submit the first option (the new-record
+      case) — the same failure class the out-of-list placeholder fixes, and
+      it renders `required` client-side inert. Consider always prepending an
+      empty placeholder for required selects.
+- [ ] Enum-set checkboxes silently drop checked members that are missing
+      from the per-request option list: they are not rendered, so the next
+      save removes them from the set (unchecked boxes submit nothing).
+- [ ] An authoritative context provider returning an empty list combined
+      with a non-empty stored value renders a select containing only the
+      disabled placeholder: a required field can then never be submitted,
+      and a non-required field clears on save.
 
 ## shadcn/cva
 
