@@ -77,8 +77,13 @@ const SwapOOBTrue = mx.ConstAttrib("hx-swap-oob=true")
 // Target specifies the target element to be swapped
 func Target(value string) mx.Attrib { return mx.NewAttrib("hx-target", value) }
 
+// triggerAttrName is the attribute name emitted by [Trigger] and by the
+// render-time injection in formdecider.go. Sharing one const keeps the two
+// emit sites from drifting apart if the attribute name ever changes.
+const triggerAttrName = "hx-trigger"
+
 // Trigger specifies the event that triggers the request
-func Trigger(value string) mx.Attrib { return mx.NewAttrib("hx-trigger", value) }
+func Trigger(value string) mx.Attrib { return mx.NewAttrib(triggerAttrName, value) }
 
 // Vals add values to submit with the request (JSON format)
 func Vals(value string) mx.Attrib { return mx.NewAttrib("hx-vals", value) }
