@@ -328,8 +328,11 @@ func TestFieldDecider_SelectWithRegistryOptions(t *testing.T) {
 	if !strings.Contains(out, `<select`) || !strings.Contains(out, "Partner One") {
 		t.Errorf("expected select with option from context: %q", out)
 	}
-	if strings.Contains(out, "selected") {
+	if strings.Contains(out, `value="p1" selected`) {
 		t.Errorf("p1 must not be selected: %q", out)
+	}
+	if !strings.Contains(out, `value="" disabled="disabled" selected="selected"`) {
+		t.Errorf("current value p2 is not in the list and must show as disabled placeholder: %q", out)
 	}
 
 	out = renderWith([]mx.NamedOption{{Name: "Partner Two", Value: "p2"}})
@@ -338,6 +341,127 @@ func TestFieldDecider_SelectWithRegistryOptions(t *testing.T) {
 	}
 	if !strings.Contains(out, "selected") {
 		t.Errorf("p2 matches the field value and must be selected: %q", out)
+	}
+	if strings.Contains(out, "disabled") {
+		t.Errorf("no placeholder when the current value is in the list: %q", out)
+	}
+}
+
+// TestFieldDecider_SelectPlaceholderForOutOfListValue encodes the
+// deferred follow-up from the per-request options ship review: when
+// the current value is not in the per-request option list, the select
+// must show it as a disabled placeholder instead of silently
+// displaying (and on submit binding) the first option. Because the
+// placeholder is disabled, browsers submit nothing for the select on
+// an unchanged submit: the missing value clears a non-required field
+// or fails the required check, forcing an explicit re-pick.
+func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-html-partners"`
+	}
+	render := func(partner string) string {
+		t.Helper()
+		target := &draftForm{Partner: partner}
+		v := reflect.ValueOf(target).Elem()
+		field, _ := v.Type().FieldByName("Partner")
+		beh := FieldDecider(mx.FieldPath("Partner"), field, v.Field(0))
+		comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
+		ctx := context.WithValue(context.Background(), partnersCtxKey{},
+			[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return b.String()
+	}
+
+	out := render("gone")
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
+	}
+	if strings.Contains(out, "gone") {
+		t.Errorf("the out-of-list value must not be echoed into the markup: %q", out)
+	}
+
+	out = render("")
+	if strings.Contains(out, "disabled") {
+		t.Errorf("empty current value must not produce a placeholder: %q", out)
+	}
+
+	// The out-of-list value is filtered by the option provider; it must
+	// not appear in the markup in any form, escaped or not.
+	out = render(`</option><script>x</script>`)
+	if strings.Contains(out, "script") {
+		t.Errorf("out-of-list value leaked into markup: %q", out)
+	}
+}
+
+// TestFieldDecider_SelectPlaceholderRespectsSensitive: sensitive
+// values never round-trip into markup (formtag.go contract), so a
+// sensitive-tagged select renders no placeholder for an out-of-list
+// value.
+func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-html-partners,sensitive"`
+	}
+	target := &draftForm{Partner: "secret-123"}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider(mx.FieldPath("Partner"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), partnersCtxKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "secret-123") {
+		t.Errorf("sensitive value leaked into placeholder: %q", out)
+	}
+	if strings.Contains(out, "disabled") {
+		t.Errorf("sensitive field must not render a placeholder: %q", out)
+	}
+}
+
+// TestFieldDecider_SelectPlaceholderEmptyOptionList pins the boundary
+// where the per-request list resolves to zero options: the placeholder
+// showing the current value is then the select's only option.
+func TestFieldDecider_SelectPlaceholderEmptyOptionList(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-html-partners"`
+	}
+	target := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider(mx.FieldPath("Partner"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), partnersCtxKey{}, []mx.NamedOption{})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+		t.Errorf("placeholder must render with an empty option list: %q", out)
+	}
+	if strings.Count(out, "<option") != 1 {
+		t.Errorf("placeholder must be the only option: %q", out)
+	}
+}
+
+// TestFieldDecider_SelectStaticListNoPlaceholder pins the scope of the
+// placeholder: static enum lists keep their lenient behavior — an
+// out-of-list value renders no placeholder (and no selected option),
+// matching the POST side where membership validation only applies to
+// context-dependent lists.
+func TestFieldDecider_SelectStaticListNoPlaceholder(t *testing.T) {
+	out := renderFieldHTML(t, &allKindsForm{Color: "magenta"}, "Color")
+	if strings.Contains(out, "disabled") {
+		t.Errorf("static enum list must not render a placeholder: %q", out)
+	}
+	if strings.Contains(out, "selected") {
+		t.Errorf("out-of-list value on a static list must not select anything: %q", out)
 	}
 }
 

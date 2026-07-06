@@ -231,6 +231,52 @@ func TestShadcn_SelectWithRegistryOptions(t *testing.T) {
 	}
 }
 
+// TestShadcn_SelectPlaceholderForOutOfListValue mirrors the html
+// layer: a current value missing from the per-request option list
+// shows as a disabled placeholder instead of the browser silently
+// displaying the first option.
+func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners"`
+	}
+	s := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
+	}
+	if strings.Contains(out, "gone") {
+		t.Errorf("the out-of-list value must not be echoed into the markup: %q", out)
+	}
+	if strings.Contains(out, `value="p1" selected`) {
+		t.Errorf("p1 must not be selected: %q", out)
+	}
+
+	// Mirror the html layer's negative case: an empty current value
+	// must not produce a placeholder.
+	s2 := &draftForm{}
+	v2 := reflect.ValueOf(s2).Elem()
+	comp2 := FieldDecider(mx.FieldPath("Partner"), f, v2.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v2.Field(0), nil)
+	b.Reset()
+	if err := comp2.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if strings.Contains(b.String(), `disabled="disabled"`) {
+		t.Errorf("empty current value must not produce a placeholder: %q", b.String())
+	}
+}
+
 func TestShadcn_EnumSetWithRegistryOptions(t *testing.T) {
 	type tagForm struct {
 		Tags []string `form:"options=test-shadcn-tags"`
