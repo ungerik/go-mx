@@ -126,6 +126,13 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 	}
 	if len(d.Attachments) > 0 {
 		r.SetAttachments(d.Attachments)
+		// Validate relationships up front so an invalid one surfaces from
+		// Render rather than only from the later Output/Close that embeds them.
+		for i := range d.Attachments {
+			if rel := d.Attachments[i].Relationship; rel != "" && !rel.Valid() {
+				r.SetError(fmt.Errorf("invalid AFRelationship %q for attachment %q", rel, d.Attachments[i].Filename))
+			}
+		}
 	}
 	if d.XMP != nil {
 		d.applyXMP(r)
@@ -211,17 +218,37 @@ func (d *Document) applyXMP(r *Renderer) {
 	r.SetCreationDate(m.CreateDate)
 	r.SetModificationDate(m.ModifyDate)
 
+	// PDF/A mandates a minimum header version (1.4 for part 1, 1.7 for parts
+	// 2 and 3); the engine defaults to 1.3, which validators reject outright.
+	// Raise it to the version the declared part requires.
+	if m.PDFAPart > 0 {
+		want := pdfVers1_7
+		if m.PDFAPart == 1 {
+			want = pdfVers1_4
+		}
+		if r.pdfVersion < want {
+			r.pdfVersion = want
+		}
+	}
+
 	if m.FacturX != nil {
 		f, err := m.FacturX.withDefaults()
 		if err != nil {
 			r.SetError(err)
 			return
 		}
-		found := slices.ContainsFunc(r.attachments, func(a Attachment) bool {
+		i := slices.IndexFunc(r.attachments, func(a Attachment) bool {
 			return a.Filename == f.DocumentFileName
 		})
-		if !found {
+		if i < 0 {
 			r.SetError(fmt.Errorf("XMP Factur-X metadata references %q but no attachment has that filename", f.DocumentFileName))
+			return
+		}
+		// The referenced XML must be a PDF/A-3 associated file: listed in the
+		// catalog /AF array (which needs a Relationship) and typed with a MIME
+		// /Subtype, or validators ignore the invoice.
+		if a := r.attachments[i]; a.Relationship == "" || a.MIMEType == "" {
+			r.SetError(fmt.Errorf("XMP Factur-X attachment %q must set Relationship and MIMEType to be a PDF/A-3 associated file", f.DocumentFileName))
 			return
 		}
 	}

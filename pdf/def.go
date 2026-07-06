@@ -303,6 +303,7 @@ const (
 	pdfVers1_3 = pdfVersion(uint16(1)<<8 | uint16(3))
 	pdfVers1_4 = pdfVersion(uint16(1)<<8 | uint16(4))
 	pdfVers1_5 = pdfVersion(uint16(1)<<8 | uint16(5))
+	pdfVers1_7 = pdfVersion(uint16(1)<<8 | uint16(7))
 )
 
 type pdfVersion uint16

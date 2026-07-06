@@ -142,6 +142,7 @@ func TestDockerPoppler_xmpMetadata(t *testing.T) {
 	info := popplerTool(t, dir, "pdfinfo", "/work/facturx.pdf")
 	matchOutput(t, info,
 		`^Metadata Stream:\s+yes$`,
+		`^PDF version:\s+1\.7$`,
 		`^Title:\s+Invoice R2024-001$`,
 		`^Author:\s+ACME GmbH$`,
 		`^Creator:\s+go-mx/pdf test$`,

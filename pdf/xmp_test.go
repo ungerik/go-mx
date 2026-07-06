@@ -191,6 +191,67 @@ func TestDocumentFacturX_missingAttachment(t *testing.T) {
 	}
 }
 
+// A document that declares a PDF/A part must raise the file header to the
+// version that part requires (1.7 for PDF/A-2/3). The engine defaults to 1.3,
+// which every PDF/A validator rejects outright, so a Factur-X (PDF/A-3)
+// document with a 1.3 header can never validate regardless of everything else.
+func TestDocumentFacturX_headerVersion(t *testing.T) {
+	fixed := time.Date(2024, 5, 6, 7, 8, 9, 0, time.UTC)
+	doc, _ := facturXTestDocument(fixed)
+
+	r := doc.NewRenderer()
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := r.Output(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); !strings.HasPrefix(got, "%PDF-1.7") {
+		t.Errorf("PDF/A-3 header is not 1.7, starts with %.8q", got)
+	}
+}
+
+// The XML the Factur-X XMP references must be a real PDF/A-3 associated file
+// (declared with an AFRelationship and a MIME type), not merely an attachment
+// with the matching name. Without those it never lands in the catalog /AF
+// array and the embedded stream lacks the required /Subtype, so validators
+// ignore the invoice — the declaration must fail loudly instead.
+func TestDocumentFacturX_attachmentMustBeAssociatedFile(t *testing.T) {
+	fixed := time.Date(2024, 5, 6, 7, 8, 9, 0, time.UTC)
+	doc, _ := facturXTestDocument(fixed)
+	doc.Attachments[0].Relationship = "" // strip the associated-file markers
+	doc.Attachments[0].MIMEType = ""
+
+	err := doc.Render(context.Background(), doc.NewRenderer())
+	if err == nil {
+		t.Fatal("expected error for Factur-X attachment that is not an associated file")
+	}
+	if !strings.Contains(err.Error(), "factur-x.xml") {
+		t.Errorf("error does not name the attachment: %v", err)
+	}
+}
+
+// An invalid AFRelationship on a document attachment must surface from Render,
+// not silently succeed there and only fail later at Output — a caller that
+// checks Render's error and then trusts the renderer would otherwise ship a
+// broken associated-file declaration.
+func TestDocumentInvalidAFRelationship(t *testing.T) {
+	doc := NewDocument("Doc", Paragraph("body"))
+	doc.Attachments = []Attachment{{
+		Content:      []byte("data"),
+		Filename:     "data.bin",
+		Relationship: AFRelationship("Bogus"),
+	}}
+	err := doc.Render(context.Background(), doc.NewRenderer())
+	if err == nil {
+		t.Fatal("expected error for invalid AFRelationship")
+	}
+	if !strings.Contains(err.Error(), "Bogus") {
+		t.Errorf("error does not name the invalid relationship: %v", err)
+	}
+}
+
 // The XMP fields exposed on Document.XMP override the plain document metadata,
 // and PDF/A requires the info dictionary to carry the same values the XMP
 // packet does. An XMP field set differently from the document field must win in
