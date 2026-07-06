@@ -9,7 +9,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strings"
+	"time"
 )
 
 // Attachment defines a content to be included in the pdf, in one
@@ -26,6 +28,22 @@ type Attachment struct {
 	// and might be modified by the pdf reader.
 	Description string
 
+	// Relationship, when non-empty, declares the attachment as a PDF/A-3
+	// associated file with this /AFRelationship, listed in the document
+	// catalog's /AF array. ZUGFeRD/Factur-X invoices embed their XML with
+	// [AFRelationshipAlternative] (or [AFRelationshipData] for the MINIMUM
+	// and BASIC WL profiles).
+	Relationship AFRelationship
+
+	// MIMEType, when non-empty, is written as the embedded file's /Subtype
+	// (e.g. "text/xml"), required for PDF/A-3 associated files.
+	MIMEType string
+
+	// ModDate is the modification date written to the embedded file's
+	// /Params dictionary. A zero value falls back to the document's
+	// creation date (or the current time if that is unset too).
+	ModDate time.Time
+
 	objectNumber int // filled when content is included
 }
 
@@ -36,17 +54,27 @@ func checksum(data []byte) string {
 }
 
 // Writes a compressed file like object as "/EmbeddedFile". Compressing is
-// done with deflate. Includes length, compressed length and MD5 checksum.
-func (r *Renderer) writeCompressedFileObject(content []byte) {
-	lenUncompressed := len(content)
-	sum := checksum(content)
-	mem := xmem.compress(content)
+// done with deflate. Includes length, compressed length, MD5 checksum and
+// modification date, plus the MIME /Subtype when the attachment declares one.
+func (r *Renderer) writeCompressedFileObject(a *Attachment) {
+	lenUncompressed := len(a.Content)
+	sum := checksum(a.Content)
+	mem := xmem.compress(a.Content)
 	defer xmem.release(mem)
 	compressed := mem.Bytes()
 	lenCompressed := len(compressed)
 	r.newobj()
-	r.outf("<< /Type /EmbeddedFile /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d >> >>\n",
-		lenCompressed, sum, lenUncompressed)
+	r.out("<< /Type /EmbeddedFile")
+	if a.MIMEType != "" {
+		r.outf("/Subtype /%s", escapeName(a.MIMEType))
+	}
+	modDate := a.ModDate
+	if modDate.IsZero() {
+		modDate = timeOrNow(r.creationDate)
+	}
+	r.outf("/Length %d /Filter /FlateDecode", lenCompressed)
+	r.outf("/Params << /CheckSum <%s> /Size %d /ModDate %s >> >>",
+		sum, lenUncompressed, r.textstring(pdfDate(modDate, true)))
 	r.putstream(compressed)
 	r.out("endobj")
 }
@@ -56,14 +84,23 @@ func (r *Renderer) embed(a *Attachment) {
 	if a.objectNumber != 0 { // already embedded (objectNumber start at 2)
 		return
 	}
+	if a.Relationship != "" && !a.Relationship.Valid() {
+		r.SetError(fmt.Errorf("invalid AFRelationship %q for attachment %q", a.Relationship, a.Filename))
+		return
+	}
 	oldState := r.state
 	r.state = 1 // we write file content in the main buffer
-	r.writeCompressedFileObject(a.Content)
+	r.writeCompressedFileObject(a)
 	streamID := r.n
 	r.newobj()
-	r.outf("<< /Type /Filespec /F () /UF %s /EF << /F %d 0 R >> /Desc %s\n>>",
-		r.textstring(utf8toutf16(a.Filename)),
-		streamID,
+	r.out("<< /Type /Filespec")
+	// PDF/A-3 requires both /F and /UF, and /UF also in the /EF dictionary
+	r.outf("/F %s /UF %s", r.textstring(pdfDocEncode(a.Filename)), r.textstring(utf8toutf16(a.Filename)))
+	if a.Relationship != "" {
+		r.outf("/AFRelationship /%s", a.Relationship)
+	}
+	r.outf("/EF << /F %d 0 R /UF %d 0 R >> /Desc %s\n>>",
+		streamID, streamID,
 		r.textstring(utf8toutf16(a.Description)))
 	r.out("endobj")
 	a.objectNumber = r.n
@@ -91,12 +128,51 @@ func (r *Renderer) putAttachments() {
 
 // return /EmbeddedFiles tree name catalog entry.
 func (r *Renderer) getEmbeddedFiles() string {
-	names := make([]string, len(r.attachments))
-	for i, as := range r.attachments {
-		names[i] = fmt.Sprintf("(Attachement%d) %d 0 R ", i+1, as.objectNumber)
+	type nameRef struct {
+		key          string // the written key, UTF-16BE encoded
+		objectNumber int
+	}
+	refs := make([]nameRef, len(r.attachments))
+	seen := make(map[string]int, len(r.attachments))
+	for i, a := range r.attachments {
+		name := a.Filename
+		if name == "" {
+			name = fmt.Sprintf("Attachement%d", i+1)
+		}
+		// name-tree keys must be unique; disambiguate repeated filenames
+		seen[name]++
+		if n := seen[name]; n > 1 {
+			name = fmt.Sprintf("%s (%d)", name, n)
+		}
+		refs[i] = nameRef{utf8toutf16(name), a.objectNumber}
+	}
+	// name-tree keys must be sorted by the byte value of the written strings,
+	// which are UTF-16BE, so compare on that encoding not the raw UTF-8 name
+	slices.SortFunc(refs, func(a, b nameRef) int {
+		return strings.Compare(a.key, b.key)
+	})
+	names := make([]string, len(refs))
+	for i, ref := range refs {
+		names[i] = fmt.Sprintf("%s %d 0 R ", r.textstring(ref.key), ref.objectNumber)
 	}
 	nameTree := fmt.Sprintf("<< /Names [\n %s \n] >>", strings.Join(names, "\n"))
 	return nameTree
+}
+
+// getAssociatedFiles returns the catalog /AF array listing the filespecs of
+// attachments declared with an AFRelationship (PDF/A-3 associated files),
+// or "" if there are none.
+func (r *Renderer) getAssociatedFiles() string {
+	var refs []string
+	for _, a := range r.attachments {
+		if a.Relationship != "" && a.objectNumber != 0 {
+			refs = append(refs, fmt.Sprintf("%d 0 R", a.objectNumber))
+		}
+	}
+	if len(refs) == 0 {
+		return ""
+	}
+	return "[" + strings.Join(refs, " ") + "]"
 }
 
 // ---------------------------------- Annotations ----------------------------------

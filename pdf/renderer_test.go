@@ -33,7 +33,7 @@ func renderBytes(t *testing.T, r *Renderer) []byte {
 func TestConstructorsInstallTranslator(t *testing.T) {
 	for name, r := range map[string]*Renderer{
 		"New":         New(OrientationPortrait, UnitMillimeter, PageSizeA4, ""),
-		"NewCustom":   NewCustom(&InitType{}),
+		"NewCustom":   NewCustom(&Init{}),
 		"NewRenderer": NewRenderer(OrientationPortrait, UnitMillimeter, PageSizeA4),
 	} {
 		if got := r.Str("é€"); got != "\xe9\x80" {
@@ -48,9 +48,9 @@ func TestConstructorsInstallTranslator(t *testing.T) {
 func TestGetStringSymbolWidthCwBoundary(t *testing.T) {
 	r := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 	r.isCurrentUTF8 = true
-	r.currentFont = fontDefType{
+	r.currentFont = fontDef{
 		Cw:   make([]int, 'A'+1), // rune 'B' == len(Cw)
-		Desc: FontDescType{MissingWidth: 111},
+		Desc: FontDesc{MissingWidth: 111},
 	}
 	r.currentFont.Cw['A'] = 222
 	if got := r.GetStringSymbolWidth("B"); got != 111 {

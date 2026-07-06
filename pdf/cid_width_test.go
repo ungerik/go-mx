@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func cidFontWidthArray(font *fontDefType, lastRune int) string {
+func cidFontWidthArray(font *fontDef, lastRune int) string {
 	r := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
 	r.generateCIDFontMap(font, lastRune)
 	return normalizeWOutput(r.buffer.String())
@@ -156,7 +156,7 @@ func TestGenerateCIDFontMap(t *testing.T) {
 			for cid, width := range tt.widths {
 				cw[cid] = width
 			}
-			font := &fontDefType{
+			font := &fontDef{
 				Cw:        cw,
 				usedRunes: tt.used,
 			}

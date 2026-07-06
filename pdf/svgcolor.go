@@ -1,11 +1,10 @@
 package pdf
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 // SVG color and paint parsing for the best-effort SVG renderer (see svg.go).
@@ -29,7 +28,7 @@ func parseSVGPaint(s string) (svgPaint, error) {
 	if after, ok := strings.CutPrefix(s, "url("); ok {
 		_, fallback, ok := strings.Cut(after, ")")
 		if !ok {
-			return svgPaint{}, errs.Errorf("invalid SVG paint %q", s)
+			return svgPaint{}, fmt.Errorf("invalid SVG paint %q", s)
 		}
 		fallback = strings.TrimSpace(fallback)
 		if fallback == "" {
@@ -66,12 +65,12 @@ func parseSVGColor(s string) (Color, float64, error) {
 		case "hsl", "hsla":
 			return parseHSLFunction(args)
 		}
-		return Color{}, 0, errs.Errorf("unsupported SVG color function %q", fn)
+		return Color{}, 0, fmt.Errorf("unsupported SVG color function %q", fn)
 	}
 	if c, ok := svgColorKeywords[strings.ToLower(s)]; ok {
 		return c, 1, nil
 	}
-	return Color{}, 0, errs.Errorf("invalid SVG color %q", s)
+	return Color{}, 0, fmt.Errorf("invalid SVG color %q", s)
 }
 
 // parseHexColor parses #rgb, #rgba, #rrggbb and #rrggbbaa.
@@ -88,7 +87,7 @@ func parseHexColor(s string) (Color, float64, error) {
 		}
 		a, err := strconv.ParseUint(hex[3:], 16, 8)
 		if err != nil {
-			return Color{}, 0, errs.Errorf("invalid hex color %q", s)
+			return Color{}, 0, fmt.Errorf("invalid hex color %q", s)
 		}
 		return c, float64(a*17) / 255, nil
 	case 8:
@@ -98,11 +97,11 @@ func parseHexColor(s string) (Color, float64, error) {
 		}
 		a, err := strconv.ParseUint(hex[6:], 16, 8)
 		if err != nil {
-			return Color{}, 0, errs.Errorf("invalid hex color %q", s)
+			return Color{}, 0, fmt.Errorf("invalid hex color %q", s)
 		}
 		return c, float64(a) / 255, nil
 	}
-	return Color{}, 0, errs.Errorf("invalid hex color %q", s)
+	return Color{}, 0, fmt.Errorf("invalid hex color %q", s)
 }
 
 // colorFunction splits "name(args)" and reports whether s has that form.
@@ -132,13 +131,13 @@ func parseColorChannel(s string) (int, error) {
 	if p, ok := strings.CutSuffix(s, "%"); ok {
 		v, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
 		if err != nil {
-			return 0, errs.Errorf("invalid color channel %q", s)
+			return 0, fmt.Errorf("invalid color channel %q", s)
 		}
 		return clampByte(v / 100 * 255), nil
 	}
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, errs.Errorf("invalid color channel %q", s)
+		return 0, fmt.Errorf("invalid color channel %q", s)
 	}
 	return clampByte(v), nil
 }
@@ -154,7 +153,7 @@ func parseAlphaValue(s string) (float64, error) {
 	}
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, errs.Errorf("invalid opacity value %q", s)
+		return 0, fmt.Errorf("invalid opacity value %q", s)
 	}
 	return math.Min(1, math.Max(0, v*scale)), nil
 }
@@ -166,18 +165,18 @@ func parseAlphaValue(s string) (float64, error) {
 func parseHSLPercent(s string) (float64, error) {
 	p, ok := strings.CutSuffix(strings.TrimSpace(s), "%")
 	if !ok {
-		return 0, errs.Errorf("invalid hsl() value %q, expected a percentage", s)
+		return 0, fmt.Errorf("invalid hsl() value %q, expected a percentage", s)
 	}
 	v, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
 	if err != nil {
-		return 0, errs.Errorf("invalid hsl() percentage %q", s)
+		return 0, fmt.Errorf("invalid hsl() percentage %q", s)
 	}
 	return math.Min(1, math.Max(0, v/100)), nil
 }
 
 func parseRGBFunction(args []string) (Color, float64, error) {
 	if len(args) != 3 && len(args) != 4 {
-		return Color{}, 0, errs.Errorf("rgb() needs 3 or 4 arguments, got %d", len(args))
+		return Color{}, 0, fmt.Errorf("rgb() needs 3 or 4 arguments, got %d", len(args))
 	}
 	var c Color
 	for i, p := range []*int{&c.R, &c.G, &c.B} {
@@ -200,11 +199,11 @@ func parseRGBFunction(args []string) (Color, float64, error) {
 
 func parseHSLFunction(args []string) (Color, float64, error) {
 	if len(args) != 3 && len(args) != 4 {
-		return Color{}, 0, errs.Errorf("hsl() needs 3 or 4 arguments, got %d", len(args))
+		return Color{}, 0, fmt.Errorf("hsl() needs 3 or 4 arguments, got %d", len(args))
 	}
 	h, err := strconv.ParseFloat(strings.TrimSuffix(args[0], "deg"), 64)
 	if err != nil {
-		return Color{}, 0, errs.Errorf("invalid hsl() hue %q", args[0])
+		return Color{}, 0, fmt.Errorf("invalid hsl() hue %q", args[0])
 	}
 	s, err := parseHSLPercent(args[1])
 	if err != nil {

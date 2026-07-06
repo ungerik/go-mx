@@ -25,8 +25,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 func byteBound(v byte) byte {
@@ -46,9 +44,9 @@ func (r *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
 		_, ok := r.spotColorMap[nameStr]
 		if !ok {
 			id := len(r.spotColorMap) + 1
-			r.spotColorMap[nameStr] = spotColorType{
+			r.spotColorMap[nameStr] = spotColor{
 				id: id,
-				val: cmykColorType{
+				val: cmykColor{
 					c: byteBound(c),
 					m: byteBound(m),
 					y: byteBound(y),
@@ -56,16 +54,16 @@ func (r *Renderer) AddSpotColor(nameStr string, c, m, y, k byte) {
 				},
 			}
 		} else {
-			r.err = errs.Errorf("name \"%s\" is already associated with a spot color", nameStr)
+			r.err = fmt.Errorf("name \"%s\" is already associated with a spot color", nameStr)
 		}
 	}
 }
 
-func (r *Renderer) getSpotColor(nameStr string) (clr spotColorType, ok bool) {
+func (r *Renderer) getSpotColor(nameStr string) (clr spotColor, ok bool) {
 	if r.err == nil {
 		clr, ok = r.spotColorMap[nameStr]
 		if !ok {
-			r.err = errs.Errorf("spot color name \"%s\" is not registered", nameStr)
+			r.err = fmt.Errorf("spot color name \"%s\" is not registered", nameStr)
 		}
 	}
 	return clr, ok
@@ -121,7 +119,7 @@ func (r *Renderer) SetTextSpotColor(nameStr string, tint byte) {
 	r.colorFlag = r.color.fill.str != r.color.text.str
 }
 
-func (r *Renderer) returnSpotColor(clr colorType) (name string, c, m, y, k byte) {
+func (r *Renderer) returnSpotColor(clr colorState) (name string, c, m, y, k byte) {
 	name = clr.spotStr
 	if name != "" {
 		spotClr, ok := r.getSpotColor(name)
@@ -193,13 +191,13 @@ func (r *Renderer) spotColorPutResourceDict() {
 	r.out(">>")
 }
 
-// spotColorType specifies a named spot color value.
-type spotColorType struct {
+// spotColor specifies a named spot color value.
+type spotColor struct {
 	id, objID int
-	val       cmykColorType
+	val       cmykColor
 }
 
-// cmykColorType specifies an ink-based CMYK color value.
-type cmykColorType struct {
+// cmykColor specifies an ink-based CMYK color value.
+type cmykColor struct {
 	c, m, y, k byte // 0% to 100%
 }

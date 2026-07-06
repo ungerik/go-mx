@@ -1,10 +1,9 @@
 package pdf
 
 import (
+	"fmt"
 	"math"
 	"strconv"
-
-	"github.com/domonda/go-errs"
 )
 
 // SVG path-data support for the best-effort SVG renderer (see svg.go): a
@@ -100,7 +99,7 @@ func (sc *svgScanner) number() (float64, error) {
 		fracDigits = digits()
 	}
 	if intDigits == 0 && fracDigits == 0 {
-		return 0, errs.Errorf("expected number at %q", sc.s[start:])
+		return 0, fmt.Errorf("expected number at %q", sc.s[start:])
 	}
 	if i < len(sc.s) && (sc.s[i] == 'e' || sc.s[i] == 'E') {
 		j := i + 1
@@ -117,7 +116,7 @@ func (sc *svgScanner) number() (float64, error) {
 	}
 	v, err := strconv.ParseFloat(sc.s[start:i], 64)
 	if err != nil {
-		return 0, errs.Errorf("invalid number %q", sc.s[start:i])
+		return 0, fmt.Errorf("invalid number %q", sc.s[start:i])
 	}
 	sc.i = i
 	return v, nil
@@ -137,7 +136,7 @@ func (sc *svgScanner) flag() (bool, error) {
 			return true, nil
 		}
 	}
-	return false, errs.Errorf("expected arc flag at %q", sc.s[sc.i:])
+	return false, fmt.Errorf("expected arc flag at %q", sc.s[sc.i:])
 }
 
 // parseSVGNumberList parses a whitespace/comma separated list of numbers, the
@@ -176,18 +175,18 @@ func renderSVGPathData(d string, sink pathSink) error {
 			cmd = c
 			sc.i++
 		case cmd == 0:
-			return errs.Errorf("SVG path data must start with a moveto command: %q", d)
+			return fmt.Errorf("SVG path data must start with a moveto command: %q", d)
 		case cmd == 'Z' || cmd == 'z':
 			// After a closepath only a new command may follow. A coordinate
 			// here has no command to consume it, so without this guard the
 			// current position never advances and the loop spins forever.
-			return errs.Errorf("SVG path data has a coordinate after closepath (Z): %q", sc.s[sc.i:])
+			return fmt.Errorf("SVG path data has a coordinate after closepath (Z): %q", sc.s[sc.i:])
 		case !sc.hasNumber():
-			return errs.Errorf("unexpected character %q in SVG path data", string(sc.s[sc.i]))
+			return fmt.Errorf("unexpected character %q in SVG path data", string(sc.s[sc.i]))
 		}
 		// A path must begin with a moveto.
 		if !started && cmd != 'M' && cmd != 'm' {
-			return errs.Errorf("SVG path data must start with a moveto command: %q", d)
+			return fmt.Errorf("SVG path data must start with a moveto command: %q", d)
 		}
 		if cmd == 'Z' || cmd == 'z' {
 			sink.closePath()
@@ -348,7 +347,7 @@ func renderSVGPathData(d string, sink pathSink) error {
 			svgArcToCubics(sink, x, y, arx, ary, rot, largeArc, sweep, ex, ey)
 			x, y = ex, ey
 		default:
-			return errs.Errorf("invalid SVG path command %q", string(cmd))
+			return fmt.Errorf("invalid SVG path command %q", string(cmd))
 		}
 		ctrlX, ctrlY = x, y
 		quadX, quadY = x, y

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"slices"
 )
 
 // ContentType is the MIME type of PDF output.
@@ -50,6 +52,18 @@ type Document struct {
 	// They run inside fpdf's page lifecycle with the context passed to Render.
 	Header Component
 	Footer Component
+
+	// Attachments are embedded as document-level files. Attachments with a
+	// Relationship are also listed as PDF/A-3 associated files, as
+	// ZUGFeRD/Factur-X hybrid invoices require.
+	Attachments []Attachment
+
+	// XMP, when non-nil, is built into the document's XMP metadata packet.
+	// Empty XMP fields fall back to the document metadata above, and the
+	// PDF info dictionary (including its dates) is kept consistent with the
+	// packet, as PDF/A validators require. When XMP.FacturX is set, an
+	// attachment with the declared DocumentFileName must be present.
+	XMP *XMPMetadata
 
 	// Body holds the page content.
 	Body Component
@@ -110,6 +124,12 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 	if d.Margins != nil {
 		r.SetMargins(d.Margins.Left, d.Margins.Top, d.Margins.Right)
 	}
+	if len(d.Attachments) > 0 {
+		r.SetAttachments(d.Attachments)
+	}
+	if d.XMP != nil {
+		d.applyXMP(r)
+	}
 
 	family := cmp.Or(d.FontFamily, DefaultFontFamily)
 	size := d.FontSize
@@ -142,6 +162,76 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 	} else {
 		r.SetFooterFunc(nil)
 	}
+}
+
+// applyXMP builds the XMP metadata packet from d.XMP, filling empty fields
+// from the document metadata, and keeps the info dictionary consistent with
+// the packet as PDF/A requires: every info-dictionary field the packet also
+// carries (title, author, subject, keywords, creator, producer) and the
+// fully-specified creation/modification instants are set on the renderer, so
+// putinfo writes the same values the packet does. PDF/A validators reject a
+// document whose /Info entry and its XMP property are both present but differ.
+func (d *Document) applyXMP(r *Renderer) {
+	m := *d.XMP
+	m.Title = cmp.Or(m.Title, d.Title)
+	m.Author = cmp.Or(m.Author, d.Author)
+	m.Subject = cmp.Or(m.Subject, d.Subject)
+	m.Keywords = cmp.Or(m.Keywords, d.Keywords)
+	m.CreatorTool = cmp.Or(m.CreatorTool, d.Creator)
+	// the engine default producer, written to /Info even when unset
+	m.Producer = cmp.Or(m.Producer, "FPDF "+cnFpdfVersion)
+	// Mirror the resolved metadata onto the renderer so /Info matches the XMP
+	// packet. An empty field is left unset (putinfo omits it), which the XMP
+	// packet does too, so the two stay consistent.
+	if m.Title != "" {
+		r.SetTitle(m.Title, true)
+	}
+	if m.Author != "" {
+		r.SetAuthor(m.Author, true)
+	}
+	if m.Subject != "" {
+		r.SetSubject(m.Subject, true)
+	}
+	if m.Keywords != "" {
+		r.SetKeywords(m.Keywords, true)
+	}
+	if m.CreatorTool != "" {
+		r.SetCreator(m.CreatorTool, true)
+	}
+	r.SetProducer(m.Producer, true)
+	if m.CreateDate.IsZero() {
+		m.CreateDate = timeOrNow(r.creationDate)
+	}
+	if m.ModifyDate.IsZero() {
+		m.ModifyDate = r.modDate
+		if m.ModifyDate.IsZero() {
+			m.ModifyDate = m.CreateDate
+		}
+	}
+	r.SetCreationDate(m.CreateDate)
+	r.SetModificationDate(m.ModifyDate)
+
+	if m.FacturX != nil {
+		f, err := m.FacturX.withDefaults()
+		if err != nil {
+			r.SetError(err)
+			return
+		}
+		found := slices.ContainsFunc(r.attachments, func(a Attachment) bool {
+			return a.Filename == f.DocumentFileName
+		})
+		if !found {
+			r.SetError(fmt.Errorf("XMP Factur-X metadata references %q but no attachment has that filename", f.DocumentFileName))
+			return
+		}
+	}
+
+	packet, err := m.XML()
+	if err != nil {
+		r.SetError(err)
+		return
+	}
+	r.SetXmpMetadata(packet)
 }
 
 // Output renders the document to its own renderer and writes the PDF to w.

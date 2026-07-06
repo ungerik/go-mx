@@ -29,6 +29,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -63,10 +64,10 @@ type Renderer struct {
 	k                float64                    // scale factor (number of points in user unit)
 	defOrientation   Orientation                // default orientation
 	curOrientation   Orientation                // current orientation
-	defPageSize      SizeType                   // default page size
+	defPageSize      Size                       // default page size
 	defPageBoxes     map[string]PageBox         // default page size
-	curPageSize      SizeType                   // current page size
-	pageSizes        map[int]SizeType           // used for pages with non default sizes or orientations
+	curPageSize      Size                       // current page size
+	pageSizes        map[int]Size               // used for pages with non default sizes or orientations
 	pageBoxes        map[int]map[string]PageBox // used to define the crop, trim, bleed and art boxes
 	unit             Unit                       // unit of measure for all rendered objects except fonts
 	wPt, hPt         float64                    // dimensions of current page in points
@@ -82,24 +83,24 @@ type Renderer struct {
 	fontpath         string                     // path containing fonts
 	fontLoader       FontLoader                 // used to load font files from arbitrary locations
 	coreFonts        map[string]bool            // array of core font names
-	fonts            map[string]fontDefType     // array of used fonts
-	fontFiles        map[string]fontFileType    // array of font files
+	fonts            map[string]fontDef         // array of used fonts
+	fontFiles        map[string]fontFile        // array of font files
 	diffs            []string                   // array of encoding differences
 	fontFamily       string                     // current font family
 	fontStyle        string                     // current font style
 	underline        bool                       // underlining flag
 	strikeout        bool                       // strike out flag
-	currentFont      fontDefType                // current font info
+	currentFont      fontDef                    // current font info
 	fontSizePt       float64                    // current font size in points
 	fontSize         float64                    // current font size in user unit
 	ws               float64                    // word spacing
-	images           map[string]*ImageInfoType  // array of used images
+	images           map[string]*ImageInfo      // array of used images
 	aliasMap         map[string]string          // map of alias->replacement
-	pageLinks        [][]linkType               // pageLinks[page][link], both 1-based
-	links            []intLinkType              // array of internal links
+	pageLinks        [][]pageLink               // pageLinks[page][link], both 1-based
+	links            []internalPageLink         // array of internal links
 	attachments      []Attachment               // slice of content to embed globally
 	pageAttachments  [][]annotationAttach       // 1-based array of annotation for file attachments (per page)
-	outlines         []outlineType              // array of outlines
+	outlines         []outline                  // array of outlines
 	outlineRoot      int                        // root of outlines
 	autoPageBreak    bool                       // automatic page breaking
 	acceptPageBreak  func() bool                // returns true to accept page break
@@ -129,28 +130,28 @@ type Renderer struct {
 	joinStyle        int                        // line segment join style: miter 0, round 1, bevel 2
 	dashArray        []float64                  // dash array
 	dashPhase        float64                    // dash phase
-	blendList        []blendModeType            // slice[idx] of alpha transparency modes, 1-based
+	blendList        []blendMode                // slice[idx] of alpha transparency modes, 1-based
 	blendMap         map[string]int             // map into blendList
 	blendMode        BlendMode                  // current blend mode
 	alpha            float64                    // current transpacency
-	gradientList     []gradientType             // slice[idx] of gradient records
+	gradientList     []gradient                 // slice[idx] of gradient records
 	clipNest         int                        // Number of active clipping contexts
 	transformNest    int                        // Number of active transformation contexts
 	err              error                      // Set if error occurs during life cycle of instance
-	protect          protectType                // document protection structure
-	layer            layerRecType               // manages optional layers in document
+	protect          protect                    // document protection structure
+	layer            layerRec                   // manages optional layers in document
 	catalogSort      bool                       // sort resource catalogs in document
 	nJs              int                        // JavaScript object number
 	javascript       *string                    // JavaScript code to include in the PDF
 	colorFlag        bool                       // indicates whether fill and text colors are different
 	color            struct {
 		// Composite values of colors
-		draw, fill, text colorType
+		draw, fill, text colorState
 	}
-	spotColorMap           map[string]spotColorType // Map of named ink-based colors
-	outputIntents          []OutputIntentType       // OutputIntents
-	outputIntentStartN     int                      // Start object number for
-	userUnderlineThickness float64                  // A custom user underline thickness multiplier.
+	spotColorMap           map[string]spotColor // Map of named ink-based colors
+	outputIntents          []OutputIntent       // OutputIntents
+	outputIntentStartN     int                  // Start object number for
+	userUnderlineThickness float64              // A custom user underline thickness multiplier.
 
 	// translate maps UTF-8 to the encoding of the current standard (core)
 	// font, which uses cp1252 (Western Europe). Applied automatically by the
@@ -170,33 +171,34 @@ var gl struct {
 	modDate      time.Time
 }
 
-func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirStr string, size SizeType) (r *Renderer) {
+func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirStr string, size Size) (r *Renderer) {
 	orientation = cmp.Or(orientation, OrientationPortrait)
 	if err := orientation.Validate(); err != nil {
 		return &Renderer{err: err}
 	}
-	unit = cmp.Or(unit, UnitMillimeter)
-	if err := unit.Validate(); err != nil {
-		return &Renderer{err: err}
+	normalizedUnit, ok := NormalizeUnit(cmp.Or(unit, UnitMillimeter))
+	if !ok {
+		return &Renderer{err: fmt.Errorf("invalid value %#v for type pdf.Unit", unit)}
 	}
-	unit, _ = unit.normalize()
+	unit = normalizedUnit
 	pageSize = cmp.Or(pageSize, PageSizeA4)
 	if size.Wd <= 0 || size.Ht <= 0 {
-		if err := pageSize.Validate(); err != nil {
-			return &Renderer{err: err}
+		normalizedPageSize, ok := NormalizePageSize(pageSize)
+		if !ok {
+			return &Renderer{err: fmt.Errorf("invalid value %#v for type pdf.PageSize", pageSize)}
 		}
-		pageSize, _ = pageSize.normalize()
+		pageSize = normalizedPageSize
 	}
 	fontDirStr = cmp.Or(fontDirStr, ".")
 
 	k, _ := unit.pointsPerUnit()
 	defPageSize := size
 	if size.Wd <= 0 || size.Ht <= 0 {
-		pt, ok := pageSize.SizeType()
+		pt, ok := pageSize.Size()
 		if !ok {
-			return &Renderer{err: errs.Errorf("unknown page size %s", pageSize)}
+			return &Renderer{err: fmt.Errorf("unknown page size %s", pageSize)}
 		}
-		defPageSize = SizeType{pt.Wd / k, pt.Ht / k}
+		defPageSize = Size{pt.Wd / k, pt.Ht / k}
 	}
 	w, h := orientation.pageSize(defPageSize)
 	margin := 28.35 / k
@@ -204,15 +206,15 @@ func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirS
 	r = &Renderer{
 		n:               2,
 		pages:           []*bytes.Buffer{bytes.NewBufferString("")}, // pages[0] is unused (1-based)
-		pageSizes:       make(map[int]SizeType),
+		pageSizes:       make(map[int]Size),
 		pageBoxes:       make(map[int]map[string]PageBox),
 		defPageBoxes:    make(map[string]PageBox),
-		fonts:           make(map[string]fontDefType),
-		fontFiles:       make(map[string]fontFileType),
+		fonts:           make(map[string]fontDef),
+		fontFiles:       make(map[string]fontFile),
 		diffs:           make([]string, 0, 8),
-		images:          make(map[string]*ImageInfoType),
-		pageLinks:       [][]linkType{{}},         // pageLinks[0] is unused (1-based)
-		links:           []intLinkType{{}},        // links[0] is unused (1-based)
+		images:          make(map[string]*ImageInfo),
+		pageLinks:       [][]pageLink{{}},         // pageLinks[0] is unused (1-based)
+		links:           []internalPageLink{{}},   // links[0] is unused (1-based)
 		pageAttachments: [][]annotationAttach{{}}, //
 		aliasMap:        make(map[string]string),
 		fontpath:        fontDirStr,
@@ -246,16 +248,16 @@ func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirS
 		zoomMode:         "default",
 		layoutMode:       "default",
 		compress:         !gl.noCompress,
-		spotColorMap:     make(map[string]spotColorType),
-		blendList:        make([]blendModeType, 1, 8), // blendList[0] is unused (1-based)
+		spotColorMap:     make(map[string]spotColor),
+		blendList:        make([]blendMode, 1, 8), // blendList[0] is unused (1-based)
 		blendMap:         make(map[string]int),
 		blendMode:        BlendModeNormal,
 		alpha:            1,
-		gradientList:     make([]gradientType, 1, 8), // gradientList[0] is unused (1-based)
+		gradientList:     make([]gradient, 1, 8), // gradientList[0] is unused (1-based)
 		pdfVersion:       pdfVers1_3,
 		producer:         utf8toutf16("FPDF " + cnFpdfVersion),
-		layer: layerRecType{
-			list:          make([]layerType, 0),
+		layer: layerRec{
+			list:          make([]layer, 0),
 			currentLayer:  -1,
 			openLayerPane: false,
 		},
@@ -284,7 +286,7 @@ func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirS
 // subsequently called to produce a single PDF document. NewCustom() is an
 // alternative to New() that provides additional customization. The PageSize()
 // example demonstrates this method.
-func NewCustom(init *InitType) (r *Renderer) {
+func NewCustom(init *Init) (r *Renderer) {
 	return newRenderer(init.Orientation, init.Unit, init.PageSize, init.FontDirStr, init.Size)
 }
 
@@ -298,7 +300,7 @@ func NewCustom(init *InitType) (r *Renderer) {
 // [UnitMillimeter].
 //
 // pageSize specifies the default page size. The zero value is replaced with [PageSizeA4].
-// Fully custom dimensions can be passed through [NewCustom] via [InitType.Size].
+// Fully custom dimensions can be passed through [NewCustom] via [Init.Size].
 //
 // fontDirStr specifies the file system location in which font resources will
 // be found. An empty string is replaced with ".". This argument only needs to
@@ -306,7 +308,7 @@ func NewCustom(init *InitType) (r *Renderer) {
 // fonts is used. The core fonts are "courier", "helvetica" (also called
 // "arial"), "times", and "zapfdingbats" (also called "symbol").
 func New(orientation Orientation, unit Unit, pageSize PageSize, fontDirStr string) (r *Renderer) {
-	return newRenderer(orientation, unit, pageSize, fontDirStr, SizeType{0, 0})
+	return newRenderer(orientation, unit, pageSize, fontDirStr, Size{0, 0})
 }
 
 // Ok returns true if no processing errors have occurred.
@@ -437,7 +439,7 @@ func (r *Renderer) SetPageBoxRec(t string, pb PageBox) {
 	case "artbox":
 		t = "ArtBox"
 	default:
-		r.err = errs.Errorf("%s is not a valid page box type", t)
+		r.err = fmt.Errorf("%s is not a valid page box type", t)
 		return
 	}
 
@@ -458,7 +460,7 @@ func (r *Renderer) SetPageBoxRec(t string, pb PageBox) {
 // Allowable types are trim, trimbox, crop, cropbox, bleed, bleedbox, art and
 // artbox box types are case insensitive.
 func (r *Renderer) SetPageBox(t string, x, y, wd, ht float64) {
-	r.SetPageBoxRec(t, PageBox{SizeType{Wd: wd, Ht: ht}, PointType{X: x, Y: y}})
+	r.SetPageBoxRec(t, PageBox{Size{Wd: wd, Ht: ht}, Point{X: x, Y: y}})
 }
 
 // SetPage sets the current page to that of a valid page in the PDF document.
@@ -619,7 +621,7 @@ func (r *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
 	case "fullpage", "fullwidth", "real", "default":
 		r.zoomMode = zoomStr
 	default:
-		r.err = errs.Errorf("incorrect zoom display mode: %s", zoomStr)
+		r.err = fmt.Errorf("incorrect zoom display mode: %s", zoomStr)
 		return
 	}
 	switch layoutStr {
@@ -627,7 +629,7 @@ func (r *Renderer) SetDisplayMode(zoomStr, layoutStr string) {
 		"TwoColumnLeft", "TwoColumnRight", "TwoPageLeft", "TwoPageRight":
 		r.layoutMode = layoutStr
 	default:
-		r.err = errs.Errorf("incorrect layout display mode: %s", layoutStr)
+		r.err = fmt.Errorf("incorrect layout display mode: %s", layoutStr)
 		return
 	}
 }
@@ -758,7 +760,7 @@ func (r *Renderer) SetXmpMetadata(xmpStream []byte) {
 }
 
 // AddOutputIntent adds an output intent with ICC color profile
-func (r *Renderer) AddOutputIntent(outputIntent OutputIntentType) {
+func (r *Renderer) AddOutputIntent(outputIntent OutputIntent) {
 	r.outputIntents = append(r.outputIntents, outputIntent)
 	if r.pdfVersion < pdfVers1_4 {
 		r.pdfVersion = pdfVers1_4
@@ -854,7 +856,7 @@ func (r *Renderer) PageSize(pageNum int) (wd, ht float64, unit Unit) {
 // size specifies the size of the new page in the units established in New().
 //
 // The PageSize() example demonstrates this method.
-func (r *Renderer) AddPageFormat(orientation Orientation, size SizeType) {
+func (r *Renderer) AddPageFormat(orientation Orientation, size Size) {
 	if r.err != nil {
 		return
 	}
@@ -992,7 +994,7 @@ func colorComp(v int) (int, float64) {
 	return v, float64(v) / 255.0
 }
 
-func (r *Renderer) rgbColorValue(red, green, blue int, grayStr, fullStr string) (clr colorType) {
+func (r *Renderer) rgbColorValue(red, green, blue int, grayStr, fullStr string) (clr colorState) {
 	clr.ir, clr.r = colorComp(red)
 	clr.ig, clr.g = colorComp(green)
 	clr.ib, clr.b = colorComp(blue)
@@ -1369,7 +1371,7 @@ func (r *Renderer) Ellipse(x, y, rx, ry, degRotate float64, styleStr string) {
 // outlined and filled. An empty string will be replaced with "D". Drawing uses
 // the current draw color and line width centered on the ellipse's perimeter.
 // Filling uses the current fill color.
-func (r *Renderer) Polygon(points []PointType, styleStr string) {
+func (r *Renderer) Polygon(points []Point, styleStr string) {
 	if len(points) > 2 {
 		const prec = 5
 		for j, pt := range points {
@@ -1403,7 +1405,7 @@ func (r *Renderer) Polygon(points []PointType, styleStr string) {
 // outlined and filled. An empty string will be replaced with "D". Drawing uses
 // the current draw color and line width centered on the ellipse's perimeter.
 // Filling uses the current fill color.
-func (r *Renderer) Beziergon(points []PointType, styleStr string) {
+func (r *Renderer) Beziergon(points []Point, styleStr string) {
 
 	// Thanks, Robert Lillack, for contributing this function.
 
@@ -1568,11 +1570,11 @@ func (r *Renderer) SetAlpha(alpha float64, mode BlendMode) {
 	}
 	mode = cmp.Or(mode, BlendModeNormal)
 	if !mode.Valid() {
-		r.err = errs.Errorf("unrecognized blend mode %q", mode)
+		r.err = fmt.Errorf("unrecognized blend mode %q", mode)
 		return
 	}
 	if alpha < 0.0 || alpha > 1.0 {
-		r.err = errs.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
+		r.err = fmt.Errorf("alpha value (0.0 - 1.0) is out of range: %.3f", alpha)
 		return
 	}
 	r.alpha = alpha
@@ -1583,7 +1585,7 @@ func (r *Renderer) SetAlpha(alpha float64, mode BlendMode) {
 	pos, ok := r.blendMap[keyStr]
 	if !ok {
 		pos = len(r.blendList) // at least 1
-		r.blendList = append(r.blendList, blendModeType{alphaStr, alphaStr, modeStr, 0})
+		r.blendList = append(r.blendList, blendMode{alphaStr, alphaStr, modeStr, 0})
 		r.blendMap[keyStr] = pos
 	}
 	if len(r.blendMap) > 0 && r.pdfVersion < pdfVers1_4 {
@@ -1631,7 +1633,7 @@ func (r *Renderer) gradient(tp, r1, g1, b1, r2, g2, b2 int, x1, y1, x2, y2, radi
 	pos := len(r.gradientList)
 	clr1 := r.rgbColorValue(r1, g1, b1, "", "")
 	clr2 := r.rgbColorValue(r2, g2, b2, "", "")
-	r.gradientList = append(r.gradientList, gradientType{tp, clr1.str, clr2.str,
+	r.gradientList = append(r.gradientList, gradient{tp, clr1.str, clr2.str,
 		x1, y1, x2, y2, radius, 0})
 	r.outf("/Sh%d sh", pos)
 }
@@ -1959,7 +1961,7 @@ func (r *Renderer) ClipCircle(x, y, radius float64, outline bool) {
 // ClipEnd() to restore unclipped operations.
 //
 // The ClipText() example demonstrates this method.
-func (r *Renderer) ClipPolygon(points []PointType, outline bool) {
+func (r *Renderer) ClipPolygon(points []Point, outline bool) {
 	r.clipNest++
 	var s bytes.Buffer
 	h := r.h
@@ -2083,7 +2085,7 @@ func (r *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 			return
 		}
 
-		desc := FontDescType{
+		desc := FontDesc{
 			Ascent:       int(utf8File.Ascent),
 			Descent:      int(utf8File.Descent),
 			CapHeight:    utf8File.CapHeight,
@@ -2100,7 +2102,7 @@ func (r *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 		} else {
 			sbarr = makeSubsetRange(32)
 		}
-		def := fontDefType{
+		def := fontDef{
 			Tp:        Type,
 			Name:      fontKey,
 			Desc:      desc,
@@ -2113,11 +2115,11 @@ func (r *Renderer) addFont(familyStr, styleStr, fileStr string, isUTF8 bool) {
 		}
 		def.i, _ = generateFontID(def)
 		r.fonts[fontKey] = def
-		r.fontFiles[fontKey] = fontFileType{
+		r.fontFiles[fontKey] = fontFile{
 			length1:  originalSize,
 			fontType: "UTF8",
 		}
-		r.fontFiles[fileStr] = fontFileType{
+		r.fontFiles[fileStr] = fontFile{
 			fontType: "UTF8",
 		}
 	} else {
@@ -2220,7 +2222,7 @@ func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 			r.SetError(err)
 			return
 		}
-		desc := FontDescType{
+		desc := FontDesc{
 			Ascent:       int(utf8File.Ascent),
 			Descent:      int(utf8File.Descent),
 			CapHeight:    utf8File.CapHeight,
@@ -2237,7 +2239,7 @@ func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		} else {
 			sbarr = makeSubsetRange(32)
 		}
-		def := fontDefType{
+		def := fontDef{
 			Tp:        Type,
 			Name:      fontkey,
 			Desc:      desc,
@@ -2251,7 +2253,7 @@ func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		r.fonts[fontkey] = def
 	} else {
 		// load font definitions
-		var info fontDefType
+		var info fontDef
 		err := json.Unmarshal(jsonFileBytes, &info)
 
 		if err != nil {
@@ -2289,13 +2291,13 @@ func (r *Renderer) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, z
 		// embed font
 		if len(info.File) > 0 {
 			if info.Tp == "TrueType" {
-				r.fontFiles[info.File] = fontFileType{
+				r.fontFiles[info.File] = fontFile{
 					length1:  int64(info.OriginalSize),
 					embedded: true,
 					content:  zFileBytes,
 				}
 			} else {
-				r.fontFiles[info.File] = fontFileType{
+				r.fontFiles[info.File] = fontFile{
 					length1:  int64(info.Size1),
 					length2:  int64(info.Size2),
 					embedded: true,
@@ -2356,9 +2358,9 @@ func (r *Renderer) AddFontFromReader(familyStr, styleStr string, rd io.Reader) {
 	if len(info.File) > 0 {
 		// Embedded font
 		if info.Tp == "TrueType" {
-			r.fontFiles[info.File] = fontFileType{length1: int64(info.OriginalSize)}
+			r.fontFiles[info.File] = fontFile{length1: int64(info.OriginalSize)}
 		} else {
-			r.fontFiles[info.File] = fontFileType{length1: int64(info.Size1), length2: int64(info.Size2)}
+			r.fontFiles[info.File] = fontFile{length1: int64(info.Size1), length2: int64(info.Size2)}
 		}
 	}
 	r.fonts[fontkey] = info
@@ -2367,9 +2369,9 @@ func (r *Renderer) AddFontFromReader(familyStr, styleStr string, rd io.Reader) {
 // GetFontDesc returns the font descriptor, which can be used for
 // example to find the baseline of a font. If familyStr is empty
 // current font descriptor will be returned.
-// See FontDescType for documentation about the font descriptor.
+// See FontDesc for documentation about the font descriptor.
 // See AddFont for details about familyStr and styleStr.
-func (r *Renderer) GetFontDesc(familyStr, styleStr string) FontDescType {
+func (r *Renderer) GetFontDesc(familyStr, styleStr string) FontDesc {
 	if familyStr == "" {
 		return r.currentFont.Desc
 	}
@@ -2458,7 +2460,7 @@ func (r *Renderer) SetFont(familyStr, styleStr string, size float64) {
 				}
 			}
 		} else {
-			r.err = errs.Errorf("undefined font: %s %s", familyStr, styleStr)
+			r.err = fmt.Errorf("undefined font: %s %s", familyStr, styleStr)
 			return
 		}
 	}
@@ -2534,7 +2536,7 @@ func (r *Renderer) GetFontSize() (ptSize, unitSize float64) {
 // The identifier can then be passed to Cell(), Write(), Image() or Link(). The
 // destination is defined with SetLink().
 func (r *Renderer) AddLink() int {
-	r.links = append(r.links, intLinkType{})
+	r.links = append(r.links, internalPageLink{})
 	return len(r.links) - 1
 }
 
@@ -2546,7 +2548,7 @@ func (r *Renderer) SetLink(link int, y float64, page int) {
 	if page == -1 {
 		page = r.page
 	}
-	r.links[link] = intLinkType{page, y}
+	r.links[link] = internalPageLink{page, y}
 }
 
 // newLink adds a new clickable link on current page
@@ -2557,7 +2559,7 @@ func (r *Renderer) newLink(x, y, w, h float64, link int, linkStr string) {
 	// r.pageLinks[r.page] = linkList
 	// }
 	r.pageLinks[r.page] = append(r.pageLinks[r.page],
-		linkType{x * r.k, r.hPt - y*r.k, w * r.k, h * r.k, link, linkStr})
+		pageLink{x * r.k, r.hPt - y*r.k, w * r.k, h * r.k, link, linkStr})
 }
 
 // Link puts a link on a rectangular area of the page. Text or image links are
@@ -2588,7 +2590,7 @@ func (r *Renderer) Bookmark(txtStr string, level int, y float64) {
 	if r.isCurrentUTF8 {
 		txtStr = utf8toutf16(txtStr)
 	}
-	r.outlines = append(r.outlines, outlineType{text: txtStr, level: level, y: y, p: r.PageNo(), prev: -1, last: -1, next: -1, first: -1})
+	r.outlines = append(r.outlines, outline{text: txtStr, level: level, y: y, p: r.PageNo(), prev: -1, last: -1, next: -1, first: -1})
 }
 
 // Text prints a character string. The origin (x, y) is on the left of the
@@ -3107,7 +3109,7 @@ func (r *Renderer) MultiCell(w, h float64, txtStr, borderStr, alignStr string, f
 			ns++
 		}
 		if int(c) >= len(cw) {
-			r.err = errs.Errorf("character outside the supported range: %s", string(c))
+			r.err = fmt.Errorf("character outside the supported range: %s", string(c))
 			return
 		}
 		switch cw[int(c)] {
@@ -3406,7 +3408,7 @@ func (r *Renderer) ImageTypeFromMime(mimeStr string) (tp string) {
 	return tp
 }
 
-func (r *Renderer) imageOut(info *ImageInfoType, x, y, w, h float64, allowNegativeX, flow bool, link int, linkStr string) {
+func (r *Renderer) imageOut(info *ImageInfo, x, y, w, h float64, allowNegativeX, flow bool, link int, linkStr string) {
 	// Automatic width and height calculation if needed
 	if w == 0 && h == 0 {
 		// Put image at 96 dpi
@@ -3489,8 +3491,8 @@ func (r *Renderer) Image(imageNameStr string, x, y, w, h float64, flow bool, tp 
 // are 0, the image is rendered at 96 dpi. If either w or h is zero, it will be
 // calculated from the other dimension so that the aspect ratio is maintained.
 // If w and/or h are -1, the dpi for that dimension will be read from the
-// ImageInfoType object. PNG files can contain dpi information, and if present,
-// this information will be populated in the ImageInfoType object and used in
+// ImageInfo object. PNG files can contain dpi information, and if present,
+// this information will be populated in the ImageInfo object and used in
 // Width, Height, and Extent calculations. Otherwise, the SetDpi function can
 // be used to change the dpi from the default of 72.
 //
@@ -3535,7 +3537,7 @@ func (r *Renderer) ImageOptions(imageNameStr string, x, y, w, h float64, flow bo
 // to the PDF file but not adding it to the page.
 //
 // This function is now deprecated in favor of RegisterImageOptionsReader
-func (r *Renderer) RegisterImageReader(imgName, tp string, rd io.Reader) (info *ImageInfoType) {
+func (r *Renderer) RegisterImageReader(imgName, tp string, rd io.Reader) (info *ImageInfo) {
 	options := ImageOptions{
 		ReadDpi:   false,
 		ImageType: tp,
@@ -3570,7 +3572,7 @@ type ImageOptions struct {
 // case.
 //
 // See Image() for restrictions on the image and the options parameters.
-func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptions, rd io.Reader) (info *ImageInfoType) {
+func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptions, rd io.Reader) (info *ImageInfo) {
 	// Thanks, Ivan Daniluk, for generalizing this code to use the Reader interface.
 	if r.err != nil {
 		return info
@@ -3582,7 +3584,7 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 
 	// First use of this image, get info
 	if options.ImageType == "" {
-		r.err = errs.New("image type should be specified if reading from custom reader")
+		r.err = errors.New("image type should be specified if reading from custom reader")
 		return info
 	}
 	options.ImageType = strings.ToLower(options.ImageType)
@@ -3597,7 +3599,7 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 	case "gif":
 		info = r.parsegif(rd)
 	default:
-		r.err = errs.Errorf("unsupported image type: %s", options.ImageType)
+		r.err = fmt.Errorf("unsupported image type: %s", options.ImageType)
 	}
 	if r.err != nil {
 		return info
@@ -3618,7 +3620,7 @@ func (r *Renderer) RegisterImageOptionsReader(imgName string, options ImageOptio
 //
 // This function is now deprecated in favor of RegisterImageOptions.
 // See Image() for restrictions on the image and the "tp" parameters.
-func (r *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
+func (r *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfo) {
 	options := ImageOptions{
 		ReadDpi:   false,
 		ImageType: tp,
@@ -3631,7 +3633,7 @@ func (r *Renderer) RegisterImage(fileStr, tp string) (info *ImageInfoType) {
 // to the page. Note that Image() calls this function, so this function is only
 // necessary if you need information about the image before placing it. See
 // Image() for restrictions on the image and the "tp" parameters.
-func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (info *ImageInfoType) {
+func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (info *ImageInfo) {
 	info, ok := r.images[fileStr]
 	if ok {
 		return info
@@ -3648,7 +3650,7 @@ func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (i
 	if options.ImageType == "" {
 		pos := strings.LastIndex(fileStr, ".")
 		if pos < 0 {
-			r.err = errs.Errorf("image file has no extension and no type was specified: %s", fileStr)
+			r.err = fmt.Errorf("image file has no extension and no type was specified: %s", fileStr)
 			return info
 		}
 		options.ImageType = fileStr[pos+1:]
@@ -3660,7 +3662,7 @@ func (r *Renderer) RegisterImageOptions(fileStr string, options ImageOptions) (i
 // GetImageInfo returns information about the registered image specified by
 // imageStr. If the image has not been registered, nil is returned. The
 // internal error is not modified by this method.
-func (r *Renderer) GetImageInfo(imageStr string) (info *ImageInfoType) {
+func (r *Renderer) GetImageInfo(imageStr string) (info *ImageInfo) {
 	return r.images[imageStr]
 }
 
@@ -3814,16 +3816,16 @@ func (r *Renderer) Output(w io.Writer) error {
 	return r.err
 }
 
-func (r *Renderer) standardPageSize(pageSize PageSize) SizeType {
-	pt, ok := pageSize.SizeType()
+func (r *Renderer) standardPageSize(pageSize PageSize) Size {
+	pt, ok := pageSize.Size()
 	if !ok {
-		r.err = errs.Errorf("unknown page size %s", pageSize)
-		return SizeType{}
+		r.err = fmt.Errorf("unknown page size %s", pageSize)
+		return Size{}
 	}
-	return SizeType{pt.Wd / r.k, pt.Ht / r.k}
+	return Size{pt.Wd / r.k, pt.Ht / r.k}
 }
 
-func (r *Renderer) beginpage(orientation Orientation, size SizeType) {
+func (r *Renderer) beginpage(orientation Orientation, size Size) {
 	if r.err != nil {
 		return
 	}
@@ -3832,7 +3834,7 @@ func (r *Renderer) beginpage(orientation Orientation, size SizeType) {
 	r.pageBoxes[r.page] = make(map[string]PageBox)
 	maps.Copy(r.pageBoxes[r.page], r.defPageBoxes)
 	r.pages = append(r.pages, bytes.NewBufferString(""))
-	r.pageLinks = append(r.pageLinks, make([]linkType, 0))
+	r.pageLinks = append(r.pageLinks, make([]pageLink, 0))
 	r.pageAttachments = append(r.pageAttachments, []annotationAttach{})
 	r.state = 2
 	r.x = r.lMargin
@@ -3841,7 +3843,7 @@ func (r *Renderer) beginpage(orientation Orientation, size SizeType) {
 	// Check page size and orientation
 	orientation = cmp.Or(orientation, r.defOrientation)
 	if !orientation.Valid() {
-		r.err = errs.Errorf("incorrect orientation: %s", orientation)
+		r.err = fmt.Errorf("incorrect orientation: %s", orientation)
 		return
 	}
 	if orientation != r.curOrientation || size.Wd != r.curPageSize.Wd || size.Ht != r.curPageSize.Ht {
@@ -3853,7 +3855,7 @@ func (r *Renderer) beginpage(orientation Orientation, size SizeType) {
 		r.curPageSize = size
 	}
 	if orientation != r.defOrientation || size.Wd != r.defPageSize.Wd || size.Ht != r.defPageSize.Ht {
-		r.pageSizes[r.page] = SizeType{r.wPt, r.hPt}
+		r.pageSizes[r.page] = Size{r.wPt, r.hPt}
 	}
 }
 
@@ -3863,7 +3865,7 @@ func (r *Renderer) endpage() {
 }
 
 // Load a font definition file from the given Reader
-func (r *Renderer) loadfont(rd io.Reader) (def fontDefType) {
+func (r *Renderer) loadfont(rd io.Reader) (def fontDef) {
 	if r.err != nil {
 		return def
 	}
@@ -3944,14 +3946,14 @@ func (r *Renderer) dostrikeout(x, y float64, txt string) string {
 		(r.h-(y+4*up/1000*r.fontSize))*r.k, w*r.k, -ut/1000*r.fontSizePt)
 }
 
-func (r *Renderer) newImageInfo() *ImageInfoType {
+func (r *Renderer) newImageInfo() *ImageInfo {
 	// default dpi to 72 unless told otherwise
-	return &ImageInfoType{scale: r.k, dpi: 72}
+	return &ImageInfo{scale: r.k, dpi: 72}
 }
 
 // parsejpg extracts info from io.Reader with JPEG data
 // Thank you, Bruno Michel, for providing this code.
-func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
+func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfo) {
 	info = r.newImageInfo()
 	var (
 		data bytes.Buffer
@@ -3981,14 +3983,14 @@ func (r *Renderer) parsejpg(rd io.Reader) (info *ImageInfoType) {
 	case color.CMYKModel:
 		info.cs = "DeviceCMYK"
 	default:
-		r.err = errs.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
+		r.err = fmt.Errorf("image JPEG buffer has unsupported color space (%v)", config.ColorModel)
 		return info
 	}
 	return info
 }
 
 // parsepng extracts info from a PNG data
-func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfoType) {
+func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfo) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		r.err = err
@@ -3998,7 +4000,7 @@ func (r *Renderer) parsepng(rd io.Reader, readdpi bool) (info *ImageInfoType) {
 }
 
 // parsegif extracts info from a GIF data (via PNG conversion)
-func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfoType) {
+func (r *Renderer) parsegif(rd io.Reader) (info *ImageInfo) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		r.err = err
@@ -4227,7 +4229,7 @@ func (r *Renderer) replaceAliases() {
 
 func (r *Renderer) putpages() {
 	var wPt, hPt float64
-	var pageSize SizeType
+	var pageSize Size
 	var ok bool
 	nb := r.page
 	if len(r.aliasNbPagesStr) > 0 {
@@ -4270,7 +4272,7 @@ func (r *Renderer) putpages() {
 					fmt.Fprintf(&annots, "/A <</S /URI /URI %s>>>>", r.textstring(pl.linkStr))
 				} else {
 					l := r.links[pl.link]
-					var sz SizeType
+					var sz Size
 					var h float64
 					sz, ok = r.pageSizes[l.page]
 					if ok {
@@ -4335,7 +4337,7 @@ func (r *Renderer) putfonts() {
 	}
 	{
 		var fileList []string
-		var info fontFileType
+		var info fontFile
 		var file string
 		for file = range r.fontFiles {
 			fileList = append(fileList, file)
@@ -4545,14 +4547,14 @@ func (r *Renderer) putfonts() {
 				xmem.release(mem)
 
 			default:
-				r.err = errs.Errorf("unsupported font type: %s", tp)
+				r.err = fmt.Errorf("unsupported font type: %s", tp)
 				return
 			}
 		}
 	}
 }
 
-func (r *Renderer) generateCIDFontMap(font *fontDefType, LastRune int) {
+func (r *Renderer) generateCIDFontMap(font *fontDef, LastRune int) {
 	rangeID := 0
 	cidArray := make(map[int]*cidWidthRange)
 	cidArrayKeys := make([]int, 0)
@@ -4795,7 +4797,7 @@ func (r *Renderer) putimages() {
 	}
 }
 
-func (r *Renderer) putimage(info *ImageInfoType) {
+func (r *Renderer) putimage(info *ImageInfo) {
 	r.newobj()
 	info.n = r.n
 	r.out("<</Type /XObject")
@@ -4832,7 +4834,7 @@ func (r *Renderer) putimage(info *ImageInfoType) {
 	r.out("endobj")
 	// 	Soft mask
 	if len(info.smask) > 0 {
-		smask := &ImageInfoType{
+		smask := &ImageInfo{
 			w:     info.w,
 			h:     info.h,
 			cs:    "DeviceGray",
@@ -5035,10 +5037,15 @@ func (r *Renderer) putinfo() {
 	if len(r.creator) > 0 {
 		r.outf("/Creator %s", r.textstring(r.creator))
 	}
+	// With XMP metadata present (PDF/A mode) the dates carry the timezone,
+	// fully specifying the instants so they can be consistent with the XMP
+	// dates as PDF/A requires; otherwise the legacy format is kept for byte
+	// parity with the fpdf baseline.
+	withTimezone := len(r.xmp) != 0
 	creation := timeOrNow(r.creationDate)
-	r.outf("/CreationDate %s", r.textstring("D:"+creation.Format("20060102150405")))
+	r.outf("/CreationDate %s", r.textstring(pdfDate(creation, withTimezone)))
 	mod := timeOrNow(r.modDate)
-	r.outf("/ModDate %s", r.textstring("D:"+mod.Format("20060102150405")))
+	r.outf("/ModDate %s", r.textstring(pdfDate(mod, withTimezone)))
 }
 
 func (r *Renderer) putcatalog() {
@@ -5095,6 +5102,10 @@ func (r *Renderer) putcatalog() {
 	// Embedded files
 	r.outf("/EmbeddedFiles %s", r.getEmbeddedFiles())
 	r.out(">>")
+	// Associated files (PDF/A-3)
+	if af := r.getAssociatedFiles(); af != "" {
+		r.outf("/AF %s", af)
+	}
 }
 
 func (r *Renderer) putheader() {
@@ -5106,9 +5117,15 @@ func (r *Renderer) puttrailer() {
 	r.outf("/Size %d", r.n+1)
 	r.outf("/Root %d 0 R", r.n)
 	r.outf("/Info %d 0 R", r.n-1)
-	if r.protect.encrypted {
+	switch {
+	case r.protect.encrypted:
 		r.outf("/Encrypt %d 0 R", r.protect.objNum)
 		r.out("/ID [()()]")
+	case len(r.xmp) != 0:
+		// PDF/A requires a file identifier in the trailer. The hash of the
+		// document bytes so far is deterministic for fixed dates.
+		id := checksum(r.buffer.Bytes())
+		r.outf("/ID [<%s> <%s>]", id, id)
 	}
 }
 

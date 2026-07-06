@@ -83,8 +83,8 @@ adversarial re-review; several reproduced with standalone programs).
       single pass without intermediate slices; `repClosure` builds through
       `strings.Builder` (no final copy).
 - [x] **Types moved to their matching files** — the `Renderer` struct lives in
-      `renderer.go`, `colorMode`/`colorType` in `color.go`, and
-      `spotColorType`/`cmykColorType` in `spotcolor.go`; `def.go` keeps only
+      `renderer.go`, `colorMode`/`colorState` in `color.go`, and
+      `spotColor`/`cmykColor` in `spotcolor.go`; `def.go` keeps only
       the types without a natural home file.
 
 ## Known intentional divergences from the legacy stack (documented, not bugs)

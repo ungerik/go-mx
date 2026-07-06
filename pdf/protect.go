@@ -38,7 +38,7 @@ const (
 	CnProtectAnnotForms = 32
 )
 
-type protectType struct {
+type protect struct {
 	encrypted     bool
 	uValue        []byte
 	oValue        []byte
@@ -50,7 +50,7 @@ type protectType struct {
 	rc4n          uint32 // Object number associated with rc4 cipher
 }
 
-func (p *protectType) rc4(n uint32, buf *[]byte) {
+func (p *protect) rc4(n uint32, buf *[]byte) {
 	if p.rc4cipher == nil || p.rc4n != n {
 		p.rc4cipher, _ = rc4.NewCipher(p.objectKey(n))
 		p.rc4n = n
@@ -58,7 +58,7 @@ func (p *protectType) rc4(n uint32, buf *[]byte) {
 	p.rc4cipher.XORKeyStream(*buf, *buf)
 }
 
-func (p *protectType) objectKey(n uint32) []byte {
+func (p *protect) objectKey(n uint32) []byte {
 	var nbuf, b []byte
 	nbuf = make([]byte, 8)
 	binary.LittleEndian.PutUint32(nbuf, n)
@@ -78,7 +78,7 @@ func oValueGen(userPass, ownerPass []byte) (v []byte) {
 	return v
 }
 
-func (p *protectType) uValueGen() (v []byte) {
+func (p *protect) uValueGen() (v []byte) {
 	var c *rc4.Cipher
 	c, _ = rc4.NewCipher(p.encryptionKey)
 	size := len(p.padding)
@@ -87,7 +87,7 @@ func (p *protectType) uValueGen() (v []byte) {
 	return v
 }
 
-func (p *protectType) setProtection(privFlag byte, userPassStr, ownerPassStr string) {
+func (p *protect) setProtection(privFlag byte, userPassStr, ownerPassStr string) {
 	privFlag = 192 | (privFlag & (CnProtectCopy | CnProtectModify | CnProtectPrint | CnProtectAnnotForms))
 	p.padding = []byte{
 		0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
