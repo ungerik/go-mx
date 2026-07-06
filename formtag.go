@@ -31,8 +31,14 @@ type FormTag struct {
 	// Pattern is a regex constraint applied to string-shaped inputs.
 	Pattern string
 
-	// Options names an OptionsProvider entry — for types that do not
-	// implement Enums()/EnumStrings() themselves.
+	// Options names an options provider registered with
+	// [RegisterNamedOptions] — for field types that do not (or cannot)
+	// implement an options-provider interface or the
+	// Enums()/EnumStrings() convention themselves (foreign ID types,
+	// plain strings). A non-empty Options implies a select widget
+	// (enum-set for set-shaped fields) unless Widget says otherwise;
+	// the option list is resolved at render time with the request
+	// context via [CollectOptions].
 	Options string
 
 	// Min, Max, Step are numeric / range constraints. Empty when

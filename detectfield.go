@@ -52,6 +52,14 @@ import (
 //   - Before rule 3, a form:"repeatable" tag on a direct []struct /
 //     []*struct field (element not a single-value type) yields
 //     FieldKindRepeatable; on any other shape the tag is ignored.
+//   - Between rules 7 and 8, a form:"options=name" tag yields
+//     FieldKindEnum (set-shaped fields: FieldKindEnumSet); the name
+//     must be registered via [RegisterNamedOptions] before rendering.
+//     On []byte and non-set map shapes the tag is ignored.
+//   - Rules 9-11 accept the options-provider interfaces
+//     ([OptionsProvider], [NamedOptionsProvider],
+//     [NamedOptionsContextProvider]) as equivalent to the
+//     Enums()/EnumStrings() convention.
 func DetectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
 	tag := ParseFormTag(field)
 
@@ -123,6 +131,29 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		return FieldKindString, tag
 	}
 
+	// 7.5. options tag names a provider registered with
+	// [RegisterNamedOptions] → option-driven widget. Set-shaped fields
+	// (map[T]struct{} or []T) render as an enum-set of checkboxes,
+	// other shapes as a single select. On shapes that cannot render or
+	// parse as options — []byte and non-set maps — the tag is ignored
+	// and detection falls through to the structural rules, mirroring
+	// how form:"repeatable" handles unsupported shapes.
+	if tag.Options != "" {
+		ft := derefType(field.Type)
+		switch ft.Kind() {
+		case reflect.Map:
+			if ft.Elem().Kind() == reflect.Struct && ft.Elem().NumField() == 0 {
+				return FieldKindEnumSet, tag
+			}
+		case reflect.Slice:
+			if ft.Elem().Kind() != reflect.Uint8 {
+				return FieldKindEnumSet, tag
+			}
+		default:
+			return FieldKindEnum, tag
+		}
+	}
+
 	// 8. self-declared widget hint
 	if t := field.Type; implementsFormWidgetHint(t) {
 		// We don't call the hint here (would require an addressable
@@ -146,8 +177,8 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		}
 	}
 
-	// 9. Enums / EnumStrings convention
-	if hasEnumMethods(field.Type) {
+	// 9. Enums / EnumStrings convention or an options-provider interface
+	if hasEnumMethods(field.Type) || hasOptionsProviderInterfaces(field.Type) {
 		return FieldKindEnum, tag
 	}
 
@@ -156,14 +187,15 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	switch ft.Kind() {
 	case reflect.Map:
 		if ft.Elem().Kind() == reflect.Struct && ft.Elem().NumField() == 0 &&
-			hasEnumMethods(ft.Key()) {
+			(hasEnumMethods(ft.Key()) || hasOptionsProviderInterfaces(ft.Key())) {
 			return FieldKindEnumSet, tag
 		}
 	case reflect.Slice:
 		// []byte / json.RawMessage-shape gets textarea (rule 17 below);
 		// other slice elements that satisfy the enum convention get
 		// the enum-set kind.
-		if ft.Elem().Kind() != reflect.Uint8 && hasEnumMethods(ft.Elem()) {
+		if ft.Elem().Kind() != reflect.Uint8 &&
+			(hasEnumMethods(ft.Elem()) || hasOptionsProviderInterfaces(ft.Elem())) {
 			return FieldKindEnumSet, tag
 		}
 	}
@@ -207,11 +239,14 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	return FieldKindCatchAll, tag
 }
 
-// derefType returns the element type of a pointer/interface chain,
-// stopping at the first non-pointer/non-interface type. Useful for
-// "what is this value really" checks where pointer-ness is incidental.
+// derefType returns the element type of a pointer chain, stopping at
+// the first non-pointer type. Useful for "what is this value really"
+// checks where pointer-ness is incidental. Interface types are
+// returned as-is: reflect.Type.Elem panics on interface kinds (a type
+// has no element, only a value does), so callers' structural switches
+// simply fall through for interface-typed fields.
 func derefType(t reflect.Type) reflect.Type {
-	for t != nil && (t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface) {
+	for t != nil && t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	return t

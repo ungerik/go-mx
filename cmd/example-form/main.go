@@ -46,7 +46,22 @@ func (Feature) EnumStrings() []string {
 type AccountingInfo struct {
 	VATNumber string `form:"label=VAT number"`
 	BillingTo string
-	Currency  string `form:"widget=select,options=currencies"`
+	Currency  string `form:"options=currencies"`
+}
+
+// The currencies dropdown demonstrates [mx.RegisterNamedOptions]: the
+// options tag alone makes the plain string field a select, and the
+// registered provider resolves the list at render time with the
+// request context (a static list here; real applications query
+// per-tenant data via ctx).
+func init() {
+	mx.RegisterNamedOptions("currencies", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{
+			{Name: "Euro (EUR)", Value: "EUR"},
+			{Name: "US Dollar (USD)", Value: "USD"},
+			{Name: "Swiss Franc (CHF)", Value: "CHF"},
+		}, nil
+	})
 }
 
 // LineItem is one row of the repeatable invoice-line editor, the

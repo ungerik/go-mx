@@ -132,7 +132,9 @@ func TestSingleValueRegistry_FormWidgetHintAutoRegisters(t *testing.T) {
 func TestSingleValueRegistry_Register(t *testing.T) {
 	type customSingle struct{ A int }
 	if SingleValueTypes.Has(reflect.TypeFor[customSingle]()) {
-		t.Fatalf("not registered yet")
+		// The registry is process-global; under `go test -count=2` a
+		// previous run in this process already registered the type.
+		t.Skip("already registered by a previous run in this process")
 	}
 	SingleValueTypes.Register(reflect.TypeFor[customSingle]())
 	if !SingleValueTypes.Has(reflect.TypeFor[customSingle]()) {
@@ -155,5 +157,83 @@ func TestImplementsTextUnmarshaler(t *testing.T) {
 	}
 	if ImplementsTextUnmarshaler(reflect.TypeFor[int]()) {
 		t.Errorf("int does not implement TextUnmarshaler")
+	}
+}
+
+type staticOptionsField string
+
+func (staticOptionsField) Options() []string { return []string{"a", "b"} }
+
+func TestDetectField_OptionsTagAndProviderInterfaces(t *testing.T) {
+	type optionsForm struct {
+		Partner    string              `form:"options=partners"`
+		PartnerSet []string            `form:"options=partners"`
+		PartnerMap map[string]struct{} `form:"options=partners"`
+		WidgetWins string              `form:"widget=text,options=partners"`
+		Static     staticOptionsField
+		StaticSet  []staticOptionsField
+		CtxBased   ctxPartnerID
+		CtxSet     []ctxPartnerID
+	}
+	s := &optionsForm{}
+	cases := []struct {
+		field string
+		want  FieldKind
+	}{
+		{"Partner", FieldKindEnum},
+		{"PartnerSet", FieldKindEnumSet},
+		{"PartnerMap", FieldKindEnumSet},
+		{"WidgetWins", FieldKindString}, // explicit widget beats options tag
+		{"Static", FieldKindEnum},
+		{"StaticSet", FieldKindEnumSet},
+		{"CtxBased", FieldKindEnum},
+		{"CtxSet", FieldKindEnumSet},
+	}
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			got, _ := detectKind(t, s, c.field)
+			if got != c.want {
+				t.Errorf("got %s, want %s", got, c.want)
+			}
+		})
+	}
+}
+
+func TestDetectField_ProviderInterfaceMapKey(t *testing.T) {
+	type mapForm struct {
+		CtxFeatures map[ctxPartnerID]struct{}
+	}
+	got, _ := detectKind(t, &mapForm{}, "CtxFeatures")
+	if got != FieldKindEnumSet {
+		t.Errorf("map with provider-interface key: got %s, want %s", got, FieldKindEnumSet)
+	}
+}
+
+func TestDetectField_OptionsTagShapeEdges(t *testing.T) {
+	type edgeForm struct {
+		Bytes    []byte            `form:"options=partners"`
+		BadMap   map[string]string `form:"options=partners"`
+		Hinted   hintedField       `form:"options=partners"`
+		PtrProv  *ctxPartnerID
+		AnyField any
+	}
+	s := &edgeForm{}
+	cases := []struct {
+		field string
+		want  FieldKind
+	}{
+		{"Bytes", FieldKindTextarea},    // tag ignored on []byte
+		{"BadMap", FieldKindCatchAll},   // tag ignored on non-set maps
+		{"Hinted", FieldKindEnum},       // explicit options tag beats FormWidgetHint
+		{"PtrProv", FieldKindEnum},      // provider interface through pointer type
+		{"AnyField", FieldKindCatchAll}, // interface field must not panic in derefType
+	}
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			got, _ := detectKind(t, s, c.field)
+			if got != c.want {
+				t.Errorf("got %s, want %s", got, c.want)
+			}
+		})
 	}
 }
