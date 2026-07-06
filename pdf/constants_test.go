@@ -18,9 +18,9 @@ func TestUnitNormalize(t *testing.T) {
 		{Unit("bogus"), "", false},
 	}
 	for _, tc := range tests {
-		got, ok := tc.in.normalize()
+		got, ok := NormalizeUnit(tc.in)
 		if ok != tc.ok || got != tc.want {
-			t.Errorf("Unit(%q).normalize() = (%q, %v), want (%q, %v)", tc.in, got, ok, tc.want, tc.ok)
+			t.Errorf("NormalizeUnit(%q) = (%q, %v), want (%q, %v)", tc.in, got, ok, tc.want, tc.ok)
 		}
 	}
 }
@@ -40,25 +40,25 @@ func TestPageSizeNormalize(t *testing.T) {
 		{PageSize("unknown"), "", false},
 	}
 	for _, tc := range tests {
-		got, ok := tc.in.normalize()
+		got, ok := NormalizePageSize(tc.in)
 		if ok != tc.ok || got != tc.want {
-			t.Errorf("PageSize(%q).normalize() = (%q, %v), want (%q, %v)", tc.in, got, ok, tc.want, tc.ok)
+			t.Errorf("NormalizePageSize(%q) = (%q, %v), want (%q, %v)", tc.in, got, ok, tc.want, tc.ok)
 		}
 	}
 }
 
-func TestPageSizeSizeType(t *testing.T) {
-	sz, ok := PageSizeA4.SizeType()
+func TestPageSizeSize(t *testing.T) {
+	sz, ok := PageSizeA4.Size()
 	if !ok {
-		t.Fatal("PageSizeA4.SizeType() ok = false")
+		t.Fatal("PageSizeA4.Size() ok = false")
 	}
 	if !floatEqual(sz.Wd, 595.28) || !floatEqual(sz.Ht, 841.89) {
 		t.Errorf("PageSizeA4 in pt: got %v×%v, want ~595.28×841.89", sz.Wd, sz.Ht)
 	}
 
-	_, ok = PageSize("bogus").SizeType()
+	_, ok = PageSize("bogus").Size()
 	if ok {
-		t.Error("bogus page size should not have SizeType")
+		t.Error("bogus page size should not have Size")
 	}
 }
 

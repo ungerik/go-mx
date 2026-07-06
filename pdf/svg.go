@@ -2,13 +2,14 @@ package pdf
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 )
 
@@ -62,7 +63,7 @@ func SVG(root *mx.Element, x, y, w, h float64) Component {
 			return err
 		}
 		if root.Name != "svg" {
-			return errs.Errorf("pdf.SVG needs an <svg> root element, got <%s>", root.Name)
+			return fmt.Errorf("pdf.SVG needs an <svg> root element, got <%s>", root.Name)
 		}
 		r.ensurePage()
 		if err := r.Error(); err != nil {
@@ -130,7 +131,7 @@ func resolveSVGBoxSize(attrs map[string]string, w, h float64) (float64, float64,
 	case w <= 0 && h <= 0 && iw > 0 && ih > 0:
 		return iw, ih, nil
 	}
-	return 0, 0, errs.New("pdf.SVG cannot determine the size: pass w and h, or give the SVG a width/height or viewBox")
+	return 0, 0, errors.New("pdf.SVG cannot determine the size: pass w and h, or give the SVG a width/height or viewBox")
 }
 
 // svgViewport is the size of the current SVG viewport in user units, the
@@ -163,7 +164,7 @@ type svgSavedState struct {
 	// an unset or partially-set ambient font exactly.
 	fontFamily, fontStyle string
 	underline, strikeout  bool
-	currentFont           fontDefType
+	currentFont           fontDef
 	fontSizePt, fontSize  float64
 	isCurrentUTF8         bool
 	textColor, fill, draw Color
@@ -332,7 +333,7 @@ func (sr *svgRenderer) renderViewport(ctx context.Context, el *mx.Element, attrs
 	if vb, ok := attrs["viewBox"]; ok {
 		vals, err := parseSVGNumberList(vb)
 		if err != nil || len(vals) != 4 || vals[2] < 0 || vals[3] < 0 {
-			return errs.Errorf("invalid SVG viewBox %q", vb)
+			return fmt.Errorf("invalid SVG viewBox %q", vb)
 		}
 		if vals[2] == 0 || vals[3] == 0 {
 			return nil // spec: a zero viewBox width or height disables rendering
@@ -384,7 +385,7 @@ func parseSVGPreserveAspectRatio(s string) (alignX, alignY float64, none, meet b
 		case "slice":
 			meet = false
 		default:
-			return 0, 0, false, false, errs.Errorf("invalid preserveAspectRatio %q", s)
+			return 0, 0, false, false, fmt.Errorf("invalid preserveAspectRatio %q", s)
 		}
 	}
 	if align == "none" {
@@ -407,7 +408,7 @@ func parseSVGPreserveAspectRatio(s string) (alignX, alignY float64, none, meet b
 		alignY, okY = factor(align[5:8])
 	}
 	if !okX || !okY {
-		return 0, 0, false, false, errs.Errorf("invalid preserveAspectRatio %q", s)
+		return 0, 0, false, false, fmt.Errorf("invalid preserveAspectRatio %q", s)
 	}
 	return alignX, alignY, false, meet, nil
 }
@@ -484,7 +485,7 @@ func (sr *svgRenderer) renderElement(ctx context.Context, el *mx.Element, st svg
 			return err
 		}
 		if w < 0 || h < 0 {
-			return errs.Errorf("negative SVG viewport size %g x %g", w, h)
+			return fmt.Errorf("negative SVG viewport size %g x %g", w, h)
 		}
 		if w == 0 || h == 0 {
 			return nil
@@ -560,7 +561,7 @@ func (sr *svgRenderer) renderRect(attrs map[string]string, st svgStyle, vp svgVi
 		return err
 	}
 	if w < 0 || h < 0 {
-		return errs.Errorf("negative SVG rect size %g x %g", w, h)
+		return fmt.Errorf("negative SVG rect size %g x %g", w, h)
 	}
 	if w == 0 || h == 0 {
 		return nil
@@ -574,7 +575,7 @@ func (sr *svgRenderer) renderRect(attrs map[string]string, st svgStyle, vp svgVi
 		return err
 	}
 	if rx < 0 || ry < 0 {
-		return errs.Errorf("negative SVG rect corner radius %g/%g", rx, ry)
+		return fmt.Errorf("negative SVG rect corner radius %g/%g", rx, ry)
 	}
 	// The auto rules: a missing radius takes the other one's value.
 	if !hasRX {
@@ -605,7 +606,7 @@ func (sr *svgRenderer) renderCircle(attrs map[string]string, st svgStyle, vp svg
 		return err
 	}
 	if rad < 0 {
-		return errs.Errorf("negative SVG circle radius %g", rad)
+		return fmt.Errorf("negative SVG circle radius %g", rad)
 	}
 	if rad == 0 {
 		return nil
@@ -640,7 +641,7 @@ func (sr *svgRenderer) renderEllipse(attrs map[string]string, st svgStyle, vp sv
 		ry = rx
 	}
 	if rx < 0 || ry < 0 {
-		return errs.Errorf("negative SVG ellipse radius %g/%g", rx, ry)
+		return fmt.Errorf("negative SVG ellipse radius %g/%g", rx, ry)
 	}
 	if rx == 0 || ry == 0 {
 		return nil
@@ -679,7 +680,7 @@ func (sr *svgRenderer) renderLine(attrs map[string]string, st svgStyle, vp svgVi
 func (sr *svgRenderer) renderPoly(attrs map[string]string, st svgStyle, closed bool) error {
 	coords, err := parseSVGNumberList(attrs["points"])
 	if err != nil {
-		return errs.Errorf("invalid SVG points %q: %w", attrs["points"], err)
+		return fmt.Errorf("invalid SVG points %q: %w", attrs["points"], err)
 	}
 	coords = coords[:len(coords)/2*2] // an odd trailing coordinate is dropped
 	if len(coords) < 4 {
@@ -1204,7 +1205,7 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 			return err
 		}
 		if w < 0 {
-			return errs.Errorf("negative stroke-width %q", value)
+			return fmt.Errorf("negative stroke-width %q", value)
 		}
 		st.strokeWidth = w
 	case "stroke-linecap":
@@ -1237,7 +1238,7 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 		if strings.HasSuffix(value, "em") && !strings.HasSuffix(value, "rem") {
 			f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(value, "em")), 64)
 			if err != nil {
-				return errs.Errorf("invalid font-size %q", value)
+				return fmt.Errorf("invalid font-size %q", value)
 			}
 			st.fontSize = f * st.fontSize
 			return nil
@@ -1311,7 +1312,7 @@ func (st *svgStyle) setDashArray(value string, vp svgViewport) error {
 			return err
 		}
 		if d < 0 {
-			return errs.Errorf("negative value in stroke-dasharray %q", value)
+			return fmt.Errorf("negative value in stroke-dasharray %q", value)
 		}
 		if d != 0 {
 			allZero = false
@@ -1338,12 +1339,12 @@ func (st *svgStyle) setDashArray(value string, vp svgViewport) error {
 func parseSVGLength(s string, ref float64) (float64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return 0, errs.New("empty SVG length")
+		return 0, errors.New("empty SVG length")
 	}
 	if p, ok := strings.CutSuffix(s, "%"); ok {
 		v, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
 		if err != nil {
-			return 0, errs.Errorf("invalid SVG percentage %q", s)
+			return 0, fmt.Errorf("invalid SVG percentage %q", s)
 		}
 		return v / 100 * ref, nil
 	}
@@ -1366,7 +1367,7 @@ func parseSVGLength(s string, ref float64) (float64, error) {
 	}
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, errs.Errorf("invalid SVG length %q", s)
+		return 0, fmt.Errorf("invalid SVG length %q", s)
 	}
 	return v * factor, nil
 }

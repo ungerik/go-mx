@@ -1,10 +1,9 @@
 package pdf
 
 import (
+	"fmt"
 	"math"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 // SVG affine transform support for the best-effort SVG renderer (see svg.go):
@@ -56,16 +55,16 @@ func parseSVGTransform(s string) (svgMatrix, error) {
 	for rest != "" {
 		open := strings.IndexByte(rest, '(')
 		if open < 0 {
-			return m, errs.Errorf("invalid SVG transform %q", s)
+			return m, fmt.Errorf("invalid SVG transform %q", s)
 		}
 		name := strings.TrimSpace(rest[:open])
 		closing := strings.IndexByte(rest[open:], ')')
 		if closing < 0 {
-			return m, errs.Errorf("invalid SVG transform %q", s)
+			return m, fmt.Errorf("invalid SVG transform %q", s)
 		}
 		args, err := parseSVGNumberList(rest[open+1 : open+closing])
 		if err != nil {
-			return m, errs.Errorf("invalid SVG transform %q: %w", s, err)
+			return m, fmt.Errorf("invalid SVG transform %q: %w", s, err)
 		}
 		rest = strings.TrimSpace(rest[open+closing+1:])
 		rest = strings.TrimSpace(strings.TrimPrefix(rest, ","))
@@ -93,7 +92,7 @@ func parseSVGTransform(s string) (svgMatrix, error) {
 		case name == "skewY" && len(args) == 1:
 			fn = svgMatrix{a: 1, d: 1, b: math.Tan(args[0] * math.Pi / 180)}
 		default:
-			return m, errs.Errorf("invalid SVG transform function %q with %d arguments", name, len(args))
+			return m, fmt.Errorf("invalid SVG transform function %q with %d arguments", name, len(args))
 		}
 		m = m.mul(fn)
 	}

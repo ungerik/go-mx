@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"errors"
 	"math"
 
 	"github.com/domonda/go-errs"
@@ -59,7 +60,7 @@ func (r *Renderer) TransformScaleXY(s, x, y float64) {
 // The TransformBegin() example demonstrates this method.
 func (r *Renderer) TransformScale(scaleWd, scaleHt, x, y float64) {
 	if scaleWd == 0 || scaleHt == 0 {
-		r.err = errs.New("scale factor cannot be zero")
+		r.err = errors.New("scale factor cannot be zero")
 		return
 	}
 	y = (r.h - y) * r.k
@@ -174,7 +175,7 @@ func (r *Renderer) TransformSkewY(angleY, x, y float64) {
 // The TransformBegin() example demonstrates this method.
 func (r *Renderer) TransformSkew(angleX, angleY, x, y float64) {
 	if angleX <= -90 || angleX >= 90 || angleY <= -90 || angleY >= 90 {
-		r.err = errs.New("skew values must be between -90° and 90°")
+		r.err = errors.New("skew values must be between -90° and 90°")
 		return
 	}
 	x *= r.k

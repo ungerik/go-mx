@@ -22,6 +22,8 @@ package pdf
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"maps"
 	"math"
 	"slices"
@@ -49,7 +51,7 @@ type utf8FontFile struct {
 	Ascent               int
 	Descent              int
 	fontElementSize      int
-	Bbox                 fontBoxType
+	Bbox                 fontBox
 	CapHeight            int
 	StemV                int
 	ItalicAngle          int
@@ -107,7 +109,7 @@ func (utf *utf8FontFile) parseFile() (err error) {
 	// the process.
 	defer func() {
 		if rec := recover(); rec != nil {
-			err = errs.Errorf("malformed TrueType font: %v", rec)
+			err = fmt.Errorf("malformed TrueType font: %v", rec)
 		}
 	}()
 	utf.fileReader.readerPosition = 0
@@ -120,11 +122,11 @@ func (utf *utf8FontFile) parseFile() (err error) {
 	codeType := uint32(utf.readUint32())
 	switch {
 	case codeType == 0x4F54544F: // "OTTO"
-		return errs.New("OpenType fonts with PostScript outlines are not supported")
+		return errors.New("OpenType fonts with PostScript outlines are not supported")
 	case codeType == 0x74746366: // "ttcf"
-		return errs.New("TrueType collections are not supported")
+		return errors.New("TrueType collections are not supported")
 	case codeType != 0x00010000 && codeType != 0x74727565:
-		return errs.Errorf("not a TrueType font: codeType=%v", codeType)
+		return fmt.Errorf("not a TrueType font: codeType=%v", codeType)
 	}
 	utf.generateTableDescriptions()
 	return utf.parseTables()
@@ -276,12 +278,12 @@ func (utf *utf8FontFile) parseHEADTable() error {
 	yMin := utf.readInt16()
 	xMax := utf.readInt16()
 	yMax := utf.readInt16()
-	utf.Bbox = fontBoxType{int(float64(xMin) * scale), int(float64(yMin) * scale), int(float64(xMax) * scale), int(float64(yMax) * scale)}
+	utf.Bbox = fontBox{int(float64(xMin) * scale), int(float64(yMin) * scale), int(float64(xMax) * scale), int(float64(yMax) * scale)}
 	utf.skip(3 * 2)
 	_ = utf.readUint16()
 	symbolDataFormat := utf.readUint16()
 	if symbolDataFormat != 0 {
-		return errs.Errorf("unknown symbol data format %d", symbolDataFormat)
+		return fmt.Errorf("unknown symbol data format %d", symbolDataFormat)
 	}
 	return nil
 }
@@ -299,11 +301,11 @@ func (utf *utf8FontFile) parseHHEATable() (int, error) {
 		utf.skip(24)
 		metricDataFormat := utf.readUint16()
 		if metricDataFormat != 0 {
-			return 0, errs.Errorf("unknown horizontal metric data format %d", metricDataFormat)
+			return 0, fmt.Errorf("unknown horizontal metric data format %d", metricDataFormat)
 		}
 		metricsCount = utf.readUint16()
 		if metricsCount == 0 {
-			return 0, errs.New("number of horizontal metrics is 0")
+			return 0, errors.New("number of horizontal metrics is 0")
 		}
 	}
 	return metricsCount, nil
@@ -325,7 +327,7 @@ func (utf *utf8FontFile) parseOS2Table() (int, error) {
 		// font anyway.
 		fsType := utf.readUint16()
 		if fsType == 0x0002 || (fsType&0x0300) != 0 {
-			return 0, errs.New("font license does not permit embedding (fsType restriction)")
+			return 0, errors.New("font license does not permit embedding (fsType restriction)")
 		}
 		utf.skip(20)
 		_ = utf.readInt16()
@@ -401,7 +403,7 @@ func (utf *utf8FontFile) parseCMAPTable() (int, error) {
 		}
 		utf.seek(int(oldReaderPosition))
 	}
-	return 0, errs.New("font does not have a cmap for Unicode")
+	return 0, errors.New("font does not have a cmap for Unicode")
 }
 
 func (utf *utf8FontFile) parseTables() error {
@@ -560,7 +562,7 @@ func (utf *utf8FontFile) GenerateCutFont(usedRunes map[int]int) (data []byte, er
 	defer func() {
 		if rec := recover(); rec != nil {
 			data = nil
-			err = errs.Errorf("malformed TrueType font: %v", rec)
+			err = fmt.Errorf("malformed TrueType font: %v", rec)
 		}
 	}()
 	utf.fileReader.readerPosition = 0
@@ -847,7 +849,7 @@ func (utf *utf8FontFile) parseLOCATable(format, numSymbols int) error {
 			utf.symbolPosition = append(utf.symbolPosition, arr[n+1])
 		}
 	default:
-		return errs.Errorf("unknown loca table format %d", format)
+		return fmt.Errorf("unknown loca table format %d", format)
 	}
 	return nil
 }

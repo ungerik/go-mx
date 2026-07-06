@@ -103,8 +103,10 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`pdf`** — native PDF rendering mirroring the `html` component model, with
   the [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) engine
   inlined so there is no external PDF dependency: `pdf.Document`,
-  text/vector/image primitives, typed enums, and a best-effort `pdf.SVG` that
-  draws `svg`-package element trees as native vector graphics. The previous
+  text/vector/image primitives, typed enums, a best-effort `pdf.SVG` that
+  draws `svg`-package element trees as native vector graphics, and embedded
+  files plus XMP metadata (PDF/A-3 associated files for ZUGFeRD/Factur-X
+  e-invoices). The previous
   wrapper around the external fpdf module lives on as the **`fpdf`** legacy
   module, whose parity test suite asserts byte-identical output from both
   packages until the legacy module is deleted. See

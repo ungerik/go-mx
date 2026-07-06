@@ -2,9 +2,8 @@ package pdftable
 
 import (
 	"context"
+	"fmt"
 	"strings"
-
-	"github.com/domonda/go-errs"
 
 	"github.com/ungerik/go-mx/pdf"
 )
@@ -29,7 +28,7 @@ type columnDemand struct {
 // there are no weighted columns.
 func resolveColumnWidths(tableWidth float64, cols []columnDemand) ([]float64, error) {
 	if tableWidth <= 0 {
-		return nil, errs.Errorf("table width %g must be positive", tableWidth)
+		return nil, fmt.Errorf("table width %g must be positive", tableWidth)
 	}
 	widths := make([]float64, len(cols))
 	var fixedSum, autoSum, weightSum float64
@@ -51,11 +50,11 @@ func resolveColumnWidths(tableWidth float64, cols []columnDemand) ([]float64, er
 	}
 	avail := tableWidth - fixedSum
 	if avail < 0 {
-		return nil, errs.Errorf("fixed column widths (%g) exceed the table width (%g)", fixedSum, tableWidth)
+		return nil, fmt.Errorf("fixed column widths (%g) exceed the table width (%g)", fixedSum, tableWidth)
 	}
 	if autoSum > avail {
 		if weightSum > 0 {
-			return nil, errs.Errorf("auto column contents (%g) leave no room for weighted columns in the table width (%g)", autoSum, tableWidth)
+			return nil, fmt.Errorf("auto column contents (%g) leave no room for weighted columns in the table width (%g)", autoSum, tableWidth)
 		}
 		scale := avail / autoSum
 		for i, col := range cols {
@@ -237,7 +236,7 @@ func measureRow(r *pdf.Renderer, row *rowLayout, colWidths []float64, texts []st
 		cell := &row.cells[j]
 		contentWidth := colWidths[j] - 2*cell.pad
 		if contentWidth <= 0 {
-			return errs.Errorf("column %d width %g leaves no room for the cell padding %g", j, colWidths[j], cell.pad)
+			return fmt.Errorf("column %d width %g leaves no room for the cell padding %g", j, colWidths[j], cell.pad)
 		}
 		cell.style.applyFont(r)
 		if cell.style.LineHeight > 0 {

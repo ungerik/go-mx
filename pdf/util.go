@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode/utf16"
 )
 
@@ -157,13 +158,13 @@ func (r *Renderer) UnicodeTranslatorFromDescriptor(cpStr string) func(string) st
 }
 
 // Transform moves a point by given X, Y offset
-func (p *PointType) Transform(x, y float64) PointType {
-	return PointType{p.X + x, p.Y + y}
+func (p *Point) Transform(x, y float64) Point {
+	return Point{p.X + x, p.Y + y}
 }
 
 // Orientation returns the orientation of a given size:
 // "P" for portrait, "L" for landscape
-func (s *SizeType) Orientation() string {
+func (s *Size) Orientation() string {
 	if s == nil || s.Ht == s.Wd {
 		return ""
 	}
@@ -174,26 +175,87 @@ func (s *SizeType) Orientation() string {
 }
 
 // ScaleBy expands a size by a certain factor
-func (s *SizeType) ScaleBy(factor float64) SizeType {
-	return SizeType{s.Wd * factor, s.Ht * factor}
+func (s *Size) ScaleBy(factor float64) Size {
+	return Size{s.Wd * factor, s.Ht * factor}
 }
 
 // ScaleToWidth adjusts the height of a size to match the given width
-func (s *SizeType) ScaleToWidth(width float64) SizeType {
+func (s *Size) ScaleToWidth(width float64) Size {
 	height := s.Ht * width / s.Wd
-	return SizeType{width, height}
+	return Size{width, height}
 }
 
 // ScaleToHeight adjusts the width of a size to match the given height
-func (s *SizeType) ScaleToHeight(height float64) SizeType {
+func (s *Size) ScaleToHeight(height float64) Size {
 	width := s.Wd * height / s.Ht
-	return SizeType{width, height}
+	return Size{width, height}
 }
 
 // Condition font family string to PDF name compliance. See section 5.3 (Names)
 // in https://resources.infosecinstitute.com/pdf-file-format-basic-structure/
 func fontFamilyEscape(familyStr string) string {
 	return strings.ReplaceAll(familyStr, " ", "#20")
+}
+
+// escapeName escapes the characters that cannot appear literally in a PDF
+// name object (ISO 32000-1 7.3.5) with the #xx number-sign notation, e.g.
+// the MIME type "text/xml" becomes the name "text#2Fxml".
+func escapeName(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		c := s[i]
+		if c <= ' ' || c > '~' || strings.IndexByte("#/%()<>[]{}", c) >= 0 {
+			fmt.Fprintf(&b, "#%02X", c)
+		} else {
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// pdfDocEncode renders s for a PDF byte string that must be ASCII/PDFDocEncoded
+// rather than UTF-16, such as a file specification's /F entry. ASCII and Latin-1
+// code points map to their single-byte value (which equals PDFDocEncoding across
+// that range); anything above U+00FF is replaced with '?', since the exact
+// Unicode name is carried separately by /UF. The common all-ASCII case returns s
+// unchanged.
+func pdfDocEncode(s string) string {
+	ascii := true
+	for _, r := range s {
+		if r > 0x7E {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 0x20 && r <= 0x7E, r >= 0xA1 && r <= 0xFF:
+			b.WriteByte(byte(r))
+		default:
+			b.WriteByte('?')
+		}
+	}
+	return b.String()
+}
+
+// pdfDate formats tm as a PDF date string. withTimezone appends the UTC
+// offset, fully specifying the instant as PDF/A-relevant dates require;
+// without it the timezone is left unknown, the legacy fpdf format.
+func pdfDate(tm time.Time, withTimezone bool) string {
+	if !withTimezone {
+		return "D:" + tm.Format("20060102150405")
+	}
+	_, offset := tm.Zone()
+	sign := '+'
+	if offset < 0 {
+		sign = '-'
+		offset = -offset
+	}
+	return fmt.Sprintf("D:%s%c%02d'%02d'", tm.Format("20060102150405"), sign, offset/3600, offset%3600/60)
 }
 
 func returnStringUnchanged(s string) string { return s }

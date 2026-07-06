@@ -66,7 +66,7 @@ func (o Orientation) String() string {
 }
 
 // pageSize returns width and height in user units for size at orientation o.
-func (o Orientation) pageSize(size SizeType) (w, h float64) {
+func (o Orientation) pageSize(size Size) (w, h float64) {
 	if o == OrientationLandscape {
 		return size.Ht, size.Wd
 	}
@@ -106,7 +106,7 @@ func (u Unit) Valid() bool {
 
 // Validate returns an error if u is none of the valid values for Unit
 func (u Unit) Validate() error {
-	if _, ok := u.normalize(); !ok {
+	if !u.Valid() {
 		return fmt.Errorf("invalid value %#v for type pdf.Unit", u)
 	}
 	return nil
@@ -139,7 +139,7 @@ func (u Unit) String() string {
 
 // pointsPerUnit returns the number of points per document unit.
 func (u Unit) pointsPerUnit() (float64, bool) {
-	u, ok := u.normalize()
+	u, ok := NormalizeUnit(u)
 	if !ok {
 		return 0, false
 	}
@@ -164,8 +164,11 @@ var unitAliases = map[string]Unit{
 	"in":    UnitInch,
 }
 
-// normalize returns the canonical unit and true when s is a known unit or alias.
-func (u Unit) normalize() (Unit, bool) {
+// NormalizeUnit returns the canonical [Unit] and true when u is a known unit
+// or legacy alias ("point", "in", compared case-insensitively). It is a plain
+// constructor function, not a Unit method, so the go-enum code generation
+// leaves it untouched.
+func NormalizeUnit(u Unit) (Unit, bool) {
 	if u.Valid() {
 		return u, true
 	}
@@ -183,7 +186,7 @@ func (u Unit) normalize() (Unit, bool) {
 
 // PageSize is a standard page size accepted by the Renderer constructors and
 // [PageFormat]. Fully custom dimensions use [NewCustom] / [Renderer.AddPageFormat]
-// with a [SizeType]. Names are matched case-insensitively (ISO sizes use an
+// with a [Size]. Names are matched case-insensitively (ISO sizes use an
 // uppercase A and digit, US sizes use title case).
 type PageSize string //#enum
 
@@ -234,7 +237,7 @@ func (p PageSize) Valid() bool {
 
 // Validate returns an error if p is none of the valid values for PageSize
 func (p PageSize) Validate() error {
-	if _, ok := p.normalize(); !ok {
+	if !p.Valid() {
 		return fmt.Errorf("invalid value %#v for type pdf.PageSize", p)
 	}
 	return nil
@@ -289,9 +292,11 @@ var pageSizeByFold = func() map[string]PageSize {
 	return m
 }()
 
-// normalize returns the canonical page size and true when p is a known name
-// (matched case-insensitively, as fpdf did with strings.ToLower).
-func (p PageSize) normalize() (PageSize, bool) {
+// NormalizePageSize returns the canonical [PageSize] and true when p is a
+// known name (matched case-insensitively, as fpdf did with strings.ToLower).
+// It is a plain constructor function, not a PageSize method, so the go-enum
+// code generation leaves it untouched.
+func NormalizePageSize(p PageSize) (PageSize, bool) {
 	if p.Valid() {
 		return p, true
 	}
@@ -301,19 +306,19 @@ func (p PageSize) normalize() (PageSize, bool) {
 	return "", false
 }
 
-// SizeType returns the page width and height in points (1/72 inch) for p in
+// Size returns the page width and height in points (1/72 inch) for p in
 // portrait orientation. The second result is false when p is not a known size.
-func (p PageSize) SizeType() (SizeType, bool) {
-	p, ok := p.normalize()
+func (p PageSize) Size() (Size, bool) {
+	p, ok := NormalizePageSize(p)
 	if !ok {
-		return SizeType{}, false
+		return Size{}, false
 	}
 	sz, ok := stdPageSizesPt[p]
 	return sz, ok
 }
 
 // stdPageSizesPt maps each standard page size to its width and height in points.
-var stdPageSizesPt = map[PageSize]SizeType{
+var stdPageSizesPt = map[PageSize]Size{
 	PageSizeA1:      {1683.78, 2383.94},
 	PageSizeA2:      {1190.55, 1683.78},
 	PageSizeA3:      {841.89, 1190.55},
@@ -1127,9 +1132,93 @@ func (b BlendMode) String() string {
 	return string(b)
 }
 
-// Point is a coordinate in document units, re-exported from fpdf so it can be
-// passed straight to the embedded renderer's polygon and curve methods.
-type Point = PointType
+// AFRelationship expresses how an embedded file relates to the document it is
+// attached to (the /AFRelationship key of a file specification, ISO 32000-2).
+// An [Attachment] with a non-empty Relationship is listed in the document
+// catalog's /AF array as an associated file, as PDF/A-3 hybrid formats like
+// ZUGFeRD/Factur-X require. The empty string means the attachment is a plain
+// embedded file without an associated-file declaration.
+type AFRelationship string //#enum
+
+const (
+	// AFRelationshipSource declares the file as the source material of the document.
+	AFRelationshipSource AFRelationship = "Source"
+	// AFRelationshipData declares the file as data underlying the document,
+	// used by Factur-X for the MINIMUM and BASIC WL profiles.
+	AFRelationshipData AFRelationship = "Data"
+	// AFRelationshipAlternative declares the file as an alternative
+	// representation of the document, used by ZUGFeRD/Factur-X for the
+	// machine-readable invoice XML.
+	AFRelationshipAlternative AFRelationship = "Alternative"
+	// AFRelationshipSupplement declares the file as supplemental material.
+	AFRelationshipSupplement AFRelationship = "Supplement"
+	// AFRelationshipEncryptedPayload declares the file as an encrypted payload.
+	AFRelationshipEncryptedPayload AFRelationship = "EncryptedPayload"
+	// AFRelationshipFormData declares the file as form data for the document.
+	AFRelationshipFormData AFRelationship = "FormData"
+	// AFRelationshipSchema declares the file as a schema for the document data.
+	AFRelationshipSchema AFRelationship = "Schema"
+	// AFRelationshipUnspecified declares no particular relationship.
+	AFRelationshipUnspecified AFRelationship = "Unspecified"
+)
+
+// Valid indicates if a is any of the valid values for AFRelationship
+func (a AFRelationship) Valid() bool {
+	switch a {
+	case
+		AFRelationshipSource,
+		AFRelationshipData,
+		AFRelationshipAlternative,
+		AFRelationshipSupplement,
+		AFRelationshipEncryptedPayload,
+		AFRelationshipFormData,
+		AFRelationshipSchema,
+		AFRelationshipUnspecified:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if a is none of the valid values for AFRelationship
+func (a AFRelationship) Validate() error {
+	if !a.Valid() {
+		return fmt.Errorf("invalid value %#v for type pdf.AFRelationship", a)
+	}
+	return nil
+}
+
+// Enums returns all valid values for AFRelationship
+func (AFRelationship) Enums() []AFRelationship {
+	return []AFRelationship{
+		AFRelationshipSource,
+		AFRelationshipData,
+		AFRelationshipAlternative,
+		AFRelationshipSupplement,
+		AFRelationshipEncryptedPayload,
+		AFRelationshipFormData,
+		AFRelationshipSchema,
+		AFRelationshipUnspecified,
+	}
+}
+
+// EnumStrings returns all valid values for AFRelationship as strings
+func (AFRelationship) EnumStrings() []string {
+	return []string{
+		"Source",
+		"Data",
+		"Alternative",
+		"Supplement",
+		"EncryptedPayload",
+		"FormData",
+		"Schema",
+		"Unspecified",
+	}
+}
+
+// String implements the fmt.Stringer interface for AFRelationship
+func (a AFRelationship) String() string {
+	return string(a)
+}
 
 // Pt builds a [Point] from x and y coordinates.
 func Pt(x, y float64) Point {

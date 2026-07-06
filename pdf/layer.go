@@ -28,14 +28,14 @@ import (
 	"strings"
 )
 
-type layerType struct {
+type layer struct {
 	name    string
 	visible bool
 	objNum  int // object number
 }
 
-type layerRecType struct {
-	list          []layerType
+type layerRec struct {
+	list          []layer
 	currentLayer  int
 	openLayerPane bool
 }
@@ -47,7 +47,7 @@ type layerRecType struct {
 // to BeginLayer().
 func (r *Renderer) AddLayer(name string, visible bool) (layerID int) {
 	layerID = len(r.layer.list)
-	r.layer.list = append(r.layer.list, layerType{name: name, visible: visible})
+	r.layer.list = append(r.layer.list, layer{name: name, visible: visible})
 	return layerID
 }
 

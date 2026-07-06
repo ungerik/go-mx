@@ -79,7 +79,7 @@ func TestEngineGoldenParity(t *testing.T) {
 
 	f.Line(20, 125, 180, 125)
 	f.Text(20, 140, "positioned label") // TextAt
-	f.Polygon([]PointType{{X: 20, Y: 150}, {X: 60, Y: 150}, {X: 40, Y: 180}}, "D")
+	f.Polygon([]Point{{X: 20, Y: 150}, {X: 60, Y: 150}, {X: 40, Y: 180}}, "D")
 
 	var buf bytes.Buffer
 	if err := f.Output(&buf); err != nil {

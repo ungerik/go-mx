@@ -10,7 +10,7 @@ import "io"
 // unit and page size, with a Helvetica 12pt default font already selected so
 // text can be drawn without further setup.
 func NewRenderer(orientation Orientation, unit Unit, size PageSize) *Renderer {
-	r := newRenderer(orientation, unit, size, "", SizeType{0, 0})
+	r := newRenderer(orientation, unit, size, "", Size{0, 0})
 	r.SetFont(DefaultFontFamily, string(StyleRegular), DefaultFontSize)
 	return r
 }

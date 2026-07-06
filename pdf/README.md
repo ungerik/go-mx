@@ -71,7 +71,7 @@ Component-model constructors build a renderer from typed values:
 `NewRenderer(orientation, unit, size)`, `NewRendererA4Portrait`,
 `NewRendererA4Landscape`, `NewRendererLetterPortrait`. The low-level engine
 constructors `New(orientationStr, unitStr, sizeStr, fontDirStr)` and
-`NewCustom(*InitType)` are also exported for full control. The renderer also
+`NewCustom(*Init)` are also exported for full control. The renderer also
 adds in-memory asset helpers (`LoadUTF8FontBytes`, `LoadUTF8FontReader`) — see
 [In-memory assets](#in-memory-assets) — and page-measurement helpers
 (`ContentWidth`, `ContentHeight`, `RemainingHeight`) for layout code that must
@@ -120,14 +120,17 @@ validated:
 - `LineCapStyle` (`CapButt`, `CapRound`, `CapSquare`)
 - `LineJoinStyle` (`JoinMiter`, `JoinRound`, `JoinBevel`)
 - `ImageType` (`ImagePNG`, `ImageJPEG`, `ImageGIF`) for in-memory images
+- `AFRelationship` (`AFRelationshipAlternative`, `AFRelationshipData`, …) for
+  attachments declared as PDF/A-3 associated files — see [Embedded files and
+  XMP metadata](#embedded-files-and-xmp-metadata-zugferd--factur-x)
 
 The only genuinely open value is the **font family** name, a plain `string`
 because any registered font is valid: `Helvetica`, `Arial`, `Times`, `Courier`,
 `Symbol`, `ZapfDingbats`, or any family added with `LoadUTF8Font…`.
 
 Plus the RGB `Color` type with named colors (`Black`, `White`, `Red`, …), `RGB`,
-`Gray`, and a CSS-style `Hex` / `MustHex` parser, and `Point` (alias of
-`PointType`) with the `Pt(x, y)` helper.
+`Gray`, and a CSS-style `Hex` / `MustHex` parser, and `Point` with the
+`Pt(x, y)` helper.
 
 The shortest path to a one-page document is `Paragraph`, which is a full-width,
 auto-line-height, left-aligned `MultiCell` — the PDF analog of `<p>`.
@@ -217,23 +220,72 @@ r.LoadUTF8FontBytes("DejaVu", pdf.StyleRegular, ttfBytes)
 The remaining assets are already in-memory-capable on the `Renderer`:
 metrics-format fonts via `AddFontFromBytes` / `AddFontFromReader`, file
 attachments via `SetAttachments` (the `Attachment` carries its bytes), and XMP
-metadata via `SetXmpMetadata`.
+metadata via `SetXmpMetadata` — see the next section for the typed layer over
+both.
+
+## Embedded files and XMP metadata (ZUGFeRD / Factur-X)
+
+Any file can be embedded in a document, and `XMPMetadata` builds the
+document-level XMP packet — together the PDF-side building blocks of
+PDF/A-3 hybrid formats like ZUGFeRD/Factur-X e-invoices. An `Attachment`
+carries its bytes; a non-empty `Relationship` additionally declares it as a
+PDF/A-3 **associated file** (listed in the catalog's `/AF` array with that
+`/AFRelationship`), and `MIMEType` types the embedded stream:
+
+```go
+doc := pdf.NewDocument("Invoice R2024-001",
+    pdf.Paragraph("Invoice R2024-001"),
+)
+doc.Author = "ACME GmbH"
+doc.Attachments = []pdf.Attachment{{
+    Content:      invoiceXML, // the Factur-X / ZUGFeRD invoice XML
+    Filename:     "factur-x.xml",
+    Description:  "Factur-X invoice",
+    Relationship: pdf.AFRelationshipAlternative,
+    MIMEType:     "text/xml",
+}}
+doc.XMP = &pdf.XMPMetadata{
+    PDFAPart: 3, // PDF/A-3, conformance level defaults to "B"
+    FacturX:  &pdf.FacturX{ConformanceLevel: pdf.FacturXEN16931},
+}
+```
+
+`XMPMetadata` covers the Dublin Core, basic XMP, Adobe PDF and PDF/A
+identification schemas; `FacturX` adds the Factur-X PDF/A extension schema
+declaration and the `fx:` properties (document type, file name, version and
+conformance level — the latter must be set explicitly to match the embedded
+XML). The packet itself is generated with the go-mx [`xml`](../xml) package.
+
+The document wiring keeps the pieces mutually consistent, which is what
+PDF/A validators check: empty XMP fields fall back to the document metadata,
+the info dictionary receives the same producer and the same fully-specified
+creation/modification instants as the packet, a Factur-X declaration whose
+`DocumentFileName` has no matching attachment fails the render, and the
+PDF/A-required file identifier is written to the trailer whenever XMP
+metadata is present. On a raw `Renderer`, build the packet with
+`XMPMetadata.XML` and pass it to `SetXmpMetadata`.
+
+Full PDF/A-3 conformance additionally requires every font to be embedded
+(use a UTF-8 TrueType font — the standard core fonts are never embedded) and
+an ICC output intent (`AddOutputIntent`). The engine does not validate
+conformance; check the output with a validator like veraPDF.
 
 ## `Document`
 
 `Document` carries metadata, page setup, a default font, optional per-page
-`Header`/`Footer`, and the body. It renders to a `Renderer`, an `io.Writer`
-(`Output`), a `[]byte` (`Bytes`), a file (`OutputFile`), or an
-`http.ResponseWriter` (`ServeHTTP`, served as `application/pdf` with a generic
-500 on error). All page-setup fields default to A4 / portrait / millimeters
-with a Helvetica 12pt font.
+`Header`/`Footer`, document-level `Attachments` and `XMP` metadata (see
+[above](#embedded-files-and-xmp-metadata-zugferd--factur-x)), and the body.
+It renders to a `Renderer`, an `io.Writer` (`Output`), a `[]byte` (`Bytes`),
+a file (`OutputFile`), or an `http.ResponseWriter` (`ServeHTTP`, served as
+`application/pdf` with a generic 500 on error). All page-setup fields default
+to A4 / portrait / millimeters with a Helvetica 12pt font.
 
 ## Raw-engine surface
 
 Because the engine is inlined, its lower-level API is exported alongside the
 component layer for callers that need it: the constructors `New` / `NewCustom`
-with `InitType` and `SizeType`, image placement via `ImageOptions`, file
-attachments via `Attachment`, PDF/A output intents via `OutputIntentType`, page
+with `Init` and `Size`, image placement via `ImageOptions`, file
+attachments via `Attachment`, PDF/A output intents via `OutputIntent`, page
 boxes via `PageBox` / `SetPageBox`, and standalone helpers `ComparePDFs` (test
 diffing), `TtfParse` / `UTF8CutFont` (font tooling), `Tickmarks` (axis labels),
 and the package-level `SetDefaultCompression`. These mirror the upstream fpdf
@@ -315,9 +367,10 @@ or post-process the output with a more complete library.
 - **No Tagged PDF / accessibility (PDF/UA).** No structure tree, logical reading
   order, alt text, or `/Tagged` marking, so output is not accessible.
 - **No full PDF/A or PDF/X conformance.** `AddOutputIntent` supplies an ICC
-  output intent and `SetXmpMetadata` supplies XMP — the building blocks — but
-  nothing enforces or validates archival/print conformance, and font embedding,
-  color and metadata still have to be made conformant by hand.
+  output intent, `XMPMetadata` builds XMP with the PDF/A identification, and
+  attachments can be PDF/A-3 associated files — the building blocks — but
+  nothing enforces or validates archival/print conformance, and font embedding
+  and color still have to be made conformant by hand.
 - **Optional content (layers)** is supported only as simple show/hide groups,
   not nested membership dictionaries or complex configurations.
 

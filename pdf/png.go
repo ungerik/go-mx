@@ -23,11 +23,10 @@ package pdf
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
@@ -41,22 +40,22 @@ func (r *Renderer) pngColorSpace(ct byte) (colspace string, colorVal int) {
 	case 3:
 		colspace = "Indexed"
 	default:
-		r.err = errs.Errorf("unknown color type in PNG buffer: %d", ct)
+		r.err = fmt.Errorf("unknown color type in PNG buffer: %d", ct)
 	}
 	return colspace, colorVal
 }
 
-func (r *Renderer) parsepngstream(buf *bytes.Buffer, readdpi bool) (info *ImageInfoType) {
+func (r *Renderer) parsepngstream(buf *bytes.Buffer, readdpi bool) (info *ImageInfo) {
 	info = r.newImageInfo()
 	// 	Check signature
 	if string(pngNext(buf, 8)) != "\x89PNG\x0d\x0a\x1a\x0a" {
-		r.err = errs.New("not a PNG buffer")
+		r.err = errors.New("not a PNG buffer")
 		return info
 	}
 	// Read header chunk
 	_ = pngNext(buf, 4)
 	if string(pngNext(buf, 4)) != "IHDR" {
-		r.err = errs.New("incorrect PNG buffer")
+		r.err = errors.New("incorrect PNG buffer")
 		return info
 	}
 	w := pngReadI32(buf)
@@ -75,15 +74,15 @@ func (r *Renderer) parsepngstream(buf *bytes.Buffer, readdpi bool) (info *ImageI
 		return info
 	}
 	if pngReadU8(buf) != 0 {
-		r.err = errs.New("'unknown compression method in PNG buffer")
+		r.err = errors.New("'unknown compression method in PNG buffer")
 		return info
 	}
 	if pngReadU8(buf) != 0 {
-		r.err = errs.New("'unknown filter method in PNG buffer")
+		r.err = errors.New("'unknown filter method in PNG buffer")
 		return info
 	}
 	if pngReadU8(buf) != 0 {
-		r.err = errs.New("interlacing not supported in PNG buffer")
+		r.err = errors.New("interlacing not supported in PNG buffer")
 		return info
 	}
 	_ = pngNext(buf, 4)
@@ -160,7 +159,7 @@ func (r *Renderer) parsepngstream(buf *bytes.Buffer, readdpi bool) (info *ImageI
 		}
 	}
 	if colspace == "Indexed" && len(pal) == 0 {
-		r.err = errs.New("missing palette in PNG buffer")
+		r.err = errors.New("missing palette in PNG buffer")
 	}
 	info.w = float64(w)
 	info.h = float64(h)

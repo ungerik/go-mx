@@ -2,9 +2,9 @@ package pdftable
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
-
-	"github.com/domonda/go-errs"
 
 	"github.com/ungerik/go-mx/pdf"
 )
@@ -30,11 +30,11 @@ func (t *Table) Render(ctx context.Context, r *pdf.Renderer) error {
 		return err
 	}
 	if len(t.Columns) == 0 {
-		return errs.New("pdftable: table has no columns")
+		return errors.New("pdftable: table has no columns")
 	}
 	for i := range t.Rows {
 		if len(t.Rows[i].Cells) > len(t.Columns) {
-			return errs.Errorf("pdftable: row %d has %d cells but the table has %d columns", i, len(t.Rows[i].Cells), len(t.Columns))
+			return fmt.Errorf("pdftable: row %d has %d cells but the table has %d columns", i, len(t.Rows[i].Cells), len(t.Columns))
 		}
 	}
 	if r.PageNo() == 0 {
@@ -290,7 +290,7 @@ func drawSplitRow(ctx context.Context, r *pdf.Renderer, lay *tableLayout, row *r
 			}
 		}
 		if drawnTotal == 0 && remainingTotal > 0 && !first {
-			return errs.Errorf("pdftable: a cell line height is taller than the page content height %g", avail)
+			return fmt.Errorf("pdftable: a cell line height is taller than the page content height %g", avail)
 		}
 		last := drawnTotal == remainingTotal
 		if last {

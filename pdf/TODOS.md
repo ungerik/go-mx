@@ -83,8 +83,8 @@ adversarial re-review; several reproduced with standalone programs).
       single pass without intermediate slices; `repClosure` builds through
       `strings.Builder` (no final copy).
 - [x] **Types moved to their matching files** — the `Renderer` struct lives in
-      `renderer.go`, `colorMode`/`colorType` in `color.go`, and
-      `spotColorType`/`cmykColorType` in `spotcolor.go`; `def.go` keeps only
+      `renderer.go`, `colorMode`/`colorState` in `color.go`, and
+      `spotColor`/`cmykColor` in `spotcolor.go`; `def.go` keeps only
       the types without a natural home file.
 
 ## Known intentional divergences from the legacy stack (documented, not bugs)
@@ -101,3 +101,29 @@ adversarial re-review; several reproduced with standalone programs).
 - `ImageBytes` components are re-renderable (fresh reader per render); legacy
   consumes a single reader. `ImageReader` remains single-use — consider
   buffering on first render instead of documenting the footgun.
+
+## XMP / PDF-A follow-ups (deferred review findings)
+
+Lower-severity findings from the pre-landing review of the XMP / PDF-A-3
+feature. The blocker (PDF/A documents emitted a `%PDF-1.3` header) and the
+weak Factur-X associated-file validation were fixed before landing; these
+remain:
+
+- [ ] **Name-tree key collision on crafted duplicates.** `getEmbeddedFiles`
+      disambiguates a repeated `dup.txt` to `dup.txt (2)`, which collides with
+      an attachment literally named `dup.txt (2)`. Loop until the generated key
+      is unused. Also: keys are sorted by raw UTF-16BE bytes but written through
+      `textstring` escaping, so a paren/backslash byte could perturb the sort
+      order; sort on the written form (both benign for single-node trees).
+- [ ] **Encryption + XMP.** With `SetProtection` and XMP both set, the metadata
+      stream is RC4-encrypted; PDF/A forbids encryption and the metadata stream
+      should stay unencrypted. `SetError` (or at least document) the combination.
+- [ ] **`AddAttachmentAnnotation` associated files.** Page-annotation
+      attachments never reach the catalog `/AF` array and are invisible to the
+      Factur-X filename check, which scans only document-level attachments.
+      Either include them in `/AF` or document the limitation.
+- [ ] **`applyXMP` overwrites a caller-set producer** unconditionally with the
+      engine default when no XMP/doc producer is given.
+- [ ] **Coverage gaps:** `pdfDate` negative-timezone branch, `pdfDocEncode`
+      `>U+00FF`/control-rune `'?'` fallback, and `getEmbeddedFiles`
+      empty-filename fallback are untested.
