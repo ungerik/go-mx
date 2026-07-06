@@ -131,7 +131,7 @@ with the same name on one element), and can pretty-print with
 | `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, plus request readers and response-header setters for handlers |
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
-| `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, plus a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
+| `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, embedded files plus XMP metadata for PDF/A-3 e-invoices (ZUGFeRD/Factur-X), and a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
 `Writer`, `If`/`ForEach`) that the others build on. Higher-level packages

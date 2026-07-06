@@ -109,7 +109,10 @@ For streaming output or serving over HTTP, render a `Component` into an
   e-invoices). The previous
   wrapper around the external fpdf module lives on as the **`fpdf`** legacy
   module, whose parity test suite asserts byte-identical output from both
-  packages until the legacy module is deleted. See
+  packages — apart from a few [documented intentional
+  divergences](pdf/README.md#divergences-from-the-legacy-engine) where the
+  inlined engine deliberately behaves better — until the legacy module is
+  deleted. See
   [pdf/README.md](pdf/README.md) (and [fpdf/README.md](fpdf/README.md) for the
   legacy module).
 - **`pdf/pdftable`** — data tables for `pdf`: measured fixed/weighted/auto
