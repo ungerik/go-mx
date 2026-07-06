@@ -278,6 +278,174 @@ func TestDocumentXMPInfoConsistency(t *testing.T) {
 	}
 }
 
+// A stray control byte in a metadata value (XML 1.0 forbids C0 controls
+// other than tab/LF/CR) must not invalidate the whole packet: it is replaced
+// with U+FFFD and the packet stays well-formed XML.
+func TestXMPMetadataXML_sanitizesControlChars(t *testing.T) {
+	m := &XMPMetadata{Title: "A\x01B", Producer: "x\x00y"}
+	packet, err := m.XML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(packet)
+	if !strings.Contains(s, "A�B") || !strings.Contains(s, "x�y") {
+		t.Errorf("control characters not replaced with U+FFFD:\n%s", s)
+	}
+	decoder := encxml.NewDecoder(bytes.NewReader(packet))
+	for {
+		if _, err := decoder.Token(); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("sanitized XMP packet is not well-formed XML: %v", err)
+		}
+	}
+	// legal whitespace controls pass through untouched
+	m = &XMPMetadata{Title: "A\tB"}
+	packet, err = m.XML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(packet), "A\tB") {
+		t.Error("tab was sanitized, but XML 1.0 allows it")
+	}
+}
+
+// Combining XMP metadata with document protection must fail loudly in either
+// call order: the legacy RC4 encryption cannot exempt the metadata stream, so
+// the combination would silently produce a file that can never be PDF/A and
+// whose XMP packet no plaintext scanner finds.
+func TestSetProtectionXMPConflict(t *testing.T) {
+	// protection first, then XMP via Document.Render
+	doc := NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{}
+	r := doc.NewRenderer()
+	r.SetProtection(0, "", "owner")
+	err := doc.Render(context.Background(), r)
+	if err == nil {
+		t.Fatal("expected error combining SetProtection with XMP metadata")
+	}
+	if !strings.Contains(err.Error(), "SetProtection") {
+		t.Errorf("error does not name the conflict: %v", err)
+	}
+
+	// XMP first, then protection on a raw renderer
+	r = NewRenderer(OrientationPortrait, UnitMillimeter, PageSizeA4)
+	r.SetXmpMetadata([]byte("<x/>"))
+	r.SetProtection(0, "", "owner")
+	if err := r.Error(); err == nil {
+		t.Fatal("expected error setting protection with XMP metadata present")
+	}
+
+	// leaving XMP unset or clearing it under protection is no conflict: no
+	// metadata stream will be emitted, so nothing gets encrypted
+	r = NewRenderer(OrientationPortrait, UnitMillimeter, PageSizeA4)
+	r.SetProtection(0, "", "owner")
+	r.SetXmpMetadata(nil)
+	if err := r.Error(); err != nil {
+		t.Errorf("clearing XMP under protection must not error: %v", err)
+	}
+}
+
+// The XMP guard on SetProtection must not get in the way of plain protection:
+// a document without XMP metadata still has to encrypt and output normally.
+func TestSetProtectionWithoutXMP(t *testing.T) {
+	doc := NewDocument("Protected", Paragraph("body"))
+	r := doc.NewRenderer()
+	r.SetProtection(0, "user", "owner")
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := r.Output(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "/Encrypt") {
+		t.Error("output has no /Encrypt dictionary; protection was not applied")
+	}
+}
+
+// A producer set on the renderer must survive applyXMP when neither the XMP
+// nor the document names one: the packet has to carry a producer (because
+// /Info always does), but it must be the caller's value, not the engine
+// default overwriting it. Both setter encodings have to round-trip.
+func TestDocumentXMPKeepsCallerProducer(t *testing.T) {
+	doc := NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{}
+	r := doc.NewRenderer()
+	r.SetProducer("ACME Renderer 2.0", true)
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := r.GetProducer(), utf8toutf16("ACME Renderer 2.0"); got != want {
+		t.Errorf("info /Producer = %q, want the caller's %q", got, want)
+	}
+	if s := string(r.xmp); !strings.Contains(s, "<pdf:Producer>ACME Renderer 2.0</pdf:Producer>") {
+		t.Errorf("XMP packet does not carry the caller producer:\n%s", s)
+	}
+
+	// a producer stored as Latin-1 bytes is decoded for the packet
+	doc = NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{}
+	r = doc.NewRenderer()
+	r.SetProducer("Prod\xfccer", false)
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(r.xmp); !strings.Contains(s, "<pdf:Producer>Prodücer</pdf:Producer>") {
+		t.Errorf("XMP packet does not carry the decoded Latin-1 producer:\n%s", s)
+	}
+
+	// a Latin-1 producer that happens to start with the UTF-16 BOM bytes
+	// "þÿ" must not be misdecoded as UTF-16 (the encoding is declared by the
+	// setter, not sniffed)
+	doc = NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{}
+	r = doc.NewRenderer()
+	r.SetProducer("\xfe\xffLegacy", false)
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(r.xmp); !strings.Contains(s, "<pdf:Producer>þÿLegacy</pdf:Producer>") {
+		t.Errorf("XMP packet mangled the fake-BOM Latin-1 producer:\n%s", s)
+	}
+}
+
+// An explicit XMP.Producer must beat the renderer's /Info producer (including
+// the construction-time engine default), in the packet and mirrored to /Info —
+// swapping the fallback order would let /Info silently override the packet.
+func TestDocumentXMPProducerOverridesRenderer(t *testing.T) {
+	doc := NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{Producer: "XMP Producer"}
+	r := doc.NewRenderer()
+	r.SetProducer("Renderer Producer", true)
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(r.xmp); !strings.Contains(s, "<pdf:Producer>XMP Producer</pdf:Producer>") {
+		t.Errorf("XMP packet producer was overridden by the renderer value:\n%s", s)
+	}
+	if got, want := r.GetProducer(), utf8toutf16("XMP Producer"); got != want {
+		t.Errorf("info /Producer = %q, want the XMP value %q", got, want)
+	}
+}
+
+// Clearing the renderer producer must not leave the XMP packet without one:
+// /Info always carries a producer, so when neither the XMP nor the renderer
+// names one the packet falls back to the engine default.
+func TestDocumentXMPEngineDefaultProducer(t *testing.T) {
+	doc := NewDocument("Doc", Paragraph("body"))
+	doc.XMP = &XMPMetadata{}
+	r := doc.NewRenderer()
+	r.SetProducer("", false) // clear the construction-time default
+	if err := doc.Render(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(r.xmp); !strings.Contains(s, "<pdf:Producer>FPDF "+cnFpdfVersion+"</pdf:Producer>") {
+		t.Errorf("XMP packet does not fall back to the engine producer:\n%s", s)
+	}
+}
+
 // A FacturX.Prefix that is not a valid XML name would be written verbatim into
 // element and attribute names, silently producing a malformed packet; it must
 // be a loud error instead.
