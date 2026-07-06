@@ -3,6 +3,7 @@ package pdf
 import (
 	"bytes"
 	"io"
+	"sync"
 )
 
 // Line strokes a straight line from (x1, y1) to (x2, y2) using the current draw
@@ -69,20 +70,30 @@ func Image(file string, x, y, w, h float64) Component {
 // draw the same image again by passing the same name (the bytes are decoded only
 // once), and give distinct images distinct names. imageType gives the encoding.
 //
-// Because src is consumed on first use, the returned component draws correctly
-// only into renderers that have the name cached or a live reader; to render the
-// same component into multiple renderers use [ImageBytes], which is re-renderable.
+// src is read fully on the first render and buffered in the component, so the
+// component can be rendered any number of times, into any number of renderers
+// — including concurrently into separate renderers (the one-time read is
+// synchronized). A read error is latched: it is recorded on the renderer and
+// surfaces from every render, since the partially-drained src cannot be
+// re-read.
 func ImageReader(name string, imageType ImageType, src io.Reader, x, y, w, h float64) Component {
+	readSrc := sync.OnceValues(func() ([]byte, error) {
+		return io.ReadAll(src)
+	})
 	return drawing(func(r *Renderer) {
+		data, err := readSrc()
+		if err != nil {
+			r.SetError(err)
+			return
+		}
 		options := ImageOptions{ImageType: string(imageType)}
-		r.RegisterImageOptionsReader(name, options, src)
+		r.RegisterImageOptionsReader(name, options, bytes.NewReader(data))
 		r.ImageOptions(name, x, y, w, h, false, options, 0, "")
 	})
 }
 
-// ImageBytes is [ImageReader] for an in-memory byte slice. Unlike ImageReader
-// it creates a fresh reader on every render, so the component can be rendered
-// any number of times, into any number of renderers.
+// ImageBytes is [ImageReader] for an in-memory byte slice: the component can
+// be rendered any number of times, into any number of renderers.
 func ImageBytes(name string, imageType ImageType, data []byte, x, y, w, h float64) Component {
 	return drawing(func(r *Renderer) {
 		options := ImageOptions{ImageType: string(imageType)}

@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/png"
 	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 )
@@ -191,6 +192,50 @@ func TestImageFromMemory(t *testing.T) {
 
 	// ImageReader must accept any io.Reader.
 	renderToBytes(t, ImageReader("logo2", ImagePNG, bytes.NewReader(pngData), 0, 0, 20, 20))
+}
+
+// An ImageReader component buffers its source on the first render, so the same
+// component renders into any number of renderers instead of silently drawing
+// nothing (or failing) once the reader is drained.
+func TestImageReaderReRender(t *testing.T) {
+	pngData := makePNG(t)
+	img := ImageReader("logo", ImagePNG, bytes.NewReader(pngData), 20, 40, 30, 30)
+	baseline := renderToBytes(t, Paragraph("no image"))
+	for i := range 2 {
+		data := renderToBytes(t, Paragraph("no image"), img)
+		if len(data) <= len(baseline) {
+			t.Errorf("render %d: image not embedded: with=%d baseline=%d", i+1, len(data), len(baseline))
+		}
+	}
+
+	// A failing reader must surface as an error from the render — and stay
+	// latched: the partially-drained reader must not be silently retried, so
+	// a second render reports the same error instead of buffering garbage.
+	bad := ImageReader("bad", ImagePNG, iotest.ErrReader(errors.New("boom")), 0, 0, 10, 10)
+	if err := bad.Render(context.Background(), NewRendererA4Portrait()); err == nil {
+		t.Error("expected the read error to surface from the render")
+	}
+	if err := bad.Render(context.Background(), NewRendererA4Portrait()); err == nil {
+		t.Error("expected the latched read error to surface from a second render")
+	}
+}
+
+// A shared ImageReader component (e.g. a logo) rendered concurrently into
+// separate renderers must not race on its one-time source read; run with
+// -race to enforce.
+func TestImageReaderConcurrentRender(t *testing.T) {
+	pngData := makePNG(t)
+	img := ImageReader("logo", ImagePNG, bytes.NewReader(pngData), 0, 0, 20, 20)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			r := NewRendererA4Portrait()
+			if err := img.Render(context.Background(), r); err != nil {
+				t.Errorf("concurrent render: %v", err)
+			}
+		})
+	}
+	wg.Wait()
 }
 
 func TestUTF8FontReaderError(t *testing.T) {
