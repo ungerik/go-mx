@@ -351,9 +351,19 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setTime(value, raw, tag.Widget)
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
+		if raw != "" {
+			if err := validateOptionMembership(r.Context(), value, tag, field.Type, raw); err != nil {
+				return err
+			}
+		}
 		return setScalar(value, raw)
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
+		if keyType := setKeyType(field.Type); keyType != nil {
+			if err := validateOptionMembership(r.Context(), reflect.Value{}, tag, keyType, vals...); err != nil {
+				return err
+			}
+		}
 		return setEnumSet(value, field.Type, vals)
 	case mx.FieldKindFile:
 		if r.MultipartForm == nil {
@@ -383,6 +393,37 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			return nil
 		}
 		return errs.New("file upload requires []byte or string field")
+	}
+	return nil
+}
+
+// validateOptionMembership rejects submitted values that are not in
+// the field's per-request option list. It only applies to fields whose
+// options need the request context (form:"options=…" registry entries,
+// [mx.NamedOptionsContextProvider] types): for those the option list
+// is the trust boundary the form advertises — a tenant-scoped dropdown
+// must not bind another tenant's ID on POST just because the browser
+// was told to only offer this tenant's. Static enum kinds keep their
+// lenient behavior; their types typically validate in UnmarshalText.
+//
+// The rejection is a plain validation error (rendered inline at the
+// field); a failure to resolve the option list itself propagates as-is.
+func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.FormTag, t reflect.Type, vals ...string) error {
+	if len(vals) == 0 || !mx.OptionsNeedContext(tag, t) {
+		return nil
+	}
+	options, err := mx.CollectOptions(ctx, value, tag, t)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]struct{}, len(options))
+	for _, opt := range options {
+		allowed[opt.Value] = struct{}{}
+	}
+	for _, v := range vals {
+		if _, ok := allowed[v]; !ok {
+			return fmt.Errorf("%q is not one of the allowed options", v)
+		}
 	}
 	return nil
 }

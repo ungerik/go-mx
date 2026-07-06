@@ -176,6 +176,11 @@ type InvoiceDraft struct {
 }
 ```
 
+The per-request option list is a trust boundary, not just UI: on POST the
+handler re-resolves the list with the request context and rejects submitted
+values outside it as a normal field validation error, so a tenant-scoped
+dropdown cannot be bypassed by posting another tenant's ID directly.
+
 See [`cmd/example-form`](cmd/example-form/main.go) for a complete
 worked example covering every supported field kind, section grouping,
 the repeatable invoice-line editor, and the `FieldErrors` cross-field

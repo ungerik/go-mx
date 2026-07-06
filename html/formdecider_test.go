@@ -459,3 +459,107 @@ func TestFieldDecider_SelectWithRegistryOptions_IDType(t *testing.T) {
 		t.Errorf("non-matching option must not be selected: %q", out)
 	}
 }
+
+// TestFieldDecider_ParseRejectsOutOfListOption encodes D1 of the ship
+// review: the per-request option list is a trust boundary, so POST
+// must not bind values outside it (e.g. another tenant's partner ID).
+func TestFieldDecider_ParseRejectsOutOfListOption(t *testing.T) {
+	type draft struct {
+		Partner string `form:"options=test-html-partners"`
+	}
+	f := &draft{Partner: "p1"}
+	parse := func(submitted string) error {
+		values := url.Values{}
+		values.Set("Partner", submitted)
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r = r.WithContext(context.WithValue(r.Context(), partnersCtxKey{},
+			[]mx.NamedOption{{Name: "Partner One", Value: "p1"}}))
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName("Partner")
+		beh := FieldDecider("Partner", field, v.Field(0))
+		return beh.Parse("Partner", field, v.Field(0), r)
+	}
+
+	if err := parse("p1"); err != nil {
+		t.Fatalf("in-list value must bind: %v", err)
+	}
+	if f.Partner != "p1" {
+		t.Errorf("in-list value not bound: %q", f.Partner)
+	}
+
+	err := parse("p2") // not in this request's list
+	if err == nil {
+		t.Fatal("expected out-of-list value to be rejected")
+	}
+	if !strings.Contains(err.Error(), "allowed options") {
+		t.Errorf("rejection should be a plain validation error: %v", err)
+	}
+	if f.Partner != "p1" {
+		t.Errorf("rejected value must not be bound: %q", f.Partner)
+	}
+
+	// Empty submission means "no selection" — required-ness is a
+	// separate concern, membership must not reject it.
+	if err := parse(""); err != nil {
+		t.Fatalf("empty value must pass membership validation: %v", err)
+	}
+}
+
+func TestFieldDecider_ParseRejectsOutOfListEnumSet(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-html-tags"` // registry offers a, b
+	}
+	f := &tagForm{}
+	parse := func(submitted ...string) error {
+		values := url.Values{"Tags": submitted}
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName("Tags")
+		beh := FieldDecider("Tags", field, v.Field(0))
+		return beh.Parse("Tags", field, v.Field(0), r)
+	}
+
+	if err := parse("a", "b"); err != nil {
+		t.Fatalf("in-list members must bind: %v", err)
+	}
+	if len(f.Tags) != 2 {
+		t.Errorf("expected both members bound: %v", f.Tags)
+	}
+
+	err := parse("a", "admin") // "admin" was never offered
+	if err == nil {
+		t.Fatal("expected out-of-list member to be rejected")
+	}
+	if len(f.Tags) != 2 || f.Tags[0] != "a" || f.Tags[1] != "b" {
+		t.Errorf("rejected submission must not modify the set: %v", f.Tags)
+	}
+}
+
+// TestReflectFormHandler_ProviderErrorCleanInternalServerError encodes
+// D2 of the ship review: a render-time options failure (typo'd registry
+// name, provider DB error) must be a clean 500, never a truncated 200 —
+// the handler buffers the render before writing.
+func TestReflectFormHandler_ProviderErrorCleanInternalServerError(t *testing.T) {
+	type draft struct {
+		X string `form:"options=test-html-never-registered"`
+	}
+	handler := mx.ReflectFormHandler(nil, func(context.Context, *draft) error { return nil }, FieldDecider)
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 — a streamed render would have sent a truncated 200", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "<form") {
+		t.Errorf("partial form HTML must not leak on render error: %q", rec.Body.String())
+	}
+}

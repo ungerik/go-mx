@@ -40,8 +40,9 @@ func (ctxPartnerID) NamedOptionsContext(ctx context.Context) ([]NamedOption, err
 }
 
 // dualProvider implements both the context-aware and the static
-// provider interface. The context-aware one wins when it has an
-// answer; (nil, nil) falls through to the static one.
+// provider interface. The context-aware one is authoritative: its
+// answer — including nil/empty — never falls through to the static
+// list (which would leak unfiltered options).
 type dualProvider string
 
 func (dualProvider) NamedOptionsContext(ctx context.Context) ([]NamedOption, error) {
@@ -158,14 +159,16 @@ func TestCollectOptions_ContextBeatsStatic(t *testing.T) {
 		t.Errorf("context provider should win over static: %v", opts)
 	}
 
-	// (nil, nil) from the context provider falls through to the static
-	// NamedOptions.
+	// The context provider is authoritative: (nil, nil) means "no
+	// options" and must NOT fall through to the static NamedOptions —
+	// an idiomatic provider returns nil for zero permission-filtered
+	// matches, and falling through would leak the unfiltered list.
 	opts, err = CollectOptions(context.Background(), value, FormTag{}, value.Type())
 	if err != nil {
 		t.Fatalf("CollectOptions: %v", err)
 	}
-	if len(opts) != 1 || opts[0].Value != "static" {
-		t.Errorf("expected fallthrough to static options: %v", opts)
+	if len(opts) != 0 {
+		t.Errorf("empty context answer must not fall through to static options: %v", opts)
 	}
 }
 

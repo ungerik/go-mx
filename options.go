@@ -37,9 +37,12 @@ type NamedOptionsProvider interface {
 // time with the context passed to [Component] Render — for forms built
 // by [ReflectFormHandler] that is the HTTP request context.
 //
-// Returning (nil, nil) means "no options from this receiver" and
-// collection falls through to the static conventions; a non-nil error
-// aborts the render.
+// The interface is authoritative: once a type implements it, its
+// answer is final — a nil or empty result means "no options" and does
+// NOT fall through to the static conventions. Idiomatic providers
+// return nil for zero matches, and falling through would leak an
+// unfiltered static list where the context provider had filtered for
+// permission. A non-nil error aborts the render.
 type NamedOptionsContextProvider interface {
 	NamedOptionsContext(ctx context.Context) ([]NamedOption, error)
 }
@@ -181,10 +184,15 @@ func probeOptionsProviders(ctx context.Context, value reflect.Value) ([]NamedOpt
 			return nil, nil
 		}
 		if cp, ok := iface.(NamedOptionsContextProvider); ok {
+			// Authoritative: nil/empty means "no options", it does
+			// not fall through to the static conventions (see the
+			// interface doc). Normalize nil to an empty slice so the
+			// probe result is distinguishable from "no provider".
 			opts, err := cp.NamedOptionsContext(ctx)
-			if opts != nil || err != nil {
-				return opts, err
+			if opts == nil && err == nil {
+				opts = []NamedOption{}
 			}
+			return opts, err
 		}
 		if np, ok := iface.(NamedOptionsProvider); ok {
 			return np.NamedOptions(), nil
