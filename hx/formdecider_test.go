@@ -7,7 +7,19 @@ import (
 	"testing"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
 )
+
+// streamThroughHX renders comp through withHXAttribs, exercising the
+// render-time hxTriggerWriter path when comp is a mx.ComponentFunc.
+func streamThroughHX(t *testing.T, comp mx.Component) string {
+	t.Helper()
+	var b strings.Builder
+	if err := withHXAttribs(comp).Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return b.String()
+}
 
 type sample struct {
 	Name   string
@@ -115,13 +127,13 @@ func TestFieldDecider_AddsHxTriggerOnRegistryOptionsSelect(t *testing.T) {
 	}
 }
 
-// TestFieldDecider_RegistryEnumSetKnownLimitation pins a documented
-// limitation of render-time option collection: enum-set checkboxes for
-// registry-backed options are born inside the deferred ComponentFunc,
-// so this layer's build-time attribute injection cannot reach them —
-// they render correctly but without hx-trigger. (shadcn is unaffected:
-// it wires hx.Trigger itself inside the render callback.)
-func TestFieldDecider_RegistryEnumSetKnownLimitation(t *testing.T) {
+// TestFieldDecider_AddsHxTriggerOnRegistryEnumSetCheckboxes guards the
+// render-time injection into deferred children: enum-set checkboxes for
+// registry-backed options are born inside a ComponentFunc that resolves
+// its options from the request context, so the build-time tree walk
+// cannot reach them. The hxTriggerWriter streams the deferred output and
+// injects hx-trigger="change" into each checkbox as it is written.
+func TestFieldDecider_AddsHxTriggerOnRegistryEnumSetCheckboxes(t *testing.T) {
 	type tagForm struct {
 		Tags []string `form:"options=test-hx-tags"`
 	}
@@ -138,7 +150,67 @@ func TestFieldDecider_RegistryEnumSetKnownLimitation(t *testing.T) {
 	if strings.Count(out, `type="checkbox"`) != 2 {
 		t.Errorf("expected registry checkboxes to render: %q", out)
 	}
-	if strings.Contains(out, `hx-trigger`) {
-		t.Errorf("limitation lifted? deferred enum-set checkboxes now carry hx-trigger — update the docs and this test: %q", out)
+	// One hx-trigger per checkbox, and no duplicate on any single input.
+	if got := strings.Count(out, `hx-trigger="change"`); got != 2 {
+		t.Errorf("expected 2 hx-trigger=change on registry enum-set checkboxes, got %d: %q", got, out)
+	}
+}
+
+// The tests below drive the render-time hxTriggerWriter directly through a
+// deferred mx.ComponentFunc, covering the streaming-injection branches that
+// the enum-set decider test above does not reach on its own.
+
+// TestHXTriggerWriter_DedupPreExistingTrigger guards the render-time dedup:
+// a live input born inside a ComponentFunc that already carries hx-trigger
+// must not receive a second one (CheckedWriter rejects duplicate attributes
+// with a render error).
+func TestHXTriggerWriter_DedupPreExistingTrigger(t *testing.T) {
+	inner := mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return html.Input(html.Type("text"), html.Name("foo"), Trigger("keyup")).Render(ctx, w)
+	})
+	out := streamThroughHX(t, inner)
+	if got := strings.Count(out, "hx-trigger"); got != 1 {
+		t.Errorf("expected exactly 1 hx-trigger (dedup), got %d: %q", got, out)
+	}
+	if !strings.Contains(out, `hx-trigger="keyup"`) {
+		t.Errorf("pre-existing hx-trigger=keyup must be preserved, not overwritten: %q", out)
+	}
+}
+
+// TestHXTriggerWriter_SkipsClearSentinel checks that the render-time policy
+// excludes __clear-style inputs (name starting with '_') just like the
+// build-time walk, so they don't fire spurious requests.
+func TestHXTriggerWriter_SkipsClearSentinel(t *testing.T) {
+	inner := mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return html.Input(html.Type("checkbox"), html.Name("_Foo__clear")).Render(ctx, w)
+	})
+	if out := streamThroughHX(t, inner); strings.Contains(out, "hx-trigger") {
+		t.Errorf("clear-sentinel input should not get hx-trigger: %q", out)
+	}
+}
+
+// TestHXTriggerWriter_TypelessInputIsLive exercises the hasType=false branch
+// of liveInputElem on the streaming path: an input with no type attribute is
+// treated as live.
+func TestHXTriggerWriter_TypelessInputIsLive(t *testing.T) {
+	inner := mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return html.Input(html.Name("foo")).Render(ctx, w)
+	})
+	if out := streamThroughHX(t, inner); !strings.Contains(out, `hx-trigger="change"`) {
+		t.Errorf("typeless input should be live: %q", out)
+	}
+}
+
+// TestHXTriggerWriter_NonVoidLiveInputAtCloseStartTag covers injection into a
+// live non-void element (textarea) streamed from a ComponentFunc, where the
+// trigger is emitted at CloseElementStartTag rather than EndElement (the void
+// <input> path the enum-set test exercises).
+func TestHXTriggerWriter_NonVoidLiveInputAtCloseStartTag(t *testing.T) {
+	inner := mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return html.TextArea(html.Name("foo"), "body").Render(ctx, w)
+	})
+	out := streamThroughHX(t, inner)
+	if strings.Count(out, "hx-trigger") != 1 || !strings.Contains(out, `hx-trigger="change"`) {
+		t.Errorf("expected exactly one hx-trigger=change on streamed textarea: %q", out)
 	}
 }
