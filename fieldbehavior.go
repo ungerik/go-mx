@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/domonda/go-errs"
 )
 
 // FieldPath names a field inside a (possibly nested) struct as a
@@ -96,6 +98,12 @@ const (
 	// recurses into a section labeled with the field name.
 	FieldKindNested
 
+	// FieldKindRepeatable means the field is a slice of struct
+	// (`[]T` or `[]*T`) tagged form:"repeatable": it renders as a
+	// dynamic list of rows, one per slice element, and binds submitted
+	// rows back into the slice. See repeatable.go.
+	FieldKindRepeatable
+
 	// FieldKindInline means the field is an anonymous embedded struct
 	// with no section/nested tag and is inlined transparently — its
 	// visible fields appear at the enclosing level.
@@ -134,6 +142,8 @@ func (k FieldKind) String() string {
 		return "section"
 	case FieldKindNested:
 		return "nested"
+	case FieldKindRepeatable:
+		return "repeatable"
 	case FieldKindInline:
 		return "inline"
 	case FieldKindCatchAll:
@@ -310,12 +320,12 @@ func (r *singleValueRegistry) Has(t reflect.Type) bool {
 func SetField(root reflect.Value, path FieldPath) (reflect.Value, reflect.StructField, error) {
 	for root.Kind() == reflect.Pointer {
 		if root.IsNil() {
-			return reflect.Value{}, reflect.StructField{}, errors.New("mx.SetField: nil pointer root")
+			return reflect.Value{}, reflect.StructField{}, errs.New("mx.SetField: nil pointer root")
 		}
 		root = root.Elem()
 	}
 	if root.Kind() != reflect.Struct {
-		return reflect.Value{}, reflect.StructField{}, errors.New("mx.SetField: root is not a struct")
+		return reflect.Value{}, reflect.StructField{}, errs.New("mx.SetField: root is not a struct")
 	}
 	parts := strings.Split(string(path), "-")
 	cur := root
@@ -323,17 +333,17 @@ func SetField(root reflect.Value, path FieldPath) (reflect.Value, reflect.Struct
 	for i, name := range parts {
 		if cur.Kind() == reflect.Pointer {
 			if cur.IsNil() {
-				return reflect.Value{}, reflect.StructField{}, errors.New("mx.SetField: nil pointer in path " + string(path))
+				return reflect.Value{}, reflect.StructField{}, errs.New("mx.SetField: nil pointer in path " + string(path))
 			}
 			cur = cur.Elem()
 		}
 		if cur.Kind() != reflect.Struct {
-			return reflect.Value{}, reflect.StructField{}, errors.New("mx.SetField: non-struct in path at segment " + parts[i])
+			return reflect.Value{}, reflect.StructField{}, errs.New("mx.SetField: non-struct in path at segment " + parts[i])
 		}
 		var ok bool
 		field, ok = cur.Type().FieldByName(name)
 		if !ok {
-			return reflect.Value{}, reflect.StructField{}, errors.New("mx.SetField: no field " + name + " in path " + string(path))
+			return reflect.Value{}, reflect.StructField{}, errs.New("mx.SetField: no field " + name + " in path " + string(path))
 		}
 		cur = cur.FieldByIndex(field.Index)
 	}
@@ -366,7 +376,7 @@ func DeciderFromContext(ctx context.Context) FieldDecider {
 // (shadcn / hx / html / custom).
 var unconfiguredDecider FieldDecider = func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
 	const msg = "mx.ReflectFormHandler: no FieldDecider in request context — wrap your handler tree with mx.Middleware(shadcn.FieldDecider) (or hx.FieldDecider, html.FieldDecider, or a custom one)"
-	err := errors.New(msg)
+	err := errs.New(msg)
 	return FieldBehavior{
 		Render: func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component {
 			return Text(msg)

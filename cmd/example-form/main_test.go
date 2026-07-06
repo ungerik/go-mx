@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -121,6 +122,74 @@ func TestExamplePOSTRequiredCheckFires(t *testing.T) {
 	}
 	if !strings.Contains(body, "required") {
 		t.Errorf("expected required-check error message: %s", body)
+	}
+}
+
+// Repeatable invoice lines round-trip through the full shadcn decider
+// stack: existing rows render, and submitted rows bind back.
+func TestExampleRepeatableLines(t *testing.T) {
+	s := &store{p: Profile{
+		ID: "user-1", Name: "Ada", Email: "ada@example.com", Age: 36,
+		Lines: []LineItem{{Description: "Consulting", Quantity: 10, UnitPrice: 150}},
+	}}
+	mux := http.NewServeMux()
+	mux.Handle("/admin/profile", mx.ReflectFormHandler(s.Load, s.Save))
+	srv := mx.Middleware(shadcn.FieldDecider)(mux)
+
+	// GET renders the existing line row with row-scoped cell names.
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/profile", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status=%d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`data-repeatable="Lines"`,
+		`name="Lines-0-Description"`, `value="Consulting"`,
+		`name="Lines-0-Quantity"`, `name="Lines-0-UnitPrice"`,
+		`value="addrow:Lines"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("GET body missing %q", want)
+		}
+	}
+
+	// POST replaces the single line with two new ones.
+	form := url.Values{}
+	form.Set(mx.PresentSentinelName("Name"), "1")
+	form.Set("Name", "Ada")
+	form.Set(mx.PresentSentinelName("Email"), "1")
+	form.Set("Email", "ada@example.com")
+	setLineRow(form, 0, "Design", "2", "500")
+	setLineRow(form, 1, "Build", "3", "750")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/profile", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	lines := s.p.Lines
+	if len(lines) != 2 {
+		t.Fatalf("Lines=%+v, want 2 rows", lines)
+	}
+	if lines[0].Description != "Design" || lines[0].Quantity != 2 || lines[0].UnitPrice != 500 {
+		t.Errorf("Lines[0]=%+v", lines[0])
+	}
+	if lines[1].Description != "Build" || lines[1].Quantity != 3 || lines[1].UnitPrice != 750 {
+		t.Errorf("Lines[1]=%+v", lines[1])
+	}
+}
+
+func setLineRow(form url.Values, index int, desc, qty, price string) {
+	form.Set(mx.PresentSentinelName("Lines"), "1")
+	row := mx.FieldPath("Lines").Append(strconv.Itoa(index))
+	form.Set(mx.RowSentinelName(row), "1")
+	for sub, val := range map[string]string{"Description": desc, "Quantity": qty, "UnitPrice": price} {
+		cell := row.Append(sub)
+		form.Set(mx.PresentSentinelName(cell), "1")
+		form.Set(string(cell), val)
 	}
 }
 

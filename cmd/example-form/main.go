@@ -49,20 +49,29 @@ type AccountingInfo struct {
 	Currency  string `form:"widget=select,options=currencies"`
 }
 
+// LineItem is one row of the repeatable invoice-line editor, the
+// canonical form:"repeatable" use case.
+type LineItem struct {
+	Description string  `form:"required,placeholder=Line description"`
+	Quantity    int     `form:"min=1"`
+	UnitPrice   float64 `form:"min=0,step=0.01"`
+}
+
 // Profile is the synthetic admin record. Every tag combination below
 // is intentional and round-trips through the shadcn decider.
 type Profile struct {
-	ID        string `form:"hidden"`
-	Name      string `form:"required,placeholder=Full name"`
-	Email     string `form:"required,widget=email"`
-	Bio       string `form:"widget=textarea,help=Short bio for the public profile"`
-	Age       int    `form:"min=13,max=120,step=1"`
-	Active    bool
-	Tier      Tier
-	Features  map[Feature]struct{}
-	Joined    time.Time `form:"readonly"`
-	Password  string    `form:"widget=password,sensitive"`
-	Account   AccountingInfo `form:"section=Accounting"`
+	ID       string `form:"hidden"`
+	Name     string `form:"required,placeholder=Full name"`
+	Email    string `form:"required,widget=email"`
+	Bio      string `form:"widget=textarea,help=Short bio for the public profile"`
+	Age      int    `form:"min=13,max=120,step=1"`
+	Active   bool
+	Tier     Tier
+	Features map[Feature]struct{}
+	Joined   time.Time      `form:"readonly"`
+	Password string         `form:"widget=password,sensitive"`
+	Account  AccountingInfo `form:"section=Accounting"`
+	Lines    []LineItem     `form:"repeatable,label=Invoice lines"`
 }
 
 // store is the in-memory single-row "database" backing the form.
@@ -118,6 +127,10 @@ func main() {
 				VATNumber: "GB-12345",
 				BillingTo: "Accounts Payable, Acme Corp.",
 				Currency:  "USD",
+			},
+			Lines: []LineItem{
+				{Description: "Consulting", Quantity: 10, UnitPrice: 150},
+				{Description: "Hosting", Quantity: 1, UnitPrice: 29.99},
 			},
 		},
 	}
