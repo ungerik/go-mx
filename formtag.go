@@ -63,9 +63,9 @@ type FormTag struct {
 	// (form:"-" or form:"widget=skip").
 	Skip bool
 
-	// Repeatable is reserved for slice-of-struct support in a
-	// follow-on phase; parsing accepts the key so that callers can
-	// already mark fields, but v1 ignores it.
+	// Repeatable renders a slice-of-struct field ([]T or []*T) as a
+	// dynamic list of rows and binds the submitted rows back into the
+	// slice. It is a no-op on any other field shape. See repeatable.go.
 	Repeatable bool
 }
 

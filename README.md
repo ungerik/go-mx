@@ -146,15 +146,22 @@ richest-first chain (`Normalize() []error` → `Normalize() error` →
 choice, and POST parses only the fields the form actually rendered —
 mass-assignment-safe by construction.
 
+Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
+render as a dynamic list of rows — one per element, with JavaScript-free
+"Add row" / "Remove" buttons — and bind the submitted rows back into the
+slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
+can map rows to records.
+
 See [`cmd/example-form`](cmd/example-form/main.go) for a complete
 worked example covering every supported field kind, section grouping,
-and the `FieldErrors` cross-field error routing path.
+the repeatable invoice-line editor, and the `FieldErrors` cross-field
+error routing path.
 
 ## To Do
 
 - [ ] ReflectMarkup()
 - [ ] More ReflectInputOptions
-- [ ] Slice-of-struct fields (`form:"repeatable"`)
+- [x] Slice-of-struct fields (`form:"repeatable"`)
 - [ ] Rich file upload widget (preview, multi-file, progress)
 - [ ] HTMX OOB fragment responses
 - [ ] OptionsProvider registry sub-package (ISO 4217, ISO 639, country codes)

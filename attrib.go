@@ -158,5 +158,7 @@ func (a ErrAttrib) AttribValue(context.Context) (string, error) { return "", a.E
 
 // ErrAttribf returns an ErrAttrib wrapping a formatted error.
 func ErrAttribf(name, format string, args ...any) ErrAttrib {
+	// A deferred invalid-attribute-value error is a validation result
+	// surfaced at render time, so it carries no callstack.
 	return ErrAttrib{Name: name, Err: fmt.Errorf(format, args...)}
 }

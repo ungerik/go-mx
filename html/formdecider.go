@@ -2,7 +2,6 @@ package html
 
 import (
 	"encoding"
-	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 )
 
@@ -333,7 +333,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 // handling is left to higher layers.
 func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, r *http.Request) error {
 	if !value.CanSet() {
-		return errors.New("field not settable: " + string(path))
+		return errs.New("field not settable: " + string(path))
 	}
 	form := r.PostForm
 	if r.MultipartForm != nil {
@@ -385,7 +385,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			value.SetString(fh.Filename)
 			return nil
 		}
-		return errors.New("file upload requires []byte or string field")
+		return errs.New("file upload requires []byte or string field")
 	}
 	return nil
 }
@@ -416,7 +416,7 @@ func setScalar(value reflect.Value, raw string) error {
 		return u.UnmarshalText([]byte(raw))
 	}
 	// Fallback: try fmt.Sscan-style conversion via reflect.
-	return fmt.Errorf("cannot parse value into %s — implement encoding.TextUnmarshaler or use a form:\"widget=...\" override", value.Type())
+	return errs.Errorf("cannot parse value into %s — implement encoding.TextUnmarshaler or use a form:\"widget=...\" override", value.Type())
 }
 
 func setNumeric(value reflect.Value, raw string) error {
@@ -454,7 +454,7 @@ func setNumeric(value reflect.Value, raw string) error {
 		}
 		value.SetFloat(f)
 	default:
-		return fmt.Errorf("setNumeric: unsupported kind %s", value.Kind())
+		return errs.Errorf("setNumeric: unsupported kind %s", value.Kind())
 	}
 	return nil
 }
@@ -463,7 +463,7 @@ func setBool(value reflect.Value, raw string) error {
 	on := raw == "on" || raw == "true" || raw == "1"
 	if value.Kind() == reflect.Pointer {
 		if !value.CanSet() {
-			return errors.New("pointer not settable")
+			return errs.New("pointer not settable")
 		}
 		if value.IsNil() {
 			value.Set(reflect.New(value.Type().Elem()))
@@ -519,7 +519,7 @@ func setTime(value reflect.Value, raw, widget string) error {
 					return u.UnmarshalText([]byte(raw))
 				}
 			}
-			return errors.New("cannot assign time to " + value.Type().String())
+			return errs.New("cannot assign time to " + value.Type().String())
 		}
 		lastErr = err
 	}
@@ -529,7 +529,7 @@ func setTime(value reflect.Value, raw, widget string) error {
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {
 	keyType := setKeyType(fieldType)
 	if keyType == nil {
-		return errors.New("not a recognized set type")
+		return errs.New("not a recognized set type")
 	}
 	if value.Kind() == reflect.Pointer {
 		if value.IsNil() {
@@ -559,7 +559,7 @@ func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) erro
 		}
 		value.Set(newSlice)
 	default:
-		return fmt.Errorf("setEnumSet: unsupported kind %s", value.Kind())
+		return errs.Errorf("setEnumSet: unsupported kind %s", value.Kind())
 	}
 	return nil
 }
@@ -615,7 +615,7 @@ func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 		dst.SetUint(n)
 		return dst, nil
 	}
-	return reflect.Value{}, fmt.Errorf("cannot convert %q to %s", s, t)
+	return reflect.Value{}, errs.Errorf("cannot convert %q to %s", s, t)
 }
 
 func setSelectedValues(value reflect.Value) map[string]struct{} {

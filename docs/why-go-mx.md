@@ -103,9 +103,8 @@ some distinctive choices:
 **Of go-mx specifically:**
 
 - **It is young and partially built.** `web/` and `doc/` are explicitly
-  partially implemented, and the TODO list (slice-of-struct fields,
-  OOB fragments, richer file upload, options registry) shows the form layer is
-  still maturing. templ and gomponents are more battle-tested.
+  partially implemented, and the TODO list (OOB fragments, richer file
+  upload, options registry) shows the form layer is still maturing. templ and gomponents are more battle-tested.
 - **You still need Tailwind itself for the shadcn path.** The npm *runtime* is
   gone, but the shadcn components emit Tailwind classes, so you still run a
   Tailwind CSS build (or the CDN). The supply-chain win is real but not total

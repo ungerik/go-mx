@@ -49,6 +49,9 @@ import (
 //     structural checks (12-17). The Nullable interface, when present,
 //     is orthogonal: detection still picks the same kind, and the
 //     decider's Render checks IsNull at render time.
+//   - Before rule 3, a form:"repeatable" tag on a direct []struct /
+//     []*struct field (element not a single-value type) yields
+//     FieldKindRepeatable; on any other shape the tag is ignored.
 func DetectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
 	tag := ParseFormTag(field)
 
@@ -60,6 +63,25 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// 2. explicit hidden
 	if tag.Hidden {
 		return FieldKindHidden, tag
+	}
+
+	// 2.5. repeatable slice-of-struct. The tag only takes effect on a
+	// direct slice field whose element is a plain struct or a single
+	// pointer to one ([]T or []*T) that is not registered as a
+	// single-value type (so []time.Time is not turned into rows). We
+	// dereference at most one pointer level on purpose — not via
+	// derefType, which would also strip an interface element (panicking
+	// on Elem()) or multiple pointer levels that the row render/parse
+	// paths cannot bind. On any other shape the tag is ignored and
+	// detection falls through to the structural rules below.
+	if tag.Repeatable && field.Type.Kind() == reflect.Slice {
+		et := field.Type.Elem()
+		if et.Kind() == reflect.Pointer {
+			et = et.Elem()
+		}
+		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) {
+			return FieldKindRepeatable, tag
+		}
 	}
 
 	// 3. explicit section / nested recursion

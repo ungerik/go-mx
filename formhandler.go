@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"reflect"
 	"sort"
+
+	"github.com/domonda/go-errs"
 )
 
 // DefaultMaxMemory is the default upper bound on multipart form parsing
@@ -132,6 +134,18 @@ func ReflectFormHandlerWith[T any](
 				return
 			}
 			d := pickDecider(r)
+			// Repeatable add/remove buttons submit a __cmd__ value with
+			// formnovalidate: bind whatever the user entered, apply the
+			// row mutation, and re-render without running onSubmit. Only
+			// commands that resolve to a real repeatable field enter this
+			// path; an unknown/injected __cmd__ falls through to a normal
+			// submit rather than silently discarding the save.
+			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, cmd) {
+				parseAndValidate(target, d, r)
+				applyRepeatableCommand(target, cmd, requestFormValues(r))
+				render(w, r, target, nil, "")
+				return
+			}
 			fieldErrs := parseAndValidate(target, d, r)
 			if len(fieldErrs) > 0 {
 				render(w, r, target, fieldErrs, "")
@@ -169,15 +183,16 @@ func ReflectFormHandlerWith[T any](
 // ready for onSubmit.
 func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[FieldPath][]error {
 	out := map[FieldPath][]error{}
-	form := r.PostForm
-	if r.MultipartForm != nil {
-		form = r.MultipartForm.Value
-	}
+	form := requestFormValues(r)
 	for visit := range ReflectFormFields(target) {
+		if visit.Kind == FieldKindRepeatable {
+			parseRepeatable(visit, d, r, out)
+			continue
+		}
 		beh := d(visit.Path, visit.Field, visit.Value)
 		if !visit.Value.CanAddr() {
 			out[visit.Path] = append(out[visit.Path],
-				errors.New("internal: field value not addressable"))
+				errs.New("internal: field value not addressable"))
 			continue
 		}
 		// __present gate: skip silently when the field was not
@@ -207,6 +222,7 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 		// nullable values; the parsers already enforce numeric range
 		// via min/max.
 		if visit.Tag.Required && isEffectivelyEmpty(visit.Value) {
+			// Validation results shown to the user carry no callstack.
 			out[visit.Path] = append(out[visit.Path],
 				errors.New("required"))
 			continue
@@ -243,7 +259,7 @@ func sentinelSet(form map[string][]string, name string) bool {
 // slice/map/interface kinds.
 func setFieldNull(value reflect.Value) error {
 	if !value.IsValid() {
-		return errors.New("internal: invalid value for clear")
+		return errs.New("internal: invalid value for clear")
 	}
 	if value.CanAddr() {
 		if ns, ok := value.Addr().Interface().(NullSetter); ok {
@@ -258,7 +274,7 @@ func setFieldNull(value reflect.Value) error {
 			return nil
 		}
 	}
-	return errors.New("field is not nullable")
+	return errs.New("field is not nullable")
 }
 
 // isEffectivelyEmpty reports whether value should be treated as
@@ -303,16 +319,27 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 		root = append(root, formMessageComponent(formMsg))
 	}
 	for visit := range ReflectFormFields(target) {
-		beh := d(visit.Path, visit.Field, visit.Value)
-		if beh.Render == nil {
+		var wrapped Component
+		if visit.Kind == FieldKindRepeatable {
+			// The repeatable field owns its own row markup, __present
+			// sentinels and add/remove buttons; the core handler only
+			// places it into the right section.
+			wrapped = renderRepeatable(visit, d, fieldErrs)
+		} else {
+			beh := d(visit.Path, visit.Field, visit.Value)
+			if beh.Render == nil {
+				continue
+			}
+			errs := fieldErrs[visit.Path]
+			// Each render emits its own __present sentinel; the handler
+			// ALSO ensures one is present (defense-in-depth) when the
+			// decider chose to omit it.
+			fieldComp := beh.Render(visit.Path, visit.Field, visit.Value, errs)
+			wrapped = wrapWithPresentSentinel(visit.Path, fieldComp)
+		}
+		if wrapped == nil {
 			continue
 		}
-		errs := fieldErrs[visit.Path]
-		// Each render emits its own __present sentinel; the handler
-		// ALSO ensures one is present (defense-in-depth) when the
-		// decider chose to omit it.
-		fieldComp := beh.Render(visit.Path, visit.Field, visit.Value, errs)
-		wrapped := wrapWithPresentSentinel(visit.Path, fieldComp)
 		if visit.Section == "" {
 			root = append(root, wrapped)
 			continue

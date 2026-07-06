@@ -2,10 +2,11 @@ package mx
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/domonda/go-errs"
 )
 
 // NewCheckedWriter returns a [CheckedWriter] writing to dest, using the package
@@ -176,14 +177,14 @@ func (w *CheckedWriter) currentElemName() string {
 func (w *CheckedWriter) BeginElement(elem string) error {
 	// TODO regex for valid element name
 	if elem == "" {
-		return fmt.Errorf("empty element name")
+		return errs.Errorf("empty element name")
 	}
 	if w.inStartTag {
-		return fmt.Errorf("can't BeginElement while writing attributes of element %s", w.currentElemName())
+		return errs.Errorf("can't BeginElement while writing attributes of element %s", w.currentElemName())
 	}
 	if w.allowedElems != nil {
 		if _, ok := w.allowedElems[elem]; !ok {
-			return fmt.Errorf("element %s not allowed", elem)
+			return errs.Errorf("element %s not allowed", elem)
 		}
 	}
 	if w.indent != "" {
@@ -208,14 +209,14 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 // written for this element (duplicate attribute).
 func (w *CheckedWriter) Attribute(name, value string) (err error) {
 	if !w.inStartTag {
-		return fmt.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
+		return errs.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
 	}
 	// TODO regex for valid attribute name
 	if name == "" {
-		return fmt.Errorf("empty attribute name")
+		return errs.Errorf("empty attribute name")
 	}
 	if _, duplicate := w.writtenAttribs[name]; duplicate {
-		return fmt.Errorf("duplicate attribute %s in element %s", name, w.currentElemName())
+		return errs.Errorf("duplicate attribute %s in element %s", name, w.currentElemName())
 	}
 	w.writtenAttribs[name] = struct{}{}
 
@@ -234,10 +235,10 @@ func (w *CheckedWriter) Attribute(name, value string) (err error) {
 // can follow. It returns an error if no element is open or no start tag is open.
 func (w *CheckedWriter) CloseElementStartTag() error {
 	if len(w.elemStack) == 0 {
-		return errors.New("can't CloseElementStartTag without BeginElement")
+		return errs.New("can't CloseElementStartTag without BeginElement")
 	}
 	if !w.inStartTag {
-		return fmt.Errorf("can't CloseElementStartTag while writing children of element %s", w.currentElemName())
+		return errs.Errorf("can't CloseElementStartTag while writing children of element %s", w.currentElemName())
 	}
 	w.inStartTag = false
 	_, err := w.Write([]byte{'>'})
@@ -250,7 +251,7 @@ func (w *CheckedWriter) CloseElementStartTag() error {
 // indented line. It returns an error if no element is open.
 func (w *CheckedWriter) EndElement() (err error) {
 	if len(w.elemStack) == 0 {
-		return errors.New("can't EndElement without BeginElement")
+		return errs.New("can't EndElement without BeginElement")
 	}
 	this := w.elemStack[len(w.elemStack)-1]
 	w.elemStack = w.elemStack[:len(w.elemStack)-1]
@@ -274,7 +275,7 @@ func (w *CheckedWriter) EndElement() (err error) {
 // escaper. It returns an error if called while a start tag is still open.
 func (w *CheckedWriter) EscapeText(text string) error {
 	if w.inStartTag {
-		return fmt.Errorf("can't EscapeText while writing start tag of element %s", w.currentElemName())
+		return errs.Errorf("can't EscapeText while writing start tag of element %s", w.currentElemName())
 	}
 	_, err := w.textEscaper.WriteString(w, text)
 	return err
@@ -304,7 +305,7 @@ func (w *CheckedWriter) Comment(text string) error {
 // With indentation enabled it first breaks and indents the line.
 func (w *CheckedWriter) CDATA(text string) error {
 	if strings.Contains(text, "]]>") {
-		return fmt.Errorf("CDATA text contains ']]>': %s", text)
+		return errs.Errorf("CDATA text contains ']]>': %s", text)
 	}
 	if w.indent != "" {
 		err := w.Newline()
