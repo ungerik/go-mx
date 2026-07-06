@@ -265,6 +265,13 @@ PDF/A-required file identifier is written to the trailer whenever XMP
 metadata is present. On a raw `Renderer`, build the packet with
 `XMPMetadata.XML` and pass it to `SetXmpMetadata`.
 
+Two limitations to be aware of: XMP metadata cannot be combined with
+`SetProtection` (the RC4 encryption would encrypt the metadata stream, which
+PDF/A forbids — the combination is an error in either call order), and
+attachments embedded via `AddAttachmentAnnotation` (page-annotation links)
+are not listed in the catalog `/AF` array — only document-level attachments
+(`Document.Attachments` / `SetAttachments`) become associated files.
+
 Full PDF/A-3 conformance additionally requires every font to be embedded
 (use a UTF-8 TrueType font — the standard core fonts are never embedded) and
 an ICC output intent (`AddOutputIntent`). The engine does not validate
@@ -378,7 +385,8 @@ or post-process the output with a more complete library.
 
 - **Encryption is RC4 (40/128-bit) only** via `SetProtection` — the legacy
   standard security handler. **No AES-128 or AES-256**, so protection is weak by
-  modern standards.
+  modern standards. It also cannot exempt individual streams (no PDF 1.5 crypt
+  filters), which is why combining it with XMP metadata is an error.
 
 ### Other
 
@@ -388,3 +396,26 @@ or post-process the output with a more complete library.
   be drawn with the [`SVG` component](#svg-rendering) (best effort).
 - **No page transitions, multimedia, 3D, embedded-file UI, or digital
   signatures.**
+
+## Divergences from the legacy engine
+
+The inlined engine deliberately behaves better than upstream
+`codeberg.org/go-pdf/fpdf` v0.12.0 (and the legacy [`fpdf`](../fpdf) module
+wrapping it) in a few places. These are the known intentional parity
+exceptions:
+
+- **Non-BMP text is correct.** `utf8toutf16` emits proper surrogate pairs, so
+  emoji and other characters above U+FFFF work in metadata, bookmarks and
+  UTF-8 text; the legacy engine emitted garbage bytes for them.
+- **Fonts whose OS/2 fsType forbids embedding are rejected** with an error
+  (embedding them would violate the font license); the legacy engine printed
+  a warning to stdout and embedded them anyway.
+- **Malformed TrueType font bytes produce an error**; the legacy engine
+  panics.
+- **Output is deterministic.** Spot colors, page boxes, equal-width images
+  and alias replacement are emitted in a fixed order; the legacy engine's
+  order for these is random per process.
+- **`ImageReader` / `ImageBytes` components are re-renderable** — the same
+  component can be rendered any number of times, into any number of
+  renderers (`ImageReader` buffers its source on first render); the legacy
+  engine consumes a single reader.

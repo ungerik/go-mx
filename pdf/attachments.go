@@ -133,21 +133,35 @@ func (r *Renderer) getEmbeddedFiles() string {
 		objectNumber int
 	}
 	refs := make([]nameRef, len(r.attachments))
-	seen := make(map[string]int, len(r.attachments))
+	used := make(map[string]bool, len(r.attachments))
+	next := make(map[string]int) // next "(n)" suffix to probe per base name
 	for i, a := range r.attachments {
 		name := a.Filename
 		if name == "" {
 			name = fmt.Sprintf("Attachement%d", i+1)
 		}
-		// name-tree keys must be unique; disambiguate repeated filenames
-		seen[name]++
-		if n := seen[name]; n > 1 {
-			name = fmt.Sprintf("%s (%d)", name, n)
+		// Name-tree keys must be unique. Deduplicate on the UTF-16BE key, not
+		// the raw name: distinct invalid-UTF-8 names can decode to the same
+		// key (U+FFFD). Disambiguate repeated names with a "(n)" suffix,
+		// skipping suffixes taken by an attachment literally named "x (2)".
+		// The per-base counter keeps crafted duplicates from re-probing the
+		// same suffixes for every attachment; it is keyed by the encoded
+		// base too, so names that conflate to one key share the counter.
+		base := name
+		key := utf8toutf16(name)
+		baseKey := key
+		for n := max(next[baseKey], 2); used[key]; n++ {
+			name = fmt.Sprintf("%s (%d)", base, n)
+			key = utf8toutf16(name)
+			next[baseKey] = n + 1
 		}
-		refs[i] = nameRef{utf8toutf16(name), a.objectNumber}
+		used[key] = true
+		refs[i] = nameRef{key, a.objectNumber}
 	}
-	// name-tree keys must be sorted by the byte value of the written strings,
-	// which are UTF-16BE, so compare on that encoding not the raw UTF-8 name
+	// Name-tree keys must be sorted lexically by byte-wise comparison of the
+	// string values (ISO 32000-1 7.9.6), here their UTF-16BE encoding. The
+	// textstring escaping (and encryption) applied when writing the keys is
+	// serialization on top of the value and does not enter the comparison.
 	slices.SortFunc(refs, func(a, b nameRef) int {
 		return strings.Compare(a.key, b.key)
 	})
@@ -193,6 +207,11 @@ type annotationAttach struct {
 // shared amongst all links. Be aware that not all PDF readers support
 // annotated attachments. See the AddAttachmentAnnotation example for a
 // demonstration of this method.
+//
+// Annotation attachments are not listed in the document catalog's /AF array:
+// a Relationship set on a is written to its filespec but does not make it a
+// PDF/A-3 associated file, and the Factur-X check of [Document.XMP] does not
+// see it. Use SetAttachments (or [Document.Attachments]) for associated files.
 func (r *Renderer) AddAttachmentAnnotation(a *Attachment, x, y, w, h float64) {
 	if a == nil {
 		return

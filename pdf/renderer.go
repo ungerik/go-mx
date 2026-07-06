@@ -116,6 +116,7 @@ type Renderer struct {
 	nXMP             int                        // XMP object number
 	xmp              []byte                     // XMP metadata
 	producer         string                     // producer
+	producerUTF16    bool                       // producer holds UTF-16BE (utf8toutf16) bytes, not ISO-8859-1
 	title            string                     // title
 	subject          string                     // subject
 	author           string                     // author
@@ -256,6 +257,7 @@ func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirS
 		gradientList:     make([]gradient, 1, 8), // gradientList[0] is unused (1-based)
 		pdfVersion:       pdfVers1_3,
 		producer:         utf8toutf16("FPDF " + cnFpdfVersion),
+		producerUTF16:    true,
 		layer: layerRec{
 			list:          make([]layer, 0),
 			currentLayer:  -1,
@@ -666,6 +668,7 @@ func (r *Renderer) SetProducer(producerStr string, isUTF8 bool) {
 		producerStr = utf8toutf16(producerStr)
 	}
 	r.producer = producerStr
+	r.producerUTF16 = isUTF8
 }
 
 // GetTitle returns the title of the document as ISO-8859-1 or UTF-16BE.
@@ -755,7 +758,21 @@ func (r *Renderer) GetXmpMetadata() []byte {
 }
 
 // SetXmpMetadata defines XMP metadata that will be embedded with the document.
+//
+// XMP metadata cannot be combined with SetProtection: the RC4 encryption
+// encrypts the metadata stream like every other stream, which PDF/A forbids
+// and which hides the packet from plaintext XMP scanners (exempting a single
+// stream would need PDF 1.5 crypt filters). The combination is an error,
+// whichever call comes first; clearing the metadata with nil is always
+// allowed.
 func (r *Renderer) SetXmpMetadata(xmpStream []byte) {
+	if r.err != nil {
+		return
+	}
+	if len(xmpStream) != 0 && r.protect.encrypted {
+		r.SetError(errors.New("XMP metadata cannot be combined with SetProtection: the metadata stream would be encrypted, which PDF/A forbids"))
+		return
+	}
 	r.xmp = xmpStream
 }
 
@@ -3752,8 +3769,14 @@ func (r *Renderer) SetXY(x, y float64) {
 // full access to the document regardless of the actionFlag value. An empty
 // string for this argument will be replaced with a random value, effectively
 // prohibiting full access to the document.
+//
+// Protection cannot be combined with XMP metadata; see [Renderer.SetXmpMetadata].
 func (r *Renderer) SetProtection(actionFlag byte, userPassStr, ownerPassStr string) {
 	if r.err != nil {
+		return
+	}
+	if len(r.xmp) != 0 {
+		r.SetError(errors.New("SetProtection cannot be combined with XMP metadata: the metadata stream would be encrypted, which PDF/A forbids"))
 		return
 	}
 	r.protect.setProtection(actionFlag, userPassStr, ownerPassStr)

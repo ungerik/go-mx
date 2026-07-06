@@ -63,6 +63,11 @@ type Document struct {
 	// PDF info dictionary (including its dates) is kept consistent with the
 	// packet, as PDF/A validators require. When XMP.FacturX is set, an
 	// attachment with the declared DocumentFileName must be present.
+	// XMP cannot be combined with SetProtection on the target renderer;
+	// see [Renderer.SetXmpMetadata]. Metadata set directly on the renderer
+	// (SetTitle, SetAuthor, …) is not read back into the packet — only the
+	// producer is — so set document metadata on the Document or XMP fields
+	// to keep the info dictionary and the packet consistent.
 	XMP *XMPMetadata
 
 	// Body holds the page content.
@@ -185,8 +190,10 @@ func (d *Document) applyXMP(r *Renderer) {
 	m.Subject = cmp.Or(m.Subject, d.Subject)
 	m.Keywords = cmp.Or(m.Keywords, d.Keywords)
 	m.CreatorTool = cmp.Or(m.CreatorTool, d.Creator)
-	// the engine default producer, written to /Info even when unset
-	m.Producer = cmp.Or(m.Producer, "FPDF "+cnFpdfVersion)
+	// /Info always carries a producer (the renderer defaults it to the engine
+	// version), so the packet must too. A producer already set on the renderer
+	// wins over the engine default rather than being overwritten by it.
+	m.Producer = cmp.Or(m.Producer, pdfTextToUTF8(r.producer, r.producerUTF16), "FPDF "+cnFpdfVersion)
 	// Mirror the resolved metadata onto the renderer so /Info matches the XMP
 	// packet. An empty field is left unset (putinfo omits it), which the XMP
 	// packet does too, so the two stay consistent.

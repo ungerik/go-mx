@@ -55,6 +55,27 @@ func utf8toutf16(s string, withBOM ...bool) string {
 	return string(res)
 }
 
+// pdfTextToUTF8 decodes a metadata text string as stored on the renderer back
+// to UTF-8. isUTF16 states the stored encoding explicitly (the setters record
+// it): UTF-16BE with a byte order mark (surrogate pairs included), or Latin-1
+// where each byte is its code point. The encoding is not sniffed from a BOM,
+// because a Latin-1 string may legitimately start with the bytes "þÿ".
+func pdfTextToUTF8(s string, isUTF16 bool) string {
+	if !isUTF16 {
+		runes := make([]rune, 0, len(s))
+		for i := range len(s) {
+			runes = append(runes, rune(s[i]))
+		}
+		return string(runes)
+	}
+	b, _ := strings.CutPrefix(s, "\xFE\xFF")
+	u := make([]uint16, 0, len(b)/2)
+	for i := 0; i+1 < len(b); i += 2 {
+		u = append(u, uint16(b[i])<<8|uint16(b[i+1]))
+	}
+	return string(utf16.Decode(u))
+}
+
 func repClosure(m map[rune]byte) func(string) string {
 	return func(str string) string {
 		var b strings.Builder

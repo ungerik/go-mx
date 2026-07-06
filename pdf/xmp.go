@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ungerik/go-mx"
@@ -141,7 +142,21 @@ func validXMLPrefix(s string) bool {
 // XML builds the XMP packet: an xpacket header, the metadata as RDF/XML,
 // padding for in-place updates and the xpacket trailer. The result is ready
 // for [Renderer.SetXmpMetadata].
+//
+// Characters that are not valid in XML 1.0 (C0 controls other than tab, LF,
+// CR) are replaced with U+FFFD in the text fields, so a stray control byte
+// in a metadata value cannot invalidate the whole packet.
 func (m *XMPMetadata) XML() ([]byte, error) {
+	san := *m
+	san.Title = xmpText(m.Title)
+	san.Author = xmpText(m.Author)
+	san.Subject = xmpText(m.Subject)
+	san.Keywords = xmpText(m.Keywords)
+	san.CreatorTool = xmpText(m.CreatorTool)
+	san.Producer = xmpText(m.Producer)
+	san.PDFAConformance = xmpText(m.PDFAConformance)
+	m = &san
+
 	var descriptions []any
 
 	if m.PDFAPart != 0 {
@@ -232,6 +247,28 @@ func (m *XMPMetadata) XML() ([]byte, error) {
 	}
 	b.WriteString(`<?xpacket end="w"?>`)
 	return b.Bytes(), nil
+}
+
+// xmpText returns s with characters that are not valid in XML 1.0 replaced
+// by U+FFFD. The XML writer escapes markup characters but writes control
+// characters through, and XML 1.0 forbids the C0 range except tab, LF and
+// CR — one stray control byte in a metadata value (e.g. a producer read
+// back from the info dictionary) would otherwise invalidate the packet.
+func xmpText(s string) string {
+	if !strings.ContainsFunc(s, invalidXMLChar) {
+		return s
+	}
+	return strings.Map(func(r rune) rune {
+		if invalidXMLChar(r) {
+			return '�'
+		}
+		return r
+	}, s)
+}
+
+func invalidXMLChar(r rune) bool {
+	return (r < 0x20 && r != '\t' && r != '\n' && r != '\r') ||
+		r == 0xFFFE || r == 0xFFFF
 }
 
 // rdfDescription builds an rdf:Description block that binds prefix to
