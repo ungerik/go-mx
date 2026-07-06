@@ -2,6 +2,8 @@ package html
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -272,5 +274,292 @@ func TestFieldDecider_SkipReturnsNil(t *testing.T) {
 	comp := beh.Render("Ignored", field, v.FieldByName("Ignored"), nil)
 	if comp != nil {
 		t.Errorf("skipped field should render nil, got %T", comp)
+	}
+}
+
+type partnersCtxKey struct{}
+
+// Registry entries are process-global and duplicate registration
+// panics, so tests register once in init() — never in test bodies,
+// which would crash under `go test -count=2`.
+func init() {
+	partnersFromCtx := func(ctx context.Context) ([]mx.NamedOption, error) {
+		opts, ok := ctx.Value(partnersCtxKey{}).([]mx.NamedOption)
+		if !ok {
+			return nil, errors.New("no partners in context")
+		}
+		return opts, nil
+	}
+	mx.RegisterNamedOptions("test-html-partners", partnersFromCtx)
+	mx.RegisterNamedOptions("test-html-handler-partners", partnersFromCtx)
+	mx.RegisterNamedOptions("test-html-tags", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{
+			{Name: "Tag A", Value: "a"},
+			{Name: "Tag B", Value: "b"},
+		}, nil
+	})
+}
+
+// TestFieldDecider_SelectWithRegistryOptions builds the component once
+// and renders it under two different request contexts: the option list
+// must follow the context, which is the point of the form:"options=…"
+// registry (per-request dropdowns like tenant-scoped partner lists).
+func TestFieldDecider_SelectWithRegistryOptions(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-html-partners"`
+	}
+	target := &draftForm{Partner: "p2"}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider(mx.FieldPath("Partner"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
+
+	renderWith := func(opts []mx.NamedOption) string {
+		t.Helper()
+		ctx := context.WithValue(context.Background(), partnersCtxKey{}, opts)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return b.String()
+	}
+
+	out := renderWith([]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	if !strings.Contains(out, `<select`) || !strings.Contains(out, "Partner One") {
+		t.Errorf("expected select with option from context: %q", out)
+	}
+	if strings.Contains(out, "selected") {
+		t.Errorf("p1 must not be selected: %q", out)
+	}
+
+	out = renderWith([]mx.NamedOption{{Name: "Partner Two", Value: "p2"}})
+	if !strings.Contains(out, "Partner Two") {
+		t.Errorf("same component must render second context's options: %q", out)
+	}
+	if !strings.Contains(out, "selected") {
+		t.Errorf("p2 matches the field value and must be selected: %q", out)
+	}
+}
+
+func TestFieldDecider_SelectWithUnregisteredOptionsName(t *testing.T) {
+	type badForm struct {
+		X string `form:"options=test-html-not-registered"`
+	}
+	target := &badForm{}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("X")
+	beh := FieldDecider(mx.FieldPath("X"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("X"), field, v.Field(0), nil)
+
+	var b strings.Builder
+	err := comp.Render(context.Background(), mx.NewCheckedWriter(&b))
+	if err == nil {
+		t.Fatal("expected render error for unregistered options name")
+	}
+	if !strings.Contains(err.Error(), "test-html-not-registered") {
+		t.Errorf("error should name the missing entry: %v", err)
+	}
+}
+
+func TestFieldDecider_EnumSetWithRegistryOptions(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-html-tags"`
+	}
+	target := &tagForm{Tags: []string{"b"}}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("Tags")
+	beh := FieldDecider(mx.FieldPath("Tags"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Tags"), field, v.Field(0), nil)
+
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Count(out, `type="checkbox"`) != 2 {
+		t.Errorf("expected one checkbox per registry option: %q", out)
+	}
+	if !strings.Contains(out, "Tag A") || !strings.Contains(out, "Tag B") {
+		t.Errorf("expected option labels: %q", out)
+	}
+	if !strings.Contains(out, "checked") {
+		t.Errorf("expected current member b to be checked: %q", out)
+	}
+}
+
+// TestReflectFormHandler_RegistryOptionsGetRequestContext proves the
+// whole point of the registry end to end: the HTTP request context —
+// not anything on the field type — supplies the option list when a
+// real handler renders the form.
+func TestReflectFormHandler_RegistryOptionsGetRequestContext(t *testing.T) {
+	type draft struct {
+		Partner string `form:"options=test-html-handler-partners"`
+	}
+	handler := mx.ReflectFormHandler(nil, func(context.Context, *draft) error { return nil }, FieldDecider)
+
+	req := httptest.NewRequest(http.MethodGet, "/draft", nil)
+	req = req.WithContext(context.WithValue(req.Context(), partnersCtxKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}}))
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, body: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<select") || !strings.Contains(body, "Partner One") {
+		t.Errorf("expected select with request-context option in handler output: %q", body)
+	}
+}
+
+// fakeID is a stand-in for uu.ID-shaped foreign key types: a [16]byte
+// array with TextMarshaler/TextUnmarshaler — the motivating use case
+// for form:"options=…" on fields whose type cannot implement a
+// provider interface.
+type fakeID [16]byte
+
+func (id fakeID) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("%x", id[:4])), nil
+}
+
+func (id *fakeID) UnmarshalText(text []byte) error {
+	_, err := fmt.Sscanf(string(text), "%8x", id)
+	return err
+}
+
+func TestFieldDecider_SelectWithRegistryOptions_IDType(t *testing.T) {
+	type draft struct {
+		Partner fakeID `form:"options=test-html-partners"`
+	}
+	target := &draft{Partner: fakeID{0xde, 0xad, 0xbe, 0xef}}
+	v := reflect.ValueOf(target).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+
+	kind, _ := mx.DetectField("Partner", field, v.Field(0))
+	if kind != mx.FieldKindEnum {
+		t.Fatalf("options-tagged ID type: kind = %s, want enum", kind)
+	}
+
+	beh := FieldDecider(mx.FieldPath("Partner"), field, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
+
+	ctx := context.WithValue(context.Background(), partnersCtxKey{}, []mx.NamedOption{
+		{Name: "Other Partner", Value: "11223344"},
+		{Name: "Dead Beef Inc", Value: "deadbeef"},
+	})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `value="deadbeef" selected`) {
+		t.Errorf("marshaled ID must match the option Value for selection: %q", out)
+	}
+	if strings.Contains(out, `value="11223344" selected`) {
+		t.Errorf("non-matching option must not be selected: %q", out)
+	}
+}
+
+// TestFieldDecider_ParseRejectsOutOfListOption encodes D1 of the ship
+// review: the per-request option list is a trust boundary, so POST
+// must not bind values outside it (e.g. another tenant's partner ID).
+func TestFieldDecider_ParseRejectsOutOfListOption(t *testing.T) {
+	type draft struct {
+		Partner string `form:"options=test-html-partners"`
+	}
+	f := &draft{Partner: "p1"}
+	parse := func(submitted string) error {
+		values := url.Values{}
+		values.Set("Partner", submitted)
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r = r.WithContext(context.WithValue(r.Context(), partnersCtxKey{},
+			[]mx.NamedOption{{Name: "Partner One", Value: "p1"}}))
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName("Partner")
+		beh := FieldDecider("Partner", field, v.Field(0))
+		return beh.Parse("Partner", field, v.Field(0), r)
+	}
+
+	if err := parse("p1"); err != nil {
+		t.Fatalf("in-list value must bind: %v", err)
+	}
+	if f.Partner != "p1" {
+		t.Errorf("in-list value not bound: %q", f.Partner)
+	}
+
+	err := parse("p2") // not in this request's list
+	if err == nil {
+		t.Fatal("expected out-of-list value to be rejected")
+	}
+	if !strings.Contains(err.Error(), "allowed options") {
+		t.Errorf("rejection should be a plain validation error: %v", err)
+	}
+	if f.Partner != "p1" {
+		t.Errorf("rejected value must not be bound: %q", f.Partner)
+	}
+
+	// Empty submission means "no selection" — required-ness is a
+	// separate concern, membership must not reject it.
+	if err := parse(""); err != nil {
+		t.Fatalf("empty value must pass membership validation: %v", err)
+	}
+}
+
+func TestFieldDecider_ParseRejectsOutOfListEnumSet(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-html-tags"` // registry offers a, b
+	}
+	f := &tagForm{}
+	parse := func(submitted ...string) error {
+		values := url.Values{"Tags": submitted}
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName("Tags")
+		beh := FieldDecider("Tags", field, v.Field(0))
+		return beh.Parse("Tags", field, v.Field(0), r)
+	}
+
+	if err := parse("a", "b"); err != nil {
+		t.Fatalf("in-list members must bind: %v", err)
+	}
+	if len(f.Tags) != 2 {
+		t.Errorf("expected both members bound: %v", f.Tags)
+	}
+
+	err := parse("a", "admin") // "admin" was never offered
+	if err == nil {
+		t.Fatal("expected out-of-list member to be rejected")
+	}
+	if len(f.Tags) != 2 || f.Tags[0] != "a" || f.Tags[1] != "b" {
+		t.Errorf("rejected submission must not modify the set: %v", f.Tags)
+	}
+}
+
+// TestReflectFormHandler_ProviderErrorCleanInternalServerError encodes
+// D2 of the ship review: a render-time options failure (typo'd registry
+// name, provider DB error) must be a clean 500, never a truncated 200 —
+// the handler buffers the render before writing.
+func TestReflectFormHandler_ProviderErrorCleanInternalServerError(t *testing.T) {
+	type draft struct {
+		X string `form:"options=test-html-never-registered"`
+	}
+	handler := mx.ReflectFormHandler(nil, func(context.Context, *draft) error { return nil }, FieldDecider)
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 — a streamed render would have sent a truncated 200", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "<form") {
+		t.Errorf("partial form HTML must not leak on render error: %q", rec.Body.String())
 	}
 }

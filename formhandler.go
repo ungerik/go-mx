@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -419,13 +420,21 @@ func wrapWithPresentSentinel(path FieldPath, field Component) Component {
 }
 
 // writeFormResponse writes comp to w using the package's default
-// writer factory and the standard text/html content type.
+// writer factory and the standard text/html content type. The
+// component is rendered into a buffer first: deferred computations
+// (context-dependent option providers, ErrAttrib, NewErrElement) can
+// fail mid-render, and streaming would already have sent a 200 status
+// and a truncated page. Form pages are small, so buffering is cheap
+// and turns every render error into a clean 500.
 func writeFormResponse(w http.ResponseWriter, r *http.Request, comp Component) {
-	writer := DefaultWriterFactory.NewWriter(w)
-	w.Header().Set("Content-Type", ContentTypeHTML)
+	var buf bytes.Buffer
+	writer := DefaultWriterFactory.NewWriter(&buf)
 	if err := comp.Render(r.Context(), writer); err != nil {
 		RespondNonContextError(w, err)
+		return
 	}
+	w.Header().Set("Content-Type", ContentTypeHTML)
+	_, _ = buf.WriteTo(w)
 }
 
 // respondLoadError surfaces a load() failure as a 500 with a generic

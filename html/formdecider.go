@@ -1,6 +1,7 @@
 package html
 
 import (
+	"context"
 	"encoding"
 	"fmt"
 	"net/http"
@@ -266,7 +267,6 @@ func fileInput(path mx.FieldPath, tag mx.FormTag, errs []error) mx.Component {
 }
 
 func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field reflect.StructField, errs []error) mx.Component {
-	options := collectOptions(value, tag, field.Type)
 	selected := displayValue(value, tag)
 	attribs := []any{
 		Name(string(path)),
@@ -281,15 +281,15 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
-	for _, opt := range options {
+	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{Value(opt.Value)}
 		if opt.Value == selected {
 			oAttr = append(oAttr, Selected)
 		}
 		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
-		attribs = append(attribs, Option(oAttr...))
-	}
-	return Select(attribs...)
+		return Option(oAttr...)
+	})
+	return Select(append(attribs, options)...)
 }
 
 func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
@@ -297,10 +297,8 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 	if keyType == nil {
 		return mx.Text("[enum-set: cannot infer key type for " + string(path) + "]")
 	}
-	options := collectOptionsForType(keyType, tag)
 	selectedSet := setSelectedValues(value)
-	items := mx.Components{}
-	for _, opt := range options {
+	items := optionChildren(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
 		inputAttribs := []mx.Attrib{
 			Type("checkbox"),
 			Name(string(path)),
@@ -312,9 +310,8 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 		if tag.Readonly {
 			inputAttribs = append(inputAttribs, Disabled)
 		}
-		label := displayLabel(opt)
-		items = append(items, Label(Input(inputAttribs...), " "+label))
-	}
+		return Label(Input(inputAttribs...), " "+displayLabel(opt))
+	})
 	if len(errs) > 0 {
 		return mx.Components{
 			mx.NewElement("div",
@@ -354,9 +351,19 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setTime(value, raw, tag.Widget)
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
+		if raw != "" {
+			if err := validateOptionMembership(r.Context(), value, tag, field.Type, raw); err != nil {
+				return err
+			}
+		}
 		return setScalar(value, raw)
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
+		if keyType := setKeyType(field.Type); keyType != nil {
+			if err := validateOptionMembership(r.Context(), reflect.Value{}, tag, keyType, vals...); err != nil {
+				return err
+			}
+		}
 		return setEnumSet(value, field.Type, vals)
 	case mx.FieldKindFile:
 		if r.MultipartForm == nil {
@@ -386,6 +393,37 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			return nil
 		}
 		return errs.New("file upload requires []byte or string field")
+	}
+	return nil
+}
+
+// validateOptionMembership rejects submitted values that are not in
+// the field's per-request option list. It only applies to fields whose
+// options need the request context (form:"options=…" registry entries,
+// [mx.NamedOptionsContextProvider] types): for those the option list
+// is the trust boundary the form advertises — a tenant-scoped dropdown
+// must not bind another tenant's ID on POST just because the browser
+// was told to only offer this tenant's. Static enum kinds keep their
+// lenient behavior; their types typically validate in UnmarshalText.
+//
+// The rejection is a plain validation error (rendered inline at the
+// field); a failure to resolve the option list itself propagates as-is.
+func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.FormTag, t reflect.Type, vals ...string) error {
+	if len(vals) == 0 || !mx.OptionsNeedContext(tag, t) {
+		return nil
+	}
+	options, err := mx.CollectOptions(ctx, value, tag, t)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]struct{}, len(options))
+	for _, opt := range options {
+		allowed[opt.Value] = struct{}{}
+	}
+	for _, v := range vals {
+		if _, ok := allowed[v]; !ok {
+			return fmt.Errorf("%q is not one of the allowed options", v)
+		}
 	}
 	return nil
 }
@@ -640,115 +678,39 @@ func setSelectedValues(value reflect.Value) map[string]struct{} {
 	return out
 }
 
-// collectOptions returns the option list for an enum-shaped field
-// (FieldKindEnum). It checks NamedOptionsProvider, OptionsProvider,
-// Enums(), EnumStrings() in that order.
-func collectOptions(value reflect.Value, tag mx.FormTag, t reflect.Type) []mx.NamedOption {
-	if value.IsValid() {
-		if opts := callOptionsProviders(value); opts != nil {
-			return opts
+// optionChildren resolves the field's option list via
+// [mx.CollectOptions] and renders each entry through render. Static
+// option lists are resolved immediately so build-time tree enrichment
+// (the hx layer's attribute injection) still sees the elements; option
+// lists that need the request context (form:"options=…" registry
+// entries, [mx.NamedOptionsContextProvider] types) are collected when
+// the component renders, where the context passed to Render is the
+// real request context. A collection error surfaces at render time
+// (deferred-error pattern).
+func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component) mx.Component {
+	if !mx.OptionsNeedContext(tag, t) {
+		options, err := mx.CollectOptions(context.Background(), value, tag, t)
+		if err != nil {
+			return mx.NewErrElement(err)
 		}
+		children := make(mx.Components, len(options))
+		for i, opt := range options {
+			children[i] = render(opt)
+		}
+		return children
 	}
-	return collectOptionsForType(t, tag)
-}
-
-func collectOptionsForType(t reflect.Type, tag mx.FormTag) []mx.NamedOption {
-	zeroV := reflect.New(t).Elem()
-	if opts := callOptionsProviders(zeroV); opts != nil {
-		return opts
-	}
-	// Pointer-receiver methods
-	if t.Kind() != reflect.Pointer {
-		ptr := reflect.New(t)
-		if opts := callOptionsProviders(ptr.Elem()); opts != nil {
-			return opts
+	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		options, err := mx.CollectOptions(ctx, value, tag, t)
+		if err != nil {
+			return err
 		}
-	}
-	_ = tag
-	return nil
-}
-
-// callOptionsProviders probes value for any of the option-list
-// conventions and returns the unified [mx.NamedOption] list. Returns
-// nil when none match.
-func callOptionsProviders(value reflect.Value) []mx.NamedOption {
-	if !value.IsValid() {
-		return nil
-	}
-	// Try addressable interface first so pointer-receiver methods are
-	// reachable too.
-	probe := func(iface any) []mx.NamedOption {
-		if iface == nil {
-			return nil
-		}
-		if np, ok := iface.(mx.NamedOptionsProvider); ok {
-			return np.NamedOptions()
-		}
-		if op, ok := iface.(mx.OptionsProvider); ok {
-			return optionsToNamed(op.Options())
-		}
-		// Reflective check for Enums()/EnumStrings().
-		v := reflect.ValueOf(iface)
-		if v.IsValid() {
-			if m := v.MethodByName("EnumStrings"); m.IsValid() {
-				ret := m.Call(nil)
-				if len(ret) == 1 && ret[0].Kind() == reflect.Slice && ret[0].Type().Elem().Kind() == reflect.String {
-					return optionsToNamed(stringsFromValue(ret[0]))
-				}
-			}
-			if m := v.MethodByName("Enums"); m.IsValid() {
-				ret := m.Call(nil)
-				if len(ret) == 1 && ret[0].Kind() == reflect.Slice {
-					return enumsToNamed(ret[0])
-				}
+		for _, opt := range options {
+			if err := render(opt).Render(ctx, w); err != nil {
+				return err
 			}
 		}
 		return nil
-	}
-	if value.CanAddr() {
-		if opts := probe(value.Addr().Interface()); opts != nil {
-			return opts
-		}
-	}
-	if value.CanInterface() {
-		if opts := probe(value.Interface()); opts != nil {
-			return opts
-		}
-	}
-	// Fall back to a fresh zero value for methods that don't care
-	// about the receiver state.
-	if value.IsValid() && value.CanInterface() {
-		fresh := reflect.New(value.Type()).Elem()
-		if opts := probe(fresh.Interface()); opts != nil {
-			return opts
-		}
-	}
-	return nil
-}
-
-func optionsToNamed(opts []string) []mx.NamedOption {
-	out := make([]mx.NamedOption, len(opts))
-	for i, o := range opts {
-		out[i] = mx.NamedOption{Name: o, Value: o}
-	}
-	return out
-}
-
-func stringsFromValue(v reflect.Value) []string {
-	out := make([]string, v.Len())
-	for i := range v.Len() {
-		out[i] = v.Index(i).String()
-	}
-	return out
-}
-
-func enumsToNamed(v reflect.Value) []mx.NamedOption {
-	out := make([]mx.NamedOption, v.Len())
-	for i := range v.Len() {
-		s := fmt.Sprint(v.Index(i).Interface())
-		out[i] = mx.NamedOption{Name: s, Value: s}
-	}
-	return out
+	})
 }
 
 func displayLabel(o mx.NamedOption) string {

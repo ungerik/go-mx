@@ -157,6 +157,30 @@ render as a dynamic list of rows — one per element, with JavaScript-free
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
 can map rows to records.
 
+Option-driven fields (selects, radio groups, checkbox sets) resolve their
+option lists via `mx.CollectOptions`: `Enums()`/`EnumStrings()` methods, the
+static `mx.OptionsProvider`/`mx.NamedOptionsProvider` interfaces, the
+context-aware `mx.NamedOptionsContextProvider`, or a `form:"options=name"`
+tag naming a provider registered with `mx.RegisterNamedOptions`. The last
+two are resolved at render time with the request context, so a dropdown can
+be per-request (a tenant-scoped partner list from the database) without the
+field type carrying any UI state:
+
+```go
+mx.RegisterNamedOptions("partners", func(ctx context.Context) ([]mx.NamedOption, error) {
+    return queryPartnerOptions(ctx) // tenant + DB from the request context
+})
+
+type InvoiceDraft struct {
+    PartnerID uu.ID `form:"options=partners,label=Partner,required"`
+}
+```
+
+The per-request option list is a trust boundary, not just UI: on POST the
+handler re-resolves the list with the request context and rejects submitted
+values outside it as a normal field validation error, so a tenant-scoped
+dropdown cannot be bypassed by posting another tenant's ID directly.
+
 See [`cmd/example-form`](cmd/example-form/main.go) for a complete
 worked example covering every supported field kind, section grouping,
 the repeatable invoice-line editor, and the `FieldErrors` cross-field

@@ -187,3 +187,72 @@ func TestSectionCard_WrapsChildren(t *testing.T) {
 type stringErr string
 
 func (s stringErr) Error() string { return string(s) }
+
+type shadcnPartnersKey struct{}
+
+// Registry entries are process-global and duplicate registration
+// panics, so tests register once in init() — never in test bodies,
+// which would crash under `go test -count=2`.
+func init() {
+	mx.RegisterNamedOptions("test-shadcn-partners", func(ctx context.Context) ([]mx.NamedOption, error) {
+		opts, _ := ctx.Value(shadcnPartnersKey{}).([]mx.NamedOption)
+		return opts, nil
+	})
+	mx.RegisterNamedOptions("test-shadcn-tags", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{
+			{Name: "Tag A", Value: "a"},
+			{Name: "Tag B", Value: "b"},
+		}, nil
+	})
+}
+
+func TestShadcn_SelectWithRegistryOptions(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners"`
+	}
+	s := &draftForm{Partner: "p1"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `data-slot="select"`) {
+		t.Errorf("expected shadcn select: %q", out)
+	}
+	if !strings.Contains(out, "Partner One") || !strings.Contains(out, "selected") {
+		t.Errorf("expected context option p1 rendered and selected: %q", out)
+	}
+}
+
+func TestShadcn_EnumSetWithRegistryOptions(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	beh := FieldDecider(mx.FieldPath("Tags"), f, v.Field(0))
+	comp := beh.Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Count(out, `data-slot="checkbox"`) != 2 {
+		t.Errorf("expected one shadcn checkbox per registry option: %q", out)
+	}
+	if !strings.Contains(out, "Tag A") || !strings.Contains(out, "Tag B") {
+		t.Errorf("expected option labels: %q", out)
+	}
+	if !strings.Contains(out, "checked") {
+		t.Errorf("expected current member b checked: %q", out)
+	}
+}
