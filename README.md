@@ -187,6 +187,16 @@ placeholder is disabled, an unchanged submit sends no value for the field:
 required fields fail validation until a value is picked from the list, while
 non-required fields are cleared.
 
+The rendered `<form>` carries an explicit `action` attribute. By default it
+self-submits: the action is the request URI that served the form (path+query),
+forced same-origin (a leading `//` is collapsed so the action can never become
+a protocol-relative off-origin URL). This is what lets a form loaded as an HTMX
+fragment (via `hx-get` into a GET-only page) post back to its own handler
+rather than to the embedding document — without it a native submit would 405.
+Set `ReflectFormConfig.Action func(*http.Request) string` to point the form
+somewhere else; a non-nil `Action` is trusted and emitted as-is (escaped, but
+not scheme/host allow-listed), so do not feed it untrusted input.
+
 See [`cmd/example-form`](cmd/example-form/main.go) for a complete
 worked example covering every supported field kind, section grouping,
 the repeatable invoice-line editor, and the `FieldErrors` cross-field

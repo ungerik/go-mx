@@ -38,6 +38,16 @@ type ReflectFormConfig struct {
 	// re-renders the freshly-saved form.
 	Redirect func(*http.Request) string
 
+	// Action produces the URL the rendered <form> submits to (its
+	// action attribute). nil means "submit to the request URI that
+	// served the form" (path+query, forced same-origin — see
+	// [selfSubmitAction]), so a fragment-embedded form (loaded via
+	// hx-get into a GET-only page) posts back to its own handler rather
+	// than to the embedding page. A non-nil Action is trusted and
+	// emitted as-is (escaped, but not scheme/host allow-listed), so do
+	// not feed it untrusted input.
+	Action func(*http.Request) string
+
 	// SubmitLabel overrides [FormSubmitLabel] for this handler only.
 	SubmitLabel string
 }
@@ -107,7 +117,11 @@ func ReflectFormHandlerWith[T any](
 
 	render := func(w http.ResponseWriter, r *http.Request, target *T, fieldErrs map[FieldPath][]error, formMsg string) {
 		d := pickDecider(r)
-		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel)
+		action := selfSubmitAction(r)
+		if cfg.Action != nil {
+			action = cfg.Action(r)
+		}
+		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action)
 		writeFormResponse(w, r, comp)
 	}
 
@@ -299,14 +313,46 @@ func isEffectivelyEmpty(value reflect.Value) bool {
 	return false
 }
 
+// selfSubmitAction returns the default <form> action when
+// [ReflectFormConfig.Action] is not set: the request URI that served the
+// form (path+query), so a native submit posts back to this handler.
+//
+// The request URI is untrusted request input. It reaches the rendered
+// action attribute where the CheckedWriter escapes it, so it cannot break
+// out of the attribute — but escaping does not change URL resolution. A
+// path beginning with "//" is a protocol-relative reference that a browser
+// resolves off-origin, which would post the form's fields off site on a
+// native submit. Collapse a leading run of slashes to a single "/" so the
+// default action is always a same-origin absolute path — which is also
+// what net/http's ServeMux redirects such requests to. (A backslash-based
+// "/\" reference cannot occur here: [net/url.URL.RequestURI] percent-
+// encodes backslashes to %5C, which browsers keep same-origin.)
+func selfSubmitAction(r *http.Request) string {
+	uri := r.URL.RequestURI()
+	if len(uri) > 1 && uri[0] == '/' && uri[1] == '/' {
+		i := 0
+		for i < len(uri) && uri[i] == '/' {
+			i++
+		}
+		uri = "/" + uri[i:]
+	}
+	return uri
+}
+
 // buildFormComponent constructs the top-level form Component.
 //
-// The handler emits the surrounding <form> element with method=post
-// and enctype=multipart/form-data, then asks the decider to render
-// each field (in walk order, grouped by section). A submit button is
-// appended so the form is usable out of the box; renderers can layer
-// their own buttons on top by returning extra children.
-func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string) Component {
+// The handler emits the surrounding <form> element with method=post,
+// enctype=multipart/form-data and the given action (by default the URL
+// that served the form — see [selfSubmitAction] — or the caller's
+// [ReflectFormConfig.Action] when set), then asks the decider to render
+// each field (in walk order, grouped by section). The explicit action
+// makes the form self-submit to its own handler even when it is loaded
+// as an HTMX fragment into a GET-only page — without it the native
+// submit would post to the embedding document URL and get a 405. A
+// submit button is appended so the form is usable out of the box;
+// renderers can layer their own buttons on top by returning extra
+// children.
+func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
@@ -372,6 +418,7 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	formAttribs := []any{
 		Attribute{Name: "method", Value: "post"},
 		Attribute{Name: "enctype", Value: "multipart/form-data"},
+		Attribute{Name: "action", Value: action},
 	}
 	all := append(formAttribs, children...)
 	return NewElement("form", all...)
