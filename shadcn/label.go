@@ -5,8 +5,8 @@ import (
 	"github.com/ungerik/go-mx/html"
 )
 
-// labelClasses is shadcn/ui's Label class set, shared by [Label] and the
-// error-aware [FormLabel].
+// labelClasses is shadcn/ui's Label class set, shared by [Label] and
+// [FieldLabel].
 const labelClasses = "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
 
 // Label renders a shadcn/ui label as a styled <label>. Associate it with a

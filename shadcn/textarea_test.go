@@ -21,3 +21,13 @@ func TestTextarea(t *testing.T) {
 		}
 	}
 }
+
+func TestTextareaID(t *testing.T) {
+	// TextareaID prepends the id so a Label(html.For(id)) can bind to it.
+	out := render(t, TextareaID("msg", "Hello"))
+	for _, want := range []string{`data-slot="textarea"`, `id="msg"`, ">Hello<"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+}
