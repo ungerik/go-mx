@@ -8,25 +8,33 @@ import (
 
 // FormDemo renders a form with a labeled input, description text, and a submit button.
 func FormDemo() mx.Component {
-	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
-		shadcn.FormItem(
-			shadcn.FormLabelFor("form-username", "Username"),
-			shadcn.InputID("form-username", html.Placeholder("shadcn")),
-			shadcn.FormDescription("This is your public display name."),
+	return shadcn.Form(html.Class("w-full max-w-sm"),
+		shadcn.FieldGroup(
+			shadcn.Field("",
+				shadcn.FieldLabelFor("form-username", "Username"),
+				shadcn.InputID("form-username", html.Placeholder("shadcn")),
+				shadcn.FieldDescription("This is your public display name."),
+			),
+			shadcn.Field("",
+				shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Type("submit"), "Submit"),
+			),
 		),
-		shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Type("submit"), "Submit"),
 	)
 }
 
 // FormWithError renders a form whose field is in an invalid state with an error message.
 func FormWithError() mx.Component {
-	return shadcn.Form(html.Class("w-full max-w-sm space-y-6"),
-		shadcn.FormItem(
-			shadcn.FormLabelFor("form-email", html.DataAttr("error", "true"), "Email"),
-			shadcn.InputID("form-email", html.Type("email"),
-				html.Value("not-an-email"), html.Attrib("aria-invalid", "true")),
-			shadcn.FormMessage("Please enter a valid email address."),
+	return shadcn.Form(html.Class("w-full max-w-sm"),
+		shadcn.FieldGroup(
+			shadcn.Field("", html.DataAttr("invalid", "true"),
+				shadcn.FieldLabelFor("form-email", "Email"),
+				shadcn.InputID("form-email", html.Type("email"),
+					html.Value("not-an-email"), html.Attrib("aria-invalid", "true")),
+				shadcn.FieldError("Please enter a valid email address."),
+			),
+			shadcn.Field("",
+				shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Type("submit"), "Submit"),
+			),
 		),
-		shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, html.Type("submit"), "Submit"),
 	)
 }

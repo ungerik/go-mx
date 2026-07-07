@@ -131,6 +131,57 @@ func TestShadcn_AriaInvalidOnErrors(t *testing.T) {
 	}
 }
 
+func TestShadcn_UsesFieldSystem(t *testing.T) {
+	// The reflected field renders the same Field markup a hand-written form
+	// would: a Field root wrapping a FieldLabel and the control.
+	type helped struct {
+		Name string `form:"help=Your display name"`
+	}
+	out := renderShadcn(t, &helped{Name: "Alice"}, "Name", nil)
+	for _, want := range []string{
+		`data-slot="field"`, `role="group"`,
+		`data-slot="field-label"`, `for="Name"`,
+		// help text is a FieldDescription, not a bare <small>
+		`data-slot="field-description"`, "Your display name",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+	// The pre-Field stack must be gone.
+	if strings.Contains(out, "grid gap-1.5") || strings.Contains(out, "<small") {
+		t.Errorf("pre-Field markup still present: %s", out)
+	}
+}
+
+func TestShadcn_ErrorUsesFieldError(t *testing.T) {
+	out := renderShadcn(t, &formSample{Name: "Alice"}, "Name",
+		[]error{stringErr("bad value")})
+	for _, want := range []string{
+		// Field root flags the error state...
+		`data-invalid="true"`,
+		// ...and the message announces to screen readers.
+		`data-slot="field-error"`, `role="alert"`, "bad value",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+	// The data-error field-path hook the html layer uses is preserved.
+	if !strings.Contains(out, `data-error="Name"`) {
+		t.Errorf("data-error path hook dropped: %s", out)
+	}
+}
+
+func TestShadcn_BoolUsesField(t *testing.T) {
+	out := renderShadcn(t, &formSample{Active: true}, "Active", nil)
+	for _, want := range []string{`data-slot="field"`, `data-slot="field-label"`, `data-slot="switch"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+}
+
 func TestShadcn_NullableEmitsClearControl(t *testing.T) {
 	out := renderShadcn(t, &formSample{Optional: nullableInt{v: 7}}, "Optional", nil)
 	if !strings.Contains(out, mx.ClearSentinelName("Optional")) {

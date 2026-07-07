@@ -116,6 +116,17 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "button-group",
+			Title:       "Button Group",
+			Description: "A container that visually groups related buttons and controls.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.ButtonGroupDemo},
+				{Name: "Vertical", Func: examples.ButtonGroupVerticalDemo},
+				{Name: "With text and input", Func: examples.ButtonGroupWithText},
+				{Name: "With separator", Func: examples.ButtonGroupWithSeparator},
+			},
+		},
+		{
 			Slug:        "calendar",
 			Title:       "Calendar",
 			Description: "A date field component that allows users to enter and edit date.",
@@ -222,6 +233,25 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "empty",
+			Title:       "Empty",
+			Description: "Displays an empty state with an icon, title, description and actions.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.EmptyDemo},
+			},
+		},
+		{
+			Slug:        "field",
+			Title:       "Field",
+			Description: "Form-field layout: label, control, description and error, with group and fieldset containers.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.FieldDemo},
+				{Name: "Horizontal", Func: examples.FieldHorizontal},
+				{Name: "Fieldset", Func: examples.FieldSetDemo},
+				{Name: "Choice cards", Func: examples.FieldChoiceCard},
+			},
+		},
+		{
 			Slug:        "form",
 			Title:       "Form",
 			Description: "Building forms with labels, descriptions, and validation messages.",
@@ -250,12 +280,42 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "input-group",
+			Title:       "Input Group",
+			Description: "Displays an input with grouped addons: icons, text, buttons and keyboard hints.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.InputGroupDemo},
+				{Name: "With button", Func: examples.InputGroupWithButton},
+				{Name: "With kbd", Func: examples.InputGroupWithKbd},
+				{Name: "With textarea", Func: examples.InputGroupWithTextarea},
+			},
+		},
+		{
 			Slug:        "input-otp",
 			Title:       "Input OTP",
 			Description: "Accessible one-time password component with copy paste functionality.",
 			Examples: []Example{
 				{Name: "Default", Func: examples.InputOTPDemo},
 				{Name: "With separator", Func: examples.InputOTPWithSeparator},
+			},
+		},
+		{
+			Slug:        "item",
+			Title:       "Item",
+			Description: "A flexible media-object row with media, content and actions.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.ItemDemo},
+				{Name: "Group", Func: examples.ItemGroupDemo},
+				{Name: "Muted sizes", Func: examples.ItemMutedDemo},
+			},
+		},
+		{
+			Slug:        "kbd",
+			Title:       "Kbd",
+			Description: "Displays keyboard keys and shortcuts.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.KbdDemo},
+				{Name: "Group", Func: examples.KbdGroupDemo},
 			},
 		},
 		{
@@ -385,6 +445,16 @@ func docs() []ComponentDoc {
 			Description: "An opinionated toast component — imperative toast() pushed into a Toaster region.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.SonnerDemo},
+			},
+		},
+		{
+			Slug:        "spinner",
+			Title:       "Spinner",
+			Description: "An indicator that shows something is loading.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.SpinnerDemo},
+				{Name: "Sizes", Func: examples.SpinnerSizes},
+				{Name: "In a button", Func: examples.SpinnerInButton},
 			},
 		},
 		{

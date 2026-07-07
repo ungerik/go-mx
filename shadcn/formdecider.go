@@ -18,14 +18,16 @@ import (
 // FieldDecider is the Tailwind/shadcn layer of the layered form
 // rendering chain. It implements [mx.FieldDecider] by emitting
 // shadcn-styled components ([Input], [Switch], [Select], [Textarea],
-// [Card]) for every kind it recognizes and delegating to
-// [hx.FieldDecider] (and through it [html.FieldDecider]) for anything
-// it does not. Parsing is always delegated upward — shadcn is purely a
-// rendering concern.
+// [Card]) laid out with the [Field] system ([Field], [FieldLabel],
+// [FieldDescription], [FieldError]) for every kind it recognizes, and
+// delegating to [hx.FieldDecider] (and through it [html.FieldDecider])
+// for anything it does not. Parsing is always delegated upward — shadcn
+// is purely a rendering concern.
 //
-// On validation failure the rendered element receives
-// `aria-invalid="true"`, which the shadcn class strings already turn
-// into a visible destructive border.
+// On validation failure the control receives `aria-invalid="true"` (its
+// class string turns the border destructive), the enclosing [Field] gets
+// `data-invalid="true"` (destructive field text) and each message renders
+// as a [FieldError] with `role="alert"`.
 var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
 	kind, tag := mx.DetectField(path, field, value)
 	base := hx.FieldDecider(path, field, value)
@@ -90,39 +92,58 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 	return nil
 }
 
-// shadcnField wraps a single input element in a labeled stack:
+// shadcnField wraps a single input element in a [Field] stack:
 //
-//	<Label for=path>label</Label>
-//	<input ...>
-//	<small>help</small> (when set)
-//	<Label for=clear>clear</Label> (when nullable)
-//	<p data-error>err</p> (one per error)
+//	<Field [data-invalid=true when errored]>
+//	  <FieldLabel for=path>label</FieldLabel> (when set)
+//	  <input ...>
+//	  <FieldDescription>help</FieldDescription> (when set)
+//	  <Label for=clear>clear</Label> (when nullable)
+//	  <FieldError data-error=path>err</FieldError> (one per error, role="alert")
+//	</Field>
+//
+// The error look keys off data-invalid on the [Field] root (destructive
+// text) together with each [FieldError]; the control also carries
+// aria-invalid from its own attribs so its border turns destructive.
 func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, input mx.Component) mx.Component {
-	parts := mx.Components{}
+	parts := make([]any, 0, 4+len(errs))
 	if labelText := fieldLabel(field, tag); labelText != "" {
-		parts = append(parts, LabelFor(string(path), labelText))
+		parts = append(parts, FieldLabelFor(string(path), labelText))
 	}
 	parts = append(parts, input)
 	if tag.Help != "" {
-		parts = append(parts, mx.NewElement("small",
-			mx.Attribute{Name: "class", Value: "text-muted-foreground text-sm"},
-			mx.Text(tag.Help),
-		))
+		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
 	}
 	if isNullable(field, tag) {
 		parts = append(parts, clearControl(path))
 	}
+	parts = appendFieldErrors(parts, path, errs)
+	return fieldWrap(errs, parts...)
+}
+
+// fieldWrap builds the [Field] root for a decided form field, marking it
+// data-invalid when there are validation errors so the Field turns its text
+// destructive and its label/error key off the same flag.
+func fieldWrap(errs []error, children ...any) mx.Component {
+	args := make([]any, 0, len(children)+1)
+	if len(errs) > 0 {
+		args = append(args, html.DataAttr("invalid", "true"))
+	}
+	args = append(args, children...)
+	return Field("", args...)
+}
+
+// appendFieldErrors appends one [FieldError] (role="alert") per error, each
+// tagged data-error=path so a client can target a specific field's message
+// (the same convention the html layer uses).
+func appendFieldErrors(parts []any, path mx.FieldPath, errs []error) []any {
 	for _, e := range errs {
-		parts = append(parts, mx.NewElement("p",
-			mx.Attribute{Name: "class", Value: "text-destructive text-sm"},
-			mx.Attribute{Name: "data-error", Value: string(path)},
+		parts = append(parts, FieldError(
+			mx.NewAttrib("data-error", string(path)),
 			mx.Text(e.Error()),
 		))
 	}
-	return mx.NewElement("div",
-		mx.Attribute{Name: "class", Value: "grid gap-1.5"},
-		parts,
-	)
+	return parts
 }
 
 func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
@@ -149,38 +170,22 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 		input = Switch(attribs...)
 	}
 
+	// Control and label sit side by side; description and errors stack below.
 	row := mx.Components{input}
 	if labelText := fieldLabel(field, tag); labelText != "" {
-		row = append(row, LabelFor(string(path),
-			mx.NewElement("span",
-				mx.Attribute{Name: "class", Value: "ml-2"},
-				mx.Text(labelText),
-			),
-		))
+		row = append(row, FieldLabelFor(string(path), labelText))
 	}
-	parts := mx.Components{
+	parts := []any{
 		mx.NewElement("div",
-			mx.Attribute{Name: "class", Value: "flex items-center"},
+			mx.Attribute{Name: "class", Value: "flex items-center gap-2"},
 			row,
 		),
 	}
 	if tag.Help != "" {
-		parts = append(parts, mx.NewElement("small",
-			mx.Attribute{Name: "class", Value: "text-muted-foreground text-sm"},
-			mx.Text(tag.Help),
-		))
+		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
 	}
-	for _, e := range errs {
-		parts = append(parts, mx.NewElement("p",
-			mx.Attribute{Name: "class", Value: "text-destructive text-sm"},
-			mx.Attribute{Name: "data-error", Value: string(path)},
-			mx.Text(e.Error()),
-		))
-	}
-	return mx.NewElement("div",
-		mx.Attribute{Name: "class", Value: "grid gap-1.5"},
-		parts,
-	)
+	parts = appendFieldErrors(parts, path, errs)
+	return fieldWrap(errs, parts...)
 }
 
 func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {

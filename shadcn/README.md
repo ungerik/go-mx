@@ -98,14 +98,14 @@ shadcn.LabelFor("email", "Email"),
 shadcn.InputID("email", html.Type("email")),
 ```
 
-| Shortcut              | Shortcut for                 |
-|-----------------------|------------------------------|
-| `LabelFor(id, …)`     | `Label(html.For(id), …)`     |
-| `FormLabelFor(id, …)` | `FormLabel(html.For(id), …)` |
-| `InputID(id, …)`      | `Input(html.ID(id), …)`      |
-| `TextareaID(id, …)`   | `Textarea(html.ID(id), …)`   |
-| `CheckboxID(id, …)`   | `Checkbox(html.ID(id), …)`   |
-| `SwitchID(id, …)`     | `Switch(html.ID(id), …)`     |
+| Shortcut               | Shortcut for                  |
+|------------------------|-------------------------------|
+| `LabelFor(id, …)`      | `Label(html.For(id), …)`      |
+| `FieldLabelFor(id, …)` | `FieldLabel(html.For(id), …)` |
+| `InputID(id, …)`       | `Input(html.ID(id), …)`       |
+| `TextareaID(id, …)`    | `Textarea(html.ID(id), …)`    |
+| `CheckboxID(id, …)`    | `Checkbox(html.ID(id), …)`    |
+| `SwitchID(id, …)`      | `Switch(html.ID(id), …)`      |
 
 ## Button
 
@@ -534,6 +534,141 @@ triggers don't need an HTMX opt-out — pass `hx.*` attribs as normal and they
 work alongside the popover-open behavior. For menu *items* (which fire
 actions on click), the items are plain `<div>` / `<a>` / `<button>` — pass
 `html.OnClick`, `hx.Post`, etc. however you like; no defaults to suppress.
+
+## Tier 4 components — modal / overlay
+
+Tier 4 covers the modal overlays. All of them reuse the native `<dialog>`
+approach established by [AlertDialog](#alertdialog-native-dialog-instead-of-radix)
+— top layer, `::backdrop`, focus trap, Escape-to-close, no framework — so the
+notes there (trigger/content linked by a `dialogID`, `m-auto` centering,
+`open:` display scoping, id validation) apply to all three.
+
+- **Dialog** — `Dialog` / `DialogTrigger(dialogID, …)` /
+  `DialogContent(dialogID, …)` / `DialogHeader` / `DialogFooter` /
+  `DialogTitle` / `DialogDescription` / `DialogClose`. Like AlertDialog plus
+  light-dismiss (a backdrop click closes it) and a built-in corner close
+  button (pass your own `DialogClose` children to replace it).
+- **Sheet** — `Sheet` / `SheetTrigger(sheetID, …)` /
+  `SheetContent(sheetID, side, …)` / `SheetHeader` / `SheetFooter` /
+  `SheetTitle` / `SheetDescription` / `SheetClose`. A Dialog pinned to a
+  screen edge; `side` is `SheetTop`, `SheetRight` (default, `""`),
+  `SheetBottom` or `SheetLeft`.
+- **Drawer** — `Drawer` / `DrawerTrigger(drawerID, …)` /
+  `DrawerContent(drawerID, …)` / `DrawerHeader` / `DrawerFooter` /
+  `DrawerTitle` / `DrawerDescription` / `DrawerClose`. A bottom sheet with a
+  grab handle: one shared `drawerStart` pointer-drag script lets the user
+  drag it down — past a ~40% threshold it closes, otherwise it snaps back.
+  This is the most client JS of any port (the Slider/Resizable tradeoff).
+  Vaul's snap points, momentum physics, background scaling and non-bottom
+  directions are not reproduced.
+
+## Tier 5 components — composite
+
+Tier 5 ports lean on React-only libraries upstream (cmdk, react-day-picker,
+embla, react-hook-form, sonner, tanstack-table); here the behavior is
+re-expressed server-side in Go, with a small inline script where the platform
+has no equivalent. Three of them — **Combobox**, **DatePicker** and
+**DataTable** — are compositions of other components rather than primitives,
+exactly how shadcn/ui ships them (copy-paste recipes, not package exports):
+they live as [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)
+examples, not functions in this package.
+
+- **Form** — `Form`, a native `<form>` tagged `data-slot="form"`. shadcn's
+  `Form` is react-hook-form's FormProvider and `FormField`/`FormControl` are
+  React context/Slot plumbing with no server equivalent, so they are not
+  ported: wire ids and aria the normal HTML way. The field layout inside the
+  form is the [Field system](#post-restructure-components-july-2026), which
+  replaced the former FormItem/FormLabel/FormDescription/FormMessage parts.
+- **Command** — `Command` / `CommandInput` / `CommandList` /
+  `CommandGroup(heading, …)` / `CommandItem` / `CommandEmpty` /
+  `CommandSeparator` / `CommandShortcut`. A filterable command list: one
+  shared `commandFilter` script substring-matches each item's text on input,
+  hides non-matching items and empty groups, and toggles `CommandEmpty`.
+  cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
+- **Calendar** — `Calendar(month, selected, …)`. A single-month grid
+  generated server-side with Go's `time` package; the selected day is marked
+  via `aria-selected`. Previous/Next are plain buttons with no default
+  behavior — month navigation is a server round-trip, so wire them with
+  `html.HRef("?month=…")` or an `hx.Get`. react-day-picker's range/multiple
+  selection and disabled-matchers are not reproduced.
+- **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /
+  `CarouselPrevious` / `CarouselNext`. A native CSS `scroll-snap` track —
+  drag, swipe and keyboard scrolling are free; the Previous/Next buttons
+  scroll one viewport via a tiny inline onclick. Embla's autoplay, looping
+  and vertical orientation are not ported.
+- **Resizable** — `ResizablePanelGroup(direction, …)` / `ResizablePanel` /
+  `ResizableHandle`. Flex panels; one shared `resizeStart` pointer-drag
+  script adjusts the adjacent panels' `flex-basis`. `direction` is
+  `ResizeHorizontal` or `ResizeVertical`.
+- **Toast (Sonner)** — `Toaster(…)`, rendered once per page: a fixed
+  bottom-right region plus one script defining a global
+  `toast(msg, {description, duration})` to call from any `onclick`. Toasts
+  auto-dismiss (default 4000ms). For server-pushed toasts, an HTMX
+  out-of-band swap into the Toaster region is the alternative. Sonner's
+  swipe-to-dismiss and stacking offsets are not reproduced.
+- **Sidebar** — `SidebarProvider` / `Sidebar` / `SidebarTrigger` /
+  `SidebarInset` / `SidebarHeader` / `SidebarContent` / `SidebarFooter` /
+  `SidebarGroup*` / `SidebarMenu*` / `SidebarSeparator` (~18 parts). The
+  expand ↔ icon-collapse state lives in a `data-state` on the wrapper; one
+  shared `sidebarToggle` script persists it to the `sidebar_state` cookie,
+  restores it on load and binds Cmd/Ctrl+B. The floating/inset variants and
+  the mobile-becomes-Sheet behavior are not reproduced.
+
+## Post-restructure components (July 2026)
+
+In July 2026 shadcn/ui moved most utility classes out of its component
+sources into named style sheets (`cn-*` classes); the registry this package
+transcribed its class strings from is frozen upstream. Components ported
+since then reconstruct the full class string per part from the new registry
+(component skeleton + the `style-vega.css` rules — see "Upstream restructure
+(July 2026)" in `TODOS.md` for the porting guide). Same conventions, same
+self-contained result; these are the first components sourced that way:
+
+- **Field** — the form-field layout system that replaced the Form parts
+  upstream: `Field(orientation, …)` / `FieldGroup` / `FieldSet` /
+  `FieldLegend(variant, …)` / `FieldContent` / `FieldLabel` (+
+  `FieldLabelFor`) / `FieldTitle` / `FieldDescription` / `FieldSeparator` /
+  `FieldError`. Orientations `FieldVertical` (default), `FieldHorizontal`
+  and `FieldResponsive` (container-queries the enclosing `FieldGroup`).
+  Field carries no state: mark an errored field with
+  `html.DataAttr("invalid", "true")` on the `Field` and render a
+  `FieldError` with the message; mark a disabled one with
+  `html.DataAttr("disabled", "true")`. A `FieldLabel` wrapping a whole
+  `Field` becomes a selectable card that highlights via native
+  `has-checked:` when the control inside is checked.
+- **Kbd** — `Kbd` / `KbdGroup` for keyboard keys and shortcuts. Both render
+  a `<kbd>` element, like upstream.
+- **Spinner** — `Spinner(…)`. The lucide loader-circle icon inlined as SVG
+  (`icons.go` pattern) with `role="status"` and `aria-label="Loading"`;
+  `animate-spin` is the entire behavior. Resize with a caller class, e.g.
+  `html.Class("size-6")`.
+- **Empty** — `Empty` / `EmptyHeader` / `EmptyMedia(variant, …)` /
+  `EmptyTitle` / `EmptyDescription` / `EmptyContent` for empty states.
+  `EmptyMediaIcon` frames an icon in a muted square; the media part's
+  `data-slot` is `empty-icon`, matching upstream.
+- **Item** — `Item(variant, size, …)` / `ItemGroup` / `ItemSeparator` /
+  `ItemMedia(variant, …)` / `ItemContent` / `ItemTitle` / `ItemDescription`
+  / `ItemActions` / `ItemHeader` / `ItemFooter`. A generic media-object row;
+  variants `ItemDefault` / `ItemOutline` / `ItemMuted`, sizes
+  `ItemSizeDefault` / `ItemSizeSM` / `ItemSizeXS`. Upstream's React `render`
+  prop is Go composition here: Item always renders a `<div>`.
+- **ButtonGroup** — `ButtonGroup(orientation, …)` / `ButtonGroupText` /
+  `ButtonGroupSeparator`. Visually joins its direct children through their
+  `data-slot` attributes (which every component here emits); works with
+  `Button`, `Input`, `Select`, …. `ButtonGroupClasses(orientation)` mirrors
+  `ButtonClasses`. The separator defaults to vertical — the opposite of
+  `Separator` — since a horizontal group needs a vertical rule.
+- **InputGroup** — `InputGroup` / `InputGroupAddon(align, …)` /
+  `InputGroupButton(variant, size, …)` / `InputGroupText` /
+  `InputGroupInput` / `InputGroupTextarea`. The group wrapper draws the
+  border and focus ring; the control inside must be an `InputGroupInput` or
+  `InputGroupTextarea` (borderless `Input`/`Textarea` variants tagged
+  `data-slot="input-group-control"`, which the group's `has-[…]:` state
+  classes key off). Addons align `inline-start` (default) / `inline-end` /
+  `block-start` / `block-end`; clicking an addon focuses the input (pass
+  your own `html.OnClick` to replace that). `InputGroupButton` has its own
+  size scale (`InputGroupButtonXS` default, `SM`, `IconXS`, `IconSM`) and
+  defaults to the ghost variant.
 
 ## Tailwind CSS v4 is required
 
