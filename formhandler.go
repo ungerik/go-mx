@@ -342,14 +342,16 @@ func selfSubmitAction(r *http.Request) string {
 // buildFormComponent constructs the top-level form Component.
 //
 // The handler emits the surrounding <form> element with method=post,
-// enctype=multipart/form-data and action set to the URL that served
-// the form, then asks the decider to render each field (in walk order,
-// grouped by section). The explicit action makes the form self-submit
-// to its own handler even when it is loaded as an HTMX fragment into a
-// GET-only page — without it the native submit would post to the
-// embedding document URL and get a 405. A submit button is appended so
-// the form is usable out of the box; renderers can layer their own
-// buttons on top by returning extra children.
+// enctype=multipart/form-data and the given action (by default the URL
+// that served the form — see [selfSubmitAction] — or the caller's
+// [ReflectFormConfig.Action] when set), then asks the decider to render
+// each field (in walk order, grouped by section). The explicit action
+// makes the form self-submit to its own handler even when it is loaded
+// as an HTMX fragment into a GET-only page — without it the native
+// submit would post to the embedding document URL and get a 405. A
+// submit button is appended so the form is usable out of the box;
+// renderers can layer their own buttons on top by returning extra
+// children.
 func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string) Component {
 	type sectionEntry struct {
 		name       string
