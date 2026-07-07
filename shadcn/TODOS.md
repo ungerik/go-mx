@@ -525,12 +525,12 @@ above before building. First-glance notes:
 
 ### Follow-ups from the Field port (2026-07-07)
 
-- [ ] **Migrate `FieldDecider` (`formdecider.go`) to the Field system.** The
-  reflection-based auto-form renderer still emits the pre-Field stack
-  (`LabelFor`, a raw `<small>` description, a raw `<p data-error>` message,
-  a `div.grid gap-1.5` wrapper). It never used the removed `Form*` helpers,
-  so nothing broke, but automatic forms now bypass `Field`/`FieldLabel`/
-  `FieldDescription`/`FieldError` and miss `role="alert"` and the
-  `data-invalid` root state. Rework `renderShadcnField` to compose the Field
-  parts so hand-written and reflected forms render the same markup.
-  (Surfaced by the /ship cross-model adversarial review.)
+- [x] **Migrate `FieldDecider` (`formdecider.go`) to the Field system**
+  (done 2026-07-07). `shadcnField`/`shadcnBoolField` now wrap fields in a
+  [Field] root, label with [FieldLabel], help with [FieldDescription] and
+  each message with [FieldError] (`role="alert"`); the Field root gets
+  `data-invalid="true"` on error while the control keeps its own
+  `aria-invalid`. The `data-error=path` hook the html layer uses is
+  preserved on each FieldError. Reflected and hand-written forms now render
+  the same Field markup. (Surfaced by the /ship cross-model adversarial
+  review.)
