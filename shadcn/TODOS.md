@@ -411,38 +411,114 @@ Components in `apps/v4/registry/bases/base/ui/` with no counterpart in
 this port (as of 2026-07-05). Not yet rated; triage each with the guide
 above before building. First-glance notes:
 
-- [ ] **Kbd** — styled `<kbd>`; likely Cx 1, pure markup.
-- [ ] **Spinner** — spinning loader icon; likely Cx 1.
-- [ ] **Empty** — empty-state layout block; likely Cx 1–2.
-- [ ] **Item** — generic media-object/list-item layout; likely Cx 2.
-- [ ] **ButtonGroup** — grouped buttons; likely Cx 2, deps ButtonClasses.
-- [ ] **InputGroup** — input with addons/prefix/suffix; likely Cx 2–3.
-- [ ] **NativeSelect** — styled native `<select>`; overlaps with our
-  existing `Select` (which is already native) — may be a rename/merge
-  question rather than a new port.
-- [ ] **Field** — Base UI's replacement for Form parts; compare with our
-  existing `form.go` before porting (may supersede or complement it).
-- [ ] **Combobox** — now a real upstream primitive (Base UI Combobox), no
-  longer a copy-paste recipe; we ship a Popover+Command gallery recipe —
-  decide whether to keep the recipe or port the primitive.
-- [ ] **Attachment / Bubble / Message / MessageScroller** — chat/AI
-  conversation components; triage as a group.
-- [ ] **Marker** — untriaged.
-- [ ] **Direction** — RTL direction provider; likely N/A server-side
-  (render `dir="rtl"` directly).
+- [x] **Kbd** · Cx 1 — `Kbd` / `KbdGroup` (both `<kbd>` like upstream).
+- [x] **Spinner** · Cx 1 — inline lucide loader-circle SVG (`icons.go`
+  pattern) with `role="status"` + `aria-label`; `animate-spin` is the whole
+  behavior.
+- [x] **Empty** · Cx 2 — `Empty` / `EmptyHeader` / `EmptyMedia(variant)` /
+  `EmptyTitle` / `EmptyDescription` / `EmptyContent`. Media slot is
+  `data-slot="empty-icon"` (upstream quirk, kept). `cn-font-heading`
+  dropped (theme font var not in the frozen baseline).
+- [x] **Item** · Cx 2 — `Item(variant, size)` + Group/Separator/Media
+  (variant)/Content/Title/Description/Actions/Header/Footer. The React
+  `render` prop is Go composition (always a `<div>`).
+- [x] **ButtonGroup** · Cx 2 — `ButtonGroup(orientation)` + Text/Separator;
+  exports `ButtonGroupClasses` (upstream exports buttonGroupVariants).
+  First real Base UI selector rewrite: bare `data-horizontal:`/
+  `data-vertical:` → `data-[orientation=…]:` on the separator.
+- [x] **InputGroup** · Cx 3 — `InputGroup` / `InputGroupAddon(align)` /
+  `InputGroupButton(variant, size)` (own xs/sm/icon-xs/icon-sm scale,
+  ghost default) / `InputGroupText` / `InputGroupInput` /
+  `InputGroupTextarea` (borderless [Input]/[Textarea] variants, slot
+  `input-group-control`). Addon keeps upstream's click-to-focus as a
+  default inline `onclick`. `InputGroupText` emits a data-slot upstream
+  lacks (consistency divergence, documented in the func comment).
+- [ ] **NativeSelect** · Cx 2 — **triaged 2026-07-07: port as a separate
+  component, not a merge.** Upstream ships *both* Select (popup primitive)
+  and NativeSelect as distinct components with distinct `data-slot`s
+  (`native-select-wrapper` / `native-select` / `native-select-icon`, plus
+  `NativeSelectOption` / `NativeSelectOptGroup`). It is a different design
+  point from our `Select`: `appearance-none` + an overlaid chevron icon
+  (from `icons.go`) inside a relative wrapper `<div>` — consistent
+  closed-control styling in **all** browsers, where our `Select`'s
+  `[appearance:base-select]` styles the full picker in Chromium 130+/
+  Safari TP but falls back to native chrome elsewhere. Keep both; document
+  the tradeoff. No Base UI selector rewrites needed (only keepable
+  `has-[select:disabled]:` / `data-[size=sm]:`); classes at
+  `style-vega.css` `.cn-native-select` / `.cn-native-select-icon`.
+- [x] **Field** · Cx 3 · deps: Label, Separator — **ported 2026-07-07 as
+  triaged** (`field.go`): full part set below, plus a `FieldLabelFor`
+  shortcut. `FormItem`/`FormLabel`/`FormLabelFor`/`FormDescription`/
+  `FormMessage` removed (no aliases); the bare `Form` (`<form>` wrapper)
+  stays. Rewrites applied: `has-data-checked:` → `has-checked:`,
+  `[role=checkbox],[role=radio]` → our `data-slot` attributes,
+  `group-has-data-horizontal/field:` →
+  `group-data-[orientation=horizontal]/field:`. Original triage:
+  Parts: `FieldSet` (`<fieldset>`) / `FieldLegend(variant legend|label)` /
+  `FieldGroup` / `Field(orientation vertical|horizontal|responsive)` /
+  `FieldContent` / `FieldLabel` / `FieldTitle` / `FieldDescription` /
+  `FieldSeparator` / `FieldError` (`role="alert"`; take children — the
+  React `errors` dedup prop is caller-side in Go). Mapping: `FormItem` →
+  `Field`, `FormLabel` → `FieldLabel`, `FormDescription` →
+  `FieldDescription`, `FormMessage` → `FieldError`; error state moves from
+  `data-error` on the label to author-set `data-[invalid=true]` on the
+  `Field` root (keep, author-set). When Field lands, **remove**
+  `FormItem`/`FormLabel`/`FormLabelFor`/`FormDescription`/`FormMessage`
+  (pre-release, no deprecation aliases; only the gallery `form.go` example
+  uses them) and decide whether the bare `Form` (`<form>` wrapper) earns
+  its keep vs `html.Form`. Rewrites: `has-data-checked:` (Base UI checkbox
+  attr) → `has-checked:` (our native inputs); `group-data-[disabled=true]/
+  field:` stays (author-set). `responsive` orientation uses container
+  queries (`@container/field-group`, `@md/field-group:`) — plain Tailwind
+  v4, keep. Classes at `style-vega.css` `.cn-field*`.
+- [x] **Combobox** — **decided 2026-07-07: keep the Popover+Command gallery
+  recipe, no primitive port.** Upstream's combobox.tsx (~15 parts:
+  Value/Trigger/Clear/Input/Content/List/Item/Group/Label/Collection/Empty/
+  Separator/…) is a pure styling wrapper over Base UI's Combobox JS — the
+  entire behavior (filtering, selection model, chips) lives in the Base UI
+  runtime this port doesn't use. Porting the part set would mean writing a
+  large custom script that duplicates what our Command filter + Popover
+  already provide. Revisit only if a concrete need (e.g. multi-select chips)
+  outgrows the recipe; a native `<input list>`/`<datalist>` variant is the
+  zero-JS alternative to explore first.
+- [ ] **Chat/AI group — triaged 2026-07-07, port on demand** (coherent set
+  for HTMX chat UIs; nothing blocks them, but no current need):
+  - **Message** · Cx 2 — pure markup: `MessageGroup` / `Message(align
+    start|end)` / `MessageAvatar` / `MessageContent` / `MessageHeader` /
+    `MessageFooter`. Straight port.
+  - **Bubble** · Cx 2 — pure markup: `BubbleGroup` / `Bubble(variant ×7,
+    align)` / `BubbleContent` / `BubbleReactions`. Straight port.
+  - **Attachment** · Cx 2–3 — pure markup: `Attachment(Group/Media/Content/
+    Title/Description/Actions/Action/Trigger)`. `useRender` render props →
+    Go composition as usual.
+  - **MessageScroller** · Cx 4 — the only behavioral one: wraps the
+    `@shadcn/react/message-scroller` package (stick-to-bottom scrolling +
+    scroll-to-bottom button). Needs one shared inline script (or the CSS
+    `flex-col-reverse` stick-to-bottom idiom); port last, only with a real
+    consumer.
+- [ ] **Marker** — triaged 2026-07-07: a labeled inline marker/divider row,
+  `Marker(variant default|separator|border)` / `MarkerIcon` /
+  `MarkerContent`, pure markup · Cx 1–2. Fine to port any time; grouped
+  with the chat set above since upstream demos it in conversation UIs
+  (port on demand).
+- [x] **Direction** — **resolved 2026-07-07: N/A, nothing to port.** A
+  React context provider that only informs Base UI JS positioning; in
+  server-rendered HTML the native mechanism is the `dir` attribute
+  (`html.DirRTL` on any ancestor).
 
-### Open decision — adopt the `cn-*` style-sheet architecture?
+### Decided — stay on inlined utility strings (2026-07-07)
 
-- [ ] **Decide** whether this port stays on inlined utility strings
-  (status quo) or adopts upstream's `cn-*` classes + a shipped CSS file.
-  - **Status quo (current)**: classes inlined in Go source, fully
-    self-contained, `Cn`/twmerge work on plain utilities. Cost: we are
-    pinned to one look (frozen new-york-v4 ≈ vega-ish).
-  - **Adopt `cn-*`**: components emit `cn-dialog-content …` and we ship /
-    generate the style CSS; users could switch between upstream's eight
-    named styles by swapping a stylesheet. Costs: an external CSS artifact
-    (against the current zero-asset model), twmerge cannot resolve
-    conflicts hidden inside `cn-*` rules, and the gallery/CDN setup needs
-    the extra stylesheet.
-  - No urgency: upstream keeps publishing both, and `shadcn eject` proves
-    the inlined form remains first-class.
+- [x] **Decided 2026-07-07: status quo — inlined utility strings**, not
+  upstream's `cn-*` classes + shipped CSS file. Rationale: the zero-asset
+  model is a core property of this port (components are self-contained Go
+  source, no CSS artifact to distribute or version); `Cn`/twmerge cannot
+  resolve conflicts hidden inside `cn-*` rules, which would break the
+  caller-class-wins contract of `finish`; and `shadcn eject` proves the
+  inlined form remains first-class upstream. New ports reconstruct the
+  full class string per part (guide Step 2) — the equivalent of what
+  `eject` produces. Cost accepted: pinned to one look (frozen new-york-v4
+  ≈ vega-ish), no swappable nova/maia/… style variants. Revisit only if
+  upstream stops publishing the style CSS in a reconstructable form.
+  Consequence for tests: emitted class strings must never contain a
+  `cn-` token — resolve/expand any `cn-*` utility (e.g. `cn-font-heading`)
+  during reconstruction.
