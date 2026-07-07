@@ -124,6 +124,125 @@ func TestReflectFormHandler_GetRenders(t *testing.T) {
 	if !strings.Contains(body, `method="post"`) {
 		t.Errorf("missing method=post: %q", body)
 	}
+	// The form must self-submit to the URL that served it so a native
+	// submit posts back to this handler, not the current document.
+	if !strings.Contains(body, `action="/admin"`) {
+		t.Errorf("missing action targeting the request URI: %q", body)
+	}
+}
+
+// A reflected form is commonly served as an HTMX fragment (hx-get) and
+// swapped into a page living at a different, GET-only URL. The rendered
+// <form> must carry action = the URL that served it (path+query), so the
+// native submit posts back to its own handler instead of the embedding
+// page (which would 405).
+func TestReflectFormHandler_FormActionSelfSubmits(t *testing.T) {
+	load := func(ctx context.Context) (*sampleStruct, error) {
+		return &sampleStruct{Name: "Alice", Age: 42}, nil
+	}
+	onSubmit := func(ctx context.Context, s *sampleStruct) error { return nil }
+	h := ReflectFormHandler(load, onSubmit, newTestDecider())
+
+	// Fragment endpoint /partners/new/form embedded into a page at
+	// /partners/new — the action must target the serving path, not the
+	// embedding page, and must preserve the query string.
+	req := httptest.NewRequest(http.MethodGet, "/partners/new/form?tab=main", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/partners/new/form?tab=main"`) {
+		t.Errorf("form action must target the serving URL path+query; got %q", body)
+	}
+	// It must NOT default to the parent/embedding path.
+	if strings.Contains(body, `action="/partners/new"`) {
+		t.Errorf("form action must not target the embedding page: %q", body)
+	}
+}
+
+// The whole point of the default action is to preserve the serving URL,
+// including a multi-parameter query string. A query with more than one
+// parameter contains an ampersand, which the attribute writer escapes to
+// &amp; — pin that so a future change can't emit an unescaped (or
+// dropped) query string and break self-submission.
+func TestReflectFormHandler_FormActionEscapesQuery(t *testing.T) {
+	load := func(ctx context.Context) (*sampleStruct, error) {
+		return &sampleStruct{}, nil
+	}
+	onSubmit := func(ctx context.Context, s *sampleStruct) error { return nil }
+	h := ReflectFormHandler(load, onSubmit, newTestDecider())
+
+	req := httptest.NewRequest(http.MethodGet, "/partners/new/form?tab=main&sort=asc", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/partners/new/form?tab=main&amp;sort=asc"`) {
+		t.Errorf("form action must preserve and escape the full query string; got %q", body)
+	}
+}
+
+// The default action is derived from untrusted request input. A request
+// reachable at a path starting with "//" must NOT render a protocol-
+// relative action attribute, which a browser resolves off-origin and would
+// use to post the form's fields to an attacker's host on a native submit.
+// selfSubmitAction collapses the leading slash run to force a same-origin
+// path.
+func TestReflectFormHandler_FormActionNotProtocolRelative(t *testing.T) {
+	load := func(ctx context.Context) (*sampleStruct, error) {
+		return &sampleStruct{}, nil
+	}
+	onSubmit := func(ctx context.Context, s *sampleStruct) error { return nil }
+	h := ReflectFormHandler(load, onSubmit, newTestDecider())
+
+	for _, target := range []string{"//evil.example/collect", "///evil.example/collect"} {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("target %q: status=%d, want 200", target, rec.Code)
+		}
+		body := rec.Body.String()
+		// Must render the same-origin, single-leading-slash path.
+		if !strings.Contains(body, `action="/evil.example/collect"`) {
+			t.Errorf("target %q: action must be a same-origin absolute path; got %q", target, body)
+		}
+		// Must NOT render a protocol-relative "//host" action.
+		if strings.Contains(body, `action="//`) {
+			t.Errorf("target %q: action must not be protocol-relative; got %q", target, body)
+		}
+	}
+}
+
+// ReflectFormConfig.Action overrides the default self-submit target,
+// mirroring the Redirect knob.
+func TestReflectFormHandler_FormActionOverride(t *testing.T) {
+	load := func(ctx context.Context) (*sampleStruct, error) {
+		return &sampleStruct{}, nil
+	}
+	onSubmit := func(ctx context.Context, s *sampleStruct) error { return nil }
+	cfg := ReflectFormConfig{
+		Action: func(r *http.Request) string { return "/custom/submit" },
+	}
+	h := ReflectFormHandlerWith(cfg, load, onSubmit, newTestDecider())
+
+	req := httptest.NewRequest(http.MethodGet, "/partners/new/form", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200", rec.Code)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, `action="/custom/submit"`) {
+		t.Errorf("Action override not applied; got %q", body)
+	}
 }
 
 func TestReflectFormHandler_PostUpdates(t *testing.T) {
