@@ -179,7 +179,13 @@ type InvoiceDraft struct {
 The per-request option list is a trust boundary, not just UI: on POST the
 handler re-resolves the list with the request context and rejects submitted
 values outside it as a normal field validation error, so a tenant-scoped
-dropdown cannot be bypassed by posting another tenant's ID directly.
+dropdown cannot be bypassed by posting another tenant's ID directly. On
+render, a select whose current value is no longer in the per-request list
+shows a generic disabled placeholder option (the filtered-out value itself
+is not echoed) instead of silently displaying the first option. Because the
+placeholder is disabled, an unchanged submit sends no value for the field:
+required fields fail validation until a value is picked from the list, while
+non-required fields are cleared.
 
 See [`cmd/example-form`](cmd/example-form/main.go) for a complete
 worked example covering every supported field kind, section grouping,

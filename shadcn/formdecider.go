@@ -206,6 +206,20 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		}
 		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
 		return html.Option(oAttr...)
+	}, func(options []mx.NamedOption) mx.Component {
+		// The label is deliberately generic: the option list is a
+		// per-request trust boundary, so a value the provider
+		// filtered out must not be echoed into the markup. For
+		// sensitive fields even the placeholder itself is skipped.
+		if selected == "" || tag.Sensitive {
+			return nil
+		}
+		for _, opt := range options {
+			if opt.Value == selected {
+				return nil
+			}
+		}
+		return html.Option(html.Value(""), html.Disabled, html.Selected, mx.Text("(current value not available)"))
 	})
 	return Select(append(attribs, options)...)
 }
@@ -234,7 +248,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 			LabelFor(string(path)+"-"+opt.Value,
 				mx.Text(optionDisplay(opt))),
 		)
-	})
+	}, nil)
 	wrapAttribs := []any{
 		mx.Attribute{Name: "role", Value: "group"},
 		mx.Attribute{Name: "class", Value: "grid grid-cols-2 gap-2"},
@@ -580,7 +594,14 @@ func setMembers(v reflect.Value) map[string]struct{} {
 // component renders, where the context passed to Render is the real
 // request context. A collection error surfaces at render time
 // (deferred-error pattern).
-func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component) mx.Component {
+//
+// prepend, when non-nil, is called with the per-request option list
+// and its result (if non-nil) is rendered before the options. Selects
+// use it to show a disabled placeholder when the current value is not
+// in the list. It only applies to context-dependent lists — the same
+// scope as POST membership validation; static enum lists keep their
+// lenient behavior.
+func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
 	if !mx.OptionsNeedContext(tag, t) {
 		options, err := mx.CollectOptions(context.Background(), value, tag, t)
 		if err != nil {
@@ -596,6 +617,13 @@ func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render 
 		options, err := mx.CollectOptions(ctx, value, tag, t)
 		if err != nil {
 			return err
+		}
+		if prepend != nil {
+			if first := prepend(options); first != nil {
+				if err := first.Render(ctx, w); err != nil {
+					return err
+				}
+			}
 		}
 		for _, opt := range options {
 			if err := render(opt).Render(ctx, w); err != nil {
