@@ -100,6 +100,14 @@ func TestInputGroupButton(t *testing.T) {
 	if strings.Contains(out, "h-9") {
 		t.Errorf("default button height should have been overridden: %s", out)
 	}
+	// The xs button carries Button's xs size, not the default size, so the
+	// default py-2/px-4 padding must not leak into an h-6 button (it would
+	// crush the content vertically inside the fixed height).
+	for _, leaked := range []string{"py-2", "px-4"} {
+		if strings.Contains(out, leaked) {
+			t.Errorf("default size padding %q leaked into xs button: %s", leaked, out)
+		}
+	}
 }
 
 func TestInputGroupButtonSizesAndVariant(t *testing.T) {
@@ -116,10 +124,14 @@ func TestInputGroupButtonSizesAndVariant(t *testing.T) {
 		t.Errorf("icon-xs size classes missing: %s", iconXS)
 	}
 	// A non-ghost variant flows through to the button unchanged (unlike size,
-	// only variant "" is defaulted).
+	// only variant "" is defaulted). The sm size carries Button's sm size
+	// (h-8), so it must not fall back to the full default h-9/py-2.
 	outline := render(t, InputGroupButton(ButtonOutline, InputGroupButtonSM, "Go"))
 	if !strings.Contains(outline, `data-variant="outline"`) || !strings.Contains(outline, `data-size="sm"`) {
 		t.Errorf("outline/sm should pass through: %s", outline)
+	}
+	if !strings.Contains(outline, "h-8") || strings.Contains(outline, "h-9") || strings.Contains(outline, "py-2") {
+		t.Errorf("sm button should be h-8 with no leaked default size: %s", outline)
 	}
 }
 

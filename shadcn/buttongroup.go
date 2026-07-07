@@ -67,8 +67,14 @@ func (b ButtonGroupOrientation) String() string {
 
 // buttonGroupVariants resolves a button group's base + orientation classes,
 // declared the same way shadcn/ui's button-group.tsx declares them with cva.
+// Upstream's select selectors target Radix's [data-slot=select-trigger]; this
+// port's Select is a native <select data-slot="select">, so the w-fit rule is
+// rewritten to that slot. Upstream's extra last-select rounding rule is gated
+// on Radix's hidden <select aria-hidden> and dropped here — the native select
+// is the last direct child, already rounded by the orientation variant's
+// :not(:has(~[data-slot])) rule.
 var buttonGroupVariants = cva.New(cva.Config{
-	Base: "flex w-fit items-stretch *:focus-visible:relative *:focus-visible:z-10 [&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit [&>input]:flex-1 has-[>[data-slot=button-group]]:gap-2 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-md",
+	Base: "flex w-fit items-stretch *:focus-visible:relative *:focus-visible:z-10 [&>[data-slot=select]:not([class*='w-'])]:w-fit [&>input]:flex-1 has-[>[data-slot=button-group]]:gap-2",
 	Variants: map[string]map[string]string{
 		"orientation": {
 			"horizontal": "*:data-slot:rounded-r-none [&>[data-slot]~[data-slot]]:rounded-l-none [&>[data-slot]~[data-slot]]:border-l-0 [&>[data-slot]:not(:has(~[data-slot]))]:rounded-r-md!",

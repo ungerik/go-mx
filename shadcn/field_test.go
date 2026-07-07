@@ -46,6 +46,12 @@ func TestFieldOrientations(t *testing.T) {
 		!strings.Contains(horizontal, "flex-row") {
 		t.Errorf("horizontal orientation missing: %s", horizontal)
 	}
+	// The checkbox/radio nudge must scope BOTH comma branches with &> to
+	// direct children; an unscoped radio branch would leak mt-px to every
+	// radio-group-item on the page (render escapes & to &amp;).
+	if !strings.Contains(horizontal, "&amp;>[data-slot=radio-group-item]]:mt-px") {
+		t.Errorf("radio branch must be direct-child scoped (&>): %s", horizontal)
+	}
 	responsive := render(t, Field(FieldResponsive, "x"))
 	// The responsive layout must query the FieldGroup container, not the
 	// viewport, so fields adapt to the space they actually get.

@@ -522,3 +522,15 @@ above before building. First-glance notes:
   Consequence for tests: emitted class strings must never contain a
   `cn-` token — resolve/expand any `cn-*` utility (e.g. `cn-font-heading`)
   during reconstruction.
+
+### Follow-ups from the Field port (2026-07-07)
+
+- [ ] **Migrate `FieldDecider` (`formdecider.go`) to the Field system.** The
+  reflection-based auto-form renderer still emits the pre-Field stack
+  (`LabelFor`, a raw `<small>` description, a raw `<p data-error>` message,
+  a `div.grid gap-1.5` wrapper). It never used the removed `Form*` helpers,
+  so nothing broke, but automatic forms now bypass `Field`/`FieldLabel`/
+  `FieldDescription`/`FieldError` and miss `role="alert"` and the
+  `data-invalid` root state. Rework `renderShadcnField` to compose the Field
+  parts so hand-written and reflected forms render the same markup.
+  (Surfaced by the /ship cross-model adversarial review.)

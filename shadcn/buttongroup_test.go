@@ -22,6 +22,16 @@ func TestButtonGroup(t *testing.T) {
 	if strings.Contains(out, "cn-") {
 		t.Errorf("unresolved cn-* token leaked into output: %s", out)
 	}
+	// The select width rule must target this port's native <select> slot, not
+	// Radix's select-trigger, or it silently never matches (the README says
+	// ButtonGroup works with Select).
+	// (render escapes & to &amp; in the class attribute).
+	if !strings.Contains(out, "[&amp;>[data-slot=select]:not([class*='w-'])]:w-fit") {
+		t.Errorf("select w-fit rule must target data-slot=select: %s", out)
+	}
+	if strings.Contains(out, "select-trigger") {
+		t.Errorf("select-trigger is a Radix slot this port never emits: %s", out)
+	}
 }
 
 func TestButtonGroupVertical(t *testing.T) {

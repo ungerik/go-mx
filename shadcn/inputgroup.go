@@ -226,6 +226,22 @@ func normInputGroupButtonSize(s InputGroupButtonSize) string {
 	}
 }
 
+// inputGroupButtonBaseSize picks the [ButtonSize] whose classes an
+// [InputGroupButton] layers its input-group size over. xs and sm carry the
+// matching Button size so the default size's h-9/px-4/py-2 padding never
+// leaks; the icon sizes fully re-specify height and padding themselves
+// (size-*/p-0), so they carry the default.
+func inputGroupButtonBaseSize(s string) ButtonSize {
+	switch s {
+	case string(InputGroupButtonSM):
+		return SizeSM
+	case string(InputGroupButtonXS):
+		return SizeXS
+	default: // icon-xs, icon-sm
+		return SizeDefault
+	}
+}
+
 // InputGroupButton renders a button inside an [InputGroupAddon]. variant may
 // be "" for the default, which is [ButtonGhost] (not [ButtonDefault] —
 // matching upstream, a subdued button suits the inside of an input). size
@@ -245,7 +261,7 @@ func InputGroupButton(variant ButtonVariant, size InputGroupButtonSize, attribsC
 		html.DataAttr("size", s),
 	)
 	return finish(e, "button", Cn(
-		ButtonClasses(variant, SizeDefault),
+		ButtonClasses(variant, inputGroupButtonBaseSize(s)),
 		inputGroupButtonVariants(map[string]string{"size": s}),
 	))
 }
