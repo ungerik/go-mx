@@ -410,6 +410,7 @@ html.UL(
 
 ```go
 type Document struct {
+    Lang         string            // <html lang> tag; "" omits it
     Title        string
     Meta         map[string]string // name  -> content
     MetaProperty map[string]string // property -> content (Open Graph, …)
@@ -423,6 +424,13 @@ type Document struct {
 `NewDocument(title, body...)` is the quick constructor; it converts the body
 args with `mx.AsComponents`. It writes a `<head>` with a UTF-8 `<meta>`, the
 title, sorted meta tags, your stylesheets, and any inline style, then your body.
+
+Set `Lang` to put a `lang` attribute on the `<html>` root
+(`Document{Lang: "de-AT"}` → `<html lang="de-AT">`) — the WCAG 3.1.1 fix every
+non-English page needs. The empty string renders the bare `<html>` tag as
+before. The value must be a BCP 47 tag charset
+(`[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*`); anything else makes `Render` return an
+error instead of emitting the attribute.
 
 Serving:
 

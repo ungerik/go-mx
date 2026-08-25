@@ -85,18 +85,58 @@ func ReflectFormHandler[T any](
 
 // ReflectFormHandlerWith is the configurable variant of
 // [ReflectFormHandler]. See [ReflectFormConfig] for the available
-// knobs.
+// knobs. It is a thin wrapper over [ReflectFormHandlerRedirecting] whose
+// onSubmit has no per-submission destination, so a successful submit
+// always redirects to cfg.Redirect (or r.URL.Path when nil).
 func ReflectFormHandlerWith[T any](
 	cfg ReflectFormConfig,
 	load func(ctx context.Context) (*T, error),
 	onSubmit func(ctx context.Context, t *T) error,
 	decider ...FieldDecider,
 ) http.HandlerFunc {
+	if onSubmit == nil {
+		panic("mx.ReflectFormHandler: onSubmit must not be nil")
+	}
+	return ReflectFormHandlerRedirecting(cfg, load,
+		func(ctx context.Context, t *T) (string, error) {
+			// No per-submission URL: the empty string makes the
+			// redirecting handler fall back to cfg.Redirect / r.URL.Path,
+			// exactly as this handler did before.
+			return "", onSubmit(ctx, t)
+		},
+		decider...,
+	)
+}
+
+// ReflectFormHandlerRedirecting is like [ReflectFormHandlerWith], but its
+// onSubmit returns the URL to 303-redirect to on success. An empty string
+// falls back to cfg.Redirect, then to r.URL.Path — identical to the
+// non-redirecting handlers.
+//
+// This is the variant for a form whose submission creates an external
+// resource whose URL the caller cannot know up front: a Stripe Checkout
+// Session, a signed upload URL, an OAuth handoff, a generated share link.
+// onSubmit is the only place that learns the destination, so returning it
+// keeps that flow inside the handler instead of forcing a request-scoped
+// mutable holder or abandoning ReflectFormHandler for that one form.
+//
+// It is a separate function rather than a [ReflectFormConfig] field on
+// purpose: the config is not generic, and a func(*http.Request, *T) field
+// would make the whole struct generic and break every existing
+// ReflectFormConfig{} literal. Returning the URL from onSubmit is explicit,
+// typed, and does not overload the error channel — a returned error still
+// re-renders the form, and a [FieldErrors] still routes per field.
+func ReflectFormHandlerRedirecting[T any](
+	cfg ReflectFormConfig,
+	load func(ctx context.Context) (*T, error),
+	onSubmit func(ctx context.Context, t *T) (redirect string, err error),
+	decider ...FieldDecider,
+) http.HandlerFunc {
 	if load == nil {
 		load = func(context.Context) (*T, error) { return new(T), nil }
 	}
 	if onSubmit == nil {
-		panic("mx.ReflectFormHandler: onSubmit must not be nil")
+		panic("mx.ReflectFormHandlerRedirecting: onSubmit must not be nil")
 	}
 
 	maxMem := cfg.MaxMemory
@@ -166,7 +206,8 @@ func ReflectFormHandlerWith[T any](
 				render(w, r, target, fieldErrs, "")
 				return
 			}
-			if err := onSubmit(r.Context(), target); err != nil {
+			redirect, err := onSubmit(r.Context(), target)
+			if err != nil {
 				if fe, ok := errors.AsType[FieldErrors](err); ok {
 					perField := map[FieldPath][]error{}
 					for p, e := range fe {
@@ -178,9 +219,15 @@ func ReflectFormHandlerWith[T any](
 				render(w, r, target, nil, err.Error())
 				return
 			}
-			dest := r.URL.Path
-			if cfg.Redirect != nil {
-				dest = cfg.Redirect(r)
+			// onSubmit's returned URL wins; an empty string falls back to
+			// cfg.Redirect, then r.URL.Path — byte-identical to the
+			// non-redirecting handler's success path.
+			dest := redirect
+			if dest == "" {
+				dest = r.URL.Path
+				if cfg.Redirect != nil {
+					dest = cfg.Redirect(r)
+				}
 			}
 			http.Redirect(w, r, dest, http.StatusSeeOther)
 

@@ -585,12 +585,20 @@ examples, not functions in this package.
   shared `commandFilter` script substring-matches each item's text on input,
   hides non-matching items and empty groups, and toggles `CommandEmpty`.
   cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
-- **Calendar** — `Calendar(month, selected, …)`. A single-month grid
-  generated server-side with Go's `time` package; the selected day is marked
-  via `aria-selected`. Previous/Next are plain buttons with no default
-  behavior — month navigation is a server round-trip, so wire them with
-  `html.HRef("?month=…")` or an `hx.Get`. react-day-picker's range/multiple
-  selection and disabled-matchers are not reproduced.
+- **Calendar** — `Calendar(month, selected, …)` and the configurable
+  `CalendarWith(opts, month, selected, …)`. A single-month grid generated
+  server-side with Go's `time` package; the selected day is marked via
+  `aria-selected`, and every day button carries an ISO 8601 `aria-label`.
+  Previous/Next are plain buttons with no default behavior — month navigation
+  is a server round-trip, so wire them with `html.HRef("?month=…")` or an
+  `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
+  (Go's `time` has no locale, and the core module deliberately avoids
+  `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
+  for the ISO/European week), `WeekdayName`, `MonthLabel`, `DayLabel`, and
+  `Disabled` (grey out unavailable/past dates — a disabled day is never
+  `aria-selected`). The zero-value `CalendarOptions` renders exactly what
+  `Calendar` renders. react-day-picker's range/multiple selection is not
+  reproduced.
 - **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /
   `CarouselPrevious` / `CarouselNext`. A native CSS `scroll-snap` track —
   drag, swipe and keyboard scrolling are free; the Previous/Next buttons

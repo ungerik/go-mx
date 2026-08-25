@@ -616,3 +616,124 @@ func TestReflectFormHandler_NilOnSubmitPanics(t *testing.T) {
 	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
 	_ = ReflectFormHandler(load, nil)
 }
+
+// postRedirecting drives a urlencoded POST of form through h and returns the
+// recorder. Shared by the ReflectFormHandlerRedirecting tests.
+func postRedirecting(t *testing.T, h http.HandlerFunc, target string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+// validSampleForm submits valid values for both sampleStruct fields, so a POST
+// reaches onSubmit without field errors.
+func validSampleForm() url.Values {
+	return url.Values{
+		PresentSentinelName("Name"): {"x"}, "Name": {"x"},
+		PresentSentinelName("Age"): {"1"}, "Age": {"1"},
+	}
+}
+
+// TestReflectFormHandlerRedirecting_ReturnedURL is the whole point of the
+// variant: onSubmit learns a per-submission destination (here, a Stripe-style
+// checkout URL) and the handler 303s to exactly that URL.
+func TestReflectFormHandlerRedirecting_ReturnedURL(t *testing.T) {
+	const want = "https://checkout.stripe.test/session/abc"
+	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
+	onSubmit := func(ctx context.Context, s *sampleStruct) (string, error) { return want, nil }
+	h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load, onSubmit, newTestDecider())
+
+	rec := postRedirecting(t, h, "/admin", validSampleForm())
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != want {
+		t.Errorf("Location=%q, want %q", got, want)
+	}
+}
+
+// TestReflectFormHandlerRedirecting_EmptyFallsBackToConfigRedirect: an empty
+// returned URL defers to cfg.Redirect, preserving the existing knob.
+func TestReflectFormHandlerRedirecting_EmptyFallsBackToConfigRedirect(t *testing.T) {
+	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
+	onSubmit := func(ctx context.Context, s *sampleStruct) (string, error) { return "", nil }
+	cfg := ReflectFormConfig{Redirect: func(*http.Request) string { return "/done" }}
+	h := ReflectFormHandlerRedirecting(cfg, load, onSubmit, newTestDecider())
+
+	rec := postRedirecting(t, h, "/admin", validSampleForm())
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303", rec.Code)
+	}
+	if got := rec.Header().Get("Location"); got != "/done" {
+		t.Errorf("Location=%q, want /done (cfg.Redirect fallback)", got)
+	}
+}
+
+// TestReflectFormHandlerRedirecting_EmptyFallsBackToRequestPath: empty URL and
+// no cfg.Redirect falls all the way back to r.URL.Path.
+func TestReflectFormHandlerRedirecting_EmptyFallsBackToRequestPath(t *testing.T) {
+	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
+	onSubmit := func(ctx context.Context, s *sampleStruct) (string, error) { return "", nil }
+	h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load, onSubmit, newTestDecider())
+
+	rec := postRedirecting(t, h, "/admin/edit", validSampleForm())
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303", rec.Code)
+	}
+	if got := rec.Header().Get("Location"); got != "/admin/edit" {
+		t.Errorf("Location=%q, want /admin/edit (r.URL.Path fallback)", got)
+	}
+}
+
+// TestReflectFormHandlerRedirecting_ErrorReRenders confirms the redirecting
+// variant did not shift error behavior: a plain error re-renders the form (no
+// redirect), and a FieldErrors still routes to its field.
+func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
+	load := func(context.Context) (*fieldErrorsStruct, error) { return &fieldErrorsStruct{}, nil }
+	form := url.Values{PresentSentinelName("Name"): {"1"}, "Name": {"alice"}}
+
+	t.Run("form-level error", func(t *testing.T) {
+		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
+			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
+				return "", errors.New("boom")
+			}, newTestDecider())
+		rec := postRedirecting(t, h, "/", form)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d, want 200 (re-render)", rec.Code)
+		}
+		if loc := rec.Header().Get("Location"); loc != "" {
+			t.Errorf("errored submit must not redirect, got Location=%q", loc)
+		}
+		if !strings.Contains(rec.Body.String(), "boom") {
+			t.Errorf("form-level error should render: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("FieldErrors routes per field", func(t *testing.T) {
+		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
+			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
+				return "", FieldErrors{"Name": errors.New("name is taken")}
+			}, newTestDecider())
+		rec := postRedirecting(t, h, "/", form)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d, want 200 (re-render)", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, `data-error="Name"`) || !strings.Contains(body, "name is taken") {
+			t.Errorf("FieldErrors should route to the Name field: %s", body)
+		}
+	})
+}
+
+func TestReflectFormHandlerRedirecting_NilOnSubmitPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for nil onSubmit")
+		}
+	}()
+	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
+	_ = ReflectFormHandlerRedirecting[sampleStruct](ReflectFormConfig{}, load, nil)
+}

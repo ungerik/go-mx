@@ -5,8 +5,10 @@ import (
 	"context"
 	"maps"
 	"net/http"
+	"regexp"
 	"slices"
 
+	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 )
 
@@ -18,6 +20,16 @@ const DOCTYPE Raw = `<!DOCTYPE html>`
 // DOCTYPE, an <html> root, a <head> assembled from the metadata fields,
 // and a <body> holding the Body component.
 type Document struct {
+	// Lang sets the lang attribute of the <html> root, the language of
+	// the whole page. The empty string omits the attribute, rendering the
+	// bare <html> tag as before. Setting it is the fix for WCAG 3.1.1
+	// (Language of Page): a screen reader needs it to pick pronunciation
+	// rules and browsers need it to offer translation. The value must be a
+	// BCP 47 tag charset ([A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*, e.g. "de" or
+	// "de-AT"); an invalid value is rejected by Render rather than escaped
+	// into markup, so a caller mistake surfaces instead of silently
+	// mangling the tag.
+	Lang         string
 	Title        string
 	Meta         map[string]string // name -> content
 	MetaProperty map[string]string // property -> content
@@ -26,6 +38,13 @@ type Document struct {
 	HeadCustom   mx.Component      // Custom head content after all other head content
 	Body         mx.Component
 }
+
+// langTagRegexp matches the BCP 47 language-tag charset
+// [A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*. It is intentionally a charset check,
+// not a registry validation: a tag matching it can only contain ASCII
+// letters, digits and hyphens, so it is injection-proof by construction
+// and cannot break out of the double-quoted lang attribute value.
+var langTagRegexp = regexp.MustCompile(`^[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*$`)
 
 // NewDocument returns a Document with the given <title> and the body
 // arguments converted to its Body component via mx.AsComponents.
@@ -39,9 +58,22 @@ func NewDocument(title string, body ...any) *Document {
 // Render writes the complete HTML page to w, implementing the
 // mx.Component interface.
 func (d *Document) Render(ctx context.Context, w mx.Writer) error {
+	// Build the root open tag. An empty Lang renders the bare <html> tag
+	// byte-for-byte as before; a set Lang is validated against the BCP 47
+	// charset and, once matched, is safe to interpolate directly (no
+	// escaping needed) because the charset admits no attribute-breaking
+	// characters. An invalid Lang aborts the render rather than emitting
+	// broken or unescaped markup.
+	htmlOpen := Raw("\n<html>")
+	if d.Lang != "" {
+		if !langTagRegexp.MatchString(d.Lang) {
+			return errs.Errorf("html.Document.Lang %q is not a valid BCP 47 language tag", d.Lang)
+		}
+		htmlOpen = Raw("\n<html lang=\"" + d.Lang + "\">")
+	}
 	return mx.Components{
 		DOCTYPE,
-		Raw("\n<html>"),
+		htmlOpen,
 		Head(
 			Meta(CharSet("UTF-8")),
 			If(d.Title != "", TitleElem(d.Title)),
