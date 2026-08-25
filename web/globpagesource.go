@@ -5,7 +5,10 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"net/url"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/adrg/frontmatter"
@@ -20,6 +23,10 @@ import (
 // Pattern. Markdown files are parsed for frontmatter metadata, and HTML and
 // plain-text files are loaded with their respective content types.
 type GlobPageSource struct {
+	// Dir is the base directory the URL path of a page is derived from.
+	// When it is empty the base is the part of Pattern before its first
+	// wildcard, so a Pattern of "content/blog/*.md" yields "/hello" for
+	// "content/blog/hello.md".
 	Dir           fs.File
 	Pattern       string
 	PageType      string
@@ -49,6 +56,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				}
 				var matter struct {
 					Title       string    `yaml:"title"       toml:"title"       json:"title"`
+					Description string    `yaml:"description" toml:"description" json:"description"`
 					Date        time.Time `yaml:"date"        toml:"date"        json:"date"`
 					PublishDate time.Time `yaml:"publishDate" toml:"publishDate" json:"publishDate"`
 					Draft       bool      `yaml:"draft"       toml:"draft"       json:"draft"`
@@ -62,10 +70,12 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					return
 				}
 				page := &Page{
+					Path:        s.pagePath(file),
 					ContentType: mx.ContentTypeMarkdown,
 					Type:        s.PageType,
 					Author:      s.DefaultAuthor,
 					Title:       matter.Title,
+					Description: matter.Description,
 					Created:     matter.Date,
 					LastUpdated: matter.Date,
 					Published:   matter.PublishDate,
@@ -82,10 +92,19 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				}
 
 			case ".html", ".htm":
+				// A file without frontmatter carries no dates, so its
+				// modification time is the only publication signal there is.
+				// Without it the page would never be [Page.Indexable] and
+				// would silently stay out of every sitemap.
+				modified := content.Modified()
 				page := &Page{
+					Path:        s.pagePath(file),
 					ContentType: mx.ContentTypeHTML,
 					Type:        s.PageType,
 					Author:      s.DefaultAuthor,
+					Created:     modified,
+					LastUpdated: modified,
+					Published:   modified,
 				}
 				// TODO parse HTML title
 				if withContent {
@@ -100,11 +119,16 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				}
 
 			case ".txt":
+				modified := content.Modified()
 				page := &Page{
+					Path:        s.pagePath(file),
 					ContentType: mx.ContentTypePlainText,
 					Type:        s.PageType,
 					Title:       content.Name(), // Use filename as title
 					Author:      s.DefaultAuthor,
+					Created:     modified,
+					LastUpdated: modified,
+					Published:   modified,
 				}
 				if withContent {
 					page.Content, err = content.ReadAll()
@@ -119,4 +143,66 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			}
 		}
 	}
+}
+
+// pagePath derives the URL path of a page from the path of its file: the path
+// relative to the source's base directory, with the file extension dropped and
+// an "index" file mapping to its directory. "blog/hello.md" below the base
+// directory becomes "/blog/hello", "blog/index.md" becomes "/blog/".
+//
+// A [Site] needs the path to build a page's canonical URL and its sitemap
+// entry, so a source that leaves it empty makes every page it yields
+// unreachable for both. It returns an empty path only if the file lies outside
+// the base directory, which cannot happen for a file the glob matched.
+func (s *GlobPageSource) pagePath(file string) string {
+	rel, err := filepath.Rel(s.baseDir(), file)
+	if err != nil {
+		return ""
+	}
+	rel = filepath.ToSlash(rel)
+	// A file outside the base directory has no path within the site. Cleaning
+	// it would drop the leading ".." and invent a path that looks legitimate,
+	// so it yields an empty path instead, which fails loudly wherever it is
+	// needed rather than landing in a sitemap as a wrong URL.
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return ""
+	}
+	p := path.Clean("/" + escapePathSegments(rel))
+	p = strings.TrimSuffix(p, path.Ext(p))
+	// An index file is the page of its directory, addressed by the directory
+	// URL with its trailing slash, not by a URL ending in "/index".
+	if path.Base(p) == "index" {
+		p = path.Dir(p)
+		if !strings.HasSuffix(p, "/") {
+			p += "/"
+		}
+	}
+	return p
+}
+
+// baseDir returns the directory page paths are relative to: Dir if it is set,
+// otherwise the fixed directory prefix of Pattern, that is everything before
+// its first wildcard.
+func (s *GlobPageSource) baseDir() string {
+	if dir := s.Dir.Path(); dir != "" {
+		return dir
+	}
+	pattern := s.Pattern
+	if i := strings.IndexAny(pattern, "*?["); i >= 0 {
+		pattern = pattern[:i]
+	}
+	return filepath.Dir(pattern)
+}
+
+// escapePathSegments percent-escapes every segment of a slash separated file
+// path so the result is usable as a URL path. File names are not URL paths:
+// a "100%-off.md" would otherwise become an invalid escape sequence and a
+// "faq?.md" a query, and both would be rejected wherever the page path is
+// turned into a URL.
+func escapePathSegments(p string) string {
+	segments := strings.Split(p, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
 }
