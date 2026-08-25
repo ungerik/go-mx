@@ -107,6 +107,75 @@ shadcn.InputID("email", html.Type("email")),
 | `CheckboxID(id, …)`    | `Checkbox(html.ID(id), …)`    |
 | `SwitchID(id, …)`      | `Switch(html.ID(id), …)`      |
 
+## Localization — built-in labels
+
+A handful of components render a user-visible string the caller never passes:
+the screen-reader text of the built-in dialog/sheet close button, the
+pagination captions, the ellipsis "more" texts, the reflected-form clear
+checkbox and out-of-list placeholder, and the default `aria-label`s of the
+landmark `<nav>`s and the icon-only buttons. Those strings live in the
+`Labels` struct and are resolved **from the render context**, not baked into
+the element at construction time, so one process can serve several languages
+concurrently:
+
+```go
+func withLabels(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        labels := shadcn.DefaultLabels
+        if lang(r) == "de" {
+            labels = germanLabels
+        }
+        next.ServeHTTP(w, r.WithContext(shadcn.ContextWithLabels(r.Context(), labels)))
+    })
+}
+```
+
+No call site changes: every component rendered with that context picks the
+strings up. `DefaultLabels` holds the upstream English strings and is used when
+the context carries none; assign to it to change them program-wide.
+
+Fields may be left empty: each one falls back to the corresponding
+`DefaultLabels` field and then to the package's built-in English, so a partial
+translation renders a default for the strings it does not cover instead of
+dropping the label — an empty `aria-label` would take the accessible name away
+entirely. Translate the whole struct to avoid mixed-language output.
+
+The second step matters because `DefaultLabels` is itself assignable: without a
+frozen English last resort, assigning it a struct that sets only some fields
+would make every other field fall back to its own empty value. Assign
+`DefaultLabels` during initialization, before the first render — it is a plain
+package variable read by every render, like `mx.AsComponent`.
+
+| `Labels` field                                  | Rendered by                            |
+|-------------------------------------------------|----------------------------------------|
+| `BreadcrumbNav`                                 | `Breadcrumb` `aria-label`              |
+| `BreadcrumbEllipsis`                            | `BreadcrumbEllipsis` sr-only text      |
+| `CarouselPrevious` / `CarouselNext`             | carousel button `aria-label`s          |
+| `DialogClose`                                   | `DialogContent` / `SheetContent` close |
+| `NavigationMenuNav`                             | `NavigationMenu` `aria-label`          |
+| `PaginationNav`                                 | `Pagination` `aria-label`              |
+| `PaginationPrevious` / `PaginationNext`         | pagination link captions               |
+| `PaginationPreviousPage` / `PaginationNextPage` | pagination link `aria-label`s          |
+| `PaginationEllipsis`                            | `PaginationEllipsis` sr-only text      |
+| `SidebarTrigger`                                | `SidebarTrigger` `aria-label`          |
+| `Spinner`                                       | `Spinner` `aria-label`                 |
+| `FormClear`                                     | reflected-form clear checkbox caption  |
+| `FormValueNotAvailable`                         | reflected select out-of-list option    |
+
+A caller-supplied `aria-label` still wins over the context label for a single
+call site — the components only fall back to `Labels` when the caller passed
+none. The text labels (the close button, the pagination captions, the ellipsis
+texts) come from `Labels` only.
+
+`Calendar` is the exception: its weekday and month names need locale data that
+Go's `time` package does not have, so they stay on the explicit
+`CalendarWith(CalendarOptions{…}, …)` hooks rather than on `Labels` — the same
+"ship the hooks, not the translations" rule, just with a per-instance carrier
+because a calendar's week start is a rendering decision, not an ambient string.
+
+Set `html.Document.Lang` to the matching BCP 47 tag so the page also declares
+its language (WCAG 3.1.1).
+
 ## Button
 
 `Button(variant ButtonVariant, size ButtonSize, attribsChildren ...any)`. Pass

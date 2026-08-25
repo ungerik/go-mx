@@ -12,6 +12,7 @@ Task-oriented recipes. Each assumes you've done the
 - [Wire a component to htmx](#wire-a-component-to-htmx)
 - [Build a confirm dialog](#build-a-confirm-dialog)
 - [Give a non-button the button look](#give-a-non-button-the-button-look)
+- [Serve the built-in labels in another language](#serve-the-built-in-labels-in-another-language)
 - [Export a page to static HTML](#export-a-page-to-static-html)
 
 ---
@@ -207,6 +208,100 @@ and toggles.
 The `<a>` renders with the full button styling but is still a link
 (right-click → open in new tab works), and there's no invalid `<button>`-inside-a
 control.
+
+---
+
+## Serve the built-in labels in another language
+
+A few components render text the caller never passes: the close button inside
+`DialogContent` / `SheetContent`, the `PaginationPrevious` / `PaginationNext`
+captions, the breadcrumb and pagination ellipsis screen-reader text, and the
+default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`,
+`CarouselPrevious`, `CarouselNext`, `SidebarTrigger` and `Spinner`. Reflected
+forms add two more: the clear checkbox on a nullable field and the disabled
+placeholder a select shows when the current value is not in its option list.
+
+Those strings live in `shadcn.Labels` and are read **from the render context**,
+so the language is chosen per request — not per call site.
+
+### Steps
+
+1. Write the translation once, as a package-level value:
+
+   ```go
+   var germanLabels = shadcn.Labels{
+       BreadcrumbNav:          "Brotkrümelnavigation",
+       BreadcrumbEllipsis:     "Mehr Einträge",
+       CarouselPrevious:       "Vorheriges Bild",
+       CarouselNext:           "Nächstes Bild",
+       DialogClose:            "Schließen",
+       NavigationMenuNav:      "Hauptnavigation",
+       PaginationNav:          "Seitennummerierung",
+       PaginationPrevious:     "Zurück",
+       PaginationNext:         "Weiter",
+       PaginationPreviousPage: "Zur vorherigen Seite",
+       PaginationNextPage:     "Zur nächsten Seite",
+       PaginationEllipsis:     "Mehr Seiten",
+       SidebarTrigger:         "Seitenleiste umschalten",
+       Spinner:                "Lädt",
+       FormClear:              "leeren",
+       FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
+   }
+   ```
+
+   A field you leave empty falls back to the matching `shadcn.DefaultLabels`
+   field and then to the package's built-in English, so a partial translation
+   renders a default rather than an empty label — an empty `aria-label` would
+   strip the accessible name off the control. Translate the whole struct to
+   avoid mixed-language output.
+
+2. Install it per request in a middleware:
+
+   ```go
+   func withLabels(next http.Handler) http.Handler {
+       return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+           labels := shadcn.DefaultLabels
+           if strings.HasPrefix(r.URL.Path, "/de/") {
+               labels = germanLabels
+           }
+           ctx := shadcn.ContextWithLabels(r.Context(), labels)
+           next.ServeHTTP(w, r.WithContext(ctx))
+       })
+   }
+   ```
+
+3. Set the matching `lang` on the page so assistive tech and search engines
+   agree with the labels (WCAG 3.1.1):
+
+   ```go
+   html.Document{Lang: "de", /* … */}
+   ```
+
+No component call site changes. If your whole app is single-language, skip the
+middleware and assign `shadcn.DefaultLabels = germanLabels` at startup instead —
+do it during initialization, before the first render, and a partial assignment
+is safe because unset fields still fall through to the built-in English.
+
+### Verification
+
+Render a `shadcn.DialogContent("dlg")` with the German context and check the
+output contains `<span class="sr-only">Schließen</span>`. Render the *same*
+element with a plain `context.Background()` and it is `Close` again — proof the
+language is resolved at render time, not at construction.
+
+### Troubleshooting
+
+**A label still renders in English.** That field of your `Labels` is unset and
+fell back to `shadcn.DefaultLabels`. Fill it in.
+
+**`Calendar` is still English.** Weekday and month names need locale data Go's
+`time` package does not carry, so they are not part of `Labels`. Use
+`shadcn.CalendarWith(shadcn.CalendarOptions{WeekStart: time.Monday,
+WeekdayName: …, MonthLabel: …}, month, selected)` instead.
+
+**One control needs a name the translation cannot know.** Pass your own
+`html.Attrib("aria-label", …)`; a caller-supplied attribute still wins over the
+context label.
 
 ---
 

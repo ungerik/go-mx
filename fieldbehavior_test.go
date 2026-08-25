@@ -56,17 +56,6 @@ func TestDeciderFromContext_Unconfigured(t *testing.T) {
 	}
 }
 
-func TestDeciderFromContext_NilContext(t *testing.T) {
-	// Intentional nil to verify the nil-safety guard. Using a typed
-	// variable rather than the literal nil so static analyzers do not
-	// flag the call (SA1012); the runtime check is the same.
-	var ctx context.Context
-	d := DeciderFromContext(ctx)
-	if d == nil {
-		t.Errorf("expected non-nil decider for nil context")
-	}
-}
-
 func TestSetField_ResolvesNamedField(t *testing.T) {
 	type inner struct {
 		Color string

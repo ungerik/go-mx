@@ -36,7 +36,8 @@ Task-oriented recipes for things you'll actually need.
 
 - **[shadcn how-to guides](how-to.html)** — set up Tailwind v4, override a
   component's classes, wire a component to htmx, build a confirm dialog, give a
-  non-button the button look, and export a page to static HTML.
+  non-button the button look, serve the built-in labels in another language,
+  and export a page to static HTML.
 
 ## Reference
 

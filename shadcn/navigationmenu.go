@@ -26,11 +26,11 @@ const navigationMenuLinkClasses = "block select-none space-y-1 rounded-md p-3 le
 // shared content area shared across items) and NavigationMenuIndicator (the
 // arrow that tracks the active trigger) are not ported: each item's content
 // is its own popover, and active styling is per-link via the active bool on
-// [NavigationMenuLink].
+// [NavigationMenuLink]. The default aria-label is localizable via [Labels].
 func NavigationMenu(attribsChildren ...any) *mx.Element {
 	e := html.Nav(attribsChildren...)
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "Main"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.NavigationMenuNav }))
 	}
 	return finish(e, "navigation-menu", "relative flex max-w-max flex-1 items-center justify-center")
 }

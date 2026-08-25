@@ -48,7 +48,8 @@ func Sidebar(attribsChildren ...any) *mx.Element {
 		"bg-sidebar text-sidebar-foreground flex h-full flex-col overflow-hidden border-r transition-[width] duration-200 ease-linear w-[var(--sidebar-width)] group-data-[state=collapsed]/sidebar-wrapper:w-[var(--sidebar-width-icon)]")
 }
 
-// SidebarTrigger toggles the sidebar between expanded and collapsed.
+// SidebarTrigger toggles the sidebar between expanded and collapsed. Its
+// aria-label is localizable via [Labels].
 func SidebarTrigger(attribsChildren ...any) *mx.Element {
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
@@ -58,7 +59,7 @@ func SidebarTrigger(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.OnClick("sidebarToggle()"))
 	}
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "Toggle Sidebar"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.SidebarTrigger }))
 	}
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{iconPanelLeft()}

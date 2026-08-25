@@ -224,7 +224,8 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 				return nil
 			}
 		}
-		return html.Option(html.Value(""), html.Disabled, html.Selected, mx.Text("(current value not available)"))
+		return html.Option(html.Value(""), html.Disabled, html.Selected,
+			labelText(func(l Labels) string { return l.FormValueNotAvailable }))
 	})
 	return Select(append(attribs, options)...)
 }
@@ -404,7 +405,7 @@ func clearControl(path mx.FieldPath) mx.Component {
 		),
 		mx.NewElement("span",
 			mx.Attribute{Name: "class", Value: "ml-2 text-sm"},
-			mx.Text("clear"),
+			labelText(func(l Labels) string { return l.FormClear }),
 		),
 	)
 }
