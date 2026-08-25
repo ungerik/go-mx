@@ -134,6 +134,28 @@ only if a caller needs to intercept class generation program-wide.
 **Priority:** P4
 **Depends on:** None
 
+## web
+
+### `GlobPageSource.Dir` does not scope the glob
+
+**What:** `Dir` is the base directory page paths are derived from, but the glob
+itself still runs as a raw `filepath.Glob(Pattern)` against the process working
+directory (`web/globpagesource.go`), so `Pattern` has to repeat the directory.
+
+**Why:** Two spellings of the same directory that disagree yield either no
+pages or pages whose `Page.Path` is relative to the wrong root, which lands in
+the sitemap as wrong URLs. A single source of truth for the directory removes a
+class of silent misconfiguration.
+
+**Context:** Making `Dir` scope the match means resolving `Pattern` relative to
+it (and deciding whether an absolute `Pattern` stays legal). The related
+`content.IsDir()` branch in the same loop is still an empty `// TODO`: a
+directory that matches the glob is silently skipped instead of being walked.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## Completed
 
 _Nothing moved here yet. When an item ships, move it to this section unchanged
