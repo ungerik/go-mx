@@ -151,6 +151,13 @@ richest-first chain (`Normalize() []error` → `Normalize() error` →
 choice, and POST parses only the fields the form actually rendered —
 mass-assignment-safe by construction.
 
+On success the handler 303-redirects to `cfg.Redirect` (or the request
+path when nil). When the destination is only known after submitting — a
+Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
+`mx.ReflectFormHandlerRedirecting`, whose `onSubmit` returns
+`(redirect string, err error)`; the returned URL wins, and an empty
+string falls back to `cfg.Redirect` then the request path.
+
 Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
