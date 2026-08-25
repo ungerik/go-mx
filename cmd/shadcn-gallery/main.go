@@ -132,6 +132,7 @@ func docs() []ComponentDoc {
 			Description: "A date field component that allows users to enter and edit date.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.CalendarDemo},
+				{Name: "German booking", Func: examples.CalendarBookingDemo},
 			},
 		},
 		{
