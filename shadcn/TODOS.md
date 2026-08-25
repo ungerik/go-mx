@@ -1,4 +1,4 @@
-# shadcn port — TODOs
+# shadcn port — TODOS
 
 Build order for porting shadcn/ui components to go-mx, derived from
 `RESEARCH.md`. Items are ordered so every dependency is built before its
@@ -30,240 +30,134 @@ HTMX (`hx/`) for anything needing a server round-trip.
 
 ## Status legend
 
-`[x]` done · `[ ]` todo · **Cx** = complexity 1–6
+Open ports are H3 items under [Open ports](#open-ports) carrying **What /
+Why / Context / Effort / Priority**, matching the root `TODOS.md` format.
+Finished ports keep the `[x]` checklist form under
+[Completed](#completed), grouped by the phase they landed in so the
+topological build order stays readable.
+
+**Cx** = complexity 1–6, as rated above. It maps to the **Effort** field as
+Cx 1–2 = S, Cx 3–4 = M, Cx 5 = L, Cx 6 = XL.
+
+Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
+**P3** nice-to-have · **P4** someday.
 
 ---
 
-## Phase 0 — Foundations (done)
+## Open ports
 
-- [x] **clsx** — `clsx` npm-package port; `Join` (`clsx/` subpackage)
-- [x] **twmerge** — `tailwind-merge` v3.6.0 port; `Merge` (`twmerge/` subpackage)
-- [x] **cva** — `class-variance-authority` port (`cva/` subpackage)
-- [x] **Cn** — thin `cn` helper composing clsx + twmerge (`cn.go`)
-- [x] **finish** — shared class/attrib merge (`component.go`)
-- [x] **Button** · Cx 2 — exports `ButtonClasses`
-- [x] **Alert** · Cx 2 — `Alert` / `AlertTitle` / `AlertDescription`
-- [x] **AlertDialog** · Cx 4 — native `<dialog>`, full sub-part set
+Four components remain unported. Every one has been triaged; none is
+blocked by another port.
 
----
+### NativeSelect
 
-## Phase 1 — Tier 1 structural (no deps, pure markup) (done)
+**What:** Port upstream's `NativeSelect` as its own component — a separate
+one from the existing `Select`, not a merge.
 
-Styled HTML only; these port ~1:1 and are low-risk warm-ups.
+**Why:** It gives consistent closed-control styling in **all** browsers.
+Our `Select` uses `[appearance:base-select]`, which styles the full picker
+in Chromium 130+ and Safari TP but falls back to native chrome everywhere
+else. NativeSelect is a different design point, not a competing
+implementation, so both should exist and the tradeoff should be
+documented.
 
-- [x] **Separator** · Cx 1 · deps: none
-  `<div role="separator">` with `orientation` (horizontal/vertical).
-- [x] **Skeleton** · Cx 1 · deps: none
-  One `<div>` with `animate-pulse rounded-md bg-accent`.
-- [x] **Label** · Cx 1 · deps: none
-  Styled `<label>`. Blocks **Form** later.
-- [x] **Input** · Cx 1 · deps: none
-  Styled `<input>`.
-- [x] **Textarea** · Cx 1 · deps: none
-  Styled `<textarea>`.
-- [x] **AspectRatio** · Cx 1 · deps: none
-  Wrapper `<div>` using the CSS `aspect-ratio` property; takes a `ratio`
-  param (width/height).
-- [x] **Badge** · Cx 2 · deps: cva
-  `<span>` + variants; exports `BadgeClasses` (mirrors `ButtonClasses`).
-- [x] **Card** · Cx 2 · deps: none
-  `Card` / `CardHeader` / `CardTitle` / `CardDescription` / `CardAction` /
-  `CardContent` / `CardFooter`.
-- [x] **Table** · Cx 2 · deps: none
-  `Table` (+ overflow wrapper) / `TableHeader` / `TableBody` /
-  `TableFooter` / `TableRow` / `TableHead` / `TableCell` / `TableCaption`.
-  Blocks **DataTable**.
-- [x] **Breadcrumb** · Cx 2 · deps: none
-  `Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` /
-  `BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`. The
-  separator/ellipsis default to inline lucide SVG icons (`icons.go`).
-- [x] **Avatar** · Cx 2 · deps: none
-  `Avatar` / `AvatarImage` / `AvatarFallback`. React detects image-load
-  failure in JS; this port renders both, overlays the image (`absolute
-  inset-0`) and hides it via `<img onerror>` to reveal the fallback.
-- [x] **Pagination** · Cx 2 · deps: **ButtonClasses** (done)
-  `Pagination` / `PaginationContent` / `PaginationItem` /
-  `PaginationLink` / `PaginationPrevious` / `PaginationNext` /
-  `PaginationEllipsis`. Links styled via `ButtonClasses(ButtonGhost, …)`.
+**Context:** Triaged 2026-07-07. Upstream ships both as distinct
+components with distinct `data-slot`s (`native-select-wrapper` /
+`native-select` / `native-select-icon`, plus `NativeSelectOption` /
+`NativeSelectOptGroup`). The shape is `appearance-none` plus an overlaid
+chevron icon (from `icons.go`) inside a relative wrapper `<div>`. No Base
+UI selector rewrites are needed — only keepable `has-[select:disabled]:`
+and `data-[size=sm]:` — and the classes live at `style-vega.css`
+`.cn-native-select` / `.cn-native-select-icon`.
 
----
+**Effort:** S (Cx 2)
+**Priority:** P2
+**Depends on:** None
 
-## Phase 2 — Tier 2 simple interactive (done)
+### Chart
 
-Native form controls and disclosure elements carry most of the behavior.
-Stateful components (Toggle, Tabs, ToggleGroup) keep shadcn's ARIA markup +
-a tiny inline JS handler, with an HTMX opt-out (a caller-supplied `hx-*`
-attribute skips the default `onclick`).
+**What:** Port shadcn's Chart, which means generating the chart SVG in Go
+rather than wrapping Recharts.
 
-- [x] **Progress** · Cx 2 · `<div>` track + inner indicator with inline
-  `transform: translateX(-N%)`.
-- [x] **Switch** · Cx 2 · Native `<input type="checkbox" role="switch">`;
-  thumb via `before:` pseudo-element.
-- [x] **Toggle** · Cx 2 · deps: cva · `<button aria-pressed>`; exports
-  `ToggleClasses`. Default `onclick` flips `aria-pressed`; HTMX opt-out.
-- [x] **RadioGroup** · Cx 3 · `<div role="radiogroup">` + `RadioGroupItem`
-  styled void `<input type="radio">`; dot via `before:` pseudo-element.
-- [x] **Checkbox** · Cx 3 · Styled void `<input type="checkbox">`; check mark
-  via `background-image` data URL. Indeterminate via
-  `CheckboxIndeterminateScript(id)`.
-- [x] **Collapsible** · Cx 3 · Native `<details>`/`<summary>`/`<div>`; root
-  carries `group` so a chevron can rotate via `group-open:`.
-- [x] **Accordion** · Cx 3 · Multiple `<details>`; single-mode via the
-  native `<details name="">` exclusive group, multiple-mode via `""`.
-- [x] **Tabs** · Cx 3 · Faithful ARIA `tablist`/`tab`/`tabpanel` +
-  one shared `tabsSelect` inline script; HTMX opt-out on each trigger.
-- [x] **ToggleGroup** · Cx 3 · deps: **ToggleClasses** · single & multiple
-  modes via one shared `toggleGroupClick` script that reads the parent's
-  `data-type` at click time; HTMX opt-out on each item.
-- [x] **ScrollArea** · Cx 3 · Single overflow `<div>` + CSS scrollbars;
-  `ScrollBar` intentionally not exported (the native scrollbar is a
-  pseudo-element, not an element).
-- [x] **Slider** · Cx 4 · Single-thumb = native `<input type="range">`;
-  two-thumb range = two overlaid inputs + fill `<div>` + `sliderClamp`
-  script. Selected by `len(values)` (1 or 2; other panics).
-- [x] **InputOTP** · Cx 4 · N real `<input maxlength="1">` slots + hidden
-  field + `otpAdvance`/`otpKey` focus-management script.
+**Why:** It is one of two genuinely missing pieces of the shadcn component
+set (with DataTable, which shipped as a gallery recipe). shadcn's Chart is
+only a CSS-variable theming layer over Recharts' SVG, so the divergence is
+in *generation*, not runtime — every option below can stay server-side.
 
----
+**Context:** Options considered:
 
-## Phase 3 — Tier 3 floating (done)
+- **A (recommended) — hand-rolled Go SVG generator** (bar/line/area):
+  compute linear scales, axis ticks, gridlines and shapes
+  (`<rect>`/`<polyline>`/`<path>`) in Go, colored from the theme's
+  `--chart-1…5`. Pure server-side, zero client runtime — the most
+  native-first option and a real go-mx strength. Responsive via SVG
+  `viewBox` + `width:100%` (no resize-observer, the native replacement for
+  Recharts' ResponsiveContainer). Tooltips: native `<title>` per data point
+  by default (zero JS); optional styled JS tooltip later. Cost:
+  reimplementing a *scoped* charting lib (not Recharts parity) — one of the
+  two largest remaining builds (with DataTable).
+- **B — a Go charting dependency** (e.g. `wcharczuk/go-chart` → SVG): less
+  code, but a dep whose styling/theming won't match shadcn.
+- **C — a JS charting lib via CDN** (like Tailwind/Shiki): fits the
+  gallery's CDN demo pattern but reintroduces a client runtime for a
+  package component — against the native-first model.
 
-Built on the native **Popover API** (`popover` + `popovertarget`) plus **CSS
-Anchor Positioning** (`anchor-name` / `position-anchor` / `position-area`),
-the native replacement for Radix's Popper/Portal/DismissableLayer/FocusScope.
-Chromium 125+ and Safari 26 anchor next to the trigger; Firefox (anchor
-positioning still in progress) falls back to viewport-centered popovers —
-functional, just not anchored.
+Open decisions before building (A): chart types (bar/line/area, or also
+pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
+`ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
+theming-wrapper API shape.
 
-- [x] **Popover** · Cx 3 · `Popover` / `PopoverTrigger(id)` / `PopoverContent(id, side)`.
-  Private helpers (`popoverAnchorStyle`, `popoverContentStyle`, `mergeStyle`,
-  `PopoverSide`) live in `popover.go` and are reused by the rest of Phase 3.
-- [x] **Tooltip** · Cx 3 · `<span>` wrapper trigger + `tooltipShow`/`tooltipHide`
-  script wired via `mouseover`/`mouseout`/`focusin`/`focusout`.
-- [x] **HoverCard** · Cx 3 · Same shape as Tooltip + timer-based open/close
-  delays (`hoverCardShow`/`hoverCardHide` script; defaults 700/300ms).
-- [x] **Select** · Cx 4 · Native `<select>` + `<optgroup>` + `<option>` styled
-  with `appearance: base-select` (Chrome 130+/Safari TP); native chrome
-  fallback elsewhere. `SelectTrigger`/`SelectContent`/`SelectItem` etc.
-  intentionally not ported.
-- [x] **DropdownMenu** · Cx 4 · Full set: Trigger, Content, Item, Label,
-  Separator, Group, CheckboxItem, RadioGroup, RadioItem, Shortcut, Sub*.
-  Shared `menuKeyNav` script (ArrowUp/Down/Home/End/typeahead/Escape +
-  Sub Arrow/Right/Left) and `menuOpen` script (focus first item on open,
-  flip trigger `aria-expanded`).
-- [x] **ContextMenu** · Cx 4 · Same item parts; trigger is a `<div>` with
-  `oncontextmenu` calling `contextMenuOpen` which pixel-positions the
-  popover at the cursor. Content carries no anchor-positioning.
-- [x] **Menubar** · Cx 4 · `Menubar` / `MenubarMenu` / `MenubarTrigger` /
-  `MenubarContent` + all item parts. `menubarHover` script implements the
-  OS-menubar click-to-switch-without-clicking behavior.
-- [x] **NavigationMenu** · Cx 4 · `NavigationMenu` / `List` / `Item` /
-  `Trigger(id)` / `Content(id, side)` / `Link(active)`. Chevron rotates on
-  `[button[aria-expanded=true]>&]`. `Viewport` and `Indicator` not ported.
+**Effort:** XL (Cx 6)
+**Priority:** P3
+**Depends on:** None
+**Blocked by:** The design decision above — pick A, B or C and settle the
+API shape before any code.
 
----
+### Chat/AI group
 
-## Phase 4 — Tier 4 modal / overlay (native `<dialog>`) (done)
+**What:** Port the coherent chat/AI component set: `Message`, `Bubble`,
+`Attachment` and `MessageScroller`.
 
-Reuse the `<dialog>` approach already proven in `alertdialog.go`
-(top layer, `::backdrop`, focus trap, Escape-to-close — no framework).
+**Why:** They are the building blocks for HTMX chat UIs, which is a
+natural fit for this library. Nothing blocks them.
 
-- [x] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
-  `Dialog` / `DialogTrigger` / `DialogContent` / `DialogHeader` /
-  `DialogFooter` / `DialogTitle` / `DialogDescription` / `DialogClose`.
-  Native `<dialog>` like AlertDialog, plus light-dismiss (backdrop click) and a
-  built-in corner close button. Blocks **Sheet**.
-- [x] **Sheet** · Cx 4 · deps: **Dialog**
-  Native `<dialog>` pinned to an edge via per-side inset classes (top/right/
-  bottom/left); reuses Dialog's close-button helper. SheetSide type, `""` =
-  right. Blocks **Sidebar**.
-- [x] **Drawer** · Cx 5 · deps: **Sheet** / **Dialog** (Option A)
-  Native bottom `<dialog>` (reuses the Dialog/Sheet modal infra — top layer,
-  ::backdrop, Escape, light-dismiss) plus one shared `drawerStart` pointer-drag
-  script: drag the grab handle down, past a ~40% threshold it closes, else
-  snaps back. The most client JS of any port, in the Slider/Resizable inline-
-  script pattern. Dropped vs Vaul: multi snap-points, momentum physics,
-  background-scale, non-bottom directions.
+**Context:** Triaged 2026-07-07, port on demand — there is no current
+consumer. Per component:
 
----
+- **Message** · Cx 2 — pure markup: `MessageGroup` / `Message(align
+  start|end)` / `MessageAvatar` / `MessageContent` / `MessageHeader` /
+  `MessageFooter`. Straight port.
+- **Bubble** · Cx 2 — pure markup: `BubbleGroup` / `Bubble(variant ×7,
+  align)` / `BubbleContent` / `BubbleReactions`. Straight port.
+- **Attachment** · Cx 2–3 — pure markup: `Attachment(Group/Media/Content/
+  Title/Description/Actions/Action/Trigger)`. `useRender` render props →
+  Go composition as usual.
+- **MessageScroller** · Cx 4 — the only behavioral one: wraps the
+  `@shadcn/react/message-scroller` package (stick-to-bottom scrolling +
+  scroll-to-bottom button). Needs one shared inline script (or the CSS
+  `flex-col-reverse` stick-to-bottom idiom); port last, only with a real
+  consumer.
 
-## Phase 5 — Tier 5 composite / heavy (done except Chart, deferred)
+**Effort:** M (Cx 2–4 across the set)
+**Priority:** P4
+**Depends on:** None
 
-Each leans on a React-only library with no Go equivalent — behavior must be
-reimplemented (server-side in Go, with HTMX, or with a small script).
-Order within the phase is by dependency, then complexity.
+### Marker
 
-- [x] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
-  `Form` (native `<form>`) / `FormItem` / `FormLabel` (error-aware via
-  `data-error`) / `FormDescription` / `FormMessage`. FormField/FormControl are
-  React context/Slot plumbing with no server equivalent, so not ported; the
-  caller wires ids/aria directly and renders FormMessage with the error.
-- [x] **Command** · Cx 5 · deps: none
-  Filterable command list (cmdk). One shared `commandFilter` script substring-
-  matches each item's text on input, hides non-matching items/empty groups and
-  toggles CommandEmpty. Fuzzy ranking and arrow-key nav not reproduced. Blocks
-  **Combobox**.
-- [x] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
-  Composition recipe (Popover trigger + filterable Command in PopoverContent) —
-  shipped as a gallery example, matching how shadcn ships Combobox (copy-paste,
-  not a primitive).
-- [x] **Calendar** · Cx 5 · deps: Button
-  Single-month grid generated server-side with Go's `time` package; selected
-  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
-  plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
-- [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
-  Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as
-  a gallery example, matching how shadcn ships DatePicker (copy-paste, not a
-  primitive).
-- [x] **Carousel** · Cx 5 · deps: Button
-  Native CSS `scroll-snap` track (drag/swipe/keyboard free); Previous/Next
-  scroll the track one viewport via a tiny inline onclick. Autoplay/loop/
-  orientation not ported.
-- [x] **Resizable** · Cx 5 · deps: none
-  Flex panels + a draggable handle; one shared `resizeStart` pointer-drag
-  script adjusts the adjacent panels' flex-basis (the Slider-style tradeoff).
-  `ResizeDirection` horizontal/vertical.
-- [x] **Toast** (Sonner) · Cx 5 · deps: none
-  `Toaster` (fixed bottom-right region) + one shared script defining a global
-  `toast(msg, {description, duration})`: appends a styled toast and auto-
-  dismisses it. Triggered from any onclick. Swipe-to-dismiss and stacking
-  offsets not reproduced; HTMX out-of-band swap is the server-pushed alternative.
-- [ ] **Chart** · Cx 6 · deps: none · **DEFERRED** (design decision pending)
-  shadcn's Chart only adds a CSS-variable theming layer over Recharts' SVG;
-  porting means generating the chart SVG ourselves. The divergence is in
-  *generation*, not runtime — every option below can stay server-side. Options:
-  - **A (recommended) — hand-rolled Go SVG generator** (bar/line/area): compute
-    linear scales, axis ticks, gridlines and shapes (`<rect>`/`<polyline>`/
-    `<path>`) in Go, colored from the theme's `--chart-1…5`. Pure server-side,
-    zero client runtime — the most native-first option and a real go-mx
-    strength. Responsive via SVG `viewBox` + `width:100%` (no resize-observer,
-    the native replacement for Recharts' ResponsiveContainer). Tooltips: native
-    `<title>` per data point by default (zero JS); optional styled JS tooltip
-    later. Cost: reimplementing a *scoped* charting lib (not Recharts parity) —
-    one of the two largest remaining builds (with DataTable).
-  - **B — a Go charting dependency** (e.g. `wcharczuk/go-chart` → SVG): less
-    code, but a dep whose styling/theming won't match shadcn.
-  - **C — a JS charting lib via CDN** (like Tailwind/Shiki): fits the gallery's
-    CDN demo pattern but reintroduces a client runtime for a package component —
-    against the native-first model.
-  Open decisions before building (A): chart types (bar/line/area, or also
-  pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
-  `ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
-  theming-wrapper API shape.
-- [x] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
-  Checkbox + **Pagination**
-  Composition recipe (toolbar filter Input + Columns DropdownMenu + Table with
-  select checkboxes, sortable headers and per-row action menus + selection
-  count + Previous/Next) shipped as a gallery example, matching how shadcn ships
-  DataTable (copy-paste, not a primitive). Live email filter via one small
-  script; sorting/pagination would be server-side (HTMX/query params) in a real
-  app and are rendered but inert here.
-- [x] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Separator
-  ~18 sub-parts (Provider/Sidebar/Trigger/Inset/Header/Content/Footer/Group*/
-  Menu*/Sub*/Separator). Expand↔icon collapse via a `data-state` on the
-  group/sidebar-wrapper; one shared `sidebarToggle` script persists it to the
-  `sidebar_state` cookie, restores on load, and binds Cmd/Ctrl+B. Floating/
-  inset variants and the mobile-becomes-Sheet behavior are not reproduced.
+**What:** Port `Marker` — a labeled inline marker/divider row:
+`Marker(variant default|separator|border)` / `MarkerIcon` /
+`MarkerContent`.
+
+**Why:** Pure markup with no behavior, so it is cheap to add whenever a
+consumer wants it.
+
+**Context:** Triaged 2026-07-07. Fine to port any time; grouped with the
+chat set above because upstream demos it in conversation UIs, so it lands
+naturally alongside them (port on demand).
+
+**Effort:** S (Cx 1–2)
+**Priority:** P4
+**Depends on:** None
 
 ---
 
@@ -405,11 +299,221 @@ component parts (e.g. `cn-font-heading` on titles) — resolve them from the
 style CSS / `shadcn/tailwind.css` the same way, or substitute the concrete
 classes they expand to.
 
-### Phase 6 — new upstream components (post-restructure, untriaged)
+---
+
+## Completed
+
+Ported components, grouped by the phase they landed in. The phase order is
+the topological build order — every dependency lands before its dependents
+— so it is preserved here rather than flattened into one list. See [Hard
+dependency edges](#hard-dependency-edges-must-respect) for the edges these
+phases satisfy.
+
+### Phase 0 — Foundations
+
+- [x] **clsx** — `clsx` npm-package port; `Join` (`clsx/` subpackage)
+- [x] **twmerge** — `tailwind-merge` v3.6.0 port; `Merge` (`twmerge/` subpackage)
+- [x] **cva** — `class-variance-authority` port (`cva/` subpackage)
+- [x] **Cn** — thin `cn` helper composing clsx + twmerge (`cn.go`)
+- [x] **finish** — shared class/attrib merge (`component.go`)
+- [x] **Button** · Cx 2 — exports `ButtonClasses`
+- [x] **Alert** · Cx 2 — `Alert` / `AlertTitle` / `AlertDescription`
+- [x] **AlertDialog** · Cx 4 — native `<dialog>`, full sub-part set
+
+### Phase 1 — Tier 1 structural (no deps, pure markup)
+
+Styled HTML only; these port ~1:1 and are low-risk warm-ups.
+
+- [x] **Separator** · Cx 1 · deps: none
+  `<div role="separator">` with `orientation` (horizontal/vertical).
+- [x] **Skeleton** · Cx 1 · deps: none
+  One `<div>` with `animate-pulse rounded-md bg-accent`.
+- [x] **Label** · Cx 1 · deps: none
+  Styled `<label>`. Blocks **Form** later.
+- [x] **Input** · Cx 1 · deps: none
+  Styled `<input>`.
+- [x] **Textarea** · Cx 1 · deps: none
+  Styled `<textarea>`.
+- [x] **AspectRatio** · Cx 1 · deps: none
+  Wrapper `<div>` using the CSS `aspect-ratio` property; takes a `ratio`
+  param (width/height).
+- [x] **Badge** · Cx 2 · deps: cva
+  `<span>` + variants; exports `BadgeClasses` (mirrors `ButtonClasses`).
+- [x] **Card** · Cx 2 · deps: none
+  `Card` / `CardHeader` / `CardTitle` / `CardDescription` / `CardAction` /
+  `CardContent` / `CardFooter`.
+- [x] **Table** · Cx 2 · deps: none
+  `Table` (+ overflow wrapper) / `TableHeader` / `TableBody` /
+  `TableFooter` / `TableRow` / `TableHead` / `TableCell` / `TableCaption`.
+  Blocks **DataTable**.
+- [x] **Breadcrumb** · Cx 2 · deps: none
+  `Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` /
+  `BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`. The
+  separator/ellipsis default to inline lucide SVG icons (`icons.go`).
+- [x] **Avatar** · Cx 2 · deps: none
+  `Avatar` / `AvatarImage` / `AvatarFallback`. React detects image-load
+  failure in JS; this port renders both, overlays the image (`absolute
+  inset-0`) and hides it via `<img onerror>` to reveal the fallback.
+- [x] **Pagination** · Cx 2 · deps: **ButtonClasses** (done)
+  `Pagination` / `PaginationContent` / `PaginationItem` /
+  `PaginationLink` / `PaginationPrevious` / `PaginationNext` /
+  `PaginationEllipsis`. Links styled via `ButtonClasses(ButtonGhost, …)`.
+
+### Phase 2 — Tier 2 simple interactive
+
+Native form controls and disclosure elements carry most of the behavior.
+Stateful components (Toggle, Tabs, ToggleGroup) keep shadcn's ARIA markup +
+a tiny inline JS handler, with an HTMX opt-out (a caller-supplied `hx-*`
+attribute skips the default `onclick`).
+
+- [x] **Progress** · Cx 2 · `<div>` track + inner indicator with inline
+  `transform: translateX(-N%)`.
+- [x] **Switch** · Cx 2 · Native `<input type="checkbox" role="switch">`;
+  thumb via `before:` pseudo-element.
+- [x] **Toggle** · Cx 2 · deps: cva · `<button aria-pressed>`; exports
+  `ToggleClasses`. Default `onclick` flips `aria-pressed`; HTMX opt-out.
+- [x] **RadioGroup** · Cx 3 · `<div role="radiogroup">` + `RadioGroupItem`
+  styled void `<input type="radio">`; dot via `before:` pseudo-element.
+- [x] **Checkbox** · Cx 3 · Styled void `<input type="checkbox">`; check mark
+  via `background-image` data URL. Indeterminate via
+  `CheckboxIndeterminateScript(id)`.
+- [x] **Collapsible** · Cx 3 · Native `<details>`/`<summary>`/`<div>`; root
+  carries `group` so a chevron can rotate via `group-open:`.
+- [x] **Accordion** · Cx 3 · Multiple `<details>`; single-mode via the
+  native `<details name="">` exclusive group, multiple-mode via `""`.
+- [x] **Tabs** · Cx 3 · Faithful ARIA `tablist`/`tab`/`tabpanel` +
+  one shared `tabsSelect` inline script; HTMX opt-out on each trigger.
+- [x] **ToggleGroup** · Cx 3 · deps: **ToggleClasses** · single & multiple
+  modes via one shared `toggleGroupClick` script that reads the parent's
+  `data-type` at click time; HTMX opt-out on each item.
+- [x] **ScrollArea** · Cx 3 · Single overflow `<div>` + CSS scrollbars;
+  `ScrollBar` intentionally not exported (the native scrollbar is a
+  pseudo-element, not an element).
+- [x] **Slider** · Cx 4 · Single-thumb = native `<input type="range">`;
+  two-thumb range = two overlaid inputs + fill `<div>` + `sliderClamp`
+  script. Selected by `len(values)` (1 or 2; other panics).
+- [x] **InputOTP** · Cx 4 · N real `<input maxlength="1">` slots + hidden
+  field + `otpAdvance`/`otpKey` focus-management script.
+
+### Phase 3 — Tier 3 floating
+
+Built on the native **Popover API** (`popover` + `popovertarget`) plus **CSS
+Anchor Positioning** (`anchor-name` / `position-anchor` / `position-area`),
+the native replacement for Radix's Popper/Portal/DismissableLayer/FocusScope.
+Chromium 125+ and Safari 26 anchor next to the trigger; Firefox (anchor
+positioning still in progress) falls back to viewport-centered popovers —
+functional, just not anchored.
+
+- [x] **Popover** · Cx 3 · `Popover` / `PopoverTrigger(id)` / `PopoverContent(id, side)`.
+  Private helpers (`popoverAnchorStyle`, `popoverContentStyle`, `mergeStyle`,
+  `PopoverSide`) live in `popover.go` and are reused by the rest of Phase 3.
+- [x] **Tooltip** · Cx 3 · `<span>` wrapper trigger + `tooltipShow`/`tooltipHide`
+  script wired via `mouseover`/`mouseout`/`focusin`/`focusout`.
+- [x] **HoverCard** · Cx 3 · Same shape as Tooltip + timer-based open/close
+  delays (`hoverCardShow`/`hoverCardHide` script; defaults 700/300ms).
+- [x] **Select** · Cx 4 · Native `<select>` + `<optgroup>` + `<option>` styled
+  with `appearance: base-select` (Chrome 130+/Safari TP); native chrome
+  fallback elsewhere. `SelectTrigger`/`SelectContent`/`SelectItem` etc.
+  intentionally not ported.
+- [x] **DropdownMenu** · Cx 4 · Full set: Trigger, Content, Item, Label,
+  Separator, Group, CheckboxItem, RadioGroup, RadioItem, Shortcut, Sub*.
+  Shared `menuKeyNav` script (ArrowUp/Down/Home/End/typeahead/Escape +
+  Sub Arrow/Right/Left) and `menuOpen` script (focus first item on open,
+  flip trigger `aria-expanded`).
+- [x] **ContextMenu** · Cx 4 · Same item parts; trigger is a `<div>` with
+  `oncontextmenu` calling `contextMenuOpen` which pixel-positions the
+  popover at the cursor. Content carries no anchor-positioning.
+- [x] **Menubar** · Cx 4 · `Menubar` / `MenubarMenu` / `MenubarTrigger` /
+  `MenubarContent` + all item parts. `menubarHover` script implements the
+  OS-menubar click-to-switch-without-clicking behavior.
+- [x] **NavigationMenu** · Cx 4 · `NavigationMenu` / `List` / `Item` /
+  `Trigger(id)` / `Content(id, side)` / `Link(active)`. Chevron rotates on
+  `[button[aria-expanded=true]>&]`. `Viewport` and `Indicator` not ported.
+
+### Phase 4 — Tier 4 modal / overlay (native `<dialog>`)
+
+Reuse the `<dialog>` approach already proven in `alertdialog.go`
+(top layer, `::backdrop`, focus trap, Escape-to-close — no framework).
+
+- [x] **Dialog** · Cx 3 · deps: none (shares `<dialog>` infra with AlertDialog)
+  `Dialog` / `DialogTrigger` / `DialogContent` / `DialogHeader` /
+  `DialogFooter` / `DialogTitle` / `DialogDescription` / `DialogClose`.
+  Native `<dialog>` like AlertDialog, plus light-dismiss (backdrop click) and a
+  built-in corner close button. Blocks **Sheet**.
+- [x] **Sheet** · Cx 4 · deps: **Dialog**
+  Native `<dialog>` pinned to an edge via per-side inset classes (top/right/
+  bottom/left); reuses Dialog's close-button helper. SheetSide type, `""` =
+  right. Blocks **Sidebar**.
+- [x] **Drawer** · Cx 5 · deps: **Sheet** / **Dialog** (Option A)
+  Native bottom `<dialog>` (reuses the Dialog/Sheet modal infra — top layer,
+  ::backdrop, Escape, light-dismiss) plus one shared `drawerStart` pointer-drag
+  script: drag the grab handle down, past a ~40% threshold it closes, else
+  snaps back. The most client JS of any port, in the Slider/Resizable inline-
+  script pattern. Dropped vs Vaul: multi snap-points, momentum physics,
+  background-scale, non-bottom directions.
+
+### Phase 5 — Tier 5 composite / heavy
+
+Each leans on a React-only library with no Go equivalent — behavior must be
+reimplemented (server-side in Go, with HTMX, or with a small script).
+Order within the phase is by dependency, then complexity.
+
+- [x] **Form** · Cx 5 · deps: **Label** (+ Input/Checkbox/RadioGroup/etc.)
+  `Form` (native `<form>`) / `FormItem` / `FormLabel` (error-aware via
+  `data-error`) / `FormDescription` / `FormMessage`. FormField/FormControl are
+  React context/Slot plumbing with no server equivalent, so not ported; the
+  caller wires ids/aria directly and renders FormMessage with the error.
+- [x] **Command** · Cx 5 · deps: none
+  Filterable command list (cmdk). One shared `commandFilter` script substring-
+  matches each item's text on input, hides non-matching items/empty groups and
+  toggles CommandEmpty. Fuzzy ranking and arrow-key nav not reproduced. Blocks
+  **Combobox**.
+- [x] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
+  Composition recipe (Popover trigger + filterable Command in PopoverContent) —
+  shipped as a gallery example, matching how shadcn ships Combobox (copy-paste,
+  not a primitive).
+- [x] **Calendar** · Cx 5 · deps: Button
+  Single-month grid generated server-side with Go's `time` package; selected
+  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
+  plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
+- [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
+  Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as
+  a gallery example, matching how shadcn ships DatePicker (copy-paste, not a
+  primitive).
+- [x] **Carousel** · Cx 5 · deps: Button
+  Native CSS `scroll-snap` track (drag/swipe/keyboard free); Previous/Next
+  scroll the track one viewport via a tiny inline onclick. Autoplay/loop/
+  orientation not ported.
+- [x] **Resizable** · Cx 5 · deps: none
+  Flex panels + a draggable handle; one shared `resizeStart` pointer-drag
+  script adjusts the adjacent panels' flex-basis (the Slider-style tradeoff).
+  `ResizeDirection` horizontal/vertical.
+- [x] **Toast** (Sonner) · Cx 5 · deps: none
+  `Toaster` (fixed bottom-right region) + one shared script defining a global
+  `toast(msg, {description, duration})`: appends a styled toast and auto-
+  dismisses it. Triggered from any onclick. Swipe-to-dismiss and stacking
+  offsets not reproduced; HTMX out-of-band swap is the server-pushed alternative.
+- [x] **DataTable** · Cx 6 · deps: **Table** + **DropdownMenu** + Input +
+  Checkbox + **Pagination**
+  Composition recipe (toolbar filter Input + Columns DropdownMenu + Table with
+  select checkboxes, sortable headers and per-row action menus + selection
+  count + Previous/Next) shipped as a gallery example, matching how shadcn ships
+  DataTable (copy-paste, not a primitive). Live email filter via one small
+  script; sorting/pagination would be server-side (HTMX/query params) in a real
+  app and are rendered but inert here.
+- [x] **Sidebar** · Cx 6 · deps: **Sheet** + Button + Separator
+  ~18 sub-parts (Provider/Sidebar/Trigger/Inset/Header/Content/Footer/Group*/
+  Menu*/Sub*/Separator). Expand↔icon collapse via a `data-state` on the
+  group/sidebar-wrapper; one shared `sidebarToggle` script persists it to the
+  `sidebar_state` cookie, restores on load, and binds Cmd/Ctrl+B. Floating/
+  inset variants and the mobile-becomes-Sheet behavior are not reproduced.
+
+### Phase 6 — new upstream components (post-restructure)
 
 Components in `apps/v4/registry/bases/base/ui/` with no counterpart in
-this port (as of 2026-07-05). Not yet rated; triage each with the guide
-above before building. First-glance notes:
+this port when the restructure was surveyed (2026-07-05). All were triaged
+on 2026-07-07 with the guide above; the four that remain unported moved to
+[Open ports](#open-ports).
 
 - [x] **Kbd** · Cx 1 — `Kbd` / `KbdGroup` (both `<kbd>` like upstream).
 - [x] **Spinner** · Cx 1 — inline lucide loader-circle SVG (`icons.go`
@@ -433,19 +537,6 @@ above before building. First-glance notes:
   `input-group-control`). Addon keeps upstream's click-to-focus as a
   default inline `onclick`. `InputGroupText` emits a data-slot upstream
   lacks (consistency divergence, documented in the func comment).
-- [ ] **NativeSelect** · Cx 2 — **triaged 2026-07-07: port as a separate
-  component, not a merge.** Upstream ships *both* Select (popup primitive)
-  and NativeSelect as distinct components with distinct `data-slot`s
-  (`native-select-wrapper` / `native-select` / `native-select-icon`, plus
-  `NativeSelectOption` / `NativeSelectOptGroup`). It is a different design
-  point from our `Select`: `appearance-none` + an overlaid chevron icon
-  (from `icons.go`) inside a relative wrapper `<div>` — consistent
-  closed-control styling in **all** browsers, where our `Select`'s
-  `[appearance:base-select]` styles the full picker in Chromium 130+/
-  Safari TP but falls back to native chrome elsewhere. Keep both; document
-  the tradeoff. No Base UI selector rewrites needed (only keepable
-  `has-[select:disabled]:` / `data-[size=sm]:`); classes at
-  `style-vega.css` `.cn-native-select` / `.cn-native-select-icon`.
 - [x] **Field** · Cx 3 · deps: Label, Separator — **ported 2026-07-07 as
   triaged** (`field.go`): full part set below, plus a `FieldLabelFor`
   shortcut. `FormItem`/`FormLabel`/`FormLabelFor`/`FormDescription`/
@@ -481,26 +572,6 @@ above before building. First-glance notes:
   already provide. Revisit only if a concrete need (e.g. multi-select chips)
   outgrows the recipe; a native `<input list>`/`<datalist>` variant is the
   zero-JS alternative to explore first.
-- [ ] **Chat/AI group — triaged 2026-07-07, port on demand** (coherent set
-  for HTMX chat UIs; nothing blocks them, but no current need):
-  - **Message** · Cx 2 — pure markup: `MessageGroup` / `Message(align
-    start|end)` / `MessageAvatar` / `MessageContent` / `MessageHeader` /
-    `MessageFooter`. Straight port.
-  - **Bubble** · Cx 2 — pure markup: `BubbleGroup` / `Bubble(variant ×7,
-    align)` / `BubbleContent` / `BubbleReactions`. Straight port.
-  - **Attachment** · Cx 2–3 — pure markup: `Attachment(Group/Media/Content/
-    Title/Description/Actions/Action/Trigger)`. `useRender` render props →
-    Go composition as usual.
-  - **MessageScroller** · Cx 4 — the only behavioral one: wraps the
-    `@shadcn/react/message-scroller` package (stick-to-bottom scrolling +
-    scroll-to-bottom button). Needs one shared inline script (or the CSS
-    `flex-col-reverse` stick-to-bottom idiom); port last, only with a real
-    consumer.
-- [ ] **Marker** — triaged 2026-07-07: a labeled inline marker/divider row,
-  `Marker(variant default|separator|border)` / `MarkerIcon` /
-  `MarkerContent`, pure markup · Cx 1–2. Fine to port any time; grouped
-  with the chat set above since upstream demos it in conversation UIs
-  (port on demand).
 - [x] **Direction** — **resolved 2026-07-07: N/A, nothing to port.** A
   React context provider that only informs Base UI JS positioning; in
   server-rendered HTML the native mechanism is the `dir` attribute
