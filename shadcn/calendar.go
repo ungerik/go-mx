@@ -15,8 +15,8 @@ import (
 //
 // Month navigation is a server round-trip: PrevButton/NextButton are plain
 // buttons with no default behavior, so wire them with html.HRef("?month=…") or
-// an hx.Get to re-render the adjacent month (see the gallery example, and
-// [DatePicker] which embeds a Calendar in a [Popover]).
+// an hx.Get to re-render the adjacent month (see the gallery's Calendar
+// example, and its DatePicker example which embeds a Calendar in a [Popover]).
 //
 // Single-month, single-selection is the ported core; react-day-picker's range /
 // multiple / disabled-matcher features are not reproduced.
