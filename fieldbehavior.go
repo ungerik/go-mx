@@ -360,9 +360,6 @@ type ctxKeyDecider struct{}
 // [Middleware], or the unconfigured decider that surfaces a clear
 // error when none was installed.
 func DeciderFromContext(ctx context.Context) FieldDecider {
-	if ctx == nil {
-		return unconfiguredDecider
-	}
 	d, ok := ctx.Value(ctxKeyDecider{}).(FieldDecider)
 	if !ok || d == nil {
 		return unconfiguredDecider

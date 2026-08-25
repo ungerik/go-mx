@@ -32,8 +32,5 @@ func Middleware(d FieldDecider) func(http.Handler) http.Handler {
 // for tests that build a context directly instead of going through an
 // HTTP server, and for callers that compose deciders manually.
 func ContextWithDecider(ctx context.Context, d FieldDecider) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	return context.WithValue(ctx, ctxKeyDecider{}, d)
 }

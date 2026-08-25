@@ -8,15 +8,16 @@ import (
 )
 
 // Pagination renders a shadcn/ui pagination navigation landmark as a <nav>
-// with role="navigation" and aria-label="pagination". Compose it with
-// [PaginationContent] and the other pagination parts.
+// with role="navigation" and aria-label="pagination" (localizable via
+// [Labels]). Compose it with [PaginationContent] and the other pagination
+// parts.
 func Pagination(attribsChildren ...any) *mx.Element {
 	e := html.Nav(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("navigation"))
 	}
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "pagination"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.PaginationNav }))
 	}
 	return finish(e, "pagination", "mx-auto flex w-full justify-center")
 }
@@ -54,27 +55,29 @@ func PaginationLink(active bool, size ButtonSize, attribsChildren ...any) *mx.El
 }
 
 // PaginationPrevious renders the "previous page" link: a default-size
-// [PaginationLink] with a chevron-left icon and a "Previous" label.
+// [PaginationLink] with a chevron-left icon and a "Previous" caption. The
+// caption and the aria-label are localizable via [Labels].
 func PaginationPrevious(attribsChildren ...any) *mx.Element {
 	args := make([]any, 0, len(attribsChildren)+4)
 	args = append(args,
-		html.Attrib("aria-label", "Go to previous page"),
+		labelAriaLabel(func(l Labels) string { return l.PaginationPreviousPage }),
 		html.Class("gap-1 px-2.5 sm:pl-2.5"),
 		iconChevronLeft(),
-		html.SpanClass("hidden sm:block", "Previous"),
+		html.SpanClass("hidden sm:block", labelText(func(l Labels) string { return l.PaginationPrevious })),
 	)
 	args = append(args, attribsChildren...)
 	return PaginationLink(false, SizeDefault, args...)
 }
 
 // PaginationNext renders the "next page" link: a default-size [PaginationLink]
-// with a "Next" label and a chevron-right icon.
+// with a "Next" caption and a chevron-right icon. The caption and the
+// aria-label are localizable via [Labels].
 func PaginationNext(attribsChildren ...any) *mx.Element {
 	args := make([]any, 0, len(attribsChildren)+4)
 	args = append(args,
-		html.Attrib("aria-label", "Go to next page"),
+		labelAriaLabel(func(l Labels) string { return l.PaginationNextPage }),
 		html.Class("gap-1 px-2.5 sm:pr-2.5"),
-		html.SpanClass("hidden sm:block", "Next"),
+		html.SpanClass("hidden sm:block", labelText(func(l Labels) string { return l.PaginationNext })),
 		iconChevronRight(),
 	)
 	args = append(args, attribsChildren...)
@@ -82,7 +85,7 @@ func PaginationNext(attribsChildren ...any) *mx.Element {
 }
 
 // PaginationEllipsis renders a collapsed-pages indicator as a <span> with a
-// lucide ellipsis icon and screen-reader text.
+// lucide ellipsis icon and screen-reader text (localizable via [Labels]).
 func PaginationEllipsis(attribsChildren ...any) *mx.Element {
 	e := html.Span(attribsChildren...)
 	if e.AttribIndex("aria-hidden") < 0 {
@@ -91,7 +94,7 @@ func PaginationEllipsis(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{
 			iconEllipsis("size-4"),
-			html.SpanClass("sr-only", "More pages"),
+			html.SpanClass("sr-only", labelText(func(l Labels) string { return l.PaginationEllipsis })),
 		}
 	}
 	return finish(e, "pagination-ellipsis", "flex size-9 items-center justify-center")

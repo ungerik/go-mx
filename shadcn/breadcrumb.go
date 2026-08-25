@@ -6,12 +6,12 @@ import (
 )
 
 // Breadcrumb renders a shadcn/ui breadcrumb navigation landmark as a <nav>
-// with aria-label="breadcrumb". Compose it with [BreadcrumbList] and the
-// other breadcrumb parts.
+// with aria-label="breadcrumb" (localizable via [Labels]). Compose it with
+// [BreadcrumbList] and the other breadcrumb parts.
 func Breadcrumb(attribsChildren ...any) *mx.Element {
 	e := html.Nav(attribsChildren...)
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "breadcrumb"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.BreadcrumbNav }))
 	}
 	return finish(e, "breadcrumb", "")
 }
@@ -67,7 +67,8 @@ func BreadcrumbSeparator(attribsChildren ...any) *mx.Element {
 }
 
 // BreadcrumbEllipsis renders a collapsed-items indicator as a <span>. With no
-// children it defaults to a lucide ellipsis icon plus screen-reader text.
+// children it defaults to a lucide ellipsis icon plus screen-reader text
+// (localizable via [Labels]).
 func BreadcrumbEllipsis(attribsChildren ...any) *mx.Element {
 	e := html.Span(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
@@ -79,7 +80,7 @@ func BreadcrumbEllipsis(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{
 			iconEllipsis("size-4"),
-			html.SpanClass("sr-only", "More"),
+			html.SpanClass("sr-only", labelText(func(l Labels) string { return l.BreadcrumbEllipsis })),
 		}
 	}
 	return finish(e, "breadcrumb-ellipsis", "flex size-9 items-center justify-center")

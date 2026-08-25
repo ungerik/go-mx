@@ -36,7 +36,8 @@ const carouselScrollPrev = "var c=this.closest('[data-slot=carousel]').querySele
 const carouselScrollNext = "var c=this.closest('[data-slot=carousel]').querySelector('[data-slot=carousel-content]');c.scrollBy({left:c.clientWidth,behavior:'smooth'})"
 
 // CarouselPrevious renders the round previous-slide button (outside the track,
-// left). Default onclick scrolls the track back one viewport.
+// left). Default onclick scrolls the track back one viewport; its aria-label
+// is localizable via [Labels].
 func CarouselPrevious(attribsChildren ...any) *mx.Element {
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
@@ -46,7 +47,7 @@ func CarouselPrevious(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.OnClick(carouselScrollPrev))
 	}
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "Previous slide"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.CarouselPrevious }))
 	}
 	e.Children = append(e.Children, iconChevronLeft())
 	return finish(e, "carousel-previous",
@@ -54,7 +55,8 @@ func CarouselPrevious(attribsChildren ...any) *mx.Element {
 }
 
 // CarouselNext renders the round next-slide button (outside the track, right).
-// Default onclick scrolls the track forward one viewport.
+// Default onclick scrolls the track forward one viewport; its aria-label is
+// localizable via [Labels].
 func CarouselNext(attribsChildren ...any) *mx.Element {
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
@@ -64,7 +66,7 @@ func CarouselNext(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.OnClick(carouselScrollNext))
 	}
 	if e.AttribIndex("aria-label") < 0 {
-		e.Attribs = append(e.Attribs, html.Attrib("aria-label", "Next slide"))
+		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.CarouselNext }))
 	}
 	e.Children = append(e.Children, iconChevronRight())
 	return finish(e, "carousel-next",

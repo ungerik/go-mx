@@ -73,13 +73,14 @@ func DialogContent(dialogID string, attribsChildren ...any) *mx.Element {
 
 // nativeDialogCloseButton renders the built-in top-right X that closes the
 // enclosing <dialog>. Shared by [DialogContent] and [SheetContent]; slot is the
-// data-slot value ("dialog-close" or "sheet-close").
+// data-slot value ("dialog-close" or "sheet-close"). The caller never passes
+// its screen-reader text, so it comes from [Labels].
 func nativeDialogCloseButton(slot string) *mx.Element {
 	return finish(html.Button(
 		html.Type("button"),
 		html.OnClick("this.closest('dialog').close()"),
 		iconX(),
-		html.SpanClass("sr-only", "Close"),
+		html.SpanClass("sr-only", labelText(func(l Labels) string { return l.DialogClose })),
 	), slot, dialogCloseClasses)
 }
 
