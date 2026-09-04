@@ -85,7 +85,7 @@ func TestGlobPageSourcePagePath(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
 	}
 
-	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join(dir, "*", "*.md")}
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join("*", "*.md")}
 	paths := map[string]string{}
 	for page, err := range source.Pages(context.Background(), false) {
 		require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestGlobPageSourceToSitemap(t *testing.T) {
 
 	site := &web.Site{
 		BaseURL: "https://example.com",
-		Sources: []web.PageSource{&web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join(dir, "*.*")}},
+		Sources: []web.PageSource{&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.*"}},
 	}
 	sitemap, err := site.Sitemap(context.Background())
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestGlobPageSourceEscapesFileNames(t *testing.T) {
 	}
 	site := &web.Site{
 		BaseURL: "https://example.com",
-		Sources: []web.PageSource{&web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join(dir, "*.md")}},
+		Sources: []web.PageSource{&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md"}},
 	}
 	sitemap, err := site.Sitemap(context.Background())
 	require.NoError(t, err)
@@ -151,4 +151,83 @@ func TestGlobPageSourceEscapesFileNames(t *testing.T) {
 		"https://example.com/faq%3F",
 		"https://example.com/part%231",
 	}, locs)
+}
+
+func TestGlobPageSourceDirScopesGlob(t *testing.T) {
+	// Dir is both what the glob runs below and what page paths are relative
+	// to, so the two cannot name different directories.
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "blog"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "blog", "hello.md"),
+		[]byte("---\ntitle: Hello\npublishDate: 2026-06-01T08:00:00Z\n---\npost\n"), 0o600))
+	// A sibling directory the source must not reach into.
+	outside := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "other.md"),
+		[]byte("---\ntitle: Other\npublishDate: 2026-06-01T08:00:00Z\n---\nx\n"), 0o600))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join("blog", "*.md")}
+	var pages []*web.Page
+	for page, err := range source.Pages(context.Background(), false) {
+		require.NoError(t, err)
+		pages = append(pages, page)
+	}
+	require.Len(t, pages, 1)
+	require.Equal(t, "/blog/hello", pages[0].Path)
+
+	// Regression: Dir used to be ignored for matching, so a Pattern naming
+	// another directory was globbed anyway and its files got a page path
+	// derived from the wrong root — wrong URLs in the sitemap rather than an
+	// empty one that shows something is off.
+	source = &web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join(outside, "*.md")}
+	for _, err := range source.Pages(context.Background(), false) {
+		require.ErrorContains(t, err, "absolute")
+	}
+
+	source = &web.GlobPageSource{Dir: fs.File(dir)}
+	for _, err := range source.Pages(context.Background(), false) {
+		require.ErrorContains(t, err, "Pattern is empty")
+	}
+}
+
+func TestGlobPageSourceSkipsDirectories(t *testing.T) {
+	// A pattern wide enough to match directories must not try to read one as a
+	// page.
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "images"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.md"),
+		[]byte("---\ntitle: Hello\npublishDate: 2026-06-01T08:00:00Z\n---\npost\n"), 0o600))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*"}
+	var titles []string
+	for page, err := range source.Pages(context.Background(), false) {
+		require.NoError(t, err)
+		titles = append(titles, page.Title)
+	}
+	require.Equal(t, []string{"Hello"}, titles)
+}
+
+func TestGlobPageSourceWithoutDir(t *testing.T) {
+	// Without a Dir the Pattern carries the whole path and its fixed prefix is
+	// the base for page paths. Regression: the unset Dir was detected by its
+	// path, but the zero fs.File has the path "." rather than an empty one, so
+	// the base became the working directory and every page came out with an
+	// empty Path — which then failed the sitemap it was meant to feed.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.md"),
+		[]byte("---\ntitle: Hello\npublishDate: 2026-06-01T08:00:00Z\n---\npost\n"), 0o600))
+
+	source := &web.GlobPageSource{Pattern: filepath.Join(dir, "*.md")}
+	var pages []*web.Page
+	for page, err := range source.Pages(context.Background(), false) {
+		require.NoError(t, err)
+		pages = append(pages, page)
+	}
+	require.Len(t, pages, 1)
+	require.Equal(t, "/hello", pages[0].Path)
+
+	site := &web.Site{BaseURL: "https://example.com", Sources: []web.PageSource{source}}
+	sitemap, err := site.Sitemap(context.Background())
+	require.NoError(t, err)
+	require.Len(t, sitemap.URLs, 1)
+	require.Equal(t, "https://example.com/hello", sitemap.URLs[0].Loc)
 }

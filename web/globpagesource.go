@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/adrg/frontmatter"
+	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-fs"
 	"github.com/ungerik/go-mx"
 )
@@ -20,15 +21,26 @@ import (
 // https://github.com/yuin/goldmark
 
 // GlobPageSource is a PageSource that yields pages from files matching a glob
-// Pattern. Markdown files are parsed for frontmatter metadata, and HTML and
-// plain-text files are loaded with their respective content types.
+// Pattern below Dir. Markdown files are parsed for frontmatter metadata, and
+// HTML and plain-text files are loaded with their respective content types.
+//
+//	source := &web.GlobPageSource{Dir: fs.File("content/blog"), Pattern: "*.md"}
+//	// content/blog/hello.md -> Page{Path: "/hello"}
 type GlobPageSource struct {
-	// Dir is the base directory the URL path of a page is derived from.
-	// When it is empty the base is the part of Pattern before its first
-	// wildcard, so a Pattern of "content/blog/*.md" yields "/hello" for
-	// "content/blog/hello.md".
-	Dir           fs.File
-	Pattern       string
+	// Dir is the directory the source reads from. It is both what Pattern is
+	// matched below and what the URL path of a page is relative to, so the two
+	// cannot disagree: "content/blog/hello.md" matched by a Dir of
+	// "content/blog" and a Pattern of "*.md" becomes the page path "/hello".
+	//
+	// An empty Dir keeps Pattern as the whole path to match, relative to the
+	// working directory, and takes the base for page paths from the part of
+	// Pattern before its first wildcard — the same result written differently.
+	Dir fs.File
+
+	// Pattern is the glob matched below Dir, in the syntax of filepath.Match.
+	// It must be relative when Dir is set.
+	Pattern string
+
 	PageType      string
 	DefaultAuthor string
 }
@@ -37,15 +49,23 @@ type GlobPageSource struct {
 // each supported file type, implementing the PageSource interface.
 func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[*Page, error] {
 	return func(yield func(*Page, error) bool) {
-		files, err := filepath.Glob(s.Pattern)
+		pattern, err := s.globPattern()
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		files, err := filepath.Glob(pattern)
 		if err != nil {
 			yield(nil, err)
 			return
 		}
 		for _, file := range files {
 			content := fs.File(file)
+			// A directory has no content to render. A pattern like "*.md" does
+			// not match one anyway; a wider pattern like "*" does, and skipping
+			// it here keeps that from being read as a file.
 			if content.IsDir() {
-				// TODO
+				continue
 			}
 			switch content.ExtLower() {
 			case ".md":
@@ -184,7 +204,7 @@ func (s *GlobPageSource) pagePath(file string) string {
 // otherwise the fixed directory prefix of Pattern, that is everything before
 // its first wildcard.
 func (s *GlobPageSource) baseDir() string {
-	if dir := s.Dir.Path(); dir != "" {
+	if dir := s.dirPath(); dir != "" {
 		return dir
 	}
 	pattern := s.Pattern
@@ -192,6 +212,39 @@ func (s *GlobPageSource) baseDir() string {
 		pattern = pattern[:i]
 	}
 	return filepath.Dir(pattern)
+}
+
+// dirPath returns the path of Dir, or "" if no Dir is set. The zero fs.File
+// has the path "." — the working directory — which is a real directory to read
+// from and not the same thing as "no directory given", so the unset case is
+// decided on the value rather than on its path.
+func (s *GlobPageSource) dirPath() string {
+	if s.Dir == "" {
+		return ""
+	}
+	return s.Dir.Path()
+}
+
+// globPattern returns the pattern to match files with: Pattern below Dir, or
+// Pattern itself when Dir is empty.
+//
+// An absolute Pattern together with a Dir is an error rather than a silent
+// choice between them. The two would name different directories, and because
+// Dir is also what page paths are relative to, the pages of the matched files
+// would either be dropped or get a path derived from the wrong root — wrong
+// URLs in the sitemap, not an empty one that shows something is off.
+func (s *GlobPageSource) globPattern() (string, error) {
+	if s.Pattern == "" {
+		return "", errs.New("GlobPageSource.Pattern is empty")
+	}
+	dir := s.dirPath()
+	if dir == "" {
+		return s.Pattern, nil
+	}
+	if filepath.IsAbs(s.Pattern) {
+		return "", errs.Errorf("GlobPageSource.Pattern %q is absolute, it must be relative to Dir %q", s.Pattern, dir)
+	}
+	return filepath.Join(dir, s.Pattern), nil
 }
 
 // escapePathSegments percent-escapes every segment of a slash separated file

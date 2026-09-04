@@ -134,7 +134,7 @@ only if a caller needs to intercept class generation program-wide.
 **Priority:** P4
 **Depends on:** None
 
-## web
+## Completed
 
 ### `GlobPageSource.Dir` does not scope the glob
 
@@ -155,8 +155,7 @@ directory that matches the glob is silently skipped instead of being walked.
 **Effort:** M
 **Priority:** P3
 **Depends on:** None
-
-## Completed
-
-_Nothing moved here yet. When an item ships, move it to this section unchanged
-and append a `**Completed:** <version or PR> (YYYY-MM-DD)` line._
+**Completed:** #31 (2026-08-25) — `Pattern` is matched below `Dir` and an
+absolute `Pattern` with a `Dir` set is an error rather than a silent choice
+between the two. A matching directory is now skipped explicitly; walking it
+recursively was not added, `filepath.Match` has no `**`.
