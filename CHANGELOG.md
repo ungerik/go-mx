@@ -144,21 +144,6 @@ API is still free to change.
   connection to the same stream, so that filtering or pausing one while the
   other keeps streaming shows what "independent subscriber" means.
 
-### Removed
-
-- **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
-  `htmx:noSSESourceError` — it does not check nesting at all, so an `sse-swap`
-  element with no `sse-connect` above it subscribes to nothing silently. The
-  constant named an event that cannot occur.
-
-### Changed
-
-- **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
-  its own transport failures at the `EventSource` under the name `error`, so a
-  subscriber to `error` would also fire on every dropped connection, with an
-  event carrying no data for htmx to swap.
-
-### Added
 
 - **`web` package: robots.txt, sitemaps and page metadata for a whole site.**
   A `Site` holds what all pages share — the `BaseURL` every absolute URL is
@@ -197,11 +182,29 @@ API is still free to change.
 
 ### Changed
 
+- **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
+  its own transport failures at the `EventSource` under the name `error`, so a
+  subscriber to `error` would also fire on every dropped connection, with an
+  event carrying no data for htmx to swap.
+
 - `web.GlobPageSource.Dir` now scopes the glob: `Pattern` is matched below it
   instead of against the working directory, so the directory is named once
   rather than repeated in both fields where the two could disagree. A `Pattern`
   that is absolute while `Dir` is set is an error, and a directory matching the
   pattern is skipped instead of being read as a page.
+
+- **htmx is served from jsDelivr, not unpkg.** `hx.ScriptFromCDN`,
+  `hx.ScriptDebugFromCDN` and `hx.ScriptSSEFromCDN` now point at
+  `cdn.jsdelivr.net`. The Subresource Integrity hashes are unchanged and were
+  verified against the jsDelivr bytes. A Content-Security-Policy `script-src`
+  allowlist that names `unpkg.com` has to name `cdn.jsdelivr.net` instead.
+
+### Removed
+
+- **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
+  `htmx:noSSESourceError` — it does not check nesting at all, so an `sse-swap`
+  element with no `sse-connect` above it subscribes to nothing silently. The
+  constant named an event that cannot occur.
 
 ### Fixed
 
