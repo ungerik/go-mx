@@ -134,6 +134,86 @@ only if a caller needs to intercept class generation program-wide.
 **Priority:** P4
 **Depends on:** None
 
+## logview
+
+Deliberate omissions from the first version, recorded so they read as decisions
+rather than oversights. The renderer and the view are complete without them.
+
+### ANSI escape sequences render as literal text
+
+**What:** A log line carrying SGR sequences (`\x1b[31m`) shows them as `[31m`
+garbage instead of as color.
+
+**Why:** Real streams carry them constantly — CI output, `docker logs`, anything
+using a colorizing logger. They are noise in every line they appear in, and the
+one thing they encode, severity, is exactly what the view already colors.
+
+**Context:** Two shapes: strip SGR sequences in `Config.Line` before parsing, or
+map them to spans with their own classes. Stripping is a few lines and fixes the
+noise; mapping is more work and would need a decision about how ANSI's 16 colors
+relate to a `Theme`. Start with stripping, behind a `Config` field, because a
+caller who pipes raw terminal output usually wants it gone rather than rendered.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The filter searches the DOM, not the backlog
+
+**What:** The filter matches the lines currently in the view. Lines the
+`MaxLines` cap already dropped, and everything behind the stream, are not
+searched.
+
+**Why:** A reader who types `panic`, sees nothing and concludes there was no
+panic has been misled. The control is labelled "Filter" rather than "Search" for
+that reason, but the honest fix is a real search.
+
+**Context:** It belongs on the server, as a parameter of the stream URL, which
+is a smaller change than any client-side alternative — the handler already
+answers "everything after this id" and would answer "everything matching this"
+the same way. Changing the filter would then have to reconnect the stream, since
+`hx.SSEConnect` takes a static URL, so the view needs a way to swap its
+connecting element.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### A carriage return is a line break, not a terminal overwrite
+
+**What:** A progress-bar line that rewrites itself with `\r` renders as several
+lines instead of one.
+
+**Why:** It is a display-semantics choice, not corruption: `mx.SSEResponse`
+already normalizes CR and CRLF to LF on the wire, so the bytes are intact.
+
+**Context:** Collapsing `\r` runs — keeping only the text after the last one in
+a segment — is a few lines in `Config.Line`, and would want to be a field rather
+than the default, since a log that uses `\r` as a plain separator would lose
+content.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Expandable pretty-printed detail for a record
+
+**What:** A collapsed line that expands to an indented, highlighted rendering of
+the whole JSON record.
+
+**Why:** A record with several nested objects gets long on one line, and the
+compact `{k=v k=v}` form is harder to read the deeper it nests.
+
+**Context:** `<details>` around the line, with the summary being what
+`Config.Line` renders today and the body an indenting variant of the same value
+renderer. The parse already produces an ordered tree, so only the rendering side
+is new. Note the `<pre>` rule: a block with element children inside it is not
+byte-safe under an indenting writer.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
 ## Completed
 
 ### `GlobPageSource.Dir` does not scope the glob

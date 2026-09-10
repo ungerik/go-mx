@@ -100,6 +100,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   highlighted HTML components, or as the go-mx source that builds that markup,
   plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See
   [highlight/README.md](highlight/README.md).
+- **`logview`** — streamed log lines rendered as a readable surface: a JSON
+  record becomes promoted time and level plus `key=value` pairs colored by JSON
+  type, a non-JSON line becomes plain text with its level word colored, and
+  `logview.View` adds the filter, pause and scroll-anchored viewport they stream
+  into. Fed by `mx.SSEResponse`. See [logview/README.md](logview/README.md).
 - **`pdf`** — native PDF rendering mirroring the `html` component model, with
   the [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) engine
   inlined so there is no external PDF dependency: `pdf.Document`,

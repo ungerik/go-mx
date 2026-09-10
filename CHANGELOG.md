@@ -61,6 +61,47 @@ API is still free to change.
 - **`cmd/example-sse`** streams a chat transcript against all of the above:
   `-drop` cuts the connection mid-reply so the browser reconnects and the
   handler resumes, and `-fail` reports an error in band.
+- **`logview` package: streamed log lines rendered as a readable surface.**
+  Logs are mostly structured JSON, and a raw JSON line is unreadable at stream
+  speed. `logview.Line` parses one and renders its fields in source order: the
+  timestamp and level promoted without labels, everything else as `key=value`
+  with the value colored by its JSON type, nested objects in braces, arrays in
+  brackets, and a multi-line string value in a `<pre>` so a stack trace keeps
+  its indentation. Anything that is not one JSON object renders as plain text
+  with its leading level word colored, so a mixed stream still reads as one log.
+  - **A level value can never reach a class attribute.** A space would end the
+    class token and let the rest name arbitrary CSS classes — `hidden` alone
+    would make the line vanish. Only tokens the `Theme` defines are emitted, and
+    every other value renders as `logview.LevelUndefined`; `Theme.Levels` keys
+    are restricted to `mx.ValidIDRune` characters so a careless theme cannot
+    open the hole either. The level text still shows the raw value, escaped.
+  - **Lines render through their own non-indenting writer,** so the markup is
+    the same whether the caller's writer indents or not and never ends in a
+    newline — which would otherwise reach the client as an extra `data:` line
+    and become a stray text node between every pair of log lines.
+  - `MaxLineLen`, `MaxDepth` and `MaxLines` bound what a log with no upper bound
+    can do: a runaway line, hostile JSON nesting (unbounded recursion there
+    would overflow the goroutine stack, which no recover can catch), and the
+    number of lines the browser keeps.
+- **`logview.View`** is the surface those lines stream into: a filter over the
+  lines already received, a pause toggle, `shadcn.ScrollArea` with
+  `StickToBottom` following the stream, and an `mx.SSEEventError` sink. One
+  inline script drives all of it through fixed `data-mx-log-*` attributes,
+  independent of the class prefix. Pausing keeps arriving lines in the DOM and
+  marks them rather than detaching them, so order, out-of-band targeting and
+  htmx's settle step keep working; pause and filter get one attribute each,
+  because resuming must not reveal a filtered-out line; and the line cap only
+  trims while the view is at the bottom, since trimming under a reader who has
+  scrolled up drags the text they are reading upward.
+- **`logview.Theme`** gives every value type and every log level a foreground
+  and background color, bold, italic, underline and strikethrough, plus an
+  optional image rendered in place of a level's text, with the level value as
+  its alt text. `DarkTheme` and `LightTheme` ship; `Theme.CSS(prefix)` is
+  deterministic.
+- **`cmd/example-logstream`** simulates a production log against all of the
+  above: randomly composed lines covering every rendering path, streamed
+  indefinitely at exponentially distributed intervals with bursts and quiet
+  stretches, resumable from a bounded history, with `-rate` and `-fail`.
 
 ### Removed
 
