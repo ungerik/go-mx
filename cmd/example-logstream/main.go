@@ -16,12 +16,17 @@
 //
 // Then browse to http://localhost:8080 and try the surface:
 //
-//   - Type in the filter to hide the lines that do not match. It filters the
-//     lines already received, not the backlog behind the stream.
-//   - Press Pause and scroll up to read. Lines keep arriving and are held back,
-//     counted by the badge, and released in order when you press it again.
-//   - Scroll up without pausing to watch the view stop following, and scroll
-//     back down to watch it resume.
+//   - Press Split to put a second viewer beside the first. Each opens its own
+//     connection to the same stream, so filtering or pausing one leaves the
+//     other streaming — two subscribers, one source.
+//   - Type in the filter to hide the lines that do not match and highlight the
+//     match in the ones that do. It filters the lines already received, not the
+//     backlog behind the stream.
+//   - Scroll up to read something. That pauses on its own: lines keep arriving
+//     and are held back, counted by the badge, and the button becomes Resume.
+//   - Press Pause instead to hold the stream without leaving the bottom.
+//   - Scroll back to the bottom, or press Resume, to release the held lines in
+//     order and follow again. A pause the button caused only the button undoes.
 //   - Stop the server and start it again. The browser reconnects on its own and
 //     sends back the last id it saw, so the log continues instead of repeating
 //     the lines it already has.
@@ -73,11 +78,12 @@ const (
 )
 
 // view configures the renderer. MessageKey is set because the generated records
-// are shaped like log/slog's, where the message field is "msg".
+// are shaped like log/slog's, where the message field is "msg". Height is left
+// at its default because the page below makes the view a flex item filling the
+// window, which overrides it.
 var view = &logview.Config{
 	MessageKey: "msg",
 	MaxLines:   400,
-	Height:     "26rem",
 	Theme:      themeWithFatalIcon(),
 }
 
@@ -189,8 +195,23 @@ func (s *source) run(ctx context.Context, rate float64, rnd *rand.Rand) {
 	}
 }
 
-// page is the initial document. Every log line arrives over the stream.
-func page() mx.Component {
+// page is the initial document, with panes independent log views side by side.
+// Every log line arrives over the stream.
+func page(panes int) mx.Component {
+	views := make(mx.Components, panes)
+	for i := range views {
+		// Each pane opens its own connection to the same stream: its own
+		// hx-ext, its own sse-connect, its own EventSource. That is the point of
+		// splitting — two subscribers reading one source, each with its own
+		// backlog, filter and pause. Sharing one connection between them would
+		// need a single sse-connect ancestor, and then pausing would be a
+		// property of the page rather than of a viewer.
+		views[i] = view.View(
+			hx.Ext("sse"),
+			hx.SSEConnect("/stream"),
+			hx.SSEClose(eventDone),
+		)
+	}
 	return mx.Components{
 		mx.Raw("<!DOCTYPE html>"),
 		html.HTML(html.Lang("en"),
@@ -203,19 +224,47 @@ func page() mx.Component {
 				// classes are Tailwind, which this example deliberately has no
 				// build for, so it scrolls but does not get its thin scrollbar.
 				view.StyleElement(),
-				html.StyleElem("body{font:14px/1.5 system-ui,sans-serif;margin:2rem;max-width:60rem}"),
+				// The log fills the window: a full-height flex column with the
+				// panes as the growing item, laid out in a row. Because a view
+				// is itself a flex column, its scroll area then takes whatever
+				// the toolbar and the error sink leave — no height in the
+				// Config needed.
+				html.StyleElem( /*css*/ `
+html, body { height: 100% }
+body { margin: 0; display: flex; flex-direction: column; font: 14px/1.5 system-ui, sans-serif }
+header { flex: none; display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0.875rem; border-bottom: 1px solid #d8dee4 }
+header div { flex: 1; min-width: 0 }
+h1 { margin: 0; font-size: 0.9375rem }
+p { margin: 0; color: #57606a; font-size: 0.8125rem }
+a.split { flex: none; padding: 0.25rem 0.75rem; border: 1px solid #d8dee4; border-radius: 4px; color: inherit; text-decoration: none; font-size: 0.8125rem; white-space: nowrap }
+a.split:hover { background: #f3f4f6 }
+main { flex: 1; min-height: 0; display: flex; gap: 1px; background: #d8dee4 }
+.log-view { flex: 1; min-width: 0; min-height: 0; border-radius: 0 }
+`),
 			),
 			html.Body(
-				html.H1("go-mx log stream example"),
-				html.P("A simulated production log. Filter it, pause it, scroll it."),
-				view.View(
-					hx.Ext("sse"),
-					hx.SSEConnect("/stream"),
-					hx.SSEClose(eventDone),
+				html.Header(
+					html.Div(
+						html.H1("go-mx log stream example"),
+						html.P("A simulated production log. Filter it, pause it, scroll it."),
+					),
+					splitLink(panes),
 				),
+				html.Main(views),
 			),
 		),
 	}
+}
+
+// splitLink toggles the number of panes. It is a link rather than a button
+// because it navigates: each pane has to open its own connection, and building
+// the page again is the shortest way to say that without a second route and an
+// out-of-band swap to keep the control in step.
+func splitLink(panes int) mx.Component {
+	if panes > 1 {
+		return html.A(html.Class("split"), html.HRef("/"), "Unsplit")
+	}
+	return html.A(html.Class("split"), html.HRef("/?panes=2"), "Split")
 }
 
 // resumeAfter returns the sequence number to continue after, given the id the
@@ -310,6 +359,21 @@ func streamHandler(src *source, fail bool) http.HandlerFunc {
 	}
 }
 
+// pageHandler serves the one-pane and two-pane documents. Both are built once:
+// a page is a component, and nothing in it depends on the request.
+func pageHandler() http.HandlerFunc {
+	header := http.Header{"Content-Type": {mx.ContentTypeHTML}}
+	single := mx.ComponentHTTPHandler(page(1), mx.DefaultWriterFactory, header)
+	split := mx.ComponentHTTPHandler(page(2), mx.DefaultWriterFactory, header)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("panes") == "2" {
+			split(w, r)
+			return
+		}
+		single(w, r)
+	}
+}
+
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	rate := flag.Float64("rate", 3, "mean log lines per second")
@@ -326,8 +390,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(src, *fail))
-	mux.HandleFunc("/", mx.ComponentHTTPHandler(page(), mx.DefaultWriterFactory,
-		http.Header{"Content-Type": {mx.ContentTypeHTML}}))
+	mux.HandleFunc("/", pageHandler())
 
 	log.Printf("listening on %s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, mux))

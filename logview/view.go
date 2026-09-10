@@ -60,26 +60,44 @@ func (c *Config) View(attribsChildren ...any) *mx.Element {
 		html.Button(
 			html.Class(c.class(ClassPause)),
 			html.Type("button"),
-			mx.ConstAttrib(attrPause+"="),
-			// A toggle button rather than a caption that swaps between "Pause"
-			// and "Resume": aria-pressed says the state to a screen reader and
-			// to the stylesheet at once, and keeps the label out of the script.
-			html.Attrib("aria-pressed", "false"),
+			// The attribute value is the caption the button swaps to while
+			// paused, so the script carries no user-visible string of its own.
+			//
+			// A caption that names the next action rather than a toggle button
+			// with aria-pressed: the two cannot be combined, because a pressed
+			// button captioned "Resume" tells a screen reader the opposite of
+			// what it tells the eye. The state a stylesheet needs is on the
+			// root instead, as attrPaused.
+			html.Attrib(attrPause, labels.Resume),
 			labels.Pause,
 		),
+		// Pausing has to reach a screen reader from both entry points, and the
+		// button's caption only covers the one that has focus: scrolling up
+		// pauses too, silently. A status region says the state whichever way it
+		// changed. It carries its own text rather than being filled by CSS,
+		// because generated content is not reliably announced.
+		html.SpanClass(c.class(ClassStatus), html.Attrib(attrStatus, labels.Paused), html.Role("status")),
 		// The badge's own attribute value carries the word the script appends
-		// to the count, so the script holds no user-visible string either.
-		html.SpanClass(c.class(ClassBadge), html.Attrib(attrBadge, labels.NewLines), html.Hidden),
+		// to the count, so the script holds no user-visible string either. It
+		// is hidden while empty by a stylesheet rule, the way the error sink is
+		// — not by the hidden property, whose UA-stylesheet rule any author
+		// display declaration beats.
+		html.SpanClass(c.class(ClassBadge), html.Attrib(attrBadge, labels.NewLines)),
 	)
 
-	// Both declarations are load-bearing, and both are here rather than left to
-	// the shadcn classes because those are Tailwind and a page without that
-	// build would get neither: with no height the area grows instead of
-	// scrolling, and with no overflow it is clipped by the view instead of
-	// scrolling. Either way scrollHeight equals clientHeight, so stick-to-bottom
-	// has nothing to follow and the log silently stops moving.
+	// The height and the overflow are both load-bearing, and both are here rather
+	// than left to the shadcn classes because those are Tailwind and a page
+	// without that build would get neither: with no height the area grows
+	// instead of scrolling, and with no overflow it is clipped by the view
+	// instead of scrolling. Either way scrollHeight equals clientHeight, so
+	// stick-to-bottom has nothing to follow and the log silently stops moving.
+	//
+	// flex makes the height a preference: in the flex column the view is, a page
+	// that gives the view a height of its own has the area fill what is left
+	// instead. min-height: 0 is what lets it shrink below its content and
+	// actually scroll.
 	area := shadcn.ScrollArea(
-		html.Style("height: "+c.height()+"; overflow: auto"),
+		html.Style("flex: 1 1 auto; min-height: 0; height: "+c.height()+"; overflow: auto"),
 		shadcn.StickToBottom,
 		lines,
 	)

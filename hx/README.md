@@ -188,9 +188,9 @@ HTMX form semantics are deferred.)
 ## Loading htmx
 
 `hx.ScriptFromCDN` and `hx.ScriptDebugFromCDN` are ready-made `<script>` elements
-that load htmx (currently 2.0.10) from unpkg with a Subresource Integrity hash.
-`hx.ScriptSSEFromCDN` loads the SSE extension (2.2.4) the same way — htmx 2.0
-moved SSE out of core, so the `sse-*` attributes need it in addition to htmx
+that load htmx (currently 2.0.10) from jsDelivr with a Subresource Integrity
+hash. `hx.ScriptSSEFromCDN` loads the SSE extension (2.2.4) the same way — htmx
+2.0 moved SSE out of core, so the `sse-*` attributes need it in addition to htmx
 itself.
 
 ## Online sources

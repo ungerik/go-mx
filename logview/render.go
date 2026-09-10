@@ -18,12 +18,19 @@ import (
 // its JSON type. Anything else is rendered as plain text, with a leading level
 // word from [Config.Levels] colored like a JSON level.
 //
-// The line is rendered through its own non-indenting writer, so the markup is
-// identical whether the caller's writer indents or not, and never contains a
-// line break. That matters on both ends: an indenting writer would inject
-// whitespace between the spans that the view's white-space:pre-wrap would then
-// show, and a trailing newline would reach the client as an extra "data:" line
-// and become a stray text node between every pair of log lines.
+// The line is rendered through a non-indenting writer of its own, so the markup
+// is identical whether the caller's writer indents or not, carries no line break
+// the writer put there, and never ends in one. That matters on both ends: an
+// indenting writer would inject whitespace between the spans that the view's
+// white-space:pre-wrap would then show, and a trailing newline would reach the
+// client as an extra "data:" line and become a stray text node between every
+// pair of log lines.
+//
+// The markup is not therefore a single physical line: a multi-line string value
+// renders as a <pre> that keeps the line breaks of the value itself, which is
+// the whole point of rendering it as one. [mx.SSEResponse] re-splits those
+// across "data:" lines and the client rejoins them; a caller framing a line for
+// some other transport has to do the same.
 func (c *Config) Line(raw string) mx.Component {
 	return compact(c.lineElement(raw))
 }
@@ -38,13 +45,21 @@ func (c *Config) Lines(raw ...string) mx.Component {
 	return compact(comps)
 }
 
-// compact renders comp through a fresh non-indenting [mx.CheckedWriter] that
-// writes to w. Nesting a writer this way is the same contract [mx.Raw] uses —
-// the bytes go to the destination without the outer writer's element tracking —
-// and it is what makes a line's markup independent of how the caller writes.
+// compact renders comp through a non-indenting [mx.CheckedWriter] that writes
+// to w. Nesting a writer this way is the same contract [mx.Raw] uses — the bytes
+// go to the destination without the outer writer's element tracking — and it is
+// what makes a line's markup independent of how the caller writes.
+//
+// Indentation is the only thing a line needs to escape, so a [mx.CheckedWriter]
+// caller is cloned rather than replaced: its escaper, quote style and element
+// allow-list still apply to the line, and only the indent is dropped.
 func compact(comp mx.Component) mx.Component {
 	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-		return comp.Render(ctx, mx.NewCheckedWriter(w))
+		inner, ok := w.(*mx.CheckedWriter)
+		if !ok {
+			return comp.Render(ctx, mx.NewCheckedWriter(w))
+		}
+		return comp.Render(ctx, inner.Clone(w).WithIndent("", ""))
 	})
 }
 
@@ -147,12 +162,16 @@ func (c *Config) pair(key string, v value) mx.Component {
 
 // pairAs renders "key=value", styling the value as class instead of by its JSON
 // type. An empty class uses the type.
+//
+// Only the rendering that is used is built: the type-colored value of a field
+// the class overrides is one wasted element per field per line — a whole <pre>
+// subtree when the value is a multi-line string — at log-stream rates.
 func (c *Config) pairAs(key string, v value, class Class) mx.Component {
-	val := c.renderValue(v)
-	if class != "" {
-		if text, ok := c.scalarText(v); ok {
-			val = c.span(class, text)
-		}
+	var val mx.Component
+	if class == "" {
+		val = c.renderValue(v)
+	} else {
+		val = c.promoted(class, v)
 	}
 	return mx.Components{
 		c.span(ClassKey, key),

@@ -273,7 +273,7 @@ func TestGeneratedLinesAreParsableRecords(t *testing.T) {
 }
 
 func TestPageWiresTheViewToTheStream(t *testing.T) {
-	out := render(t, page())
+	out := render(t, page(1))
 	for _, want := range []string{
 		`hx-ext="sse"`,
 		`sse-connect="/stream"`,
@@ -288,6 +288,36 @@ func TestPageWiresTheViewToTheStream(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in the page", want)
 		}
+	}
+	if !strings.Contains(out, `href="/?panes=2"`) {
+		t.Errorf("the page offers no way to split: %s", out)
+	}
+}
+
+func TestSplitPaneSubscribesIndependently(t *testing.T) {
+	// The point of splitting is two subscribers reading one source. Sharing a
+	// connection would mean one sse-connect above both panes, and then pausing
+	// or filtering would be a property of the page rather than of a viewer.
+	out := render(t, page(2))
+	for what, want := range map[string]string{
+		"log view":     `data-mx-log-view=""`,
+		"connection":   `sse-connect="/stream"`,
+		"extension":    `hx-ext="sse"`,
+		"line target":  `data-mx-log-lines=""`,
+		"error sink":   `sse-swap="` + mx.SSEEventError + `"`,
+		"filter input": `data-mx-log-filter=""`,
+	} {
+		if got := strings.Count(out, want); got != 2 {
+			t.Errorf("split page has %d of the %s (%q), want 2", got, what, want)
+		}
+	}
+	// The script defines itself once per instance behind its own guard, and
+	// each instance wires only its own root.
+	if got := strings.Count(out, "if(!window.mxLogView)"); got != 2 {
+		t.Errorf("script guard appears %d times, want 2", got)
+	}
+	if !strings.Contains(out, `href="/"`) {
+		t.Errorf("the split page offers no way back: %s", out)
 	}
 }
 

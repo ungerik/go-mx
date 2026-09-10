@@ -23,6 +23,7 @@ func TestThemeCSSCoversTheEmittedClasses(t *testing.T) {
 		".log-toolbar {",
 		".log-filter {",
 		".log-pause {",
+		".log-status {",
 		".log-badge {",
 		".log-lines {",
 		".log-line {",
@@ -56,6 +57,87 @@ func TestThemeCSSHidesPausedAndFilteredLines(t *testing.T) {
 		if !strings.Contains(css, want) {
 			t.Errorf("missing %q in:\n%s", want, css)
 		}
+	}
+}
+
+func TestThemeCSSSizesThePauseButtonFromItsCaptions(t *testing.T) {
+	// The button is sized by the caption it swaps to, not by a fixed em value:
+	// Labels exists so the captions are translated, and any constant wide enough
+	// for "Pause"/"Resume" is the wrong width for "Anhalten"/"Fortsetzen".
+	css := DarkTheme.CSS("")
+	if !strings.Contains(css, "\tcontent: attr(data-mx-log-pause);\n") {
+		t.Errorf("the pause button is not sized from its own caption:\n%s", css)
+	}
+	// The paused state is on the root, because the button carries no
+	// aria-pressed to select on — see TestViewAccessibility.
+	if !strings.Contains(css, ".log-view[data-mx-log-paused] .log-pause {") {
+		t.Errorf("missing the paused-state rule in:\n%s", css)
+	}
+	if strings.Contains(css, `aria-pressed`) {
+		t.Errorf("the stylesheet still selects on aria-pressed:\n%s", css)
+	}
+}
+
+func TestThemeCSSHidesTheEmptyBadge(t *testing.T) {
+	// The badge is hidden by an author rule like the error sink, not by the
+	// hidden property whose UA-stylesheet rule any author display declaration
+	// beats — the reasoning the line-hiding rules already follow. A theme adding
+	// "display: inline-block" to .log-badge would otherwise leave an empty
+	// counter visible for good.
+	if !strings.Contains(DarkTheme.CSS(""), ".log-badge:empty {") {
+		t.Errorf("missing the empty-badge rule in:\n%s", DarkTheme.CSS(""))
+	}
+	// The status region is deliberately NOT hidden that way: a live region that
+	// is display:none when its text is set is not reliably announced.
+	if strings.Contains(DarkTheme.CSS(""), ".log-status:empty {") {
+		t.Errorf("the status live region is hidden while empty:\n%s", DarkTheme.CSS(""))
+	}
+}
+
+func TestThemeLevelColumnFitsTheVocabulary(t *testing.T) {
+	// Every level occupies the same column, so severity can be scanned down one
+	// position instead of being chased as it shifts with the word before it. The
+	// width is in ch — one character in the view's monospace font — and comes
+	// from the theme, so it is as wide as the longest level it defines.
+	if !strings.Contains(DarkTheme.CSS(""), "\tmin-width: 7ch;\n") {
+		t.Errorf("the default column does not fit \"warning\":\n%s", DarkTheme.CSS(""))
+	}
+
+	// A theme with no levels still needs a column, or the promoted level stops
+	// being a column at all.
+	if got := (Theme{}).levelWidth(); got != MinLevelWidth {
+		t.Errorf("empty theme level width = %d, want %d", got, MinLevelWidth)
+	}
+
+	// LevelUndefined is excluded: its key is never displayed — an unknown level
+	// shows its raw value — so it must not stretch the column for every line.
+	wide := Theme{Levels: map[string]LevelStyle{"info": {}, LevelUndefined: {}}}
+	if got := wide.levelWidth(); got != MinLevelWidth {
+		t.Errorf("LevelUndefined widened the column to %d", got)
+	}
+
+	// A longer vocabulary widens it; an illegal key cannot, since it can never
+	// be rendered either.
+	custom := Theme{Levels: map[string]LevelStyle{"catastrophe": {}, "a much longer illegal key": {}}}
+	if got := custom.levelWidth(); got != len("catastrophe") {
+		t.Errorf("custom vocabulary level width = %d, want %d", got, len("catastrophe"))
+	}
+}
+
+func TestThemeCSSHighlightsFilterMatches(t *testing.T) {
+	// The filter's matches are a CSS custom highlight, not a class, so they need
+	// the pseudo-element rule — a .log-match class rule would style nothing.
+	css := DarkTheme.CSS("")
+	if !strings.Contains(css, "::highlight(mx-log-match) {") {
+		t.Errorf("missing the match highlight rule in:\n%s", css)
+	}
+	if strings.Contains(css, ".log-match {") {
+		t.Errorf("the match style was emitted as a class rule too:\n%s", css)
+	}
+	// The highlight name is fixed rather than derived from the prefix, so one
+	// script definition serves every view on the page.
+	if !strings.Contains(DarkTheme.CSS("mylog-"), "::highlight(mx-log-match) {") {
+		t.Error("the highlight name changed with the prefix")
 	}
 }
 

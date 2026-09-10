@@ -44,10 +44,19 @@ type Labels struct {
 	Filter string
 	// FilterHint is the placeholder of the filter input. Default "Filter…".
 	FilterHint string
-	// Pause is the caption of the pause toggle. Default "Pause".
+	// Pause is the caption of the pause button. Default "Pause".
 	Pause string
+	// Resume is the caption the pause button swaps to while paused.
+	// Default "Resume".
+	Resume string
+	// Paused is the state the view's status region reports while paused, which
+	// is how a screen reader learns that scrolling up stopped the stream — a
+	// caption change on a button that does not have focus announces nothing.
+	// Default "Paused".
+	Paused string
 	// NewLines is what the script appends to the count of lines that arrived
-	// while paused, as in "12 new". Default "new".
+	// while paused, as in "12 new". Lines the filter excludes are left out of
+	// the count, because resuming does not reveal them. Default "new".
 	NewLines string
 }
 
@@ -105,9 +114,13 @@ type Config struct {
 	// drops the oldest. 0 means [DefaultMaxLines].
 	MaxLines int
 
-	// Height is the CSS height of a view's scroll area. A scroll area without
-	// one grows instead of scrolling, which leaves nothing for the
+	// Height is the height the view's scroll area prefers. A scroll area with
+	// no height grows instead of scrolling, which leaves nothing for the
 	// stick-to-bottom behavior to do. "" means [DefaultHeight].
+	//
+	// It is a preference rather than a fixed size: the view is a flex column, so
+	// a page that gives the view itself a height — by making it a flex item, say
+	// — has the scroll area fill whatever the toolbar and error sink leave.
 	Height string
 
 	// Event is the SSE event name a [Config.View] subscribes to and that the
@@ -213,6 +226,8 @@ func (c *Config) labels() Labels {
 		Filter:     cmp.Or(c.Labels.Filter, "Filter log lines"),
 		FilterHint: cmp.Or(c.Labels.FilterHint, "Filter…"),
 		Pause:      cmp.Or(c.Labels.Pause, "Pause"),
+		Resume:     cmp.Or(c.Labels.Resume, "Resume"),
+		Paused:     cmp.Or(c.Labels.Paused, "Paused"),
 		NewLines:   cmp.Or(c.Labels.NewLines, "new"),
 	}
 }

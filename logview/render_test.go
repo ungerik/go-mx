@@ -367,3 +367,19 @@ func quoteJSON(s string) string {
 	b.WriteByte('"')
 	return b.String()
 }
+
+func TestLineInheritsTheCallersWriterConfigExceptIndentation(t *testing.T) {
+	// A line renders through a writer of its own only to escape the caller's
+	// indentation. Everything else that writer was configured with — here the
+	// quote style, but equally the text escaper and the element allow-list —
+	// describes the whole document, so a line may not opt out of it and emit
+	// markup in a second style inside a page written in the first.
+	var b strings.Builder
+	w := mx.NewCheckedWriter(&b).WithSingleQuoteAttribs().WithIndent("", "  ")
+	if err := Line(`{"a":1}`).Render(context.Background(), w); err != nil {
+		t.Fatalf("render error: %v", err)
+	}
+	out := b.String()
+	contains(t, out, `class='log-line'`)
+	excludes(t, out, `class="log-line"`, "\n")
+}

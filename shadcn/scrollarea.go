@@ -49,14 +49,21 @@ func ScrollArea(attribsChildren ...any) *mx.Element {
 
 // stickToBottomAttr marks a [ScrollArea] as scroll-anchored. It is what the
 // script selects on, and its value is the near-bottom threshold in pixels — an
-// empty value means [StickToBottomDefaultThresholdPx].
+// empty value means the scaled default described at
+// [StickToBottomDefaultThresholdPx].
 const stickToBottomAttr = "data-stick-to-bottom"
 
-// StickToBottomDefaultThresholdPx is how close to the bottom counts as
-// "following" when [StickToBottom] is used without an explicit threshold. It
-// trades two failure modes against each other: too small and a user who nudges
-// the wheel stops receiving new content, too large and a user reading history
-// gets yanked back down.
+// StickToBottomDefaultThresholdPx is the upper bound on how close to the bottom
+// counts as "following" when [StickToBottom] is used without an explicit
+// threshold. It trades two failure modes against each other: too small and a
+// user who nudges the wheel stops receiving new content, too large and a user
+// reading history gets yanked back down.
+//
+// It is an upper bound rather than the threshold because the default also
+// scales with the area: the effective value is min(this, 20% of the area's
+// height), so a short area — where 48px could be most of what is visible — gets
+// a proportionally smaller one. An explicit [StickToBottomThreshold] is used as
+// given.
 const StickToBottomDefaultThresholdPx = 48
 
 // StickToBottom makes a [ScrollArea] follow content appended after the initial
@@ -86,10 +93,11 @@ const StickToBottomDefaultThresholdPx = 48
 // The script is emitted as the container's FIRST child, so :last-child
 // (Tailwind's last: variant) still matches the last content row. A caller
 // styling direct children with :first-child must account for it.
-// The element is followed while its scroll position is within
-// [StickToBottomDefaultThresholdPx] of the bottom; use [StickToBottomThreshold]
-// for a different distance. Scrolling up stops the following, scrolling back
-// down resumes it.
+// The element is followed while its scroll position is within at most
+// [StickToBottomDefaultThresholdPx] of the bottom — see there for how the
+// default scales down for a short area; use [StickToBottomThreshold] for a
+// fixed distance. Scrolling up stops the following, scrolling back down
+// resumes it.
 //
 // The script tracks DOM mutations rather than htmx events, so it works for
 // content arriving over an SSE stream ([mx.SSEResponse]), from an ordinary htmx

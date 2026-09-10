@@ -34,8 +34,14 @@ func TestViewScrollAreaHasAHeight(t *testing.T) {
 	// scrollHeight equal to clientHeight, so stick-to-bottom has nothing to
 	// follow — and neither can be left to the Tailwind-only shadcn classes,
 	// because a page without that build would then not scroll at all.
-	contains(t, render(t, View()), `style="height: 24rem; overflow: auto"`)
-	contains(t, render(t, (&Config{Height: "40vh"}).View()), `style="height: 40vh; overflow: auto"`)
+	// Anchored on style=" so this cannot pass on the same text appearing in a
+	// class name, a data attribute or an inline <style> block: what is being
+	// checked is that the declarations reach the element itself.
+	contains(t, render(t, View()), `style="flex: 1 1 auto; min-height: 0; height: 24rem; overflow: auto"`)
+	contains(t, render(t, (&Config{Height: "40vh"}).View()), `style="flex: 1 1 auto; min-height: 0; height: 40vh; overflow: auto"`)
+	// The view is a flex column so a page can give it a height of its own and
+	// have the scroll area fill what the toolbar and error sink leave.
+	contains(t, DarkTheme.CSS(""), "\tdisplay: flex;\n\tflex-direction: column;\n")
 }
 
 func TestViewAccessibility(t *testing.T) {
@@ -45,10 +51,18 @@ func TestViewAccessibility(t *testing.T) {
 		`role="log"`,
 		`aria-live="polite"`,
 		`aria-relevant="additions"`,
-		`aria-pressed="false"`,
+		// The paused state is a status region rather than aria-pressed on the
+		// button: the button's caption names the next action, and a pressed
+		// button captioned "Resume" would tell a screen reader the opposite of
+		// what it tells the eye.
+		`role="status"`,
+		`data-mx-log-status="Paused"`,
 		`aria-label="Filter log lines"`,
 		`type="search"`,
 	)
+	// The two mechanisms cannot be combined, so the absence is the contract:
+	// re-adding aria-pressed next to the swapping caption is the regression.
+	excludes(t, render(t, View()), `aria-pressed`)
 }
 
 func TestViewCarriesTheBehaviorContract(t *testing.T) {
@@ -60,9 +74,18 @@ func TestViewCarriesTheBehaviorContract(t *testing.T) {
 		`data-mx-log-max-lines="500"`,
 		`data-mx-log-lines=""`,
 		`data-mx-log-filter=""`,
-		`data-mx-log-pause=""`,
+		`data-mx-log-pause="Resume"`,
+		`data-mx-log-status="Paused"`,
 		`data-mx-log-badge="new"`,
 	)
+}
+
+func TestViewPauseCarriesBothCaptions(t *testing.T) {
+	// The button swaps its caption while paused, so both captions have to be in
+	// the markup — the script must not carry a user-visible string of its own,
+	// or a translated view would toggle back into English.
+	out := render(t, View())
+	contains(t, out, `data-mx-log-pause="Resume"`, `>Pause</button>`)
 }
 
 func TestViewScriptGuardsItsDefinition(t *testing.T) {
@@ -124,12 +147,16 @@ func TestViewCustomLabels(t *testing.T) {
 		Filter:     "Protokoll filtern",
 		FilterHint: "Filtern…",
 		Pause:      "Anhalten",
+		Resume:     "Fortsetzen",
+		Paused:     "Angehalten",
 		NewLines:   "neu",
 	}}).View())
 	contains(t, out,
 		`aria-label="Protokoll filtern"`,
 		`placeholder="Filtern…"`,
 		`>Anhalten<`,
+		`data-mx-log-pause="Fortsetzen"`,
+		`data-mx-log-status="Angehalten"`,
 		`data-mx-log-badge="neu"`,
 	)
 }

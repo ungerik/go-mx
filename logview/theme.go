@@ -21,8 +21,10 @@ const (
 	ClassToolbar Class = "toolbar"
 	// ClassFilter is the filter input.
 	ClassFilter Class = "filter"
-	// ClassPause is the pause toggle button.
+	// ClassPause is the pause button.
 	ClassPause Class = "pause"
+	// ClassStatus is the live region reporting the paused state.
+	ClassStatus Class = "status"
 	// ClassBadge is the "N new lines" counter shown while paused.
 	ClassBadge Class = "badge"
 	// ClassLines is the container the streamed lines are appended to.
@@ -59,6 +61,12 @@ const (
 	// ClassMultiline is a string value containing line breaks, rendered as a
 	// <pre> so a stack trace keeps its indentation.
 	ClassMultiline Class = "multiline"
+
+	// ClassMatch is what the filter matched inside a line. It is the one Class
+	// that is not a class: the matches are a CSS custom highlight, so [Theme.CSS]
+	// emits it as a ::highlight() rule. That pseudo-element only honors color,
+	// background-color and text-decoration, so bold and italic are ignored here.
+	ClassMatch Class = "match"
 )
 
 // LevelUndefined is the level modifier class used for every level value the
@@ -159,6 +167,29 @@ func validLevelToken(token string) bool {
 	return true
 }
 
+// MinLevelWidth is the narrowest the level column gets, in characters, for a
+// theme that defines no levels of its own.
+const MinLevelWidth = 5
+
+// levelWidth is the character width of the level column: the longest level the
+// theme defines. [LevelUndefined] is excluded because its key is never
+// displayed — an unknown level shows its raw value, which has no bound and so
+// cannot set the column width. Such a value simply runs past the column rather
+// than being cut off, since a log must not hide what it was told.
+func (t Theme) levelWidth() int {
+	width := MinLevelWidth
+	for level := range t.Levels {
+		if level == LevelUndefined || !validLevelToken(level) {
+			continue
+		}
+		// Level tokens are ASCII by validLevelToken, so bytes are characters.
+		if len(level) > width {
+			width = len(level)
+		}
+	}
+	return width
+}
+
 // levelToken returns the modifier class suffix for a raw level value: the
 // lowercased value when the theme defines it, and [LevelUndefined] otherwise.
 func (t Theme) levelToken(value string) string {
@@ -191,6 +222,12 @@ func (t Theme) CSS(prefix string) string {
 	}
 	b.WriteString("\tborder-radius: 6px;\n")
 	b.WriteString("\toverflow: hidden;\n")
+	// A flex column, so that giving the view a height — from a page stylesheet,
+	// or by making it a flex item itself — makes the scroll area take whatever
+	// the toolbar and the error sink leave. Without it the view can only be as
+	// tall as Config.Height plus its chrome.
+	b.WriteString("\tdisplay: flex;\n")
+	b.WriteString("\tflex-direction: column;\n")
 	b.WriteString("\tfont-family: ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, monospace;\n")
 	b.WriteString("\tfont-size: 0.8125rem;\n")
 	b.WriteString("\tline-height: 1.5;\n")
@@ -225,14 +262,42 @@ func (t Theme) CSS(prefix string) string {
 	b.WriteString("\tfont: inherit;\n")
 	b.WriteString("\tcursor: pointer;\n")
 	b.WriteString("}\n")
-	fmt.Fprintf(&b, ".%spause[aria-pressed=\"true\"] {\n", prefix)
+	// The button is as wide as its widest caption, so the toolbar does not jump
+	// when it swaps between them. The width comes from the other caption itself
+	// — carried by the same attribute the script reads — rather than from a
+	// fixed em value, which would only ever fit the language it was measured in
+	// and Labels exists precisely so that is not English.
+	fmt.Fprintf(&b, ".%spause::before {\n", prefix)
+	fmt.Fprintf(&b, "\tcontent: attr(%s);\n", attrPause)
+	b.WriteString("\tdisplay: block;\n")
+	b.WriteString("\theight: 0;\n")
+	b.WriteString("\toverflow: hidden;\n")
+	b.WriteString("\tvisibility: hidden;\n")
+	b.WriteString("}\n")
+	fmt.Fprintf(&b, ".%sview[%s] .%spause {\n", prefix, attrPaused, prefix)
 	b.WriteString("\tbackground: color-mix(in srgb, currentColor 15%, transparent);\n")
+	b.WriteString("}\n")
+
+	// The status region keeps its box while empty rather than being hidden the
+	// way the badge is: a live region that is display:none at the moment its
+	// text is set is not reliably announced. An empty inline box takes no width
+	// anyway, so there is nothing to hide.
+	fmt.Fprintf(&b, ".%sstatus {\n", prefix)
+	b.WriteString("\topacity: 0.7;\n")
+	b.WriteString("\tfont-size: 0.75rem;\n")
+	b.WriteString("\twhite-space: nowrap;\n")
 	b.WriteString("}\n")
 
 	fmt.Fprintf(&b, ".%sbadge {\n", prefix)
 	b.WriteString("\topacity: 0.7;\n")
 	b.WriteString("\tfont-size: 0.75rem;\n")
 	b.WriteString("\twhite-space: nowrap;\n")
+	b.WriteString("}\n")
+	// Hidden while empty by an author rule, like the error sink below and for
+	// the reason the line rules give: the hidden property is a UA-stylesheet
+	// rule that any author display declaration beats.
+	fmt.Fprintf(&b, ".%sbadge:empty {\n", prefix)
+	b.WriteString("\tdisplay: none;\n")
 	b.WriteString("}\n")
 
 	fmt.Fprintf(&b, ".%slines {\n", prefix)
@@ -257,10 +322,13 @@ func (t Theme) CSS(prefix string) string {
 
 	// A minimum width turns the promoted level into a column: the eye scans one
 	// position down the log for the severity instead of following it as it
-	// shifts with the length of the word before it.
+	// shifts with the length of the word before it. The width is in ch, which in
+	// the view's monospace font is exactly one character, and it comes from the
+	// theme's own vocabulary — as wide as the longest level it defines and no
+	// wider.
 	fmt.Fprintf(&b, ".%slevel {\n", prefix)
 	b.WriteString("\tdisplay: inline-block;\n")
-	b.WriteString("\tmin-width: 3.5em;\n")
+	fmt.Fprintf(&b, "\tmin-width: %dch;\n", t.levelWidth())
 	b.WriteString("}\n")
 
 	fmt.Fprintf(&b, ".%slevel-image {\n", prefix)
@@ -284,8 +352,17 @@ func (t Theme) CSS(prefix string) string {
 	b.WriteString("\tborder-top: 1px solid currentColor;\n")
 	b.WriteString("}\n")
 
+	// The filter's matches are a custom highlight rather than a class, so they
+	// need the pseudo-element rule instead of a class rule.
+	if decls := t.Styles[ClassMatch].decls(); decls != "" {
+		fmt.Fprintf(&b, "::highlight(%s) { %s }\n", matchHighlightName, decls)
+	}
+
 	classes := make([]string, 0, len(t.Styles))
 	for class := range t.Styles {
+		if Class(class) == ClassMatch {
+			continue
+		}
 		classes = append(classes, string(class))
 	}
 	slices.Sort(classes)
@@ -339,6 +416,7 @@ var DarkTheme = Theme{
 		ClassNull:      {Color: "#ffa657", Italic: true},
 		ClassText:      {Color: "#c9d1d9"},
 		ClassMultiline: {Color: "#ffa198"},
+		ClassMatch:     {Background: "rgba(210, 153, 34, 0.45)"},
 	},
 	Levels: map[string]LevelStyle{
 		"trace":        {Style: Style{Color: "#6e7681"}},
@@ -369,6 +447,7 @@ var LightTheme = Theme{
 		ClassNull:      {Color: "#e36209", Italic: true},
 		ClassText:      {Color: "#24292e"},
 		ClassMultiline: {Color: "#86181d"},
+		ClassMatch:     {Background: "rgba(255, 212, 0, 0.65)"},
 	},
 	Levels: map[string]LevelStyle{
 		"trace":        {Style: Style{Color: "#959da5"}},

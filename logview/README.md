@@ -96,6 +96,14 @@ and one swap instead of forty.
 Field order is preserved, including duplicate keys — two `err` fields in one
 record is a bug worth seeing, not one to hide.
 
+The level is a fixed column: `Theme.CSS` gives it a `min-width` in `ch` — one
+character in the view's monospace font — as wide as the longest level the theme
+defines, so severity can be scanned straight down instead of being chased as it
+shifts with the word before it. `LevelUndefined` is excluded from that
+measurement, because its key is never displayed: an unknown level shows its raw
+value, which has no bound, and such a value runs past the column rather than
+being cut off — a log must not hide what it was told.
+
 ## Configuration
 
 Everything is a field of `Config`, whose zero value is usable and equals
@@ -109,10 +117,20 @@ during program setup.
 | `Levels` | level vocabulary for plain-text lines |
 | `QuoteText` | quote JSON string values |
 | `MaxDepth`, `MaxLineLen`, `MaxLines` | the limits below |
-| `Height` | scroll area height |
+| `Height` | scroll area height, a preference — see below |
 | `Event` | SSE event name; read it back with `EventName()` |
 | `Theme` | colors, level styles, level icons |
 | `Labels` | the strings the view renders on its own |
+
+`Height` is what the scroll area *prefers*. The view is a flex column, so a page
+that gives the view a height of its own — by making it a flex item, say — has
+the scroll area fill whatever the toolbar and error sink leave:
+
+```css
+html, body { height: 100% }
+body { margin: 0; display: flex; flex-direction: column }
+.log-view { flex: 1; min-height: 0 }
+```
 
 Three limits exist because a log has no upper bound: `MaxLineLen` truncates one
 runaway line, `MaxDepth` stops descending into nested JSON (unbounded recursion
@@ -130,7 +148,10 @@ cfg := &logview.Config{Theme: logview.LightTheme}
 ```
 
 Every `Class` and every level takes a `Style` with foreground and background
-color, bold, italic, underline and strikethrough. A level can additionally
+color, bold, italic, underline and strikethrough. `ClassMatch` is the exception:
+the filter's matches are a CSS custom highlight rather than a class, so it is
+emitted as a `::highlight()` rule, where only color, background-color and
+text-decoration apply. A level can additionally
 render an image in place of its text:
 
 ```go
@@ -158,13 +179,43 @@ escaped, so nothing is lost.
 
 One inline script, defined once per page behind a guard, drives all of it
 through fixed `data-mx-log-*` attributes — independent of `Prefix`, so one
-definition serves every view on the page. It watches DOM mutations rather than
+definition serves every view on the page while each keeps its own filter, pause
+and cap. Several views can read one stream: give each its own `hx.Ext("sse")`
+and `hx.SSEConnect`, and each opens its own connection and its own backlog, so
+pausing or filtering one leaves the others streaming. Putting a single
+`sse-connect` above them instead would share one connection, and then pausing
+would be a property of the page rather than of a viewer. It watches DOM mutations rather than
 htmx events, so it works for SSE, an ordinary swap, or any other script.
 
 - **Pause** keeps arriving lines in the DOM and marks them `data-mx-log-pending`
   instead of detaching them, so order, `hx-swap-oob` targeting and htmx's settle
-  step all keep working. Resume clears the marks in order. Nothing is lost, and
-  the connection stays open.
+  step all keep working. Nothing is lost and the connection stays open; while
+  paused, the held lines get a `MaxLines` cap of their own, so a view left paused
+  under a firehose stays bounded — at up to twice `MaxLines`, since the lines
+  already on screen are what the reader is reading and are not trimmed under
+  them. The button swaps its caption to `Labels.Resume` and clears the marks in
+  order when pressed again. The `N new` badge counts only the held lines the
+  filter also shows, because resuming reveals nothing else.
+- **Scrolling up pauses too**, and scrolling all the way back down resumes —
+  scrolling back to read something and wanting the stream to hold still are one
+  intent, not two. Which one paused is remembered, because it decides what
+  resumes: a pause the scroll caused is undone by returning to the bottom, while
+  a pause the button caused was asked for explicitly and only the button takes
+  it back. The threshold is at most `shadcn.StickToBottomDefaultThresholdPx`, so
+  scrolling can only pause once the scroll area has already stopped following.
+  Either way the state reaches a screen reader through a `role="status"` region
+  carrying `Labels.Paused`: a caption change on a button that does not have
+  focus announces nothing, and the scroll never touches the button at all. The
+  button's caption names the next action rather than carrying `aria-pressed`,
+  which would say "Resume, pressed" — the opposite of what the caption says; the
+  state a stylesheet needs is `data-mx-log-paused` on the root instead.
+- **The filter highlights what it matched**, through the CSS custom highlight
+  API rather than by wrapping matches in elements. A log line is a tree of spans
+  that htmx swapped in and two MutationObservers are watching, and rewriting it
+  on every keystroke would disturb all of that; ranges disturb nothing, and one
+  range can span the several spans a field is split into — `status=200` is
+  three. Style it through `ClassMatch`, which `Theme.CSS` emits as a
+  `::highlight()` rule. A browser without the API filters without highlighting.
 - **Filter** hides non-matching lines with `data-mx-log-nomatch`. Pausing and
   filtering are two independent reasons to hide one line, which is why each has
   its own attribute — resuming must not reveal a line the filter excludes — and
@@ -172,7 +223,10 @@ htmx events, so it works for SSE, an ordinary swap, or any other script.
   whose UA-stylesheet rule any author `display` declaration beats.
 - **The line cap** trims from the top, but only while the view is scrolled to
   the bottom. Trimming while the reader has scrolled up would drag the text
-  they are reading upward by a line for every line that arrives.
+  they are reading upward by a line for every line that arrives. Scrolling up
+  pauses, so that is mostly the paused case above; the scroll position is read
+  again at trim time because a scroll event is dispatched after the fact and a
+  line can arrive in between.
 
 ## Non-goals
 

@@ -9,9 +9,16 @@
 // reads as one log.
 //
 // [Config.View] is the surface those lines stream into: a filter over the lines
-// already received, a pause toggle that holds the view without dropping
-// anything, a scroll area that follows the stream until you scroll up, and a
-// sink for an in-band stream error.
+// already received, a pause button that holds the view without dropping
+// anything, a scroll area that follows the stream, and a sink for an in-band
+// stream error. Scrolling up pauses as well — reading something on screen and
+// holding the stream still are the same intent — and scrolling back to the
+// bottom resumes it, while a pause the button caused stays until the button,
+// whose caption swaps to [Labels.Resume], takes it back. Either way the state
+// is announced through a status region carrying [Labels.Paused], since the
+// caption only reaches a screen reader that has the button focused. The filter
+// highlights what it matched, as a CSS custom highlight styled through
+// [ClassMatch].
 //
 // # Streaming a log
 //

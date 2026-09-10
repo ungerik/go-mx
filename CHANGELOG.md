@@ -87,12 +87,50 @@ API is still free to change.
   lines already received, a pause toggle, `shadcn.ScrollArea` with
   `StickToBottom` following the stream, and an `mx.SSEEventError` sink. One
   inline script drives all of it through fixed `data-mx-log-*` attributes,
-  independent of the class prefix. Pausing keeps arriving lines in the DOM and
-  marks them rather than detaching them, so order, out-of-band targeting and
-  htmx's settle step keep working; pause and filter get one attribute each,
-  because resuming must not reveal a filtered-out line; and the line cap only
-  trims while the view is at the bottom, since trimming under a reader who has
-  scrolled up drags the text they are reading upward.
+  independent of the class prefix.
+  - **Pausing keeps arriving lines in the DOM** and marks them rather than
+    detaching them, so order, out-of-band targeting and htmx's settle step keep
+    working. Pause and filter get one attribute each, because resuming must not
+    reveal a filtered-out line — which is also why the "12 new" badge counts
+    only the held lines the filter shows. The held lines get a `MaxLines` cap of
+    their own, so a view left paused under a firehose stays bounded, at up to
+    twice `MaxLines`: what is already on screen is what the reader is reading,
+    and is not trimmed under them.
+  - **Scrolling up pauses as well, and scrolling back down resumes.** Scrolling
+    back to read something and wanting the stream to hold still are one intent,
+    not two. Which one paused is remembered, because it decides what resumes: a
+    pause the scroll caused is undone by returning to the bottom, while one the
+    button caused stays until the button — whose caption swaps to
+    `Labels.Resume` while paused — takes it back. The threshold is at most
+    `shadcn.StickToBottomDefaultThresholdPx` rather than a number of its own, so
+    scrolling can only pause once the scroll area has already stopped following.
+  - **The paused state is announced, not just shown.** A caption change on a
+    button that does not have focus reaches no screen reader, and the scroll
+    entry point never touches the button, so the state also goes into a
+    `role="status"` region carrying `Labels.Paused`. The caption names the next
+    action instead of carrying `aria-pressed`, which paused would announce
+    "Resume, pressed" — the opposite of what it reads; a stylesheet keys off
+    `data-mx-log-paused` on the root instead, and the button is sized by the
+    caption it swaps to rather than by an em value measured in English.
+  - **The filter highlights what it matched**, as a CSS custom highlight styled
+    by the `::highlight()` rule `Theme.CSS` emits for `ClassMatch`. Ranges
+    rather than wrapper elements, because a line is a tree of spans that htmx
+    swapped in and two MutationObservers are watching — and because one range
+    can span the several spans a field is split into, which `status=200` is.
+  - **The level is a fixed column,** `min-width` in `ch` as wide as the longest
+    level the theme defines, so severity can be scanned straight down the log.
+    `LevelUndefined` is excluded, since an unknown level displays its raw value
+    rather than that key; such a value runs past the column rather than being
+    cut off.
+  - **The line cap only trims while the view is at the bottom,** since trimming
+    under a reader who has scrolled up drags the text they are reading upward.
+    The position is read live at trim time rather than remembered from the last
+    scroll event: hiding or revealing lines moves the bottom without dispatching
+    one, so clearing a filter would otherwise leave the view trimming and
+    stick-to-bottom pinning as if the reader were still following.
+  - **The view is a flex column,** so `Config.Height` is what the scroll area
+    prefers rather than a fixed size: a page that gives the view a height of its
+    own has the area fill whatever the toolbar and error sink leave.
 - **`logview.Theme`** gives every value type and every log level a foreground
   and background color, bold, italic, underline and strikethrough, plus an
   optional image rendered in place of a level's text, with the level value as
@@ -101,7 +139,10 @@ API is still free to change.
 - **`cmd/example-logstream`** simulates a production log against all of the
   above: randomly composed lines covering every rendering path, streamed
   indefinitely at exponentially distributed intervals with bursts and quiet
-  stretches, resumable from a bounded history, with `-rate` and `-fail`.
+  stretches, resumable from a bounded history, with `-rate` and `-fail`. Its
+  Split control puts a second viewer beside the first, each with its own
+  connection to the same stream, so that filtering or pausing one while the
+  other keeps streaming shows what "independent subscriber" means.
 
 ### Removed
 
