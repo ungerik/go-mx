@@ -414,7 +414,18 @@ rewritten to native equivalents:
   native port the scrollbar is the `::-webkit-scrollbar` pseudo-element (plus
   Firefox's `scrollbar-width`/`scrollbar-color`), not an element, so a Go
   `ScrollBar` would have nothing to render. (Same precedent as
-  `AlertDialogOverlay`.)
+  `AlertDialogOverlay`.) Pass `StickToBottom` (or `StickToBottomThreshold(px)`)
+  to follow content that grows after the page was delivered — a streamed chat
+  transcript — while leaving a user who scrolled up where they are.
+  `StickToBottomDefaultThresholdPx` is an upper bound, not the default itself:
+  without an explicit threshold the effective value is `min(48px, 20% of the
+  area's height)`, so a short area — where 48px could be most of what is
+  visible — gets a proportionally smaller one. That is an addition, not a
+  shadcn port: upstream has no equivalent. It emits a `data-stick-to-bottom` attribute plus one inline
+  script (guarded like `tabsSelectScript`) that watches the element with a
+  `MutationObserver`, so it works for content arriving over
+  [`mx.SSEResponse`](../sse.go), from an htmx swap or from any other script, and
+  needs no htmx on a normally loaded page.
 - **Slider** — `Slider(min, max, step, values, id, …)`. `len(values)==1`
   renders a single-thumb styled void `<input type="range">`; `len(values)==2`
   renders a two-thumb range (two overlaid inputs + a fill `<div>` + one
@@ -439,8 +450,9 @@ structure, mirroring the Avatar `absolute inset-0` note.
 
 ### Inline scripts for interactive state
 
-Tabs, ToggleGroup, Slider (range mode) and InputOTP each emit one short
-`<script>` once per component instance, guarded with `if(!window.fn)`. The
+Tabs, ToggleGroup, Slider (range mode), InputOTP and a `ScrollArea` carrying
+`StickToBottom` each emit one short `<script>` once per component instance,
+guarded with `if(!window.fn)`. The
 script is the native replacement for the React reducer / Radix context that
 shadcn relies on. Inline `<script>` bodies are emitted with `html.Script(mx.Raw(...))`
 — the same pattern `html.StyleElem` uses for CSS. The `Toggle` default

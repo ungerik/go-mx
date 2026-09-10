@@ -13,13 +13,23 @@ terms are reproduced below.
 | [clsx](https://github.com/lukeed/clsx)                                | `shadcn/clsx/`            | MIT |
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
-| [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go` (color values only) | MIT |
+| [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go`, `logview/theme.go` (color values only) | MIT |
 | [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf)                       | `pdf/` engine (inlined source) | MIT |
 
-Runtime dependencies that the `cmd/shadcn-gallery` demo loads from public CDNs
-at runtime — [Shiki](https://github.com/shikijs/shiki) (MIT) and
-[Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) (MIT) — are not
-redistributed in this repository and ship under their own licenses.
+Some parts of go-mx point a browser at a third-party script or stylesheet on a
+public CDN instead of shipping it. Those files are **not redistributed in this
+repository** — go-mx only emits a URL and a Subresource Integrity hash — and
+they reach the browser under their own licenses:
+
+| Project | Loaded by | License |
+| ------------------------------------------ | ------------------------- | ------------ |
+| [htmx](https://github.com/bigskysoftware/htmx)                        | `hx.ScriptFromCDN`, `hx.ScriptDebugFromCDN` | 0BSD |
+| [htmx-ext-sse](https://github.com/bigskysoftware/htmx-extensions)     | `hx.ScriptSSEFromCDN`     | 0BSD |
+| [Shiki](https://github.com/shikijs/shiki)                             | `cmd/shadcn-gallery` demo | MIT |
+| [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss)           | `cmd/shadcn-gallery` demo | MIT |
+
+The two htmx entries are reachable from the `hx` package itself, not only from
+a demo: any page built with `hx.ScriptFromCDN` in its head loads them.
 
 Regular Go module dependencies (see `go.mod`) carry their own licenses with the
 modules and are not reproduced here.

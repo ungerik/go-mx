@@ -13,6 +13,9 @@ import (
 // shadcn. html must not import hx or shadcn. hx must not import
 // shadcn.
 //
+// logview sits above all four — it composes html, hx and shadcn — so
+// nothing below it may import it back.
+//
 // Catching a violation here is cheap; catching it after a release
 // requires renaming and re-exporting types. The test uses `go list
 // -json` so the dependency graph comes from the toolchain instead of
@@ -30,6 +33,7 @@ func TestImportInvariant(t *testing.T) {
 				"github.com/ungerik/go-mx/html",
 				"github.com/ungerik/go-mx/hx",
 				"github.com/ungerik/go-mx/shadcn",
+				"github.com/ungerik/go-mx/logview",
 			},
 		},
 		{
@@ -37,13 +41,23 @@ func TestImportInvariant(t *testing.T) {
 			forbidden: []string{
 				"github.com/ungerik/go-mx/hx",
 				"github.com/ungerik/go-mx/shadcn",
+				"github.com/ungerik/go-mx/logview",
 			},
 		},
 		{
 			pkg: "github.com/ungerik/go-mx/hx",
 			forbidden: []string{
 				"github.com/ungerik/go-mx/shadcn",
+				"github.com/ungerik/go-mx/logview",
 			},
+		},
+		{
+			pkg:       "github.com/ungerik/go-mx/shadcn",
+			forbidden: []string{"github.com/ungerik/go-mx/logview"},
+		},
+		{
+			pkg:       "github.com/ungerik/go-mx/highlight",
+			forbidden: []string{"github.com/ungerik/go-mx/logview"},
 		},
 	}
 

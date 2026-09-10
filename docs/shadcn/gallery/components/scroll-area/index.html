@@ -270,6 +270,65 @@
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Stick to bottom</h3>
+              <div data-slot="tabs" data-tabs="tab-scroll-area-stick-to-bottom" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-scroll-area-stick-to-bottom-panel-preview" id="tab-scroll-area-stick-to-bottom-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-scroll-area-stick-to-bottom','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-scroll-area-stick-to-bottom-panel-code" id="tab-scroll-area-stick-to-bottom-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-scroll-area-stick-to-bottom','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-stick-to-bottom-panel-preview" aria-labelledby="tab-scroll-area-stick-to-bottom-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div class="flex flex-col items-start gap-3">
+                      <div data-slot="scroll-area" data-stick-to-bottom="" class="relative overflow-auto focus-visible:ring-ring/50 transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] [&amp;::-webkit-scrollbar]:size-2.5 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb]:bg-border h-48 w-56 rounded-md border p-4 text-sm">
+                        <script>if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(48,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[data-stick-to-bottom]'))window.mxStickToBottom(r);r.querySelectorAll('[data-stick-to-bottom]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);</script>
+                        <div class="mb-3 font-medium leading-none">Build log</div>
+                        <div id="_gallery-stick-to-bottom-log">
+                          <div class="border-b py-1.5 last:border-b-0">Resolving dependencies</div>
+                          <div class="border-b py-1.5 last:border-b-0">Compiling mx</div>
+                          <div class="border-b py-1.5 last:border-b-0">Compiling html</div>
+                          <div class="border-b py-1.5 last:border-b-0">Compiling svg</div>
+                          <div class="border-b py-1.5 last:border-b-0">Compiling hx</div>
+                          <div class="border-b py-1.5 last:border-b-0">Compiling shadcn</div>
+                          <div class="border-b py-1.5 last:border-b-0">Linking</div>
+                          <div class="border-b py-1.5 last:border-b-0">Done in 4.2s</div>
+                        </div>
+                      </div>
+                      <button data-slot="button" onclick="var l=document.getElementById('_gallery-stick-to-bottom-log');var d=document.createElement('div');d.className='border-b py-1.5 last:border-b-0';d.textContent='Rebuilt at '+new Date().toLocaleTimeString();l.appendChild(d)" type="button" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Append line</button>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-stick-to-bottom-panel-code" aria-labelledby="tab-scroll-area-stick-to-bottom-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code><span class="hl-comment">// One binding for the element&apos;s id and for the selector the script looks it</span>
+<span class="hl-comment">// up by, so editing a part cannot break the append silently.</span>
+logKey := []<span class="hl-type">any</span>{<span class="hl-string">&quot;gallery&quot;</span>, <span class="hl-string">&quot;stick-to-bottom&quot;</span>, <span class="hl-string">&quot;log&quot;</span>}
+logID := mx.<span class="hl-function">KeyedIDValue</span>(logKey...)
+appendLine := <span class="hl-comment">/*js*/</span> <span class="hl-string">`var l=document.getElementById(&apos;`</span> + logID + <span class="hl-string">`&apos;);`</span> +
+	<span class="hl-string">`var d=document.createElement(&apos;div&apos;);`</span> +
+	<span class="hl-string">`d.className=&apos;border-b py-1.5 last:border-b-0&apos;;`</span> +
+	<span class="hl-string">`d.textContent=&apos;Rebuilt at &apos;+new Date().toLocaleTimeString();`</span> +
+	<span class="hl-string">`l.appendChild(d)`</span>
+<span class="hl-keyword">return</span> html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex flex-col items-start gap-3&quot;</span>,
+	shadcn.<span class="hl-function">ScrollArea</span>(
+		html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;h-48 w-56 rounded-md border p-4 text-sm&quot;</span>),
+		shadcn.StickToBottom,
+		html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;mb-3 font-medium leading-none&quot;</span>, <span class="hl-string">&quot;Build log&quot;</span>),
+		html.<span class="hl-function">Div</span>(mx.<span class="hl-function">KeyedID</span>(logKey...),
+			mx.<span class="hl-function">ForEach</span>([]<span class="hl-type">string</span>{
+				<span class="hl-string">&quot;Resolving dependencies&quot;</span>, <span class="hl-string">&quot;Compiling mx&quot;</span>, <span class="hl-string">&quot;Compiling html&quot;</span>,
+				<span class="hl-string">&quot;Compiling svg&quot;</span>, <span class="hl-string">&quot;Compiling hx&quot;</span>, <span class="hl-string">&quot;Compiling shadcn&quot;</span>,
+				<span class="hl-string">&quot;Linking&quot;</span>, <span class="hl-string">&quot;Done in 4.2s&quot;</span>,
+			}, <span class="hl-keyword">func</span>(line <span class="hl-type">string</span>) mx.Component {
+				<span class="hl-keyword">return</span> html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;border-b py-1.5 last:border-b-0&quot;</span>, line)
+			}),
+		),
+	),
+	shadcn.<span class="hl-function">Button</span>(shadcn.ButtonOutline, shadcn.SizeDefault,
+		html.<span class="hl-function">OnClick</span>(appendLine),
+		<span class="hl-string">&quot;Append line&quot;</span>),
+)</code></pre></div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
           </div>
         </div>
       </div>

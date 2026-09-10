@@ -15,6 +15,11 @@ const (
 	ContentTypeHTML = "text/html; charset=utf-8"
 	// ContentTypeCSV is the MIME type for UTF-8 CSV.
 	ContentTypeCSV = "text/csv; charset=utf-8"
+	// ContentTypeEventStream is the MIME type for a Server-Sent Events stream
+	// (see [SSEResponse]). It carries no charset parameter, unlike the other
+	// text types here: the SSE specification defines the stream as always UTF-8
+	// and requires clients to ignore the parameter.
+	ContentTypeEventStream = "text/event-stream"
 	// ContentTypeJSON is the MIME type for UTF-8 JSON.
 	ContentTypeJSON = "application/json; charset=utf-8"
 	// ContentTypeXML is the MIME type for XML.

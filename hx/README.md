@@ -80,6 +80,44 @@ in Go rather than left to a raw string:
   in by its own id).
 - **`hx.SelectOOB(value string)`** selects OOB content to pull from a response.
 
+### Server-Sent Events ([sse.go](sse.go))
+
+htmx 2.0 moved SSE out of core into the `sse` extension, so these attributes are
+spelled without the `hx-` prefix and need `hx.Ext("sse")` on the connecting
+element (or an ancestor).
+
+- **`hx.SSEConnect(url string)`** opens the connection whose events are
+  available to the element and its descendants.
+- **`hx.SSESwap(events ...string)`** swaps the named events into the element,
+  joining several names with a comma. With no names it defers an error rather
+  than emit a subscription to nothing.
+- **`hx.SSEClose(event string)`** closes the connection when that event arrives.
+
+An `sse-swap` element that ends up outside the `sse-connect` subtree subscribes
+to nothing and never updates. The extension reports that neither as an event nor
+on the console, so it looks exactly like a server that is not sending.
+
+```go
+html.Div(hx.Ext("sse"), hx.SSEConnect("/chat/stream"), hx.SSEClose("done"),
+    html.Div(hx.SSESwap("message"), hx.Swap(hx.SwapBeforeEnd)),
+    html.Div(hx.SSESwap(mx.SSEEventError)),
+)
+```
+
+The server side is [`mx.SSEResponse`](../sse.go), which renders one component
+per event. Note the two error paths: `hx.EventSSEError` is raised by htmx for a
+*transport* failure, while a failure the server reports in-band arrives as the
+ordinary named event `mx.SSEEventError`. A complete UI binds both. Note also
+that `mx.SSEEventError` is `"mx-error"` rather than `"error"`: a browser
+dispatches its own transport failures at the `EventSource` under the name
+`error`, so an `sse-swap="error"` would fire on every dropped connection with
+an event that has no data for htmx to swap.
+
+The extension's remaining events are constants as well: `hx.EventSSEOpen` and
+`hx.EventSSEClose` for the connection itself, and `hx.EventSSEBeforeMessage`
+(cancel it to skip the swap) and `hx.EventSSEMessage` around each swapped
+message.
+
 ## Event and class name constants
 
 - **Event names** ([events.go](events.go)) — every htmx event as a constant
@@ -150,7 +188,10 @@ HTMX form semantics are deferred.)
 ## Loading htmx
 
 `hx.ScriptFromCDN` and `hx.ScriptDebugFromCDN` are ready-made `<script>` elements
-that load htmx (currently 2.0.10) from unpkg with a Subresource Integrity hash.
+that load htmx (currently 2.0.10) from jsDelivr with a Subresource Integrity
+hash. `hx.ScriptSSEFromCDN` loads the SSE extension (2.2.4) the same way — htmx
+2.0 moved SSE out of core, so the `sse-*` attributes need it in addition to htmx
+itself.
 
 ## Online sources
 

@@ -15,6 +15,142 @@ API is still free to change.
 
 ### Added
 
+- **`mx.SSEResponse`: components streamed to a client as Server-Sent Events.**
+  go-mx buffers whole responses on purpose, so that a deferred computation
+  failing mid-render becomes a clean 500 instead of a truncated page.
+  `SSEResponse` keeps that guarantee at *event* granularity: `Send` renders into
+  a buffer and reports a render error — or a panic — before a byte of the frame
+  is written. Only the response-level contract changes, and it changes in one
+  documented place: after the first flush the 200 is committed, so
+  `SendError` carries a later failure in band as the `mx.SSEEventError` event.
+  - Rendered markup is re-split into one `data:` line per line of output, on all
+    three SSE line terminators, because a client stops a `data:` field at the
+    first newline and `Writer.Newline` puts newlines in ordinary markup.
+  - `NewSSEResponse` fails at handler entry if the writer cannot flush, while a
+    500 is still available to send, and sets `X-Accel-Buffering: no` so a reverse
+    proxy the caller does not control cannot buffer the stream into uselessness.
+  - `SendEvent` takes an `SSEEvent` with an `ID`, and `LastEventID` reads back
+    what the client acknowledged. A browser silently reconnects to any stream
+    that ends, so without these a dropped connection replays the whole stream or
+    skips what it missed. `SetRetry` tunes the reconnect delay and
+    `KeepaliveLoop` keeps an idle connection from being dropped at all.
+  - `SetWriteTimeout` bounds a single frame. The response-wide
+    `http.Server.WriteTimeout` has to be cleared for a stream that never ends,
+    which would otherwise leave a write with no bound: a client that stops
+    reading would pin the producer goroutine forever.
+- **`mx.KeyedID` / `mx.KeyedIDValue`** derive an element id deterministically
+  from key parts, so the id is the same in the initial render and in every later
+  event — which `mx.UniqueID`'s process-lifetime counter cannot do, and which an
+  out-of-band swap needs to find its own target. A sanitising join keeps the id
+  readable (`_msg-<uuid>-3`); when a character has to be reduced away, a digest
+  of the exact parts is appended, so keys that differ only in reduced characters
+  stay distinct instead of colliding silently. Part boundaries are deliberately
+  outside the digest — `KeyedIDValue("a-b")` and `KeyedIDValue("a", "b")` are
+  still one id — because keeping a literal `-` readable is worth more than a
+  case only a caller mixing both spellings for one entity can reach.
+  `mx.ValidIDRune` is the shared definition of which characters an id may hold.
+- **`hx.SSEConnect` / `hx.SSESwap` / `hx.SSEClose`** for the htmx SSE extension,
+  with `hx.ScriptSSEFromCDN` to load it (htmx 2.0 moved SSE out of core) and
+  `hx.EventSSEOpen` / `EventSSEClose` / `EventSSEBeforeMessage` /
+  `EventSSEMessage` alongside the existing `EventSSEError`. Each attribute
+  defers an error for an empty value, because the extension skips a falsy
+  attribute and the result looks exactly like a server that never sends.
+- **`shadcn.StickToBottom` / `StickToBottomThreshold`** make a `ScrollArea`
+  follow content that grows after the page was delivered, and leave a user who
+  has scrolled up where they are. Following survives layout-only growth (an
+  image or webfont loading, a container resize, a class or style change), holds
+  position when a scroll event has not been dispatched yet, and marks the
+  element `data-stuck` so a "jump to latest" affordance is pure CSS.
+- **`mx.ContentTypeEventStream`** for `text/event-stream`, the content type
+  `SSEResponse` sends. It is the one `text/*` constant carrying no `charset`
+  parameter: the SSE specification fixes the stream at UTF-8 and requires
+  clients to ignore the parameter.
+- **`cmd/example-sse`** streams a chat transcript against all of the above:
+  `-drop` cuts the connection mid-reply so the browser reconnects and the
+  handler resumes, and `-fail` reports an error in band.
+- **`logview` package: streamed log lines rendered as a readable surface.**
+  Logs are mostly structured JSON, and a raw JSON line is unreadable at stream
+  speed. `logview.Line` parses one and renders its fields in source order: the
+  timestamp and level promoted without labels, everything else as `key=value`
+  with the value colored by its JSON type, nested objects in braces, arrays in
+  brackets, and a multi-line string value in a `<pre>` so a stack trace keeps
+  its indentation. Anything that is not one JSON object renders as plain text
+  with its leading level word colored, so a mixed stream still reads as one log.
+  - **A level value can never reach a class attribute.** A space would end the
+    class token and let the rest name arbitrary CSS classes — `hidden` alone
+    would make the line vanish. Only tokens the `Theme` defines are emitted, and
+    every other value renders as `logview.LevelUndefined`; `Theme.Levels` keys
+    are restricted to `mx.ValidIDRune` characters so a careless theme cannot
+    open the hole either. The level text still shows the raw value, escaped.
+  - **Lines render through their own non-indenting writer,** so the markup is
+    the same whether the caller's writer indents or not and never ends in a
+    newline — which would otherwise reach the client as an extra `data:` line
+    and become a stray text node between every pair of log lines.
+  - `MaxLineLen`, `MaxDepth` and `MaxLines` bound what a log with no upper bound
+    can do: a runaway line, hostile JSON nesting (unbounded recursion there
+    would overflow the goroutine stack, which no recover can catch), and the
+    number of lines the browser keeps.
+- **`logview.View`** is the surface those lines stream into: a filter over the
+  lines already received, a pause toggle, `shadcn.ScrollArea` with
+  `StickToBottom` following the stream, and an `mx.SSEEventError` sink. One
+  inline script drives all of it through fixed `data-mx-log-*` attributes,
+  independent of the class prefix.
+  - **Pausing keeps arriving lines in the DOM** and marks them rather than
+    detaching them, so order, out-of-band targeting and htmx's settle step keep
+    working. Pause and filter get one attribute each, because resuming must not
+    reveal a filtered-out line — which is also why the "12 new" badge counts
+    only the held lines the filter shows. The held lines get a `MaxLines` cap of
+    their own, so a view left paused under a firehose stays bounded, at up to
+    twice `MaxLines`: what is already on screen is what the reader is reading,
+    and is not trimmed under them.
+  - **Scrolling up pauses as well, and scrolling back down resumes.** Scrolling
+    back to read something and wanting the stream to hold still are one intent,
+    not two. Which one paused is remembered, because it decides what resumes: a
+    pause the scroll caused is undone by returning to the bottom, while one the
+    button caused stays until the button — whose caption swaps to
+    `Labels.Resume` while paused — takes it back. The threshold is at most
+    `shadcn.StickToBottomDefaultThresholdPx` rather than a number of its own, so
+    scrolling can only pause once the scroll area has already stopped following.
+  - **The paused state is announced, not just shown.** A caption change on a
+    button that does not have focus reaches no screen reader, and the scroll
+    entry point never touches the button, so the state also goes into a
+    `role="status"` region carrying `Labels.Paused`. The caption names the next
+    action instead of carrying `aria-pressed`, which paused would announce
+    "Resume, pressed" — the opposite of what it reads; a stylesheet keys off
+    `data-mx-log-paused` on the root instead, and the button is sized by the
+    caption it swaps to rather than by an em value measured in English.
+  - **The filter highlights what it matched**, as a CSS custom highlight styled
+    by the `::highlight()` rule `Theme.CSS` emits for `ClassMatch`. Ranges
+    rather than wrapper elements, because a line is a tree of spans that htmx
+    swapped in and two MutationObservers are watching — and because one range
+    can span the several spans a field is split into, which `status=200` is.
+  - **The level is a fixed column,** `min-width` in `ch` as wide as the longest
+    level the theme defines, so severity can be scanned straight down the log.
+    `LevelUndefined` is excluded, since an unknown level displays its raw value
+    rather than that key; such a value runs past the column rather than being
+    cut off.
+  - **The line cap only trims while the view is at the bottom,** since trimming
+    under a reader who has scrolled up drags the text they are reading upward.
+    The position is read live at trim time rather than remembered from the last
+    scroll event: hiding or revealing lines moves the bottom without dispatching
+    one, so clearing a filter would otherwise leave the view trimming and
+    stick-to-bottom pinning as if the reader were still following.
+  - **The view is a flex column,** so `Config.Height` is what the scroll area
+    prefers rather than a fixed size: a page that gives the view a height of its
+    own has the area fill whatever the toolbar and error sink leave.
+- **`logview.Theme`** gives every value type and every log level a foreground
+  and background color, bold, italic, underline and strikethrough, plus an
+  optional image rendered in place of a level's text, with the level value as
+  its alt text. `DarkTheme` and `LightTheme` ship; `Theme.CSS(prefix)` is
+  deterministic.
+- **`cmd/example-logstream`** simulates a production log against all of the
+  above: randomly composed lines covering every rendering path, streamed
+  indefinitely at exponentially distributed intervals with bursts and quiet
+  stretches, resumable from a bounded history, with `-rate` and `-fail`. Its
+  Split control puts a second viewer beside the first, each with its own
+  connection to the same stream, so that filtering or pausing one while the
+  other keeps streaming shows what "independent subscriber" means.
+
 - **`web` package: robots.txt, sitemaps and page metadata for a whole site.**
   A `Site` holds what all pages share — the `BaseURL` every absolute URL is
   built from, the title, the language — and turns its `PageSource`s into the
@@ -52,11 +188,32 @@ API is still free to change.
 
 ### Changed
 
+- **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
+  its own transport failures at the `EventSource` under the name `error`, so a
+  subscriber to `error` would also fire on every dropped connection, with an
+  event carrying no data for htmx to swap. Both names are unreleased — the
+  rename happened within this cycle, so there is nothing to migrate; it is
+  recorded because anyone naming their own SSE events walks into the same
+  collision.
+
 - `web.GlobPageSource.Dir` now scopes the glob: `Pattern` is matched below it
   instead of against the working directory, so the directory is named once
   rather than repeated in both fields where the two could disagree. A `Pattern`
   that is absolute while `Dir` is set is an error, and a directory matching the
   pattern is skipped instead of being read as a page.
+
+- **htmx is served from jsDelivr, not unpkg.** `hx.ScriptFromCDN`,
+  `hx.ScriptDebugFromCDN` and `hx.ScriptSSEFromCDN` now point at
+  `cdn.jsdelivr.net`. The Subresource Integrity hashes are unchanged and were
+  verified against the jsDelivr bytes. A Content-Security-Policy `script-src`
+  allowlist that names `unpkg.com` has to name `cdn.jsdelivr.net` instead.
+
+### Removed
+
+- **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
+  `htmx:noSSESourceError` — it does not check nesting at all, so an `sse-swap`
+  element with no `sse-connect` above it subscribes to nothing silently. The
+  constant named an event that cannot occur.
 
 ### Fixed
 

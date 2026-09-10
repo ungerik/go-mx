@@ -70,6 +70,9 @@ const (
 
 	// SSE extension (htmx 2.0 moved SSE out of core into the sse extension)
 
-	EventNoSSESourceError = "htmx:noSSESourceError" // when an element references a missing SSE source
+	EventSSEOpen          = "htmx:sseOpen"          // when an SSE connection is opened
 	EventSSEError         = "htmx:sseError"         // when an error occurs in an SSE source
+	EventSSEClose         = "htmx:sseClose"         // when an SSE connection is closed
+	EventSSEBeforeMessage = "htmx:sseBeforeMessage" // before an SSE message is swapped in, to cancel the swap
+	EventSSEMessage       = "htmx:sseMessage"       // after an SSE message has been swapped in
 )

@@ -48,3 +48,35 @@ func TestValidateIDReturnsError(t *testing.T) {
 		t.Errorf("unexpected render error for valid name: %v", err)
 	}
 }
+
+func TestValidateIDAcceptsEveryKeyedIDValue(t *testing.T) {
+	// validateID and mx.KeyedIDValue share mx.ValidIDRune precisely so that an
+	// id built by mx can be handed to a component here — the streaming case:
+	// mx.KeyedID marks the element, the same key builds the selector, and a
+	// shadcn component wraps it. If the two rules drifted apart the mismatch
+	// would surface as a panic (PanicOnInvalidID is on by default) at render
+	// time, from an id the caller never typed and cannot see anything wrong with.
+	defer func(orig bool) { PanicOnInvalidID = orig }(PanicOnInvalidID)
+	PanicOnInvalidID = false
+
+	for _, parts := range [][]any{
+		{"msg", 3},
+		{"msg", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
+		{"gallery", "stick-to-bottom", "log"},
+		// Keys a real application passes through unchecked: non-ASCII letters
+		// and punctuation are reduced by KeyedIDValue, and what it produces
+		// still has to pass here.
+		{"user", "Müller"},
+		{"path", "a/b c.d"},
+		{7},
+	} {
+		id := mx.KeyedIDValue(parts...)
+		if id == "" {
+			t.Errorf("KeyedIDValue(%v) is empty, so the case tests nothing", parts)
+			continue
+		}
+		if err := validateID(id); err != nil {
+			t.Errorf("validateID(%q) built from KeyedIDValue(%v): %v", id, parts, err)
+		}
+	}
+}

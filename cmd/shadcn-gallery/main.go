@@ -389,6 +389,7 @@ func docs() []ComponentDoc {
 			Description: "Augments native scroll functionality for custom, cross-browser styling.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.ScrollAreaDemo},
+				{Name: "Stick to bottom", Func: examples.ScrollAreaStickToBottom},
 			},
 		},
 		{

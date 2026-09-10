@@ -28,6 +28,10 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 - **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
   reference and design notes.
 - **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
+- **[CHANGELOG.md](CHANGELOG.md)** — what changed. Nothing is tagged yet, so
+  everything is still under `Unreleased` and the API is free to change.
+- **[TODOS.md](TODOS.md)** — deferred work by area and priority (the
+  shadcn/ui port build order is in [shadcn/TODOS.md](shadcn/TODOS.md)).
 
 ## Install
 
@@ -88,9 +92,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   `hx.Trigger`, …), with typed values where htmx constrains them — a
   `hx.SwapStyle` enum for `hx.Swap`, `bool` arguments for `hx.Boost`/
   `hx.History`/`hx.Validate`, and boolean attributes like `hx.Disable`/
-  `hx.Preserve`. Adds `htmx:` event and `htmx-*` CSS class name constants,
-  plus a server side for HTTP handlers: `hx.IsRequest`/`hx.IsBoosted` request
-  readers and `hx.SetRedirect`/`hx.SetTrigger`/… response-header setters.
+  `hx.Preserve`. Adds `htmx:` event and `htmx-*` CSS class name constants, the
+  `sse` extension's attributes (`hx.SSEConnect`, `hx.SSESwap`, `hx.SSEClose`)
+  for consuming an `mx.SSEResponse`, plus a server side for HTTP handlers:
+  `hx.IsRequest`/`hx.IsBoosted` request readers and
+  `hx.SetRedirect`/`hx.SetTrigger`/… response-header setters.
   Provides `hx.FieldDecider` that wraps `html.FieldDecider` and adds
   `hx-trigger="change"` to live inputs. See [hx/README.md](hx/README.md).
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
@@ -100,6 +106,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   highlighted HTML components, or as the go-mx source that builds that markup,
   plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See
   [highlight/README.md](highlight/README.md).
+- **`logview`** — streamed log lines rendered as a readable surface: a JSON
+  record becomes promoted time and level plus `key=value` pairs colored by JSON
+  type, a non-JSON line becomes plain text with its level word colored, and
+  `logview.View` adds the filter, pause and scroll-anchored viewport they stream
+  into. Fed by `mx.SSEResponse`. See [logview/README.md](logview/README.md).
 - **`pdf`** — native PDF rendering mirroring the `html` component model, with
   the [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) engine
   inlined so there is no external PDF dependency: `pdf.Document`,
@@ -124,6 +135,39 @@ For streaming output or serving over HTTP, render a `Component` into an
   nested module, so its `golang.org/x/net/html` dependency stays out of core. See
   [wordpress/README.md](wordpress/README.md).
 - **`web`**, **`doc`** — higher-level abstractions, partially implemented.
+
+## Streaming
+
+`mx.SSEResponse` streams components to a client as Server-Sent Events over a
+still-open HTTP response, rendering one component per event. go-mx otherwise
+buffers a whole response before writing it, so that a deferred computation
+failing mid-render becomes a clean 500 instead of a truncated page;
+`SSEResponse` keeps that guarantee per *event* rather than per response, and
+`SendError` carries a later failure in band, since after the first flush the 200
+is committed and there is no 500 left to send.
+
+A browser reconnects to a dropped stream on its own and does it silently, so
+`SSEResponse.SendEvent` takes an `SSEEvent.ID` and `mx.LastEventID(request)`
+reads back what the client acknowledged — without them a reconnect replays the
+whole stream or skips what it missed. `SetRetry` tunes the reconnect delay and
+`KeepaliveLoop` keeps an idle connection from being dropped at all. A stream
+that never ends needs `http.Server.WriteTimeout` cleared, which would leave
+writes unbounded, so `SetWriteTimeout` bounds a single frame instead: a client
+that stops reading cannot pin the producer goroutine forever.
+
+Around it: `mx.KeyedID` derives an element id that is stable across renders and
+processes (which `mx.UniqueID`'s counter cannot), so a later event can address
+an element an earlier one rendered; `hx.SSEConnect` / `hx.SSESwap` /
+`hx.SSEClose` are the htmx SSE-extension attributes; and
+`shadcn.StickToBottom` makes a `ScrollArea` follow growing content unless the
+user has scrolled up.
+
+See [`cmd/example-sse`](cmd/example-sse/main.go) for a worked example that
+streams a chat transcript and appends tokens to one message out of band by its
+`KeyedID`. Its `-drop` flag cuts the first connection mid-reply so the browser
+reconnects and the handler resumes, and `-fail` reports an error in band.
+[`cmd/example-logstream`](cmd/example-logstream/main.go) streams a simulated
+production log through the `logview` package, resumable from a bounded history.
 
 ## Reflected forms
 
@@ -210,6 +254,9 @@ the repeatable invoice-line editor, and the `FieldErrors` cross-field
 error routing path.
 
 ## To Do
+
+The `mx` reflection to-do list. Everything else deferred — per package, with
+priorities and context — is in [TODOS.md](TODOS.md).
 
 - [ ] ReflectMarkup()
 - [ ] More ReflectInputOptions
