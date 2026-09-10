@@ -2,6 +2,8 @@ package shadcn
 
 import (
 	"github.com/domonda/go-errs"
+
+	"github.com/ungerik/go-mx"
 )
 
 // PanicOnInvalidID controls how [validateID] reports an invalid id.
@@ -17,10 +19,12 @@ import (
 // never inject unescaped markup and never aborts the program.
 var PanicOnInvalidID = true
 
-// validateID checks that id is a non-empty string of letters, digits, '-' and
-// '_'. Components in this package interpolate the id into an onclick handler,
-// an id, name, for, aria-controls or aria-labelledby attribute, so it must be a
-// safe, valid HTML id.
+// validateID checks that id is a non-empty string of the characters
+// [mx.ValidIDRune] allows: letters, digits, '-' and '_'. Components in this
+// package interpolate the id into an onclick handler, an id, name, for,
+// aria-controls or aria-labelledby attribute, so it must be a safe, valid HTML
+// id. Sharing the rule with mx is what lets an [mx.KeyedID] value be passed to
+// a component here without a chance of it being rejected.
 //
 // On an invalid id validateID panics if [PanicOnInvalidID] is true (the
 // default), otherwise it returns the error for the caller to defer via
@@ -34,11 +38,7 @@ func validateID(id string) error {
 		return err
 	}
 	for _, r := range id {
-		ok := r == '-' || r == '_' ||
-			(r >= '0' && r <= '9') ||
-			(r >= 'A' && r <= 'Z') ||
-			(r >= 'a' && r <= 'z')
-		if !ok {
+		if !mx.ValidIDRune(r) {
 			err := errs.Errorf("shadcn: id must contain only letters, digits, '-' and '_', got: %q", id)
 			if PanicOnInvalidID {
 				panic(err)

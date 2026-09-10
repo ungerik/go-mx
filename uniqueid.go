@@ -28,6 +28,24 @@ func (id uniqueID) AttribValue(context.Context) (string, error) {
 	return "_" + strconv.FormatUint(uint64(id), 36), nil
 }
 
+// ValidIDRune reports whether r may appear in an HTML id generated or accepted
+// by go-mx: a letter, a digit, '_' or '-'.
+//
+// It is the single definition of that rule, so the sanitizer that builds ids
+// ([KeyedIDValue]) and the validators that reject them cannot drift apart. A
+// drift would be silent until a sanitized id made a validator fail, so this is
+// deliberately one function rather than the same predicate written twice.
+//
+// The set is ASCII-only, which reduces non-ASCII letters away in [KeyedIDValue]
+// rather than passing through characters that are valid HTML but awkward in a
+// CSS selector or a JavaScript string.
+func ValidIDRune(r rune) bool {
+	return r == '_' || r == '-' ||
+		(r >= '0' && r <= '9') ||
+		(r >= 'A' && r <= 'Z') ||
+		(r >= 'a' && r <= 'z')
+}
+
 // KeyedID returns an "id" [Attrib] whose value is derived deterministically from
 // parts, so the same parts yield the same id in every render and in every
 // process.
@@ -65,8 +83,9 @@ func KeyedID(parts ...any) Attrib {
 // value, not a type-tagged dump. Characters outside letters, digits, '_' and
 // '-' become a single '-' separator, as does each part boundary, and the result
 // is prefixed with '_' so it is a valid HTML id that does not start with a
-// digit. That allowlist is the same one the shadcn components validate ids
-// against, and it deliberately reduces non-ASCII letters away.
+// digit. The kept characters are exactly [ValidIDRune], which the shadcn
+// components validate ids against too, so a KeyedIDValue is always accepted
+// there; it deliberately reduces non-ASCII letters away.
 //
 // A readable id is worth more in devtools than a hash would be, at the price
 // that the separator is not escaped: KeyedIDValue("a-b") and
@@ -88,11 +107,7 @@ func KeyedIDValue(parts ...any) string {
 			separator = true
 		}
 		for _, r := range fmt.Sprint(part) {
-			keep := r == '_' || r == '-' ||
-				(r >= '0' && r <= '9') ||
-				(r >= 'A' && r <= 'Z') ||
-				(r >= 'a' && r <= 'z')
-			if !keep {
+			if !ValidIDRune(r) {
 				separator = true
 				continue
 			}

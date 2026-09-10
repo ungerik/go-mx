@@ -6,18 +6,6 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-// The attributes of the htmx SSE extension. htmx 2.0 moved SSE out of core, so
-// unlike the hx-* attributes in attributes.go these are spelled without the
-// hx- prefix — that is how the extension defines them, not an omission. Load
-// the extension on the connecting element (or an ancestor) with Ext("sse").
-//
-// The extension raises [EventSSEError] on a transport failure and
-// [EventNoSSESourceError] when an sse-swap element has no source above it;
-// failures the server reports in-band arrive as an ordinary named event, which
-// [mx.SSEResponse.SendError] sends as [mx.SSEEventError].
-//
-// See https://htmx.org/extensions/sse/
-
 // SSEConnect opens an SSE connection to url. The events of that connection are
 // available to this element and its descendants, so it is the element the
 // [SSESwap] targets sit under:
@@ -25,6 +13,19 @@ import (
 //	html.Div(hx.Ext("sse"), hx.SSEConnect("/chat/stream"),
 //		html.Div(hx.SSESwap("message")),
 //	)
+//
+// htmx 2.0 moved SSE out of core, so unlike the hx-* attributes in
+// attributes.go, SSEConnect, [SSESwap] and [SSEClose] are spelled without the
+// hx- prefix — that is how the extension defines them, not an omission. Load
+// the extension on the connecting element (or an ancestor) with Ext("sse"), and
+// the extension script itself with [ScriptSSEFromCDN].
+//
+// The extension raises [EventSSEError] on a transport failure and
+// [EventNoSSESourceError] when an sse-swap element has no source above it;
+// failures the server reports in-band arrive as an ordinary named event, which
+// [mx.SSEResponse.SendError] sends as [mx.SSEEventError].
+//
+// See https://htmx.org/extensions/sse/
 func SSEConnect(url string) mx.Attrib { return mx.NewAttrib("sse-connect", url) }
 
 // SSESwap swaps the content of the named events into this element, using the

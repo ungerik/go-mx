@@ -177,12 +177,14 @@ func streamReply(ctx context.Context, sse *mx.SSEResponse) error {
 	if err := sse.Send(ctx, eventMessage, container); err != nil {
 		return err
 	}
+	// hx-swap-oob addresses the container by the selector KeyedIDValue builds
+	// for the same key, so the token lands inside it instead of at the end of
+	// the transcript. The selector is the same for every token, so it is built
+	// once here rather than per event.
+	target := "#" + mx.KeyedIDValue(replyKey)
 	for _, token := range []string{"Acme ", "GmbH ", "leads ", "at ", "41%, ", "then ", "Globex ", "at ", "28%."} {
-		// hx-swap-oob addresses the container by the selector KeyedIDValue
-		// builds for the same key, so the token lands inside it instead of at
-		// the end of the transcript.
 		if err := sse.Send(ctx, eventMessage, html.Span(
-			hx.SwapOOB(hx.SwapBeforeEnd, "#"+mx.KeyedIDValue(replyKey)),
+			hx.SwapOOB(hx.SwapBeforeEnd, target),
 			token,
 		)); err != nil {
 			return err

@@ -15,30 +15,30 @@ func attribValue(t *testing.T, a mx.Attrib) string {
 	return value
 }
 
-func TestSSEAttribNames(t *testing.T) {
-	// The extension spells these without the hx- prefix. Getting that wrong
-	// yields attributes htmx silently ignores, which looks like a server that
-	// never sends anything.
+func TestSSEAttribs(t *testing.T) {
+	// Names: the extension spells these without the hx- prefix. Getting that
+	// wrong yields attributes htmx silently ignores, which looks like a server
+	// that never sends anything.
+	//
+	// Values: SSESwap joins several event names with a comma, which is what
+	// subscribing one element to more than one event depends on.
 	for _, tc := range []struct {
-		attrib mx.Attrib
-		want   string
+		attrib    mx.Attrib
+		wantName  string
+		wantValue string
 	}{
-		{SSEConnect("/stream"), "sse-connect"},
-		{SSESwap("message"), "sse-swap"},
-		{SSEClose("done"), "sse-close"},
+		{SSEConnect("/stream"), "sse-connect", "/stream"},
+		{SSEConnect("/chat/stream?id=1"), "sse-connect", "/chat/stream?id=1"},
+		{SSESwap("message"), "sse-swap", "message"},
+		{SSESwap("message", "done"), "sse-swap", "message,done"},
+		{SSEClose("done"), "sse-close", "done"},
 	} {
-		if got := tc.attrib.AttribName(); got != tc.want {
-			t.Errorf("AttribName = %q, want %q", got, tc.want)
+		if got := tc.attrib.AttribName(); got != tc.wantName {
+			t.Errorf("AttribName = %q, want %q", got, tc.wantName)
 		}
-	}
-}
-
-func TestSSESwap_JoinsEventNames(t *testing.T) {
-	if got := attribValue(t, SSESwap("message")); got != "message" {
-		t.Errorf("SSESwap(one) = %q, want %q", got, "message")
-	}
-	if got, want := attribValue(t, SSESwap("message", "done")), "message,done"; got != want {
-		t.Errorf("SSESwap(two) = %q, want %q", got, want)
+		if got := attribValue(t, tc.attrib); got != tc.wantValue {
+			t.Errorf("AttribValue of %s = %q, want %q", tc.wantName, got, tc.wantValue)
+		}
 	}
 }
 
@@ -51,14 +51,5 @@ func TestSSESwap_NoEventsIsAnError(t *testing.T) {
 	}
 	if _, err := attrib.AttribValue(t.Context()); err == nil {
 		t.Error("SSESwap() rendered without an error")
-	}
-}
-
-func TestSSEAttribValues(t *testing.T) {
-	if got := attribValue(t, SSEConnect("/chat/stream?id=1")); got != "/chat/stream?id=1" {
-		t.Errorf("SSEConnect = %q", got)
-	}
-	if got := attribValue(t, SSEClose("done")); got != "done" {
-		t.Errorf("SSEClose = %q", got)
 	}
 }
