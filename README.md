@@ -28,6 +28,10 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 - **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
   reference and design notes.
 - **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
+- **[CHANGELOG.md](CHANGELOG.md)** — what changed. Nothing is tagged yet, so
+  everything is still under `Unreleased` and the API is free to change.
+- **[TODOS.md](TODOS.md)** — deferred work by package and priority (the
+  shadcn/ui port build order is in [shadcn/TODOS.md](shadcn/TODOS.md)).
 
 ## Install
 
@@ -245,6 +249,9 @@ the repeatable invoice-line editor, and the `FieldErrors` cross-field
 error routing path.
 
 ## To Do
+
+The `mx` reflection to-do list. Everything else deferred — per package, with
+priorities and context — is in [TODOS.md](TODOS.md).
 
 - [ ] ReflectMarkup()
 - [ ] More ReflectInputOptions
