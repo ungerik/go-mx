@@ -43,7 +43,11 @@ API is still free to change.
   event — which `mx.UniqueID`'s process-lifetime counter cannot do, and which an
   out-of-band swap needs to find its own target. A sanitising join keeps the id
   readable (`_msg-<uuid>-3`); when a character has to be reduced away, a digest
-  of the exact parts is appended so that distinct keys cannot collide silently.
+  of the exact parts is appended, so keys that differ only in reduced characters
+  stay distinct instead of colliding silently. Part boundaries are deliberately
+  outside the digest — `KeyedIDValue("a-b")` and `KeyedIDValue("a", "b")` are
+  still one id — because keeping a literal `-` readable is worth more than a
+  case only a caller mixing both spellings for one entity can reach.
   `mx.ValidIDRune` is the shared definition of which characters an id may hold.
 - **`hx.SSEConnect` / `hx.SSESwap` / `hx.SSEClose`** for the htmx SSE extension,
   with `hx.ScriptSSEFromCDN` to load it (htmx 2.0 moved SSE out of core) and
@@ -57,7 +61,10 @@ API is still free to change.
   image or webfont loading, a container resize, a class or style change), holds
   position when a scroll event has not been dispatched yet, and marks the
   element `data-stuck` so a "jump to latest" affordance is pure CSS.
-- **`mx.ContentTypeEventStream`** for `text/event-stream`.
+- **`mx.ContentTypeEventStream`** for `text/event-stream`, the content type
+  `SSEResponse` sends. It is the one `text/*` constant carrying no `charset`
+  parameter: the SSE specification fixes the stream at UTF-8 and requires
+  clients to ignore the parameter.
 - **`cmd/example-sse`** streams a chat transcript against all of the above:
   `-drop` cuts the connection mid-reply so the browser reconnects and the
   handler resumes, and `-fail` reports an error in band.
@@ -144,7 +151,6 @@ API is still free to change.
   connection to the same stream, so that filtering or pausing one while the
   other keeps streaming shows what "independent subscriber" means.
 
-
 - **`web` package: robots.txt, sitemaps and page metadata for a whole site.**
   A `Site` holds what all pages share — the `BaseURL` every absolute URL is
   built from, the title, the language — and turns its `PageSource`s into the
@@ -185,7 +191,10 @@ API is still free to change.
 - **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
   its own transport failures at the `EventSource` under the name `error`, so a
   subscriber to `error` would also fire on every dropped connection, with an
-  event carrying no data for htmx to swap.
+  event carrying no data for htmx to swap. Both names are unreleased — the
+  rename happened within this cycle, so there is nothing to migrate; it is
+  recorded because anyone naming their own SSE events walks into the same
+  collision.
 
 - `web.GlobPageSource.Dir` now scopes the glob: `Pattern` is matched below it
   instead of against the working directory, so the directory is named once

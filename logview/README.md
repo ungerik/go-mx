@@ -79,19 +79,28 @@ and one swap instead of forty.
 
 ## How a line is rendered
 
-| Input | Rendered as |
+A line is one JSON object or it is not. Only one JSON object renders as
+fields; the record itself gets no surrounding braces.
+
+| Whole line | Rendered as |
+| ------------------------------ | ------------------------------------- |
+| one JSON object | its fields, in source order, no braces around the record |
+| anything else — a bare string, an array, unparseable text | a plain-text line |
+| `WARN …`, `[WARN] …`, `warn: …` | the level word colored, the rest plain |
+
+Within a record, each field renders by its key and its JSON type:
+
+| Field | Rendered as |
 | ------------------------------ | ------------------------------------- |
 | `{"time":…}` as the first key | the value alone, no `time=` label |
 | `{"time":…}` later in the record | `time=<value>`, still styled as a time |
 | `{"level":"warn"}` | the value alone, colored by the theme |
 | `{"msg":…}` with `MessageKey` set | the value alone |
 | any other field | `key=value`, value colored by its JSON type |
-| `"a string"` | unquoted by default; `QuoteText` adds quotes |
-| `{"host":"db1","port":5432}` | `{host=db1 port=5432}`, formatted like a record |
-| `["a","b"]` | `[a, b]` |
-| a string containing newlines | a `<pre>` block, so a stack trace keeps its indentation |
-| anything that is not one JSON object | a plain-text line |
-| `WARN …`, `[WARN] …`, `warn: …` | the level word colored, the rest plain |
+| a string value | unquoted by default; `QuoteText` adds quotes, except to promoted values and multiline strings |
+| an object value, `{"host":"db1","port":5432}` | `{host=db1 port=5432}`, formatted like a record but braced |
+| an array value, `["a","b"]` | `[a, b]` |
+| a string value containing newlines | a `<pre>` block, so a stack trace keeps its indentation |
 
 Field order is preserved, including duplicate keys — two `err` fields in one
 record is a bug worth seeing, not one to hide.
@@ -171,8 +180,10 @@ class directly. `{"level":"foo hidden"}` would otherwise emit
 The rule is therefore not "validate the value" but **only ever emit a token the
 theme defined**: `log-level-<v>` when the lowercased value is a key of
 `Theme.Levels`, and `log-level-undefined` in every other case. `Theme.Levels`
-keys are themselves restricted to `mx.ValidIDRune` characters, so a careless
-theme cannot open the hole either. The level *text* still shows the raw value,
+keys are themselves restricted to `mx.ValidIDRune` characters and to 32 of
+them, so a careless theme cannot open the hole either — a key that breaks
+either rule is ignored, and values that would have matched it render as
+`log-level-undefined`. The level *text* still shows the raw value,
 escaped, so nothing is lost.
 
 ## The view's behavior
@@ -180,12 +191,16 @@ escaped, so nothing is lost.
 One inline script, defined once per page behind a guard, drives all of it
 through fixed `data-mx-log-*` attributes — independent of `Prefix`, so one
 definition serves every view on the page while each keeps its own filter, pause
-and cap. Several views can read one stream: give each its own `hx.Ext("sse")`
-and `hx.SSEConnect`, and each opens its own connection and its own backlog, so
-pausing or filtering one leaves the others streaming. Putting a single
-`sse-connect` above them instead would share one connection, and then pausing
-would be a property of the page rather than of a viewer. It watches DOM mutations rather than
-htmx events, so it works for SSE, an ordinary swap, or any other script.
+and cap — pausing or filtering one view never touches another, whatever the
+connections below look like. What the connection topology decides is
+resumption, not pause. Give each view its own `hx.Ext("sse")` and
+`hx.SSEConnect` and each gets its own connection, its own backlog and its own
+`Last-Event-ID`, so one can reconnect or be closed while the others keep
+streaming. Putting a single `sse-connect` above them instead shares one
+connection: every view sees the same events, and a reconnect or an
+`hx.SSEClose` is a property of the page rather than of a viewer. It watches DOM
+mutations rather than htmx events, so it works for SSE, an ordinary swap, or
+any other script.
 
 - **Pause** keeps arriving lines in the DOM and marks them `data-mx-log-pending`
   instead of detaching them, so order, `hx-swap-oob` targeting and htmx's settle

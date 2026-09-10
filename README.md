@@ -30,7 +30,7 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 - **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
 - **[CHANGELOG.md](CHANGELOG.md)** — what changed. Nothing is tagged yet, so
   everything is still under `Unreleased` and the API is free to change.
-- **[TODOS.md](TODOS.md)** — deferred work by package and priority (the
+- **[TODOS.md](TODOS.md)** — deferred work by area and priority (the
   shadcn/ui port build order is in [shadcn/TODOS.md](shadcn/TODOS.md)).
 
 ## Install
@@ -92,9 +92,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   `hx.Trigger`, …), with typed values where htmx constrains them — a
   `hx.SwapStyle` enum for `hx.Swap`, `bool` arguments for `hx.Boost`/
   `hx.History`/`hx.Validate`, and boolean attributes like `hx.Disable`/
-  `hx.Preserve`. Adds `htmx:` event and `htmx-*` CSS class name constants,
-  plus a server side for HTTP handlers: `hx.IsRequest`/`hx.IsBoosted` request
-  readers and `hx.SetRedirect`/`hx.SetTrigger`/… response-header setters.
+  `hx.Preserve`. Adds `htmx:` event and `htmx-*` CSS class name constants, the
+  `sse` extension's attributes (`hx.SSEConnect`, `hx.SSESwap`, `hx.SSEClose`)
+  for consuming an `mx.SSEResponse`, plus a server side for HTTP handlers:
+  `hx.IsRequest`/`hx.IsBoosted` request readers and
+  `hx.SetRedirect`/`hx.SetTrigger`/… response-header setters.
   Provides `hx.FieldDecider` that wraps `html.FieldDecider` and adds
   `hx-trigger="change"` to live inputs. See [hx/README.md](hx/README.md).
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
@@ -148,7 +150,10 @@ A browser reconnects to a dropped stream on its own and does it silently, so
 `SSEResponse.SendEvent` takes an `SSEEvent.ID` and `mx.LastEventID(request)`
 reads back what the client acknowledged — without them a reconnect replays the
 whole stream or skips what it missed. `SetRetry` tunes the reconnect delay and
-`KeepaliveLoop` keeps an idle connection from being dropped at all.
+`KeepaliveLoop` keeps an idle connection from being dropped at all. A stream
+that never ends needs `http.Server.WriteTimeout` cleared, which would leave
+writes unbounded, so `SetWriteTimeout` bounds a single frame instead: a client
+that stops reading cannot pin the producer goroutine forever.
 
 Around it: `mx.KeyedID` derives an element id that is stable across renders and
 processes (which `mx.UniqueID`'s counter cannot), so a later event can address

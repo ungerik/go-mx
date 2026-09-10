@@ -214,6 +214,33 @@ byte-safe under an indenting writer.
 **Priority:** P4
 **Depends on:** None
 
+## Documentation site
+
+### No docs-site page for `hx` or the streaming surface
+
+**What:** The site at <https://ungerik.github.io/go-mx/> has tutorial, how-to
+and reference pages for `html` and `shadcn` only. `hx` has none, and neither
+does the streaming surface (`mx.SSEResponse`, `mx.KeyedID`, the `hx.SSE*`
+attributes, `shadcn.StickToBottom`, `logview`).
+
+**Why:** Streaming is documented — `README.md`, `hx/README.md`,
+`logview/README.md` and two worked commands all cover it — but none of that is
+on the site. A reader who starts at the docs site finds nothing and concludes
+go-mx cannot stream, while the feature is one repo click away. Reference and
+how-to coverage exist; the tutorial quadrant is empty for the whole surface.
+
+**Context:** The gap predates the streaming work: `hx` never had a site page
+either, so this is the site's structure trailing the repo rather than anything
+this cycle removed. `docs/index.md` names `logview` and `mx.SSEResponse` in the
+package table, which is the only site-level mention. The existing
+`docs/html/{index,tutorial,how-to}.md` trio is the shape to copy; the gallery
+under `docs/shadcn/gallery/` is generated and unaffected. `cmd/example-sse` and
+`cmd/example-logstream` are ready-made tutorial material.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## Completed
 
 ### `GlobPageSource.Dir` does not scope the glob
