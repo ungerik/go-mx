@@ -22,6 +22,17 @@ var (
 		html.Integrity("sha384-Q+Dky3iHVJOr6wUjQ4ulh6uQ76an/t+ak1+PjMVaxRjbZamFLAG+u9InkfjbsEQf"),
 		html.CrossOriginAnonymous,
 	)
+
+	// ScriptSSEFromCDN is a <script> element that loads the htmx SSE
+	// extension 2.2.4 from the unpkg CDN with a Subresource Integrity hash
+	// and anonymous crossorigin. htmx 2.0 moved SSE out of core, so the
+	// [SSEConnect], [SSESwap] and [SSEClose] attributes need this loaded in
+	// addition to [ScriptFromCDN], and Ext("sse") on the connecting element.
+	ScriptSSEFromCDN = html.Script(
+		html.Src("https://unpkg.com/htmx-ext-sse@2.2.4"),
+		html.Integrity("sha384-A986SAtodyH8eg8x8irJnYUk7i9inVQqYigD6qZ9evobksGNIXfeFvDwLSHcp31N"),
+		html.CrossOriginAnonymous,
+	)
 )
 
 // htmx request and response headers are available as the Header* constants

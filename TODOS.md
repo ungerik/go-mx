@@ -195,6 +195,7 @@ written under a mutex so a `Keepalive` ticker cannot interleave with the
 producer. `SendError` follows `RespondNonContextError`: generic message unless
 `RevealInternalServerErrors`, silent on a context error, but with the ctx
 cancellation stripped so the report still reaches a client that is reading.
+Worked example in `cmd/example-sse`, verified in Chrome end to end.
 
 ### Content-derived stable element ids
 

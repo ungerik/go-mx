@@ -125,6 +125,27 @@ For streaming output or serving over HTTP, render a `Component` into an
   [wordpress/README.md](wordpress/README.md).
 - **`web`**, **`doc`** — higher-level abstractions, partially implemented.
 
+## Streaming
+
+`mx.SSEResponse` streams components to a client as Server-Sent Events over a
+still-open HTTP response, rendering one component per event. go-mx otherwise
+buffers a whole response before writing it, so that a deferred computation
+failing mid-render becomes a clean 500 instead of a truncated page;
+`SSEResponse` keeps that guarantee per *event* rather than per response, and
+`SendError` carries a later failure in band, since after the first flush the 200
+is committed and there is no 500 left to send.
+
+Around it: `mx.KeyedID` derives an element id that is stable across renders and
+processes (which `mx.UniqueID`'s counter cannot), so a later event can address
+an element an earlier one rendered; `hx.SSEConnect` / `hx.SSESwap` /
+`hx.SSEClose` are the htmx SSE-extension attributes; and
+`shadcn.StickToBottom` makes a `ScrollArea` follow growing content unless the
+user has scrolled up.
+
+See [`cmd/example-sse`](cmd/example-sse/main.go) for a worked example that
+streams a chat transcript, appends tokens to one message out of band by its
+`KeyedID`, and (with `-fail`) reports an error in band.
+
 ## Reflected forms
 
 `mx.ReflectFormHandler[T]` builds a full http.Handler for a struct
