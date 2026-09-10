@@ -20,33 +20,6 @@ guarantee survives at event granularity. Only the response-level contract
 changes — after the first flush there is no 500 left to send, so a failure has to
 travel in-band.
 
-### SSE response type with a per-event flush loop
-
-**What:** A `text/event-stream` response type that renders a `Component` per
-event, flushes, and keeps the connection open. No flushing primitive exists in
-go-mx today: `http.Flusher` and `Flush(` appear nowhere in the module.
-
-**Why:** Without it there is no token streaming and no server-pushed message
-append. `Component.Render(ctx, Writer) error` is pull-based and the context
-already carries cancellation for a disconnected client, so nothing else about
-the render path blocks streaming — this is the one load-bearing piece.
-
-**Context:** The type owns the flush loop so callers cannot half-use it:
-`NewSSEResponse(w, factory)` failing at handler entry if `w` cannot flush, then
-`Send`/`SendError`/`Keepalive`/`Close`. Four details that are easy to get wrong:
-`data:` is line-delimited, so rendered markup containing a newline must be
-re-split into one `data:` line per line (it collides with `CheckedWriter.Newline`
-and `WithIndent`); the headers must include `X-Accel-Buffering: no` because
-on-premise deployments sit behind the customer's own reverse proxy; `Keepalive`
-writes an SSE comment to defeat proxy idle timeouts; and `SendError` is the
-in-band error contract — a reserved event name the client binds to, to be
-documented together with `hx.EventSSEError` (`hx/events.go`), which is how htmx's
-`sse` extension surfaces transport failures.
-
-**Effort:** L
-**Priority:** P0
-**Depends on:** None
-
 ### Content-derived stable element ids
 
 **What:** A deterministic `id` `Attrib` derived from caller-supplied key parts,
@@ -267,3 +240,39 @@ directory that matches the glob is silently skipped instead of being walked.
 absolute `Pattern` with a `Dir` set is an error rather than a silent choice
 between the two. A matching directory is now skipped explicitly; walking it
 recursively was not added, `filepath.Match` has no `**`.
+
+### SSE response type with a per-event flush loop
+
+**What:** A `text/event-stream` response type that renders a `Component` per
+event, flushes, and keeps the connection open. No flushing primitive exists in
+go-mx today: `http.Flusher` and `Flush(` appear nowhere in the module.
+
+**Why:** Without it there is no token streaming and no server-pushed message
+append. `Component.Render(ctx, Writer) error` is pull-based and the context
+already carries cancellation for a disconnected client, so nothing else about
+the render path blocks streaming — this is the one load-bearing piece.
+
+**Context:** The type owns the flush loop so callers cannot half-use it:
+`NewSSEResponse(w, factory)` failing at handler entry if `w` cannot flush, then
+`Send`/`SendError`/`Keepalive`/`Close`. Four details that are easy to get wrong:
+`data:` is line-delimited, so rendered markup containing a newline must be
+re-split into one `data:` line per line (it collides with `CheckedWriter.Newline`
+and `WithIndent`); the headers must include `X-Accel-Buffering: no` because
+on-premise deployments sit behind the customer's own reverse proxy; `Keepalive`
+writes an SSE comment to defeat proxy idle timeouts; and `SendError` is the
+in-band error contract — a reserved event name the client binds to, to be
+documented together with `hx.EventSSEError` (`hx/events.go`), which is how htmx's
+`sse` extension surfaces transport failures.
+
+**Effort:** L
+**Priority:** P0
+**Depends on:** None
+**Completed:** (2026-09-10) — `mx.SSEResponse` in `sse.go`. `NewSSEResponse`
+probes the flush capability through the `Unwrap` chain *before* writing any
+header, so a non-flushable writer is still answerable with a 500. `Send` renders
+into a buffer and returns a render error before a byte of the frame is written,
+and re-splits the output on CRLF/CR/LF into one `data:` line each. Frames are
+written under a mutex so a `Keepalive` ticker cannot interleave with the
+producer. `SendError` follows `RespondNonContextError`: generic message unless
+`RevealInternalServerErrors`, silent on a context error, but with the ctx
+cancellation stripped so the report still reaches a client that is reading.
