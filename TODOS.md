@@ -7,6 +7,69 @@ in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
+## mx streaming
+
+Prerequisites for a server-streamed chat surface. go-mx buffers every HTTP
+response on purpose — `ComponentHTTPHandler` (`component.go`),
+`ComponentFuncHandler.ServeHTTP` (`route.go`) and `writeFormResponse`
+(`formhandler.go`) each render into a `bytes.Buffer` first, because a deferred
+computation can fail mid-render and streaming would already have sent a 200 and
+a truncated page. The resolution is to buffer **per event, not per response**: an
+SSE stream is a sequence of independently rendered fragments, so the existing
+guarantee survives at event granularity. Only the response-level contract
+changes — after the first flush there is no 500 left to send, so a failure has to
+travel in-band.
+
+### SSE response type with a per-event flush loop
+
+**What:** A `text/event-stream` response type that renders a `Component` per
+event, flushes, and keeps the connection open. No flushing primitive exists in
+go-mx today: `http.Flusher` and `Flush(` appear nowhere in the module.
+
+**Why:** Without it there is no token streaming and no server-pushed message
+append. `Component.Render(ctx, Writer) error` is pull-based and the context
+already carries cancellation for a disconnected client, so nothing else about
+the render path blocks streaming — this is the one load-bearing piece.
+
+**Context:** The type owns the flush loop so callers cannot half-use it:
+`NewSSEResponse(w, factory)` failing at handler entry if `w` cannot flush, then
+`Send`/`SendError`/`Keepalive`/`Close`. Four details that are easy to get wrong:
+`data:` is line-delimited, so rendered markup containing a newline must be
+re-split into one `data:` line per line (it collides with `CheckedWriter.Newline`
+and `WithIndent`); the headers must include `X-Accel-Buffering: no` because
+on-premise deployments sit behind the customer's own reverse proxy; `Keepalive`
+writes an SSE comment to defeat proxy idle timeouts; and `SendError` is the
+in-band error contract — a reserved event name the client binds to, to be
+documented together with `hx.EventSSEError` (`hx/events.go`), which is how htmx's
+`sse` extension surfaces transport failures.
+
+**Effort:** L
+**Priority:** P0
+**Depends on:** None
+
+### Content-derived stable element ids
+
+**What:** A deterministic `id` `Attrib` derived from caller-supplied key parts,
+alongside the existing counter-based `UniqueID`.
+
+**Why:** `UniqueID()` (`uniqueid.go`) draws from a process-lifetime atomic
+counter formatted in base 36. Two renders of the same entity produce different
+ids, and a process restart restarts the sequence. Out-of-band swaps target by
+id, so appending a token to "message N, part M" needs an id that is the same in
+the initial render and in every later event. With only `UniqueID` available, a
+streaming append cannot find its own target.
+
+**Context:** Prefer a sanitising join over a hash — `_msg-<uuid>-3` is readable
+in devtools where a hash is not, and debuggability is most of the value. Keep the
+`_` prefix convention so the result is a valid HTML id that does not start with a
+digit. Signature along the lines of `func KeyedID(parts ...any) Attrib`,
+documented as "stable across renders and processes" in explicit contrast to
+`UniqueID`.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
 ## mx reflected forms
 
 All three were surfaced by the adversarial review of the out-of-list placeholder
@@ -77,6 +140,51 @@ empty placeholder option for required selects, which also restores client-side
 **Effort:** S
 **Priority:** P1
 **Depends on:** None
+
+## hx
+
+### Typed `sse-connect` / `sse-swap` / `sse-close` attributes
+
+**What:** Three typed attribute helpers for the htmx SSE extension.
+
+**Why:** `hx/attributes.go` carries 30+ typed `hx-*` helpers and these are
+absent, so every call site hand-writes `mx.NewAttrib("sse-connect", url)` — no
+naming, no doc comment, no discoverability. The package already knows about the
+extension: `hx/events.go` defines `EventSSEError` and `EventNoSSESourceError`
+with a comment that htmx 2.0 moved SSE out of core.
+
+**Context:** `sse-swap` takes one or more event names, so it should accept a
+variadic and join on comma, mirroring how `SwapOOB` takes variadic selectors
+(`attributes.go`). `hx.Ext("sse")` already loads the extension, so no new
+machinery is needed beyond the attribs.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
+## shadcn
+
+### Scroll anchoring for `ScrollArea`
+
+**What:** Stick-to-bottom behaviour for a scroll container whose content grows:
+follow new content unless the user has scrolled up.
+
+**Why:** It is the single most-noticed behaviour in a chat UI, and its absence is
+noticed as a bug rather than a missing feature. `shadcn/scrollarea.go` is pure
+classes (`scrollAreaClasses`) with no script.
+
+**Context:** This needs **no new go-mx API**. `hx.OnHTMX` plus the existing
+`hx.EventOOBAfterSwap` / `hx.EventAfterSettle` constants (`hx/events.go`) can
+drive it, and `ScrollArea(attribsChildren ...any)` composes an extra attrib
+naturally. The precedent for a small inline script shipped with a component is
+`tabsSelectScript` (`shadcn/tabs.go`). Open question worth deciding before
+writing it: library component or consumer-side recipe. A recipe is honest if it
+stays ten lines; a `StickToBottom` attrib is better if the near-bottom threshold
+needs tuning, because then every consumer would otherwise copy the same tuning.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** SSE response type (there is nothing to anchor until content streams)
 
 ## shadcn/cva
 
