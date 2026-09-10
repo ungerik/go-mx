@@ -50,10 +50,14 @@ func TestScrollArea_StickToBottomEmitsAttribAndScript(t *testing.T) {
 			t.Errorf("missing %q in %s", want, out)
 		}
 	}
-	// The script has to come after the content: it scrolls to the bottom when it
-	// wires up, and would measure a partial height if it ran mid-parse.
-	if strings.Index(out, ">content<") > strings.Index(out, "<script") {
-		t.Errorf("script is emitted before the content: %s", out)
+	// The script has to come BEFORE the content. A structural CSS selector counts
+	// the script element, so a trailing <script> makes :last-child (Tailwind's
+	// last: variant) match it instead of the last content row — silently breaking
+	// the "last:border-b-0" idiom this package's own ScrollArea demo uses.
+	// Measuring at wire-up no longer depends on the position: the observers pin
+	// the element as the content arrives.
+	if strings.Index(out, "<script") > strings.Index(out, ">content<") {
+		t.Errorf("script is emitted after the content, so :last-child matches it: %s", out)
 	}
 }
 
@@ -92,5 +96,33 @@ func TestScrollArea_StickToBottomScriptGuardsItsDefinition(t *testing.T) {
 	}
 	if got := strings.Count(out, "window.mxStickToBottomScan(document);</script>"); got != 2 {
 		t.Errorf("the unguarded scan runs %d times, want once per instance", got)
+	}
+}
+
+func TestScrollArea_StickToBottomThresholdEmitsTheScript(t *testing.T) {
+	// The threshold attribute is only tuning: without the script the area is a
+	// plain overflow box that never follows anything, and the attribute makes it
+	// look configured. StickToBottom and StickToBottomThreshold are two spellings
+	// of one feature, so both have to bring the behavior with them.
+	out := render(t, ScrollArea(StickToBottomThreshold(96), "content"))
+	if !strings.Contains(out, "window.mxStickToBottom") {
+		t.Errorf("StickToBottomThreshold did not emit the script: %s", out)
+	}
+	if strings.Index(out, "<script") > strings.Index(out, ">content<") {
+		t.Errorf("script is emitted after the content, so :last-child matches it: %s", out)
+	}
+}
+
+func TestStickToBottomScriptReadsTheAttribute(t *testing.T) {
+	// The CSS selector is built from stickToBottomAttr, but the threshold is read
+	// through the dataset key the browser derives from that same name. Only the
+	// selector follows a rename automatically, so renaming the attribute would
+	// silently revert every custom threshold to the default with every other
+	// test still green.
+	if stickToBottomAttr != "data-stick-to-bottom" {
+		t.Fatalf("stickToBottomAttr = %q: rename the script's dataset key with it", stickToBottomAttr)
+	}
+	if !strings.Contains(stickToBottomScript, "dataset.stickToBottom") {
+		t.Error("the script no longer reads the threshold from the attribute")
 	}
 }

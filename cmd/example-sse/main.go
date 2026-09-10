@@ -29,12 +29,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/hx"
@@ -91,13 +91,25 @@ func page() mx.Component {
 						shadcn.StickToBottom,
 						// Appending here rather than replacing is what makes
 						// this a transcript instead of one swapping message.
-						html.Div(hx.SSESwap(eventMessage), hx.Swap(hx.SwapBeforeEnd)),
+						// role="log" is the other half of the job: scroll
+						// anchoring follows the stream for a sighted user, and
+						// a live region announces it for everyone else.
+						html.Div(
+							html.Role("log"),
+							html.Attrib("aria-live", "polite"),
+							hx.SSESwap(eventMessage), hx.Swap(hx.SwapBeforeEnd),
+						),
 					),
 					// A failure reported in band cannot be a 500 any more, so it
-					// needs somewhere to land. mx.SSEEventError is the reserved
-					// name mx.SSEResponse.SendError sends.
+					// needs somewhere to land. mx.SSEEventError is the name
+					// mx.SSEResponse.SendError sends it under — "mx-error", not
+					// "error", which is the name the browser already uses for a
+					// transport failure of its own.
+					// role="alert" so the failure is announced, and the word
+					// "Error" so it does not depend on the red alone.
 					html.Div(
 						html.Style("color:#b91c1c;margin-top:.5rem"),
+						html.Role("alert"),
 						hx.SSESwap(mx.SSEEventError),
 					),
 				),
@@ -231,7 +243,10 @@ func streamHandler(fail, drop bool) http.HandlerFunc {
 			if fail && i == len(transcript) {
 				// The -fail path: a 200 and a dozen messages are already on the
 				// wire, so this can only travel in band.
-				_ = sse.SendError(ctx, fmt.Errorf("ledger query timed out after 30s"))
+				// The message the client sees is generic (mx.RevealInternalServerErrors
+				// is false), so the example prefixes it rather than relying on color.
+				_ = sse.Send(ctx, mx.SSEEventError, html.Strong("Error: "))
+				_ = sse.SendError(ctx, errs.New("ledger query timed out after 30s"))
 				break
 			}
 			// A canceled context means the client navigated away or reloaded,
@@ -241,7 +256,15 @@ func streamHandler(fail, drop bool) http.HandlerFunc {
 			if err := sse.SendEvent(ctx, event); err != nil {
 				return
 			}
-			time.Sleep(tickInterval)
+			// Waiting on the context as well as the clock, so a client that
+			// leaves mid-stream ends the handler now instead of one tick later.
+			// A bare sleep would hold the whole stream alive for that long after
+			// every disconnect.
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(tickInterval):
+			}
 		}
 
 		// Close on the failure path too. A browser's EventSource reconnects on

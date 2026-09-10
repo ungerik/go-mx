@@ -33,10 +33,16 @@ func ScrollArea(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex(stickToBottomAttr) >= 0 {
 		// Ship the behavior with the component, like Tabs does with
 		// tabsSelectScript: the script defines itself once per page and every
-		// instance re-runs only the scan. As the last child it also runs after
-		// the initial content is parsed, so the first scroll-to-bottom measures
-		// the full height.
-		e.Children = append(e.Children, html.ScriptJS(stickToBottomScript))
+		// instance re-runs only the scan.
+		//
+		// It goes first, not last, because a structural CSS selector counts it:
+		// as the last child it matched :last-child (Tailwind's last: variant)
+		// instead of the last content row, which silently broke the
+		// "last:border-b-0" idiom this package's own ScrollArea demo uses.
+		// Running before the content is parsed costs nothing now that the
+		// observers below drive the pinning — attaching them first means they
+		// see the initial content arrive rather than measuring after it.
+		e.Children = append([]mx.Component{html.ScriptJS(stickToBottomScript)}, e.Children...)
 	}
 	return finish(e, "scroll-area", scrollAreaClasses)
 }
@@ -59,7 +65,27 @@ const StickToBottomDefaultThresholdPx = 48
 // where they are.
 //
 // It renders as a data attribute and makes [ScrollArea] emit a small inline
-// script (once per page, like [Tabs]) that watches the element for DOM changes.
+// script that follows the element. The script is emitted once per anchored
+// ScrollArea, like [Tabs] does, and guarded so its definition runs only once
+// per page.
+//
+// Following survives more than added nodes: the script also re-pins when a
+// descendant image finishes loading, when a webfont swaps in, when a class,
+// style, open or hidden attribute changes a child's height, and when the
+// container itself is resized. Content that grows by layout rather than by
+// mutation would otherwise leave the view stranded above the bottom, and the
+// initial pin is the worst case — it runs while images below are still zero
+// height. (data-stuck is deliberately outside that attribute filter, so the
+// script's own bookkeeping cannot re-trigger the observer.)
+//
+// While following, the element carries a data-stuck attribute, so a caller can
+// show a "jump to latest" affordance with CSS alone:
+//
+//	[data-stuck] .jump-to-latest { display: none }
+//
+// The script is emitted as the container's FIRST child, so :last-child
+// (Tailwind's last: variant) still matches the last content row. A caller
+// styling direct children with :first-child must account for it.
 // The element is followed while its scroll position is within
 // [StickToBottomDefaultThresholdPx] of the bottom; use [StickToBottomThreshold]
 // for a different distance. Scrolling up stops the following, scrolling back
@@ -96,4 +122,4 @@ func StickToBottomThreshold(px int) mx.Attrib {
 //
 // It is a var rather than a const only because it interpolates
 // [StickToBottomDefaultThresholdPx], keeping that default in one place.
-var stickToBottomScript = /*js*/ `if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var t=parseInt(el.dataset.stickToBottom,10);if(!(t>=0))t=` + strconv.Itoa(StickToBottomDefaultThresholdPx) + `;var stuck=true;el.addEventListener('scroll',function(){stuck=el.scrollHeight-el.scrollTop-el.clientHeight<=t;},{passive:true});new MutationObserver(function(){if(stuck)el.scrollTop=el.scrollHeight;}).observe(el,{childList:true,subtree:true,characterData:true});el.scrollTop=el.scrollHeight;};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[` + stickToBottomAttr + `]'))window.mxStickToBottom(r);r.querySelectorAll('[` + stickToBottomAttr + `]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);`
+var stickToBottomScript = /*js*/ `if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(` + strconv.Itoa(StickToBottomDefaultThresholdPx) + `,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[` + stickToBottomAttr + `]'))window.mxStickToBottom(r);r.querySelectorAll('[` + stickToBottomAttr + `]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);`

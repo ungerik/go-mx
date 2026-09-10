@@ -30,7 +30,10 @@ func ScrollAreaDemo() mx.Component {
 // [mx.SSEResponse] stream — scroll up and the following stops, scroll back down
 // and it resumes.
 func ScrollAreaStickToBottom() mx.Component {
-	logID := mx.KeyedIDValue("gallery", "stick-to-bottom", "log")
+	// One binding for the element's id and for the selector the script looks it
+	// up by, so editing a part cannot break the append silently.
+	logKey := []any{"gallery", "stick-to-bottom", "log"}
+	logID := mx.KeyedIDValue(logKey...)
 	appendLine := /*js*/ `var l=document.getElementById('` + logID + `');` +
 		`var d=document.createElement('div');` +
 		`d.className='border-b py-1.5 last:border-b-0';` +
@@ -41,7 +44,7 @@ func ScrollAreaStickToBottom() mx.Component {
 			html.Class("h-48 w-56 rounded-md border p-4 text-sm"),
 			shadcn.StickToBottom,
 			html.DivClass("mb-3 font-medium leading-none", "Build log"),
-			html.Div(mx.KeyedID("gallery", "stick-to-bottom", "log"),
+			html.Div(mx.KeyedID(logKey...),
 				mx.ForEach([]string{
 					"Resolving dependencies", "Compiling mx", "Compiling html",
 					"Compiling svg", "Compiling hx", "Compiling shadcn",

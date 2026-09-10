@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -108,7 +109,7 @@ func TestStreamAppendsTokensToTheKeyedContainer(t *testing.T) {
 	if !strings.Contains(body, `hx-swap-oob="beforeend:#`+id+`"`) {
 		t.Fatalf("no token targets #%s out of band", id)
 	}
-	if got, want := strings.Count(body, `hx-swap-oob="beforeend:#`+id+`"`), 9; got != want {
+	if got, want := strings.Count(body, `hx-swap-oob="beforeend:#`+id+`"`), len(replyTokens); got != want {
 		t.Errorf("%d tokens target the container, want %d", got, want)
 	}
 }
@@ -126,8 +127,8 @@ func TestStreamEndsWithTheCloseEvent(t *testing.T) {
 }
 
 func TestStreamFailureTravelsInBand(t *testing.T) {
-	// By the time the failure happens the 200 and four messages are already on
-	// the wire, so there is no status code left to report it with.
+	// By the time the failure happens the 200 and the whole transcript are
+	// already on the wire, so there is no status code left to report it with.
 	body := streamBody(t, true)
 	if !strings.Contains(body, "event: "+mx.SSEEventError+"\n") {
 		t.Fatalf("the failure was not reported as an %s event:\n%s", mx.SSEEventError, body)
@@ -234,5 +235,53 @@ func TestStreamSetsTheReconnectDelay(t *testing.T) {
 	// connection look like a hang rather than a reconnect.
 	if !strings.HasPrefix(streamBody(t, false), "retry: 500\n\n") {
 		t.Error("the stream did not set the reconnect delay before its first event")
+	}
+}
+
+// nonFlushingWriter is an http.ResponseWriter that cannot flush, which is what
+// a handler sees behind middleware that wraps the writer without forwarding
+// Flush.
+type nonFlushingWriter struct{ http.ResponseWriter }
+
+func TestStreamAnswersANonFlushableWriterWithACleanError(t *testing.T) {
+	// This is the shape the whole handler is arranged around: everything that
+	// can fail with a status code has to happen before NewSSEResponse commits
+	// the 200. A stream that cannot flush would otherwise be delivered as one
+	// buffered response when the handler returns, which looks like a hang the
+	// client can only time out on.
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+	streamHandler(false, false)(nonFlushingWriter{rec}, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	if strings.Contains(rec.Body.String(), "data:") {
+		t.Errorf("the handler streamed into a writer that cannot flush:\n%s", rec.Body.String())
+	}
+}
+
+func TestStreamStopsWhenTheClientDisconnects(t *testing.T) {
+	// A canceled request context is how a handler learns the browser navigated
+	// away, reloaded, or closed the stream. Without checking it the loop renders
+	// every remaining step into a socket nobody reads — and with a real tick
+	// interval it holds the goroutine for the rest of the transcript.
+	prev := tickInterval
+	tickInterval = 0
+	t.Cleanup(func() { tickInterval = prev })
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+	streamHandler(false, false)(rec, req)
+
+	if got := len(eventIDs(rec.Body.String())); got != 0 {
+		t.Errorf("%d events were written for a disconnected client:\n%s", got, rec.Body.String())
+	}
+	// The close event is for a client that is still there; a disconnected one
+	// cannot read it, and reaching it would mean the loop ran to the end.
+	if strings.Contains(rec.Body.String(), "event: "+eventDone) {
+		t.Errorf("the handler ran to completion for a disconnected client:\n%s", rec.Body.String())
 	}
 }
