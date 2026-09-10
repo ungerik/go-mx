@@ -128,13 +128,15 @@ with the same name on one element), and can pretty-print with
 | `html`       | HTML5 elements (`Div`, `Span`, `Input`, …) and attributes (`Class`, `ID`, …) |
 | `svg`        | SVG elements and attributes, with `xmlns` handling and numeric values |
 | `xml`        | Generic XML markup: `Element`/`Attrib` take any name (no fixed vocabulary), plus `Comment`, `CDATA`, `ProcInst`, the XML declaration and a `Document` |
-| `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, plus request readers and response-header setters for handlers |
+| `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, the `sse` extension's attributes (`hx.SSEConnect`, `hx.SSESwap`, `hx.SSEClose`), plus request readers and response-header setters for handlers |
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
+| `logview`    | Streamed log lines as a readable surface: a JSON record renders as promoted time and level plus `key=value` pairs colored by JSON type, with a filter, a pause toggle and a scroll area that follows the stream |
 | `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, embedded files plus XMP metadata for PDF/A-3 e-invoices (ZUGFeRD/Factur-X), and a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
-`Writer`, `If`/`ForEach`) that the others build on. Higher-level packages
+`Writer`, `If`/`ForEach`) that the others build on, plus `mx.SSEResponse` for
+streaming components to a client as Server-Sent Events. Higher-level packages
 (`web`, `doc`) are partially implemented.
 
 ## The shadcn port

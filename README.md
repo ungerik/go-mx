@@ -157,6 +157,8 @@ See [`cmd/example-sse`](cmd/example-sse/main.go) for a worked example that
 streams a chat transcript and appends tokens to one message out of band by its
 `KeyedID`. Its `-drop` flag cuts the first connection mid-reply so the browser
 reconnects and the handler resumes, and `-fail` reports an error in band.
+[`cmd/example-logstream`](cmd/example-logstream/main.go) streams a simulated
+production log through the `logview` package, resumable from a bounded history.
 
 ## Reflected forms
 

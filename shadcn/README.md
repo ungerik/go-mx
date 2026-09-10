@@ -447,8 +447,9 @@ structure, mirroring the Avatar `absolute inset-0` note.
 
 ### Inline scripts for interactive state
 
-Tabs, ToggleGroup, Slider (range mode) and InputOTP each emit one short
-`<script>` once per component instance, guarded with `if(!window.fn)`. The
+Tabs, ToggleGroup, Slider (range mode), InputOTP and a `ScrollArea` carrying
+`StickToBottom` each emit one short `<script>` once per component instance,
+guarded with `if(!window.fn)`. The
 script is the native replacement for the React reducer / Radix context that
 shadcn relies on. Inline `<script>` bodies are emitted with `html.Script(mx.Raw(...))`
 — the same pattern `html.StyleElem` uses for CSS. The `Toggle` default
