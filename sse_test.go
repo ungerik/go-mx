@@ -1,13 +1,16 @@
 package mx
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // nonFlushingWriter is an http.ResponseWriter that neither implements
@@ -346,7 +349,7 @@ func TestSSEResponse_ConcurrentWritesProduceIntactFrames(t *testing.T) {
 	for _, frame := range frames {
 		switch {
 		case frame == "":
-		case frame == sseKeepaliveFrame:
+		case frame == string(sseKeepaliveFrame):
 			pings++
 		case frame == "event: message\ndata: 0123456789\n\n":
 			events++
@@ -390,5 +393,328 @@ func TestSSELines(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestSSEResponse_SendEventWritesTheIDField(t *testing.T) {
+	// Without an id the client has nothing to send back on reconnect, so the
+	// handler cannot tell a fresh reader from a returning one.
+	sse, rec := newSSETest(t)
+	err := sse.SendEvent(t.Context(), SSEEvent{Name: "message", ID: "42", Comp: Text("hi")})
+	if err != nil {
+		t.Fatalf("SendEvent: %v", err)
+	}
+	if got, want := body(rec), "id: 42\nevent: message\ndata: hi\n\n"; got != want {
+		t.Errorf("frame = %q, want %q", got, want)
+	}
+}
+
+func TestSSEResponse_SendEventOmitsAnEmptyID(t *testing.T) {
+	// An empty "id:" field would reset the client's remembered id to the empty
+	// string, so a later reconnect would silently lose its resume point. The
+	// field has to be absent, not empty.
+	sse, rec := newSSETest(t)
+	if err := sse.SendEvent(t.Context(), SSEEvent{Name: "message", Comp: Text("hi")}); err != nil {
+		t.Fatalf("SendEvent: %v", err)
+	}
+	if strings.Contains(body(rec), "id:") {
+		t.Errorf("frame %q carries an id field for an empty SSEEvent.ID", body(rec))
+	}
+}
+
+func TestSSEResponse_SendEventRejectsUnusableIDs(t *testing.T) {
+	// A line break forges extra fields. A NUL is worse than that: the SSE
+	// specification tells clients to ignore an id containing one, so resumption
+	// would break with nothing on the wire looking wrong.
+	sse, rec := newSSETest(t)
+	for _, id := range []string{"a\nb", "a\rb", "a\x00b"} {
+		if err := sse.SendEvent(t.Context(), SSEEvent{ID: id, Comp: Text("x")}); err == nil {
+			t.Errorf("SendEvent with id %q succeeded, want an error", id)
+		}
+	}
+	if got := body(rec); got != "" {
+		t.Errorf("SendEvent wrote %q for a rejected id", got)
+	}
+}
+
+func TestSSEResponse_SendIsSendEventWithoutAnID(t *testing.T) {
+	// Send is the shorthand; if the two drifted apart the shorthand would be a
+	// second wire-format implementation to keep correct.
+	plain, plainRec := newSSETest(t)
+	full, fullRec := newSSETest(t)
+	if err := plain.Send(t.Context(), "message", Text("hi")); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	if err := full.SendEvent(t.Context(), SSEEvent{Name: "message", Comp: Text("hi")}); err != nil {
+		t.Fatalf("SendEvent: %v", err)
+	}
+	if body(plainRec) != body(fullRec) {
+		t.Errorf("Send wrote %q, SendEvent wrote %q", body(plainRec), body(fullRec))
+	}
+}
+
+func TestLastEventID(t *testing.T) {
+	// This is the whole server-side half of resumption: without reading the
+	// header the handler cannot know where the client left off.
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+	if got := LastEventID(req); got != "" {
+		t.Errorf("LastEventID of a fresh request = %q, want empty", got)
+	}
+	req.Header.Set(HeaderLastEventID, "42")
+	if got := LastEventID(req); got != "42" {
+		t.Errorf("LastEventID = %q, want %q", got, "42")
+	}
+}
+
+func TestSSEResponse_SetRetry(t *testing.T) {
+	sse, rec := newSSETest(t)
+	if err := sse.SetRetry(2500 * time.Millisecond); err != nil {
+		t.Fatalf("SetRetry: %v", err)
+	}
+	if got, want := body(rec), "retry: 2500\n\n"; got != want {
+		t.Errorf("frame = %q, want %q", got, want)
+	}
+}
+
+func TestSSEResponse_SetRetryRejectsSubMillisecond(t *testing.T) {
+	// The SSE specification requires the field to be ASCII digits and tells
+	// clients to ignore anything else, so a zero or negative delay would be a
+	// silent no-op rather than an error the caller can see.
+	sse, rec := newSSETest(t)
+	for _, d := range []time.Duration{0, -time.Second, 999 * time.Microsecond} {
+		if err := sse.SetRetry(d); err == nil {
+			t.Errorf("SetRetry(%s) succeeded, want an error", d)
+		}
+	}
+	if got := body(rec); got != "" {
+		t.Errorf("SetRetry wrote %q for a rejected duration", got)
+	}
+}
+
+func TestSSEResponse_KeepaliveLoopStopsWithTheContext(t *testing.T) {
+	// A client going away is how a stream normally ends, so the loop must
+	// return without an error — a caller logging that error would log one per
+	// disconnect.
+	sse, rec := newSSETest(t)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	done := make(chan error, 1)
+	go func() { done <- sse.KeepaliveLoop(ctx, time.Millisecond) }()
+
+	// Let a few ticks land before stopping it.
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("KeepaliveLoop returned %v on a canceled context, want nil", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("KeepaliveLoop did not return after its context was canceled")
+	}
+	if !strings.HasPrefix(body(rec), ": ") {
+		t.Errorf("KeepaliveLoop wrote %q, want SSE comments", body(rec))
+	}
+}
+
+func TestSSEResponse_KeepaliveLoopReturnsWriteErrors(t *testing.T) {
+	// Once the stream is closed the loop has to stop on its own, or a goroutine
+	// spins for the lifetime of the request context writing failures.
+	sse, _ := newSSETest(t)
+	if err := sse.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- sse.KeepaliveLoop(t.Context(), time.Millisecond) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("KeepaliveLoop returned nil after Close, want the write error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("KeepaliveLoop did not return after the stream was closed")
+	}
+}
+
+func TestSSEResponse_KeepaliveLoopRejectsNonPositiveInterval(t *testing.T) {
+	// time.NewTicker panics on a non-positive interval, which would take down
+	// the whole server from a goroutine the caller cannot recover in.
+	sse, _ := newSSETest(t)
+	for _, interval := range []time.Duration{0, -time.Second} {
+		if err := sse.KeepaliveLoop(t.Context(), interval); err == nil {
+			t.Errorf("KeepaliveLoop(%s) returned nil, want an error", interval)
+		}
+	}
+}
+
+// readFrame reads one SSE frame (up to and including the blank line that ends
+// it) with a timeout, so a response that is buffered instead of flushed fails
+// the test rather than hanging it.
+func readFrame(t *testing.T, r *bufio.Reader) string {
+	t.Helper()
+	type result struct {
+		frame string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		var frame strings.Builder
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				ch <- result{frame.String(), err}
+				return
+			}
+			frame.WriteString(line)
+			if line == "\n" {
+				ch <- result{frame.String(), nil}
+				return
+			}
+		}
+	}()
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			t.Fatalf("reading an SSE frame: %v (got %q)", res.err, res.frame)
+		}
+		return res.frame
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for an SSE frame — the response was buffered instead of flushed")
+		return ""
+	}
+}
+
+func TestSSEResponse_FlushesThroughARealServer(t *testing.T) {
+	// Every other test here writes into an httptest.ResponseRecorder, which
+	// "flushes" by doing nothing, so none of them can tell a working flush loop
+	// from one that buffers the whole response until the handler returns — the
+	// exact failure NewSSEResponse's flusher check exists to prevent. This test
+	// reads the first event off a real socket while the handler is still
+	// blocked, which is only possible if the flush actually reached the client.
+	release := make(chan struct{})
+	handlerDone := make(chan error, 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sse, err := NewSSEResponse(w, nil)
+		if err != nil {
+			handlerDone <- err
+			return
+		}
+		defer sse.Close()
+		if err := sse.SendEvent(r.Context(), SSEEvent{Name: "message", ID: "1", Comp: Text("first")}); err != nil {
+			handlerDone <- err
+			return
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			handlerDone <- r.Context().Err()
+			return
+		}
+		handlerDone <- sse.Send(r.Context(), "message", Text("second"))
+	}))
+	defer srv.Close()
+
+	resp, err := srv.Client().Get(srv.URL)
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if got := resp.Header.Get("Content-Type"); got != ContentTypeEventStream {
+		t.Errorf("Content-Type = %q, want %q", got, ContentTypeEventStream)
+	}
+	if got := resp.Header.Get("X-Accel-Buffering"); got != "no" {
+		t.Errorf("X-Accel-Buffering = %q, want %q — a reverse proxy will buffer the stream", got, "no")
+	}
+	if resp.ContentLength != -1 {
+		// A Content-Length means net/http buffered the whole body to measure
+		// it, which is exactly the failure mode this type exists to avoid.
+		t.Errorf("Content-Length = %d, want unknown (-1): the response was not streamed", resp.ContentLength)
+	}
+
+	reader := bufio.NewReader(resp.Body)
+	if got, want := readFrame(t, reader), "id: 1\nevent: message\ndata: first\n\n"; got != want {
+		t.Errorf("first frame = %q, want %q", got, want)
+	}
+
+	// Only now let the handler continue — the assertion above already proved the
+	// frame arrived before it did.
+	close(release)
+	if got, want := readFrame(t, reader), "event: message\ndata: second\n\n"; got != want {
+		t.Errorf("second frame = %q, want %q", got, want)
+	}
+	if err := <-handlerDone; err != nil {
+		t.Errorf("handler: %v", err)
+	}
+}
+
+func TestSSEResponse_ResumesFromLastEventIDThroughARealServer(t *testing.T) {
+	// The round trip only works if all three halves agree: the server writes
+	// "id:", the browser echoes it in the Last-Event-ID header, and the handler
+	// reads it back. A unit test can check any one of them and still miss that
+	// they disagree.
+	messages := []string{"one", "two", "three"}
+	seen := make(chan string, 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		last := LastEventID(r)
+		seen <- last
+
+		sse, err := NewSSEResponse(w, nil)
+		if err != nil {
+			return
+		}
+		defer sse.Close()
+
+		// Resume after the last id the client acknowledged. An unknown id means
+		// "start from the beginning", never an error — it is client-controlled.
+		from := 0
+		if i, err := strconv.Atoi(last); err == nil && i >= 0 && i < len(messages) {
+			from = i + 1
+		}
+		for i := from; i < len(messages); i++ {
+			event := SSEEvent{Name: "message", ID: strconv.Itoa(i), Comp: Text(messages[i])}
+			if err := sse.SendEvent(r.Context(), event); err != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	// First connection: no Last-Event-ID, so the client gets everything.
+	resp, err := srv.Client().Get(srv.URL)
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	if got := <-seen; got != "" {
+		t.Errorf("first request carried Last-Event-ID %q, want none", got)
+	}
+	reader := bufio.NewReader(resp.Body)
+	if got, want := readFrame(t, reader), "id: 0\nevent: message\ndata: one\n\n"; got != want {
+		t.Errorf("first frame = %q, want %q", got, want)
+	}
+	resp.Body.Close()
+
+	// Reconnect the way a browser does, echoing the last id it received.
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set(HeaderLastEventID, "0")
+	resp2, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("reconnect: %v", err)
+	}
+	defer resp2.Body.Close()
+	if got := <-seen; got != "0" {
+		t.Errorf("handler saw Last-Event-ID %q, want %q", got, "0")
+	}
+
+	// The resumed stream must start after the acknowledged event, not replay it.
+	reader2 := bufio.NewReader(resp2.Body)
+	if got, want := readFrame(t, reader2), "id: 1\nevent: message\ndata: two\n\n"; got != want {
+		t.Errorf("resumed stream started with %q, want %q — it replayed instead of resuming", got, want)
 	}
 }

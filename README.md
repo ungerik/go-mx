@@ -135,6 +135,12 @@ failing mid-render becomes a clean 500 instead of a truncated page;
 `SendError` carries a later failure in band, since after the first flush the 200
 is committed and there is no 500 left to send.
 
+A browser reconnects to a dropped stream on its own and does it silently, so
+`SSEResponse.SendEvent` takes an `SSEEvent.ID` and `mx.LastEventID(request)`
+reads back what the client acknowledged — without them a reconnect replays the
+whole stream or skips what it missed. `SetRetry` tunes the reconnect delay and
+`KeepaliveLoop` keeps an idle connection from being dropped at all.
+
 Around it: `mx.KeyedID` derives an element id that is stable across renders and
 processes (which `mx.UniqueID`'s counter cannot), so a later event can address
 an element an earlier one rendered; `hx.SSEConnect` / `hx.SSESwap` /
