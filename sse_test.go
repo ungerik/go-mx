@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,6 +27,38 @@ func (w unwrappingWriter) Header() http.Header         { return w.inner.Header()
 func (w unwrappingWriter) Write(b []byte) (int, error) { return w.inner.Write(b) }
 func (w unwrappingWriter) WriteHeader(code int)        { w.inner.WriteHeader(code) }
 func (w unwrappingWriter) Unwrap() http.ResponseWriter { return w.inner }
+
+// deadlineWriter records the write deadlines set on it, which is how net/http
+// reports http.Server.WriteTimeout to a handler.
+type deadlineWriter struct {
+	*httptest.ResponseRecorder
+	deadlines []time.Time
+}
+
+func (w *deadlineWriter) SetWriteDeadline(deadline time.Time) error {
+	w.deadlines = append(w.deadlines, deadline)
+	return nil
+}
+
+// flushErrorWriter fails every flush the way a response whose client has already
+// disconnected does, through the FlushError method http.ResponseController
+// prefers over http.Flusher.
+type flushErrorWriter struct {
+	*httptest.ResponseRecorder
+	err error
+}
+
+func (w *flushErrorWriter) FlushError() error { return w.err }
+
+// writeErrorWriter fails every write the way a connection whose client vanished
+// mid-stream does, which is the other half of a disconnect: the flush can still
+// succeed while the write no longer does.
+type writeErrorWriter struct {
+	*httptest.ResponseRecorder
+	err error
+}
+
+func (w *writeErrorWriter) Write([]byte) (int, error) { return 0, w.err }
 
 // newSSETest returns an SSEResponse writing into a recorder, failing the test if
 // it cannot be created.
@@ -92,6 +125,37 @@ func TestNewSSEResponse_Headers(t *testing.T) {
 	}
 }
 
+func TestNewSSEResponse_ClearsTheWriteDeadline(t *testing.T) {
+	// http.Server.WriteTimeout is a deadline for the whole response, so with one
+	// set every stream is cut off at it no matter how alive it is. The
+	// truncation looks exactly like the proxy idle timeout KeepaliveLoop exists
+	// for, which is what makes it worth clearing rather than documenting.
+	w := &deadlineWriter{ResponseRecorder: httptest.NewRecorder()}
+	if _, err := NewSSEResponse(w, nil); err != nil {
+		t.Fatalf("NewSSEResponse: %v", err)
+	}
+	if len(w.deadlines) != 1 || !w.deadlines[0].IsZero() {
+		t.Errorf("write deadlines set = %v, want a single zero time clearing the server's WriteTimeout", w.deadlines)
+	}
+}
+
+func TestNewSSEResponse_DisconnectedClientIsReportedBySend(t *testing.T) {
+	// canFlush has already ruled out a writer that cannot flush at all, so a
+	// failing flush here means the client is gone — and the 200 is committed by
+	// then. Returning it as a constructor error would only invite the caller
+	// into http.Error on a response that is already on the wire, which answers a
+	// 200 event-stream with "Internal Server Error" and logs a superfluous
+	// WriteHeader. The first Send reports it instead, which callers check anyway.
+	w := &flushErrorWriter{ResponseRecorder: httptest.NewRecorder(), err: errors.New("client gone")}
+	sse, err := NewSSEResponse(w, nil)
+	if err != nil {
+		t.Fatalf("NewSSEResponse failed after committing the 200 status: %v", err)
+	}
+	if err := sse.Send(t.Context(), "message", Text("hi")); !errors.Is(err, w.err) {
+		t.Errorf("Send error = %v, want the flush error %v", err, w.err)
+	}
+}
+
 func TestSSEResponse_SendSplitsMultilineMarkupIntoDataLines(t *testing.T) {
 	// "data:" is line-delimited: a client concatenates the data lines of a frame
 	// and stops the field at the first newline. Emitting indented markup as one
@@ -148,6 +212,33 @@ func TestSSEResponse_SendRenderErrorWritesNothing(t *testing.T) {
 	}
 }
 
+func TestSSEResponse_SendReportsAPanickingComponent(t *testing.T) {
+	// Components in go-mx panic by design — shadcn.PanicOnInvalidID is on by
+	// default — and an unwinding panic mid-stream aborts the connection with
+	// nothing said: the browser sees a stream that merely ended, reconnects, and
+	// hits the same panic again. Returned as an error it stays reportable, the
+	// way ComponentHTTPHandler turns a panic into a 500.
+	sse, rec := newSSETest(t)
+	comp := ComponentFunc(func(context.Context, Writer) error { panic("component panicked") })
+	err := sse.Send(t.Context(), "message", comp)
+	if err == nil {
+		t.Fatal("Send did not report the panicking component")
+	}
+	if !strings.Contains(err.Error(), "component panicked") {
+		t.Errorf("Send error %v does not carry the panic value", err)
+	}
+	if got := body(rec); got != "" {
+		t.Errorf("Send wrote %q for a panicking component", got)
+	}
+	// In band is the only way left to report it, so the stream has to survive.
+	if err := sse.SendError(t.Context(), err); err != nil {
+		t.Fatalf("SendError after a recovered panic: %v", err)
+	}
+	if !strings.Contains(body(rec), "event: "+SSEEventError) {
+		t.Errorf("the recovered panic could not be reported in band:\n%s", body(rec))
+	}
+}
+
 func TestSSEResponse_SendRejectsEventNameWithLineBreak(t *testing.T) {
 	// A line break in the event name would end the field and let the rest of the
 	// name forge further SSE fields — frame injection, the SSE analogue of
@@ -200,6 +291,24 @@ func TestSSEResponse_SendReportsCanceledContextWithoutWriting(t *testing.T) {
 	}
 	if got := body(rec); got != "" {
 		t.Errorf("Send wrote %q for a canceled context", got)
+	}
+}
+
+func TestSSEEventErrorAvoidsTheEventSourceErrorEvent(t *testing.T) {
+	// A browser dispatches its own transport failures at the EventSource under
+	// the name "error". A client subscribed to "error" for the server's in-band
+	// failures would therefore also fire on every dropped connection, with an
+	// event that carries no data at all — which is a TypeError inside htmx's sse
+	// extension, not a missed update.
+	if SSEEventError == "error" {
+		t.Error(`SSEEventError is "error", which collides with the EventSource event every dropped connection fires`)
+	}
+	// The exact name is a wire contract, not an implementation detail: a client
+	// binds to it by string (sse-swap="mx-error" with htmx), so renaming the
+	// constant silently stops every deployed subscriber from ever seeing a
+	// server-reported failure again — with nothing failing on either side.
+	if SSEEventError != "mx-error" {
+		t.Errorf("SSEEventError = %q, want %q: clients subscribe by name and cannot be recompiled", SSEEventError, "mx-error")
 	}
 }
 
@@ -393,6 +502,21 @@ func TestSSELines(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestSSELines_StopsWhenTheConsumerBreaks(t *testing.T) {
+	// sseLines is an iter.Seq, so a consumer may stop early. Ignoring what yield
+	// returns is not a missed optimization but a panic: the runtime aborts a
+	// range-over-func that keeps yielding after the loop body exited, which
+	// would take down the handler goroutine rather than end the stream.
+	var got []string
+	for line := range sseLines([]byte("a\nb\nc")) {
+		got = append(got, string(line))
+		break
+	}
+	if len(got) != 1 || got[0] != "a" {
+		t.Errorf("sseLines yielded %q after the consumer broke, want just [\"a\"]", got)
 	}
 }
 
@@ -716,5 +840,105 @@ func TestSSEResponse_ResumesFromLastEventIDThroughARealServer(t *testing.T) {
 	reader2 := bufio.NewReader(resp2.Body)
 	if got, want := readFrame(t, reader2), "id: 1\nevent: message\ndata: two\n\n"; got != want {
 		t.Errorf("resumed stream started with %q, want %q — it replayed instead of resuming", got, want)
+	}
+}
+
+func TestNewSSEResponse_RendersWithTheGivenWriterFactory(t *testing.T) {
+	// The factory is how a caller configures escaping, validation and
+	// indentation. Falling back to the default whenever one is supplied would
+	// be invisible in the response status and produce markup that differs from
+	// every other response the same application writes — only in the streamed
+	// parts. Indentation is the observable difference here, and it also lands
+	// in the data: line split, so the two features are checked together.
+	var built int
+	factory := WriterFactoryFunc(func(w io.Writer) Writer {
+		built++
+		return NewCheckedWriter(w).WithIndent("", "  ")
+	})
+	rec := httptest.NewRecorder()
+	sse, err := NewSSEResponse(rec, factory)
+	if err != nil {
+		t.Fatalf("NewSSEResponse: %v", err)
+	}
+	comp := NewElement("ul", NewElement("li", Text("a")))
+	if err := sse.Send(t.Context(), "message", comp); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	if built == 0 {
+		t.Fatal("NewSSEResponse ignored the given WriterFactory and used the default")
+	}
+	// The indenting writer opens with a newline of its own, so the frame starts
+	// with an empty data line — which is exactly what the split has to keep as a
+	// line rather than swallow, since a client joins the data fields back
+	// together with newlines and would otherwise get differently indented markup
+	// than the same component rendered into an ordinary response.
+	want := "event: message\n" +
+		"data:\n" +
+		"data: <ul>\n" +
+		"data:   <li>a</li>\n" +
+		"data: </ul>\n" +
+		"\n"
+	if got := body(rec); got != want {
+		t.Errorf("frame =\n%q\nwant\n%q", got, want)
+	}
+
+	// A second event must get a Writer of its own. One CheckedWriter reused for
+	// the whole stream carries its indent depth and open-element state into the
+	// next frame, so event two would render differently from event one — with
+	// nothing in the status or the first frame to show it.
+	rec.Body.Reset()
+	if err := sse.Send(t.Context(), "message", comp); err != nil {
+		t.Fatalf("second Send: %v", err)
+	}
+	if built != 2 {
+		t.Errorf("NewWriter called %d times for 2 events, want 2", built)
+	}
+	if got := body(rec); got != want {
+		t.Errorf("second frame =\n%q\nwant the same as the first\n%q", got, want)
+	}
+}
+
+func TestSSEResponse_WriteErrorIsReported(t *testing.T) {
+	// A failing flush is not the only way a client goes away mid-stream: once
+	// the connection is gone the write itself fails, and on some writers it
+	// fails first. Swallowing it would leave the producer loop rendering event
+	// after event into a dead socket, because the returned error is the only
+	// signal the loop checks.
+	w := &writeErrorWriter{ResponseRecorder: httptest.NewRecorder(), err: errors.New("broken pipe")}
+	sse, err := NewSSEResponse(w, nil)
+	if err != nil {
+		t.Fatalf("NewSSEResponse: %v", err)
+	}
+	if err := sse.Send(t.Context(), "message", Text("x")); !errors.Is(err, w.err) {
+		t.Errorf("Send error = %v, want the write error %v", err, w.err)
+	}
+	// Keepalive and SetRetry go through the same writeFrame, so a stream that
+	// only reports the failure from Send would keep a ticker goroutine alive
+	// for the whole request context.
+	if err := sse.Keepalive(); !errors.Is(err, w.err) {
+		t.Errorf("Keepalive error = %v, want the write error %v", err, w.err)
+	}
+	if err := sse.SetRetry(time.Second); !errors.Is(err, w.err) {
+		t.Errorf("SetRetry error = %v, want the write error %v", err, w.err)
+	}
+}
+
+func TestSSEResponse_SendCannotForgeAFrameFromEventData(t *testing.T) {
+	// Event data is the only field carrying caller content, so a blank line in a
+	// message must not end the frame and let the rest of it become a second,
+	// server-attributed event. Every line gets a "data:" prefix, including the
+	// empty one, which is what keeps one Send to one frame.
+	sse, rec := newSSETest(t)
+	forged := "hello\n\nevent: " + SSEEventError + "\ndata: pwned"
+	if err := sse.Send(t.Context(), "message", Raw(forged)); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	want := "event: message\ndata: hello\ndata:\ndata: event: " + SSEEventError +
+		"\ndata: data: pwned\n\n"
+	if got := body(rec); got != want {
+		t.Errorf("frame = %q, want %q", got, want)
+	}
+	if got := strings.Count(body(rec), "\n\n"); got != 1 {
+		t.Errorf("%d frame terminators in the output, want 1 — the data forged a second event", got)
 	}
 }

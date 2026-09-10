@@ -93,6 +93,10 @@ element (or an ancestor).
   than emit a subscription to nothing.
 - **`hx.SSEClose(event string)`** closes the connection when that event arrives.
 
+An `sse-swap` element that ends up outside the `sse-connect` subtree subscribes
+to nothing and never updates. The extension reports that neither as an event nor
+on the console, so it looks exactly like a server that is not sending.
+
 ```go
 html.Div(hx.Ext("sse"), hx.SSEConnect("/chat/stream"), hx.SSEClose("done"),
     html.Div(hx.SSESwap("message"), hx.Swap(hx.SwapBeforeEnd)),
@@ -103,7 +107,16 @@ html.Div(hx.Ext("sse"), hx.SSEConnect("/chat/stream"), hx.SSEClose("done"),
 The server side is [`mx.SSEResponse`](../sse.go), which renders one component
 per event. Note the two error paths: `hx.EventSSEError` is raised by htmx for a
 *transport* failure, while a failure the server reports in-band arrives as the
-ordinary named event `mx.SSEEventError`. A complete UI binds both.
+ordinary named event `mx.SSEEventError`. A complete UI binds both. Note also
+that `mx.SSEEventError` is `"mx-error"` rather than `"error"`: a browser
+dispatches its own transport failures at the `EventSource` under the name
+`error`, so an `sse-swap="error"` would fire on every dropped connection with
+an event that has no data for htmx to swap.
+
+The extension's remaining events are constants as well: `hx.EventSSEOpen` and
+`hx.EventSSEClose` for the connection itself, and `hx.EventSSEBeforeMessage`
+(cancel it to skip the swap) and `hx.EventSSEMessage` around each swapped
+message.
 
 ## Event and class name constants
 

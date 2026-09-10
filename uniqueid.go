@@ -3,6 +3,7 @@ package mx
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"strconv"
 	"strings"
 )
@@ -75,8 +76,9 @@ func KeyedID(parts ...any) Attrib {
 }
 
 // KeyedIDValue returns the id value that [KeyedID] renders for parts, so a
-// caller can refer to that element: "#"+KeyedIDValue("msg", id) is the
-// hx-target of an out-of-band swap into the element KeyedID("msg", id) marked.
+// caller can refer to that element: "#"+KeyedIDValue("msg", id) is the selector
+// of an out-of-band swap into the element KeyedID("msg", id) marked, as in
+// hx.SwapOOB(hx.SwapBeforeEnd, "#"+KeyedIDValue("msg", id)).
 //
 // Each part is formatted with fmt.Sprint rather than the pretty printer used
 // for components (see [DefaultAsComponent]) — an id wants the plain form of a
@@ -87,10 +89,17 @@ func KeyedID(parts ...any) Attrib {
 // components validate ids against too, so a KeyedIDValue is always accepted
 // there; it deliberately reduces non-ASCII letters away.
 //
-// A readable id is worth more in devtools than a hash would be, at the price
-// that the separator is not escaped: KeyedIDValue("a-b") and
-// KeyedIDValue("a", "b") produce the same id. Passing one part per key avoids
-// it, and only a caller mixing both spellings for the same entity can hit it.
+// Reducing characters away would make different keys collide — "a.b" and "a/b"
+// are one id otherwise, and so are "Müller" and "Mäller" — and a collision is
+// invisible: an out-of-band swap simply lands in the first element that
+// matches. So whenever a rune was reduced, a short digest of the exact parts is
+// appended, which keeps distinct keys distinct while leaving an id built from
+// usable characters alone, fully readable.
+//
+// The digest does not cover the part boundaries: KeyedIDValue("a-b") and
+// KeyedIDValue("a", "b") still produce the same id, because keeping a literal
+// '-' readable is worth more than that case, which only a caller mixing both
+// spellings for the same entity can reach.
 //
 // It returns an empty string when parts reduce to no usable characters at all,
 // which is the case [KeyedID] reports as an [ErrAttrib].
@@ -102,13 +111,25 @@ func KeyedIDValue(parts ...any) string {
 	// leading and trailing separators in one pass. Literal '-' runes are kept
 	// as they are, so they still distinguish ids that only differ by them.
 	separator := false
+	// reduced records that at least one rune did not survive, which is what
+	// makes the readable form ambiguous and calls for the digest suffix.
+	reduced := false
 	for i, part := range parts {
 		if i > 0 {
 			separator = true
 		}
-		for _, r := range fmt.Sprint(part) {
+		text := fmt.Sprint(part)
+		if text == "" {
+			// An empty part contributes no runes, so the loop below cannot
+			// notice it. Without this, ("user", "", "x") and ("user", "x", "")
+			// both reduce to "_user-x" — the same invisible collision the digest
+			// exists to prevent, just reached by a different route.
+			reduced = true
+		}
+		for _, r := range text {
 			if !ValidIDRune(r) {
 				separator = true
+				reduced = true
 				continue
 			}
 			if separator && b.Len() > 1 {
@@ -121,5 +142,26 @@ func KeyedIDValue(parts ...any) string {
 	if b.Len() == 1 {
 		return ""
 	}
+	if reduced {
+		b.WriteByte('-')
+		b.WriteString(keyedIDDigest(parts))
+	}
 	return b.String()
+}
+
+// keyedIDDigest returns a deterministic digest of the exact parts in base 36,
+// which [KeyedIDValue] appends to an id whose readable form dropped characters.
+//
+// FNV-1a is chosen for being stable across processes and Go versions, not for
+// being cryptographic: this distinguishes keys a caller chose, it does not
+// defend against keys chosen to collide.
+func keyedIDDigest(parts []any) string {
+	hash := fnv.New64a()
+	for _, part := range parts {
+		s := fmt.Sprint(part)
+		// Length-prefixed, so the parts cannot run into each other and make
+		// ("ab", "c") and ("a", "bc") the same digest.
+		fmt.Fprintf(hash, "%d:%s", len(s), s)
+	}
+	return strconv.FormatUint(hash.Sum64(), 36)
 }

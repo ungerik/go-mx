@@ -18,10 +18,11 @@ var (
 // should be reported at all. A context.Canceled or context.DeadlineExceeded is
 // not reported because the client that would read it has disconnected.
 //
-// It is the one place the [RevealInternalServerErrors] policy is applied, shared
-// by [RespondNonContextError] (which reports it as a 500) and
-// [SSEResponse.SendError] (which reports it as an in-band event, because by then
-// the 200 is committed).
+// It is shared by [RespondNonContextError] (which reports the message as a 500)
+// and [SSEResponse.SendError] (which reports it as an in-band event, because by
+// then the 200 is committed), so the two cannot drift apart. respondLoadError in
+// formhandler.go applies the same policy separately, because it substitutes its
+// own generic message.
 func nonContextErrorMessage(err error) (message string, report bool) {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return "", false

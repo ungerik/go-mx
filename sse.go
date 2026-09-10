@@ -19,12 +19,18 @@ import (
 // flushed the status is committed, so a later failure can no longer be reported
 // as a 500 and has to travel as an event the client binds to.
 //
-// A client subscribes to it like any other named event. It covers
-// server-reported failures only: a transport failure (a dropped connection, an
-// unparsable stream) never reaches the stream as an event, so a complete UI also
-// handles whatever its client reports for that. The hx package documents both
-// halves for htmx, where it can name the symbols on either side.
-const SSEEventError = "error"
+// A client subscribes to it like any other named event. The name is
+// deliberately not "error": a browser dispatches its own transport failures at
+// the EventSource under that name, so a subscriber to "error" would also fire
+// on every dropped connection — with an Event that carries no data, which
+// htmx's sse extension then throws on while trying to swap it.
+//
+// It therefore covers server-reported failures only: a transport failure (a
+// dropped connection, an unparsable stream) never reaches the stream as an
+// event, so a complete UI also handles whatever its client reports for that.
+// The hx package documents both halves for htmx, where it can name the symbols
+// on either side.
+const SSEEventError = "mx-error"
 
 // sseKeepaliveFrame is an SSE comment (a line starting with ':'), which every
 // client ignores. Writing one periodically keeps a proxy from closing the
@@ -152,7 +158,22 @@ type SSEResponse struct {
 	ctrl    *http.ResponseController
 	factory WriterFactory
 	closed  bool
+
+	// writeTimeout bounds a single frame write. See SetWriteTimeout.
+	writeTimeout time.Duration
 }
+
+// DefaultSSEWriteTimeout bounds how long one frame may take to reach the client
+// before [SSEResponse] gives up on it. It exists because clearing the
+// response-wide deadline (which [NewSSEResponse] must do — a stream never ends,
+// so http.Server.WriteTimeout would cut it off) otherwise leaves a write with no
+// bound at all: a client that stays connected but stops reading fills the TCP
+// window, the write blocks forever holding the frame mutex, and because the
+// socket is still open the request context is never canceled. That pins the
+// producer goroutine and traps [SSEResponse.KeepaliveLoop] in the mutex where it
+// can no longer reach its ctx.Done. A bounded write turns all of that into an
+// ordinary error the caller already handles.
+const DefaultSSEWriteTimeout = 10 * time.Second
 
 // NewSSEResponse writes and flushes the Server-Sent Events response headers on
 // w and returns an [SSEResponse] that renders events with a [Writer] from
@@ -169,6 +190,12 @@ type SSEResponse struct {
 // several proxies that copied the header) otherwise buffers the response and
 // defeats the point of streaming.
 //
+// It also clears the write deadline that http.Server.WriteTimeout puts on the
+// response. That deadline is meant for a response which ends, and would
+// otherwise cut every stream off at the timeout no matter how alive it is —
+// producing exactly the symptom [SSEResponse.KeepaliveLoop] addresses, from a
+// different cause, which makes it easy to misdiagnose.
+//
 // Calling it commits the 200 status — see the [SSEResponse] docs on what that
 // means for error reporting.
 func NewSSEResponse(w http.ResponseWriter, factory WriterFactory) (*SSEResponse, error) {
@@ -178,6 +205,13 @@ func NewSSEResponse(w http.ResponseWriter, factory WriterFactory) (*SSEResponse,
 	if factory == nil {
 		factory = DefaultWriterFactory
 	}
+	ctrl := http.NewResponseController(w)
+	// A stream has no length to finish within, so the response-wide write
+	// deadline has to go before anything is written. http.ErrNotSupported means
+	// the writer has no deadline to clear in the first place. Individual writes
+	// stay bounded by [DefaultSSEWriteTimeout] — see [SSEResponse.SetWriteTimeout].
+	_ = ctrl.SetWriteDeadline(time.Time{})
+
 	header := w.Header()
 	header.Set("Content-Type", ContentTypeEventStream)
 	header.Set("Cache-Control", "no-cache")
@@ -185,11 +219,16 @@ func NewSSEResponse(w http.ResponseWriter, factory WriterFactory) (*SSEResponse,
 	header.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
-	ctrl := http.NewResponseController(w)
-	if err := ctrl.Flush(); err != nil {
-		return nil, errs.Errorf("mx: flushing the SSE response headers: %w", err)
-	}
-	return &SSEResponse{writer: w, ctrl: ctrl, factory: factory}, nil
+	// Flushing is what puts the headers on the wire and starts the stream on
+	// the client. canFlush already ruled out a writer that cannot flush at all,
+	// so a failure here is a write failure — the client is already gone — and
+	// the 200 above is committed by now, leaving no 500 to report it with.
+	// Reporting it as a constructor error would only make the caller answer a
+	// committed response; the first Send reports it instead, which is where the
+	// documented contract puts it and which the caller already checks.
+	_ = ctrl.Flush()
+
+	return &SSEResponse{writer: w, ctrl: ctrl, factory: factory, writeTimeout: DefaultSSEWriteTimeout}, nil
 }
 
 // canFlush reports whether w, or any http.ResponseWriter it wraps, can be
@@ -251,6 +290,11 @@ func (r *SSEResponse) Send(ctx context.Context, event string, comp Component) er
 // line break would let a caller-supplied value forge additional fields, and the
 // SSE specification tells clients to ignore an id containing a NUL, which would
 // break resumption invisibly.
+//
+// A panic while rendering is returned as an error, like [ComponentHTTPHandler]
+// turns it into a 500: letting it unwind would abort the connection mid-stream
+// with nothing said, and a browser answers that by reconnecting straight back
+// into the same panic.
 func (r *SSEResponse) SendEvent(ctx context.Context, event SSEEvent) error {
 	// Malformed field values are caller mistakes detected up front,
 	// not runtime failures, so they carry no callstack.
@@ -266,13 +310,32 @@ func (r *SSEResponse) SendEvent(ctx context.Context, event SSEEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	var buf bytes.Buffer
-	if event.Comp != nil {
-		if err := event.Comp.Render(ctx, r.factory.NewWriter(&buf)); err != nil {
-			return err
-		}
+	data, err := renderEventData(ctx, r.factory, event.Comp)
+	if err != nil {
+		return err
 	}
-	return r.writeFrame(sseFrame(event.Name, event.ID, buf.Bytes()))
+	return r.writeFrame(sseFrame(event.Name, event.ID, data))
+}
+
+// renderEventData renders comp into a buffer, converting a panic into an error
+// the way [ComponentHTTPHandler] does. Rendering happens off the wire either
+// way, so a failed event — panicking or not — is reported to the caller with
+// nothing written, and the stream stays usable for the error it sends next.
+func renderEventData(ctx context.Context, factory WriterFactory, comp Component) (data []byte, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = errs.AsErrorWithDebugStack(p)
+		}
+	}()
+	if comp == nil {
+		return nil, nil
+	}
+	var buf bytes.Buffer
+	err = comp.Render(ctx, factory.NewWriter(&buf))
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // SendError reports err to the client as an event named [SSEEventError], the
@@ -414,10 +477,31 @@ func (r *SSEResponse) writeFrame(frame []byte) error {
 	if r.closed {
 		return errs.New("mx: SSEResponse is closed")
 	}
+	if r.writeTimeout > 0 {
+		// Bound this frame only. A failure here is http.ErrNotSupported on a
+		// writer without deadlines, which is not a reason to refuse the write.
+		_ = r.ctrl.SetWriteDeadline(time.Now().Add(r.writeTimeout))
+		defer func() { _ = r.ctrl.SetWriteDeadline(time.Time{}) }()
+	}
 	if _, err := r.writer.Write(frame); err != nil {
 		return err
 	}
 	return r.ctrl.Flush()
+}
+
+// SetWriteTimeout bounds how long a single frame write may block before it
+// fails, replacing the response-wide http.Server.WriteTimeout that
+// [NewSSEResponse] has to clear. It defaults to [DefaultSSEWriteTimeout]; a
+// zero or negative timeout removes the bound, which means one unresponsive
+// client can pin a goroutine for the life of the process.
+//
+// Raise it for a slow link or large frames, lower it to reclaim stalled
+// connections sooner.
+func (r *SSEResponse) SetWriteTimeout(timeout time.Duration) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
+	r.writeTimeout = timeout
 }
 
 // sseLines splits data on the line terminators of the SSE wire format — CRLF,
