@@ -15,6 +15,69 @@ API is still free to change.
 
 ### Added
 
+- **`mx.SSEResponse`: components streamed to a client as Server-Sent Events.**
+  go-mx buffers whole responses on purpose, so that a deferred computation
+  failing mid-render becomes a clean 500 instead of a truncated page.
+  `SSEResponse` keeps that guarantee at *event* granularity: `Send` renders into
+  a buffer and reports a render error — or a panic — before a byte of the frame
+  is written. Only the response-level contract changes, and it changes in one
+  documented place: after the first flush the 200 is committed, so
+  `SendError` carries a later failure in band as the `mx.SSEEventError` event.
+  - Rendered markup is re-split into one `data:` line per line of output, on all
+    three SSE line terminators, because a client stops a `data:` field at the
+    first newline and `Writer.Newline` puts newlines in ordinary markup.
+  - `NewSSEResponse` fails at handler entry if the writer cannot flush, while a
+    500 is still available to send, and sets `X-Accel-Buffering: no` so a reverse
+    proxy the caller does not control cannot buffer the stream into uselessness.
+  - `SendEvent` takes an `SSEEvent` with an `ID`, and `LastEventID` reads back
+    what the client acknowledged. A browser silently reconnects to any stream
+    that ends, so without these a dropped connection replays the whole stream or
+    skips what it missed. `SetRetry` tunes the reconnect delay and
+    `KeepaliveLoop` keeps an idle connection from being dropped at all.
+  - `SetWriteTimeout` bounds a single frame. The response-wide
+    `http.Server.WriteTimeout` has to be cleared for a stream that never ends,
+    which would otherwise leave a write with no bound: a client that stops
+    reading would pin the producer goroutine forever.
+- **`mx.KeyedID` / `mx.KeyedIDValue`** derive an element id deterministically
+  from key parts, so the id is the same in the initial render and in every later
+  event — which `mx.UniqueID`'s process-lifetime counter cannot do, and which an
+  out-of-band swap needs to find its own target. A sanitising join keeps the id
+  readable (`_msg-<uuid>-3`); when a character has to be reduced away, a digest
+  of the exact parts is appended so that distinct keys cannot collide silently.
+  `mx.ValidIDRune` is the shared definition of which characters an id may hold.
+- **`hx.SSEConnect` / `hx.SSESwap` / `hx.SSEClose`** for the htmx SSE extension,
+  with `hx.ScriptSSEFromCDN` to load it (htmx 2.0 moved SSE out of core) and
+  `hx.EventSSEOpen` / `EventSSEClose` / `EventSSEBeforeMessage` /
+  `EventSSEMessage` alongside the existing `EventSSEError`. Each attribute
+  defers an error for an empty value, because the extension skips a falsy
+  attribute and the result looks exactly like a server that never sends.
+- **`shadcn.StickToBottom` / `StickToBottomThreshold`** make a `ScrollArea`
+  follow content that grows after the page was delivered, and leave a user who
+  has scrolled up where they are. Following survives layout-only growth (an
+  image or webfont loading, a container resize, a class or style change), holds
+  position when a scroll event has not been dispatched yet, and marks the
+  element `data-stuck` so a "jump to latest" affordance is pure CSS.
+- **`mx.ContentTypeEventStream`** for `text/event-stream`.
+- **`cmd/example-sse`** streams a chat transcript against all of the above:
+  `-drop` cuts the connection mid-reply so the browser reconnects and the
+  handler resumes, and `-fail` reports an error in band.
+
+### Removed
+
+- **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
+  `htmx:noSSESourceError` — it does not check nesting at all, so an `sse-swap`
+  element with no `sse-connect` above it subscribes to nothing silently. The
+  constant named an event that cannot occur.
+
+### Changed
+
+- **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
+  its own transport failures at the `EventSource` under the name `error`, so a
+  subscriber to `error` would also fire on every dropped connection, with an
+  event carrying no data for htmx to swap.
+
+### Added
+
 - **`web` package: robots.txt, sitemaps and page metadata for a whole site.**
   A `Site` holds what all pages share — the `BaseURL` every absolute URL is
   built from, the title, the language — and turns its `PageSource`s into the

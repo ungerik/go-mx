@@ -220,12 +220,17 @@ documented as "stable across renders and processes" in explicit contrast to
 **Priority:** P1
 **Depends on:** None
 **Completed:** (2026-09-10) — `mx.KeyedID` / `mx.KeyedIDValue` in `uniqueid.go`.
-A sanitising join, not a hash, so the id stays readable in devtools:
-`KeyedID("msg", id, 3)` renders `_msg-<uuid>-3`. `KeyedIDValue` was added beyond
-the sketch because the stated use case needs the selector string
-(`"#"+KeyedIDValue(...)` as an `hx-target`), and getting it out of the `Attrib`
-otherwise means calling `AttribValue` with a context for a value that has no
-context dependency.
+A sanitising join rather than a hash, so the id stays readable in devtools:
+`KeyedID("msg", id, 3)` renders `_msg-<uuid>-3`. The plan's pure join was
+amended on one point: reducing a character away makes distinct keys collide
+(`"a.b"` and `"a/b"` become one id, and a collision is invisible — an
+out-of-band swap just lands in the first match), so an FNV-1a digest of the
+exact parts is appended *only when* a rune was reduced. Keys built from usable
+characters alone keep the fully readable form the plan asked for.
+`KeyedIDValue` was added beyond the sketch because the stated use case needs
+the selector string (`"#"+KeyedIDValue(...)` as an `hx-swap-oob` target), and getting it
+out of the `Attrib` otherwise means calling `AttribValue` with a context for a
+value that has no context dependency.
 
 ### Typed `sse-connect` / `sse-swap` / `sse-close` attributes
 
@@ -234,8 +239,8 @@ context dependency.
 **Why:** `hx/attributes.go` carries 30+ typed `hx-*` helpers and these are
 absent, so every call site hand-writes `mx.NewAttrib("sse-connect", url)` — no
 naming, no doc comment, no discoverability. The package already knows about the
-extension: `hx/events.go` defines `EventSSEError` and `EventNoSSESourceError`
-with a comment that htmx 2.0 moved SSE out of core.
+extension: `hx/events.go` defines `EventSSEError` with a comment that htmx 2.0
+moved SSE out of core.
 
 **Context:** `sse-swap` takes one or more event names, so it should accept a
 variadic and join on comma, mirroring how `SwapOOB` takes variadic selectors
