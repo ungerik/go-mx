@@ -149,8 +149,9 @@ an element an earlier one rendered; `hx.SSEConnect` / `hx.SSESwap` /
 user has scrolled up.
 
 See [`cmd/example-sse`](cmd/example-sse/main.go) for a worked example that
-streams a chat transcript, appends tokens to one message out of band by its
-`KeyedID`, and (with `-fail`) reports an error in band.
+streams a chat transcript and appends tokens to one message out of band by its
+`KeyedID`. Its `-drop` flag cuts the first connection mid-reply so the browser
+reconnects and the handler resumes, and `-fail` reports an error in band.
 
 ## Reflected forms
 

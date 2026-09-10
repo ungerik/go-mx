@@ -4,7 +4,8 @@
 // It exercises the pieces together, which is the only way some of them fail:
 // markup containing newlines (the "data:" line split), a message addressed by a
 // [mx.KeyedID] that later events append to out of band (the reason KeyedID
-// exists next to mx.UniqueID), the [hx.SSEConnect] / [hx.SSESwap] /
+// exists next to mx.UniqueID), resumption after a dropped connection via
+// [mx.SSEEvent.ID] and [mx.LastEventID], the [hx.SSEConnect] / [hx.SSESwap] /
 // [hx.SSEClose] attributes, [shadcn.StickToBottom] following the growing
 // transcript, and an in-band failure delivered as [mx.SSEEventError] once the
 // 200 status has been committed.
@@ -13,16 +14,25 @@
 //
 // Then browse to http://localhost:8080. Reload to replay the stream. Scroll up
 // while it runs to watch the transcript stop following, and scroll back to the
-// bottom to watch it resume. Pass -fail to make the stream report an error
-// mid-way instead of finishing.
+// bottom to watch it resume.
+//
+// Two flags show what happens when a stream does not simply succeed:
+//
+//   - -fail reports an error in band instead of finishing, because by then the
+//     200 status is committed and there is no 500 left to send.
+//   - -drop cuts the first connection midway through the reply. The browser
+//     reconnects on its own and sends back the last id it saw, and the handler
+//     resumes from the next event — so the transcript completes exactly once.
+//     If resumption were broken the whole transcript would appear twice, which
+//     is what a stream without event ids does on every dropped connection.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/ungerik/go-mx"
@@ -109,11 +119,88 @@ func message(speaker, text string) mx.Component {
 	)
 }
 
+// transcript is the conversation the stream replays. Enough lines to overflow
+// the transcript box, so scrolling up during the stream actually demonstrates
+// the anchoring.
+var transcript = []struct{ speaker, text string }{
+	{"user", "How much did we invoice last quarter?"},
+	{"assistant", "Looking at the ledger for Q3…"},
+	{"assistant", "Three hundred and twelve invoices, all posted."},
+	{"assistant", "Net total is 1.42 million euro."},
+	{"user", "How does that compare to Q2?"},
+	{"assistant", "Q2 closed at 1.19 million euro."},
+	{"assistant", "So Q3 is up a little under 20 percent."},
+	{"user", "Any of those still unpaid?"},
+	{"assistant", "Forty-one are open, worth 213 thousand euro."},
+	{"assistant", "Nine of them are past due."},
+	{"user", "Break it down by customer."},
+	{"assistant", "Sorting by net total, largest first."},
+}
+
+// replyTokens are appended one event at a time into a single message, the way a
+// model's answer arrives.
+var replyTokens = []string{"Acme ", "GmbH ", "leads ", "at ", "41%, ", "then ", "Globex ", "at ", "28%."}
+
+// streamSteps is the whole stream as an indexed list: the transcript, then the
+// empty container for the reply, then one event per token.
+//
+// The list exists so a step can be addressed by its position, which is what
+// makes the stream resumable — the index becomes the [mx.SSEEvent.ID], and a
+// client that reconnects sends the last one it saw back as
+// [mx.LastEventID]. A real application would use durable message ids from its
+// store rather than positions in a slice, but the shape is the same: an id the
+// handler can answer "give me everything after this" for.
+func streamSteps() []mx.Component {
+	steps := make([]mx.Component, 0, len(transcript)+1+len(replyTokens))
+	for _, line := range transcript {
+		steps = append(steps, message(line.speaker, line.text))
+	}
+	// The container the tokens land in. It is addressed by mx.KeyedID, so the
+	// selector below reproduces it exactly — including from a different
+	// process, which is what makes resuming into it work at all. mx.UniqueID
+	// could not do this: its counter yields a different id every render, and
+	// restarts from scratch when the process does.
+	steps = append(steps, html.Div(
+		html.Style("margin-bottom:.5rem"),
+		html.Strong("assistant: "),
+		html.Span(mx.KeyedID(replyKey)),
+	))
+	target := "#" + mx.KeyedIDValue(replyKey)
+	for _, token := range replyTokens {
+		steps = append(steps, html.Span(hx.SwapOOB(hx.SwapBeforeEnd, target), token))
+	}
+	return steps
+}
+
+// dropIndex is the step -drop cuts the connection after: midway through the
+// reply, so the reconnect has to resume into a container the *previous*
+// connection rendered.
+func dropIndex() int { return len(transcript) + 1 + len(replyTokens)/2 }
+
+// resumeIndex returns the step to continue from, given the id the client
+// acknowledged.
+//
+// An id it does not recognize means "start from the beginning" rather than an
+// error: the value is echoed back by the client, so it is client-controlled
+// input and a handler must not trust it to address anything. Returning a
+// position past the end is fine — the loop then sends nothing and closes.
+func resumeIndex(lastEventID string, total int) int {
+	i, err := strconv.Atoi(lastEventID)
+	if err != nil || i < 0 || i >= total {
+		return 0
+	}
+	return i + 1
+}
+
 // streamHandler serves the transcript. Note the shape: everything that could
 // fail with a 500 has to happen before NewSSEResponse, because it commits the
 // 200 status.
-func streamHandler(fail bool) http.HandlerFunc {
+func streamHandler(fail, drop bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Read this before creating the response: it is the only thing that
+		// distinguishes a reconnect from a fresh reader.
+		resumeFrom := mx.LastEventID(r)
+
 		sse, err := mx.NewSSEResponse(w, nil)
 		if err != nil {
 			// Still a clean 500: NewSSEResponse checks that it can flush before
@@ -123,37 +210,38 @@ func streamHandler(fail bool) http.HandlerFunc {
 		}
 		defer sse.Close()
 
+		// A browser waits about three seconds before reconnecting by default,
+		// which makes -drop look like a hang. This is the one connection-level
+		// setting, so it goes out once, before any event.
+		if err := sse.SetRetry(500 * time.Millisecond); err != nil {
+			return
+		}
+
 		ctx := r.Context()
-		// A canceled context means the client navigated away or reloaded, which
-		// is the normal way this loop ends. Send reports it without writing.
-		// Enough lines to overflow the transcript box, so scrolling up during
-		// the stream actually demonstrates the anchoring.
-		for _, line := range []struct{ speaker, text string }{
-			{"user", "How much did we invoice last quarter?"},
-			{"assistant", "Looking at the ledger for Q3…"},
-			{"assistant", "Three hundred and twelve invoices, all posted."},
-			{"assistant", "Net total is 1.42 million euro."},
-			{"user", "How does that compare to Q2?"},
-			{"assistant", "Q2 closed at 1.19 million euro."},
-			{"assistant", "So Q3 is up a little under 20 percent."},
-			{"user", "Any of those still unpaid?"},
-			{"assistant", "Forty-one are open, worth 213 thousand euro."},
-			{"assistant", "Nine of them are past due."},
-			{"user", "Break it down by customer."},
-			{"assistant", "Sorting by net total, largest first."},
-		} {
-			if err := sse.Send(ctx, eventMessage, message(line.speaker, line.text)); err != nil {
+		steps := streamSteps()
+		for i := resumeIndex(resumeFrom, len(steps)); i < len(steps); i++ {
+			if drop && resumeFrom == "" && i > dropIndex() {
+				// Cut the connection without closing the stream, the way a
+				// dropped network or an impatient proxy would. Returning here
+				// sends no close event, so the browser reconnects on its own
+				// and arrives back with Last-Event-ID set — which is the whole
+				// point of the flag.
+				return
+			}
+			if fail && i == len(transcript) {
+				// The -fail path: a 200 and a dozen messages are already on the
+				// wire, so this can only travel in band.
+				_ = sse.SendError(ctx, fmt.Errorf("ledger query timed out after 30s"))
+				break
+			}
+			// A canceled context means the client navigated away or reloaded,
+			// which is the normal way this loop ends. SendEvent reports it
+			// without writing.
+			event := mx.SSEEvent{Name: eventMessage, ID: strconv.Itoa(i), Comp: steps[i]}
+			if err := sse.SendEvent(ctx, event); err != nil {
 				return
 			}
 			time.Sleep(tickInterval)
-		}
-
-		if fail {
-			// The -fail path: the stream has already sent a 200 and a dozen
-			// messages, so this can only travel in band.
-			_ = sse.SendError(ctx, fmt.Errorf("ledger query timed out after 30s"))
-		} else if err := streamReply(ctx, sse); err != nil {
-			return
 		}
 
 		// Close on the failure path too. A browser's EventSource reconnects on
@@ -164,43 +252,14 @@ func streamHandler(fail bool) http.HandlerFunc {
 	}
 }
 
-// streamReply appends tokens to a single message across many events, which is
-// what mx.KeyedID is for: the empty container is rendered by one event, and
-// every later event targets it out of band by the id that same key reproduces.
-// mx.UniqueID could not do this — its counter yields a different id each render.
-func streamReply(ctx context.Context, sse *mx.SSEResponse) error {
-	container := html.Div(
-		html.Style("margin-bottom:.5rem"),
-		html.Strong("assistant: "),
-		html.Span(mx.KeyedID(replyKey)),
-	)
-	if err := sse.Send(ctx, eventMessage, container); err != nil {
-		return err
-	}
-	// hx-swap-oob addresses the container by the selector KeyedIDValue builds
-	// for the same key, so the token lands inside it instead of at the end of
-	// the transcript. The selector is the same for every token, so it is built
-	// once here rather than per event.
-	target := "#" + mx.KeyedIDValue(replyKey)
-	for _, token := range []string{"Acme ", "GmbH ", "leads ", "at ", "41%, ", "then ", "Globex ", "at ", "28%."} {
-		if err := sse.Send(ctx, eventMessage, html.Span(
-			hx.SwapOOB(hx.SwapBeforeEnd, target),
-			token,
-		)); err != nil {
-			return err
-		}
-		time.Sleep(tickInterval)
-	}
-	return nil
-}
-
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	fail := flag.Bool("fail", false, "report an in-band error mid-stream instead of finishing")
+	drop := flag.Bool("drop", false, "cut the first connection mid-reply, so the browser reconnects and resumes")
 	flag.Parse()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/stream", streamHandler(*fail))
+	mux.HandleFunc("/stream", streamHandler(*fail, *drop))
 	mux.HandleFunc("/", mx.ComponentHTTPHandler(page(), mx.DefaultWriterFactory,
 		http.Header{"Content-Type": {mx.ContentTypeHTML}}))
 

@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -13,16 +14,38 @@ import (
 // wire bytes, which is the level the interesting mistakes are visible at.
 func streamBody(t *testing.T, fail bool) string {
 	t.Helper()
+	return streamFrom(t, fail, false, "")
+}
+
+// streamFrom runs the stream handler as a client with the given Last-Event-ID
+// would see it, so a reconnect can be replayed in a test.
+func streamFrom(t *testing.T, fail, drop bool, lastEventID string) string {
+	t.Helper()
 	prev := tickInterval
 	tickInterval = 0
 	t.Cleanup(func() { tickInterval = prev })
 
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+	if lastEventID != "" {
+		req.Header.Set(mx.HeaderLastEventID, lastEventID)
+	}
 	rec := httptest.NewRecorder()
-	streamHandler(fail)(rec, httptest.NewRequest(http.MethodGet, "/stream", nil))
+	streamHandler(fail, drop)(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 	return rec.Body.String()
+}
+
+// eventIDs returns the "id:" field of every frame in body, in order.
+func eventIDs(body string) []string {
+	var ids []string
+	for _, line := range strings.Split(body, "\n") {
+		if after, ok := strings.CutPrefix(line, "id: "); ok {
+			ids = append(ids, after)
+		}
+	}
+	return ids
 }
 
 func TestPageWiresTheClientToTheStream(t *testing.T) {
@@ -56,8 +79,17 @@ func TestStreamSplitsMultilineMarkupIntoDataLines(t *testing.T) {
 	if !strings.Contains(body, "<strong>user: </strong>\ndata: <span>How much") {
 		t.Errorf("multi-line message was not split across data: lines:\n%s", firstFrames(body, 2))
 	}
+	// A line that is not a known field (or a ":" comment) is either a broken
+	// split or an injected frame; both reach the client as garbage.
 	for _, line := range strings.Split(body, "\n") {
-		if line == "" || strings.HasPrefix(line, "data:") || strings.HasPrefix(line, "event:") {
+		if line == "" || strings.HasPrefix(line, ":") {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "data:"),
+			strings.HasPrefix(line, "event:"),
+			strings.HasPrefix(line, "id:"),
+			strings.HasPrefix(line, "retry:"):
 			continue
 		}
 		t.Fatalf("stray line %q — every non-blank line must be an SSE field", line)
@@ -122,4 +154,85 @@ func firstFrames(body string, n int) string {
 		frames = frames[:n]
 	}
 	return strings.Join(frames, "")
+}
+
+func TestStreamTagsEveryEventWithItsIndex(t *testing.T) {
+	// Without ids a client has nothing to send back, so a dropped connection
+	// can only be answered by replaying the whole transcript.
+	ids := eventIDs(streamBody(t, false))
+	want := len(streamSteps())
+	if len(ids) != want {
+		t.Fatalf("%d events carry an id, want %d", len(ids), want)
+	}
+	for i, id := range ids {
+		if id != strconv.Itoa(i) {
+			t.Errorf("event %d has id %q, want %q", i, id, strconv.Itoa(i))
+		}
+	}
+}
+
+func TestStreamResumesAfterTheAcknowledgedEvent(t *testing.T) {
+	// The point of resumption: the client already has everything up to and
+	// including the id it sent back, so re-sending any of it would duplicate
+	// messages in the transcript.
+	ids := eventIDs(streamFrom(t, false, false, "5"))
+	if len(ids) == 0 {
+		t.Fatal("the resumed stream sent no events")
+	}
+	if ids[0] != "6" {
+		t.Errorf("the resumed stream started at id %q, want %q", ids[0], "6")
+	}
+}
+
+func TestStreamRestartsFromAnUnusableLastEventID(t *testing.T) {
+	// Last-Event-ID is echoed back by the client, so it is client-controlled
+	// input. An unrecognized value has to mean "start from the beginning" —
+	// never an error, and never an index into anything.
+	for _, id := range []string{"not-a-number", "-1", "999999", "0x10"} {
+		ids := eventIDs(streamFrom(t, false, false, id))
+		if len(ids) == 0 || ids[0] != "0" {
+			t.Errorf("Last-Event-ID %q resumed at %v, want a restart from 0", id, ids)
+		}
+	}
+}
+
+func TestDroppedConnectionResumesWithoutDuplicates(t *testing.T) {
+	// The whole reason resumption exists, end to end: a browser reconnects to a
+	// stream that merely stops, and what it gets back has to continue the
+	// transcript rather than repeat it. A stream without event ids fails this
+	// by delivering every message twice.
+	first := streamFrom(t, false, true, "")
+	firstIDs := eventIDs(first)
+	if len(firstIDs) == 0 {
+		t.Fatal("the dropped connection sent nothing")
+	}
+	if strings.Contains(first, "event: "+eventDone) {
+		t.Fatal("the dropped connection sent the close event, so the browser would not reconnect")
+	}
+
+	// Reconnect the way a browser does, echoing the last id it received.
+	second := streamFrom(t, false, true, firstIDs[len(firstIDs)-1])
+	all := append(firstIDs, eventIDs(second)...)
+
+	seen := make(map[string]bool, len(all))
+	for _, id := range all {
+		if seen[id] {
+			t.Errorf("event %q was delivered twice across the reconnect", id)
+		}
+		seen[id] = true
+	}
+	if len(seen) != len(streamSteps()) {
+		t.Errorf("%d distinct events delivered across the reconnect, want %d", len(seen), len(streamSteps()))
+	}
+	if !strings.Contains(second, "event: "+eventDone) {
+		t.Error("the resumed stream did not close, so the browser would reconnect again")
+	}
+}
+
+func TestStreamSetsTheReconnectDelay(t *testing.T) {
+	// A browser waits about three seconds by default, which makes a dropped
+	// connection look like a hang rather than a reconnect.
+	if !strings.HasPrefix(streamBody(t, false), "retry: 500\n\n") {
+		t.Error("the stream did not set the reconnect delay before its first event")
+	}
 }
