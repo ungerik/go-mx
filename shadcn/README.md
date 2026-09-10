@@ -414,7 +414,15 @@ rewritten to native equivalents:
   native port the scrollbar is the `::-webkit-scrollbar` pseudo-element (plus
   Firefox's `scrollbar-width`/`scrollbar-color`), not an element, so a Go
   `ScrollBar` would have nothing to render. (Same precedent as
-  `AlertDialogOverlay`.)
+  `AlertDialogOverlay`.) Pass `StickToBottom` (or `StickToBottomThreshold(px)`,
+  default `StickToBottomDefaultThresholdPx`) to follow content that grows after
+  the page was delivered — a streamed chat transcript — while leaving a user who
+  scrolled up where they are. That is an addition, not a shadcn port: upstream
+  has no equivalent. It emits a `data-stick-to-bottom` attribute plus one inline
+  script (guarded like `tabsSelectScript`) that watches the element with a
+  `MutationObserver`, so it works for content arriving over
+  [`mx.SSEResponse`](../sse.go), from an htmx swap or from any other script, and
+  needs no htmx on a normally loaded page.
 - **Slider** — `Slider(min, max, step, values, id, …)`. `len(values)==1`
   renders a single-thumb styled void `<input type="range">`; `len(values)==2`
   renders a two-thumb range (two overlaid inputs + a fill `<div>` + one

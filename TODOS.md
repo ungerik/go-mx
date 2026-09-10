@@ -78,30 +78,6 @@ empty placeholder option for required selects, which also restores client-side
 **Priority:** P1
 **Depends on:** None
 
-## shadcn
-
-### Scroll anchoring for `ScrollArea`
-
-**What:** Stick-to-bottom behaviour for a scroll container whose content grows:
-follow new content unless the user has scrolled up.
-
-**Why:** It is the single most-noticed behaviour in a chat UI, and its absence is
-noticed as a bug rather than a missing feature. `shadcn/scrollarea.go` is pure
-classes (`scrollAreaClasses`) with no script.
-
-**Context:** This needs **no new go-mx API**. `hx.OnHTMX` plus the existing
-`hx.EventOOBAfterSwap` / `hx.EventAfterSettle` constants (`hx/events.go`) can
-drive it, and `ScrollArea(attribsChildren ...any)` composes an extra attrib
-naturally. The precedent for a small inline script shipped with a component is
-`tabsSelectScript` (`shadcn/tabs.go`). Open question worth deciding before
-writing it: library component or consumer-side recipe. A recipe is honest if it
-stays ten lines; a `StickToBottom` attrib is better if the near-bottom threshold
-needs tuning, because then every consumer would otherwise copy the same tuning.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** SSE response type (there is nothing to anchor until content streams)
-
 ## shadcn/cva
 
 Follow-ons from the initial `cva` port (class-variance-authority v0.7.1). The
@@ -272,3 +248,37 @@ machinery is needed beyond the attribs.
 alongside the two distinct error paths (`hx.EventSSEError` for a transport
 failure, `mx.SSEEventError` for one the server reports in-band). `SSESwap` with
 no event names defers an error instead of emitting a subscription to nothing.
+
+### Scroll anchoring for `ScrollArea`
+
+**What:** Stick-to-bottom behaviour for a scroll container whose content grows:
+follow new content unless the user has scrolled up.
+
+**Why:** It is the single most-noticed behaviour in a chat UI, and its absence is
+noticed as a bug rather than a missing feature. `shadcn/scrollarea.go` is pure
+classes (`scrollAreaClasses`) with no script.
+
+**Context:** This needs **no new go-mx API**. `hx.OnHTMX` plus the existing
+`hx.EventOOBAfterSwap` / `hx.EventAfterSettle` constants (`hx/events.go`) can
+drive it, and `ScrollArea(attribsChildren ...any)` composes an extra attrib
+naturally. The precedent for a small inline script shipped with a component is
+`tabsSelectScript` (`shadcn/tabs.go`). Open question worth deciding before
+writing it: library component or consumer-side recipe. A recipe is honest if it
+stays ten lines; a `StickToBottom` attrib is better if the near-bottom threshold
+needs tuning, because then every consumer would otherwise copy the same tuning.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** SSE response type (there is nothing to anchor until content streams)
+**Completed:** (2026-09-10) — `StickToBottom` / `StickToBottomThreshold` in
+`shadcn/scrollarea.go`. The open question resolved to a library attrib: the
+threshold does need tuning, so every consumer would otherwise copy the same
+script, and it travels in the attribute value (`data-stick-to-bottom="96"`) so
+one shared script serves every instance. It watches DOM mutations rather than
+the htmx events the sketch suggested, which makes it work for an SSE stream, an
+ordinary swap or any other script, and on a page with no htmx at all. Whether to
+follow is recorded on scroll, not measured at mutation time — after a large
+append every scroll position looks far from the bottom. Verified in Chrome
+against a live `mx.SSEResponse` stream: pinned while content grew (gap 0 as
+scrollHeight went 383→533), stayed put after scrolling up mid-stream (gap grew
+255→405 instead of snapping back), and resumed following on scrolling back down.
