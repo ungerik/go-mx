@@ -80,6 +80,31 @@ in Go rather than left to a raw string:
   in by its own id).
 - **`hx.SelectOOB(value string)`** selects OOB content to pull from a response.
 
+### Server-Sent Events ([sse.go](sse.go))
+
+htmx 2.0 moved SSE out of core into the `sse` extension, so these attributes are
+spelled without the `hx-` prefix and need `hx.Ext("sse")` on the connecting
+element (or an ancestor).
+
+- **`hx.SSEConnect(url string)`** opens the connection whose events are
+  available to the element and its descendants.
+- **`hx.SSESwap(events ...string)`** swaps the named events into the element,
+  joining several names with a comma. With no names it defers an error rather
+  than emit a subscription to nothing.
+- **`hx.SSEClose(event string)`** closes the connection when that event arrives.
+
+```go
+html.Div(hx.Ext("sse"), hx.SSEConnect("/chat/stream"), hx.SSEClose("done"),
+    html.Div(hx.SSESwap("message"), hx.Swap(hx.SwapBeforeEnd)),
+    html.Div(hx.SSESwap(mx.SSEEventError)),
+)
+```
+
+The server side is [`mx.SSEResponse`](../sse.go), which renders one component
+per event. Note the two error paths: `hx.EventSSEError` is raised by htmx for a
+*transport* failure, while a failure the server reports in-band arrives as the
+ordinary named event `mx.SSEEventError`. A complete UI binds both.
+
 ## Event and class name constants
 
 - **Event names** ([events.go](events.go)) — every htmx event as a constant

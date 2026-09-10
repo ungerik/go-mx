@@ -7,42 +7,6 @@ in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
-## mx streaming
-
-Prerequisites for a server-streamed chat surface. go-mx buffers every HTTP
-response on purpose — `ComponentHTTPHandler` (`component.go`),
-`ComponentFuncHandler.ServeHTTP` (`route.go`) and `writeFormResponse`
-(`formhandler.go`) each render into a `bytes.Buffer` first, because a deferred
-computation can fail mid-render and streaming would already have sent a 200 and
-a truncated page. The resolution is to buffer **per event, not per response**: an
-SSE stream is a sequence of independently rendered fragments, so the existing
-guarantee survives at event granularity. Only the response-level contract
-changes — after the first flush there is no 500 left to send, so a failure has to
-travel in-band.
-
-### Content-derived stable element ids
-
-**What:** A deterministic `id` `Attrib` derived from caller-supplied key parts,
-alongside the existing counter-based `UniqueID`.
-
-**Why:** `UniqueID()` (`uniqueid.go`) draws from a process-lifetime atomic
-counter formatted in base 36. Two renders of the same entity produce different
-ids, and a process restart restarts the sequence. Out-of-band swaps target by
-id, so appending a token to "message N, part M" needs an id that is the same in
-the initial render and in every later event. With only `UniqueID` available, a
-streaming append cannot find its own target.
-
-**Context:** Prefer a sanitising join over a hash — `_msg-<uuid>-3` is readable
-in devtools where a hash is not, and debuggability is most of the value. Keep the
-`_` prefix convention so the result is a valid HTML id that does not start with a
-digit. Signature along the lines of `func KeyedID(parts ...any) Attrib`,
-documented as "stable across renders and processes" in explicit contrast to
-`UniqueID`.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
 ## mx reflected forms
 
 All three were surfaced by the adversarial review of the out-of-list placeholder
@@ -109,27 +73,6 @@ the other direction: that one handles a value missing from the list, this one
 handles a list missing an empty value. The suggested fix is to always prepend an
 empty placeholder option for required selects, which also restores client-side
 `required` validation. Decide whether it applies to non-required selects too.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
-## hx
-
-### Typed `sse-connect` / `sse-swap` / `sse-close` attributes
-
-**What:** Three typed attribute helpers for the htmx SSE extension.
-
-**Why:** `hx/attributes.go` carries 30+ typed `hx-*` helpers and these are
-absent, so every call site hand-writes `mx.NewAttrib("sse-connect", url)` — no
-naming, no doc comment, no discoverability. The package already knows about the
-extension: `hx/events.go` defines `EventSSEError` and `EventNoSSESourceError`
-with a comment that htmx 2.0 moved SSE out of core.
-
-**Context:** `sse-swap` takes one or more event names, so it should accept a
-variadic and join on comma, mirroring how `SwapOOB` takes variadic selectors
-(`attributes.go`). `hx.Ext("sse")` already loads the extension, so no new
-machinery is needed beyond the attribs.
 
 **Effort:** S
 **Priority:** P1
@@ -276,3 +219,56 @@ written under a mutex so a `Keepalive` ticker cannot interleave with the
 producer. `SendError` follows `RespondNonContextError`: generic message unless
 `RevealInternalServerErrors`, silent on a context error, but with the ctx
 cancellation stripped so the report still reaches a client that is reading.
+
+### Content-derived stable element ids
+
+**What:** A deterministic `id` `Attrib` derived from caller-supplied key parts,
+alongside the existing counter-based `UniqueID`.
+
+**Why:** `UniqueID()` (`uniqueid.go`) draws from a process-lifetime atomic
+counter formatted in base 36. Two renders of the same entity produce different
+ids, and a process restart restarts the sequence. Out-of-band swaps target by
+id, so appending a token to "message N, part M" needs an id that is the same in
+the initial render and in every later event. With only `UniqueID` available, a
+streaming append cannot find its own target.
+
+**Context:** Prefer a sanitising join over a hash — `_msg-<uuid>-3` is readable
+in devtools where a hash is not, and debuggability is most of the value. Keep the
+`_` prefix convention so the result is a valid HTML id that does not start with a
+digit. Signature along the lines of `func KeyedID(parts ...any) Attrib`,
+documented as "stable across renders and processes" in explicit contrast to
+`UniqueID`.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+**Completed:** (2026-09-10) — `mx.KeyedID` / `mx.KeyedIDValue` in `uniqueid.go`.
+A sanitising join, not a hash, so the id stays readable in devtools:
+`KeyedID("msg", id, 3)` renders `_msg-<uuid>-3`. `KeyedIDValue` was added beyond
+the sketch because the stated use case needs the selector string
+(`"#"+KeyedIDValue(...)` as an `hx-target`), and getting it out of the `Attrib`
+otherwise means calling `AttribValue` with a context for a value that has no
+context dependency.
+
+### Typed `sse-connect` / `sse-swap` / `sse-close` attributes
+
+**What:** Three typed attribute helpers for the htmx SSE extension.
+
+**Why:** `hx/attributes.go` carries 30+ typed `hx-*` helpers and these are
+absent, so every call site hand-writes `mx.NewAttrib("sse-connect", url)` — no
+naming, no doc comment, no discoverability. The package already knows about the
+extension: `hx/events.go` defines `EventSSEError` and `EventNoSSESourceError`
+with a comment that htmx 2.0 moved SSE out of core.
+
+**Context:** `sse-swap` takes one or more event names, so it should accept a
+variadic and join on comma, mirroring how `SwapOOB` takes variadic selectors
+(`attributes.go`). `hx.Ext("sse")` already loads the extension, so no new
+machinery is needed beyond the attribs.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+**Completed:** (2026-09-10) — `hx/sse.go`, documented in `hx/README.md`
+alongside the two distinct error paths (`hx.EventSSEError` for a transport
+failure, `mx.SSEEventError` for one the server reports in-band). `SSESwap` with
+no event names defers an error instead of emitting a subscription to nothing.
