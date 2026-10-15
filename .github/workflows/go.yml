@@ -37,6 +37,9 @@ jobs:
     - name: Test wordpress module
       run: go test -C wordpress -v ./...
 
+    - name: Test mcp module
+      run: go test -C mcp -v ./...
+
     - name: Build tools module
       run: go build -C tools ./...
 

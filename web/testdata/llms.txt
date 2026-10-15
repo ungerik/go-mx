@@ -1,0 +1,16 @@
+# Example
+
+> A site about examples.
+
+Every page links its Markdown version.
+
+## Docs
+
+- [Getting started](https://example.com/docs/start.md): Install and first steps
+- [Reference](/docs/reference.md)
+
+## Empty
+
+## Optional
+
+- [Changelog](http://example.com/changelog.md#latest)

@@ -122,6 +122,33 @@ func TestSiteSitemapPageWithoutPath(t *testing.T) {
 	require.ErrorContains(t, err, "Hello")
 }
 
+func TestSiteSitemapPageThatCannotRender(t *testing.T) {
+	// A public page RenderPage fails for is a bug in the source too: listing
+	// it would point crawlers at an error page.
+	site := &web.Site{
+		BaseURL: "https://example.com",
+		Sources: []web.PageSource{testPages{{
+			Path:       "/faq",
+			Published:  published,
+			Alternates: []web.Alternate{{HrefLang: "de", Path: "/de/faq"}},
+		}}},
+	}
+	_, err := site.Sitemap(context.Background())
+	require.ErrorContains(t, err, "no language")
+	_, err = site.RenderPage(context.Background(), &web.Page{
+		Path:       "/faq",
+		Published:  published,
+		Alternates: []web.Alternate{{HrefLang: "de", Path: "/de/faq"}},
+	})
+	require.ErrorContains(t, err, "no language")
+
+	// A draft with the same problem is not listed, so it fails nothing.
+	site.Sources = []web.PageSource{testPages{{Path: "/faq", Alternates: []web.Alternate{{HrefLang: "de", Path: "/de/faq"}}}}}
+	sitemap, err := site.Sitemap(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, sitemap.URLs)
+}
+
 func TestSiteRobotsTxt(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		// Without a Robots configuration the site still tells crawlers where
@@ -350,6 +377,15 @@ func TestSiteValidate(t *testing.T) {
 	}
 	require.Error(t, site.Validate())
 	require.Error(t, site.RegisterRoutes(http.NewServeMux()))
+
+	// The languages end up in hreflang attributes and Link headers, where a
+	// malformed tag is ignored by crawlers rather than reported.
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en_US"}
+	require.ErrorContains(t, site.Validate(), "Site.Lang")
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en", DefaultLang: "x-default"}
+	require.ErrorContains(t, site.Validate(), "Site.DefaultLang")
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en", DefaultLang: "de"}
+	require.NoError(t, site.Validate())
 }
 
 // errorPages is a PageSource that fails while iterating.

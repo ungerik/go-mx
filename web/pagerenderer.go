@@ -37,7 +37,7 @@ func DefaultRenderPage(ctx context.Context, page *Page) (doc html.Document, err 
 
 	doc.Title = page.Title
 	if !page.Indexable() {
-		setMeta(&doc, "robots", "noindex, nofollow")
+		setMeta(&doc, "robots", robotsNoIndex)
 	}
 
 	return doc, nil

@@ -67,9 +67,17 @@ type Site struct {
 	Description string
 
 	// Lang is the BCP 47 language tag of the site, for example "en" or
-	// "de-AT". It is used for the html lang attribute of pages whose document
-	// does not set its own.
+	// "de-AT". It is the language of every page without a Page.Lang of its
+	// own, used for the html lang attribute of pages whose document does not
+	// set one.
 	Lang string
+
+	// DefaultLang is the language of the version of a page shown to visitors
+	// whose language has no translation of its own. When it is set and a page
+	// has a translation in this language (or is in this language itself), the
+	// page's hreflang links get an "x-default" link pointing at that version.
+	// Empty means no x-default link.
+	DefaultLang string
 
 	// Author is the fallback for the author of a page that has none.
 	Author string
@@ -97,11 +105,21 @@ type Site struct {
 }
 
 // Validate returns an error if BaseURL is not an absolute http or https URL
-// without query or fragment, if SitemapPath is not an absolute path, or if
-// Robots does not validate.
+// without query or fragment, if Lang or DefaultLang is set but not a language
+// tag, if SitemapPath is not an absolute path, or if Robots does not validate.
 func (s *Site) Validate() error {
 	if _, err := s.baseURL(); err != nil {
 		return err
+	}
+	if s.Lang != "" {
+		if err := validateLang(s.Lang); err != nil {
+			return fmt.Errorf("Site.Lang: %w", err)
+		}
+	}
+	if s.DefaultLang != "" {
+		if err := validateLang(s.DefaultLang); err != nil {
+			return fmt.Errorf("Site.DefaultLang: %w", err)
+		}
 	}
 	// The sitemap path ends up as an http.ServeMux pattern, and ServeMux
 	// panics on a malformed pattern or a duplicate registration instead of
@@ -271,7 +289,9 @@ func (s *Site) Pages(ctx context.Context, withContent bool) iter.Seq2[*Page, err
 //
 // An indexable page without a Path is an error rather than a skipped entry: it
 // cannot be pointed at, which is a bug in the PageSource and not something to
-// discover as a silently incomplete sitemap.
+// discover as a silently incomplete sitemap. So is a page whose links cannot
+// be built (see [Page.Validate]), because [Site.RenderPage] fails for it and
+// the sitemap would point crawlers at an error.
 func (s *Site) Sitemap(ctx context.Context) (*Sitemap, error) {
 	sitemap := new(Sitemap)
 	for page, err := range s.Pages(ctx, false) {
@@ -285,11 +305,10 @@ func (s *Site) Sitemap(ctx context.Context) (*Sitemap, error) {
 		if err != nil {
 			return nil, err
 		}
-		lastMod := page.LastUpdated
-		if lastMod.IsZero() {
-			lastMod = page.Published
+		if err := s.validatePageLinks(page); err != nil {
+			return nil, err
 		}
-		sitemap.URLs = append(sitemap.URLs, SitemapURL{Loc: loc, LastMod: lastMod})
+		sitemap.URLs = append(sitemap.URLs, SitemapURL{Loc: loc, LastMod: page.LastModified()})
 	}
 	slices.SortFunc(sitemap.URLs, func(a, b SitemapURL) int {
 		return strings.Compare(a.Loc, b.Loc)
@@ -349,14 +368,19 @@ func (s *Site) RenderPage(ctx context.Context, page *Page) (html.Document, error
 // Everything the renderer already set is kept, so a page can always override
 // the site-level default:
 //
-//   - the html lang attribute from Site.Lang and the <title> from Page.Title
+//   - the html lang attribute from Page.Lang or Site.Lang and the <title>
+//     from Page.Title
 //   - description and author meta tags, falling back to the site values
 //   - the Open Graph tags describing the page, including the article dates for
 //     a published page
-//   - a canonical link and og:url, which are skipped for a page without a
-//     Path because there is no URL to point at, and for a document that
-//     already carries an og:url, which is taken as the renderer having
-//     declared the page URL (and its canonical link) itself
+//   - a canonical link and og:url, followed by a link for every [Alternate]
+//     of the page (see [Site.PageHeaders] for the same links as headers).
+//     They are skipped for a page without a Path because there is no URL to
+//     point at, and for a document that already carries an og:url, which is
+//     taken as the renderer having declared the page URL and its links itself.
+//     That og:url has to be the canonical URL of the page, though, because
+//     [Site.PageHeaders] sends that one as a Link header: a document
+//     declaring another URL is an error
 //
 // The one exception is the robots meta tag: a page that is not
 // [Page.Indexable] is always marked "noindex, nofollow", so that drafts,
@@ -380,7 +404,7 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 	pageURLSet := doc.MetaProperty["og:url"] != ""
 
 	if doc.Lang == "" {
-		doc.Lang = s.Lang
+		doc.Lang = s.PageLang(page)
 	}
 	if doc.Title == "" {
 		doc.Title = page.Title
@@ -390,7 +414,7 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 	setMetaIfEmpty(doc, "description", description)
 	setMetaIfEmpty(doc, "author", author)
 	if !page.Indexable() {
-		setMeta(doc, "robots", "noindex, nofollow")
+		setMeta(doc, "robots", robotsNoIndex)
 	}
 
 	// https://ogp.me/
@@ -412,19 +436,35 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 		setMetaPropertyIfEmpty(doc, "article:author", author)
 	}
 
-	if page.Path == "" || pageURLSet {
-		return nil
-	}
-	canonical, err := s.PageURL(page)
+	// The links are built even when they are not added, so that an invalid
+	// alternate fails every render of the page rather than only some.
+	links, err := s.pageLinks(page)
 	if err != nil {
 		return err
 	}
+	if len(links) == 0 {
+		return nil
+	}
+	// The canonical link comes first, see pageLinks.
+	canonical := links[0].url
+	if pageURLSet {
+		// Site.PageHeaders sends the canonical URL of the site with the
+		// response, so a page declared under another URL would get two
+		// contradicting canonicals, one in the head and one in the headers.
+		if declared := doc.MetaProperty["og:url"]; declared != canonical {
+			return fmt.Errorf("page %q: the document declares og:url %q, but the canonical URL of the page is %q", page.Path, declared, canonical)
+		}
+		return nil
+	}
 	setMetaPropertyIfEmpty(doc, "og:url", canonical)
-	link := html.Link(html.Rel("canonical"), html.HRef(canonical))
+	elements := make(mx.Components, len(links))
+	for i, link := range links {
+		elements[i] = link.element()
+	}
 	if doc.HeadCustom == nil {
-		doc.HeadCustom = link
+		doc.HeadCustom = elements
 	} else {
-		doc.HeadCustom = mx.Components{doc.HeadCustom, link}
+		doc.HeadCustom = mx.Components{doc.HeadCustom, elements}
 	}
 	return nil
 }

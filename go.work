@@ -3,6 +3,7 @@ go 1.26.4
 use (
 	.
 	./fpdf
+	./mcp
 	./tools
 	./wordpress
 )

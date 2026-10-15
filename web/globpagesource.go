@@ -3,7 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
-	"errors"
+	"fmt"
 	"iter"
 	"net/url"
 	"path"
@@ -21,8 +21,12 @@ import (
 // https://github.com/yuin/goldmark
 
 // GlobPageSource is a PageSource that yields pages from files matching a glob
-// Pattern below Dir. Markdown files are parsed for frontmatter metadata, and
-// HTML and plain-text files are loaded with their respective content types.
+// Pattern below Dir. Markdown files are parsed for frontmatter metadata (title,
+// description, lang, date, publishDate, draft, tags), which is not part of the
+// page content, and HTML and plain-text files are loaded with their respective
+// content types. A lang holding a locale like "en_US" becomes the language tag
+// "en-US", and one that is no language tag fails the source with the name of
+// the file, like front matter that cannot be parsed.
 //
 //	source := &web.GlobPageSource{Dir: fs.File("content/blog"), Pattern: "*.md"}
 //	// content/blog/hello.md -> Page{Path: "/hello"}
@@ -77,16 +81,24 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				var matter struct {
 					Title       string    `yaml:"title"       toml:"title"       json:"title"`
 					Description string    `yaml:"description" toml:"description" json:"description"`
+					Lang        string    `yaml:"lang"        toml:"lang"        json:"lang"`
 					Date        time.Time `yaml:"date"        toml:"date"        json:"date"`
 					PublishDate time.Time `yaml:"publishDate" toml:"publishDate" json:"publishDate"`
 					Draft       bool      `yaml:"draft"       toml:"draft"       json:"draft"`
 					Tags        []string  `yaml:"tags"        toml:"tags"        json:"tags"`
 				}
-				_, err = frontmatter.Parse(bytes.NewReader(data), &matter)
-				if errors.Is(err, frontmatter.ErrNotFound) {
-				}
+				// The front matter is metadata, parsed into the page fields
+				// below. The content is the Markdown after it, which is what
+				// a ContentRenderer renders and what a Markdown alternate
+				// publishes (see [Page.MarkdownSource]).
+				body, err := frontmatter.Parse(bytes.NewReader(data), &matter)
 				if err != nil {
-					yield(nil, err)
+					yield(nil, errs.Errorf("%s: front matter: %w", file, err))
+					return
+				}
+				lang, err := frontMatterLang(matter.Lang)
+				if err != nil {
+					yield(nil, fmt.Errorf("%s: front matter lang: %w", file, err))
 					return
 				}
 				page := &Page{
@@ -96,6 +108,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					Author:      s.DefaultAuthor,
 					Title:       matter.Title,
 					Description: matter.Description,
+					Lang:        lang,
 					Created:     matter.Date,
 					LastUpdated: matter.Date,
 					Published:   matter.PublishDate,
@@ -105,7 +118,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					page.Published = time.Time{}
 				}
 				if withContent {
-					page.Content = data
+					page.Content = body
 				}
 				if !yield(page, nil) {
 					return
@@ -163,6 +176,22 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			}
 		}
 	}
+}
+
+// frontMatterLang returns the lang of a page's front matter as a BCP 47
+// language tag. Front matter written for Jekyll or Hugo often holds a locale
+// like "en_US", which is turned into the tag "en-US" it stands for. Anything
+// else that is no language tag is an error, reported with the file it is in
+// rather than by every surface the page's language ends up in.
+func frontMatterLang(lang string) (string, error) {
+	lang = strings.ReplaceAll(strings.TrimSpace(lang), "_", "-")
+	if lang == "" {
+		return "", nil
+	}
+	if err := validateLang(lang); err != nil {
+		return "", err
+	}
+	return lang, nil
 }
 
 // pagePath derives the URL path of a page from the path of its file: the path

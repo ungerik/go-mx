@@ -1,0 +1,34 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Code review",
+  "description": "A review of a Go code base by two senior engineers.",
+  "serviceType": "Software consulting",
+  "provider": {
+    "@type": "Organization",
+    "name": "Example",
+    "url": "https://example.com/"
+  },
+  "areaServed": [
+    {
+      "@type": "Country",
+      "name": "Austria"
+    },
+    "Germany"
+  ],
+  "offers": [
+    {
+      "@type": "Offer",
+      "name": "Per hour",
+      "price": "150.00",
+      "priceCurrency": "EUR"
+    },
+    {
+      "@type": "Offer",
+      "name": "Per day",
+      "price": "1000.00",
+      "priceCurrency": "EUR"
+    }
+  ],
+  "category": "Consulting"
+}

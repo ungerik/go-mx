@@ -20,6 +20,7 @@ func TestGlobPageSourceMarkdownFrontmatter(t *testing.T) {
 		"---\n"+
 			"title: Hello World\n"+
 			"description: The first post\n"+
+			"lang: en-GB\n"+
 			"publishDate: 2026-06-01T08:00:00Z\n"+
 			"tags: [go, web]\n"+
 			"---\n"+
@@ -48,8 +49,82 @@ func TestGlobPageSourceMarkdownFrontmatter(t *testing.T) {
 	require.Equal(t, "post", page.Type)
 	require.Equal(t, "Site Author", page.Author)
 	require.Equal(t, mx.ContentTypeMarkdown, page.ContentType)
+	require.Equal(t, "en-GB", page.Lang)
 	require.True(t, page.IsPublished())
-	require.NotNil(t, page.Content)
+	// The front matter is parsed into the page fields, not published again
+	// as part of the content.
+	markdown, ok := page.MarkdownSource()
+	require.True(t, ok)
+	require.Equal(t, "# Hello\n", string(markdown))
+}
+
+func TestGlobPageSourceMarkdownWithoutFrontmatter(t *testing.T) {
+	// A Markdown file without front matter is all content: nothing of it may
+	// be taken for metadata and dropped.
+	dir := t.TempDir()
+	const content = "# Plain\n\n---\n\nNo front matter, but a thematic break.\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.md"), []byte(content), 0o600))
+
+	source := &web.GlobPageSource{Pattern: filepath.Join(dir, "*.md")}
+	var pages []*web.Page
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		pages = append(pages, page)
+	}
+	require.Len(t, pages, 1)
+	require.Equal(t, "/plain", pages[0].Path)
+	require.Empty(t, pages[0].Title)
+	markdown, ok := pages[0].MarkdownSource()
+	require.True(t, ok)
+	require.Equal(t, content, string(markdown))
+}
+
+func TestGlobPageSourceBrokenFrontmatterNamesFile(t *testing.T) {
+	// Like an invalid lang, front matter that cannot be parsed has to say
+	// which of possibly hundreds of files to fix.
+	dir := t.TempDir()
+	err := os.WriteFile(filepath.Join(dir, "broken.md"), []byte("---\ntitle: [unclosed\n---\nbody\n"), 0o600)
+	require.NoError(t, err)
+
+	source := &web.GlobPageSource{Pattern: filepath.Join(dir, "*.md")}
+	for _, err := range source.Pages(context.Background(), false) {
+		require.ErrorContains(t, err, "broken.md: front matter")
+		return
+	}
+	t.Fatal("no result")
+}
+
+func TestGlobPageSourceFrontmatterLang(t *testing.T) {
+	pageLang := func(t *testing.T, lang string) (string, error) {
+		t.Helper()
+		dir := t.TempDir()
+		err := os.WriteFile(filepath.Join(dir, "page.md"), []byte("---\nlang: "+lang+"\n---\nbody\n"), 0o600)
+		require.NoError(t, err)
+		source := &web.GlobPageSource{Pattern: filepath.Join(dir, "*.md")}
+		for page, err := range source.Pages(context.Background(), false) {
+			if err != nil {
+				return "", err
+			}
+			return page.Lang, nil
+		}
+		t.Fatal("no page")
+		return "", nil
+	}
+
+	// Regression: Jekyll writes a locale like "en_US", which used to be
+	// ignored and then failed every surface the page's language reached. It
+	// is the language tag "en-US".
+	for lang, want := range map[string]string{"en": "en", "de-AT": "de-AT", "en_US": "en-US", "zh_Hant_TW": "zh-Hant-TW"} {
+		got, err := pageLang(t, lang)
+		require.NoErrorf(t, err, "lang %q", lang)
+		require.Equalf(t, want, got, "lang %q", lang)
+	}
+
+	// Anything else is an error naming the file, like broken front matter.
+	for _, lang := range []string{"en US", "en.US", "deutschland", "x-default"} {
+		_, err := pageLang(t, `"`+lang+`"`)
+		require.ErrorContainsf(t, err, "page.md", "lang %q", lang)
+	}
 }
 
 func TestGlobPageSourceDraft(t *testing.T) {

@@ -26,6 +26,10 @@ html.Div(html.Class("card"),
   the live `cmd/shadcn-gallery` app.
 - **[shadcn package docs](shadcn/)** — a tutorial, task-oriented how-to guides,
   and the full component reference for the `shadcn` package.
+- **[The public knowledge layer](web/knowledge-layer.html)** — the same pages
+  for crawlers and AI agents: hreflang alternates, Markdown versions of pages,
+  `llms.txt`, schema.org JSON-LD, and MCP tools, all limited to the pages a
+  search engine may see.
 - **[Why go-mx?](why-go-mx.html)** — server-rendered HTML versus the SPA default:
   an honest advantages-and-disadvantages look at where this approach fits.
 - **[API reference on pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx)**
@@ -132,12 +136,14 @@ with the same name on one element), and can pretty-print with
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
 | `logview`    | Streamed log lines as a readable surface: a JSON record renders as promoted time and level plus `key=value` pairs colored by JSON type, with a filter, a pause toggle and a scroll area that follows the stream |
+| `web`        | A site above `html`: pages from a `PageSource`, plus what crawlers and agents read from the public ones — sitemap, robots.txt, canonical and hreflang links, Markdown alternates and `llms.txt` ([knowledge layer](web/knowledge-layer.html)); `web/schemaorg` for typed structured data, embedded with `html.JSONLD` |
+| `mcp`        | A site's public pages as read-only [MCP](https://modelcontextprotocol.io) tools for AI agents, on a server of the official Go SDK; a nested module |
 | `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, embedded files plus XMP metadata for PDF/A-3 e-invoices (ZUGFeRD/Factur-X), and a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
 `Writer`, `If`/`ForEach`) that the others build on, plus `mx.SSEResponse` for
-streaming components to a client as Server-Sent Events. Higher-level packages
-(`web`, `doc`) are partially implemented.
+streaming components to a client as Server-Sent Events. The `doc` package is
+partially implemented.
 
 ## The shadcn port
 
@@ -158,6 +164,6 @@ documentation for four reader needs:
 | Need                         | Where                                            |
 |------------------------------|--------------------------------------------------|
 | **Learn** (tutorial)         | [Build your first page](html/tutorial.html) · [first shadcn page](shadcn/tutorial.html) |
-| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) |
+| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) · [public knowledge layer](web/knowledge-layer.html) |
 | **Look up** (reference)      | [html reference](html/#reference) · [shadcn reference](shadcn/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
 | **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [html design notes](html/#explanation) · [shadcn design notes](shadcn/#explanation) |

@@ -1,0 +1,6 @@
+{
+  "@context": "https://schema.org",
+  "@type": "VirtualLocation",
+  "name": "Live stream",
+  "url": "https://example.com/live"
+}

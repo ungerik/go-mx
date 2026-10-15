@@ -1,0 +1,12 @@
+{
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "About",
+  "url": "https://example.com/about",
+  "inLanguage": "en",
+  "about": {
+    "@type": "Person",
+    "@id": "https://example.com/about#ada",
+    "name": "Ada Lovelace"
+  }
+}

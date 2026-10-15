@@ -241,6 +241,153 @@ under `docs/shadcn/gallery/` is generated and unaffected. `cmd/example-sse` and
 **Priority:** P3
 **Depends on:** None
 
+## web knowledge layer
+
+Deliberate omissions from the alternates, Markdown alternates and llms.txt
+work, recorded so they read as decisions rather than oversights.
+
+### `Site.RegisterRoutes` serves neither llms.txt nor the Markdown alternates
+
+**What:** `Site.RegisterRoutes` registers robots.txt and the sitemap, but not
+`LLMsTxtPath` or the `.md` URLs that `MarkdownPath` derives.
+
+**Why:** Both are opt-in publishing decisions — which pages an agent may read,
+whether the alternate is served at its own URL, under the page URL by
+`AcceptsMarkdown`, or both, and with which revision as ETag — so a site wires
+them explicitly instead of getting them by default.
+
+**Context:** A `Site.LLMsTxtOptions` field plus a catch-all `GET /{path...}.md`
+route resolving the page by `MarkdownPath` would make it one line for the common
+case. ServeMux cannot match a suffix, so the route needs a pattern per page or
+a handler that strips `.md` itself.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### `list_pages` returns every public page at once
+
+**What:** The MCP `list_pages` tool has no limit or cursor; it returns all
+public pages in one response, which the SDK sends twice (structured content
+plus its JSON text fallback).
+
+**Why:** A site with thousands of pages answers with megabytes that overflow
+an agent's context, while `search_pages` and `get_page` are bounded. The spec
+asked for "all matching pages", so the first version keeps that.
+
+**Context:** A `limit` with a `truncated` flag like `search_pages`, or a
+`cursor`, in `mcp/pagetools.go` `listPages`. Decided in the /ship review of the
+knowledge layer (2026-10-15) to keep the spec'd behavior for now.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Page tools redo per-page work on every call
+
+**What:** `Page.MarkdownSource` copies string content into a new `[]byte` on
+every call, and `get_page` builds the full `PageInfo` (link validation, URL
+building) for every public page while looking for one.
+
+**Why:** With a cached source of 1000 pages of 16 KiB string content,
+`list_pages` and `get_page` allocate about 22 MB per call, and `get_page` costs
+about 4.6 ms where a path comparison per page would do.
+
+**Context:** Give ok-only callers (`Site.LLMsTxt`, the filter in
+`mcp.publicPages`) a check without the copy and keep string content as a
+string in `publicPage`; in `getPage`, normalize the input to a page path once
+(strip the BaseURL, map a `.md` path back) and build `PageInfo` only for the
+match, while still draining the source for errors. Measured by the performance
+specialist of the /ship review (2026-10-15).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### `GlobPageSource` drops front matter fields it does not know
+
+**What:** Since the front matter is no longer part of a Markdown page's
+`Content`, fields other than title, description, lang, date, publishDate,
+draft and tags (an `image`, `layout`, `aliases`) are lost.
+
+**Why:** A `ContentRenderer` that parsed the front matter itself for fields of
+its own has nothing to read anymore. The CHANGELOG records the loss.
+
+**Context:** Expose the parsed front matter, e.g. a `Page.FrontMatter
+map[string]any` filled by `GlobPageSource` in `web/globpagesource.go`, or an
+option keeping the raw file as content.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### No `og:locale:alternate` for translations
+
+**What:** `Site.AddPageMetadata` emits hreflang links for translations but no
+Open Graph `og:locale:alternate` tags.
+
+**Why:** Link previews (Facebook, LinkedIn) read the Open Graph locales, not
+hreflang, to offer a translated preview.
+
+**Context:** `html.Document.MetaProperty` is a `map[string]string`, which holds
+one value per property, while `og:locale:alternate` repeats once per locale.
+It needs a document field that allows repeated properties, or the tags rendered
+into `HeadCustom` next to the alternate links from the same list.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### `mcp.GuardHandler` sends no CORS headers
+
+**What:** `GuardHandler` lets requests from `AllowedOrigins` through but neither
+answers a CORS preflight nor sets `Access-Control-Allow-Origin`, so a page on
+another origin cannot call the endpoint even when its origin is allowed.
+
+**Why:** Which headers, methods and credentials an endpoint allows is a policy
+of the site, and same-origin pages and non-browser clients — what a public
+page endpoint serves — need no CORS at all. The guard only rejects; the doc
+comment and the mcp README say so.
+
+**Context:** CORS for the Streamable HTTP transport means answering `OPTIONS`
+for allowed origins with `GET, POST, DELETE` and the `Content-Type`,
+`Mcp-Session-Id`, `Mcp-Protocol-Version` and `Last-Event-ID` request headers,
+and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
+`AllowedOrigins` would cover it.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## mx dead code
+
+### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`
+
+**What:** Three pieces of the root package are dead: `reflectroutes.go` (and
+its `reflectroutes_test.go`) and `writereflect.go` are entirely commented out,
+and `TypedRoute.Path` at `route.go:141` is a stub returning the raw pattern,
+with its implementation commented out under a `TODO`.
+
+**Why:** Dead code reads as API to a newcomer and to an agent searching the
+repo, and `Path` is worse than dead: it is part of the `Route` interface, so a
+caller building a URL with it silently gets `"/blog/{slug}"` back, placeholders
+and all.
+
+**Context:** Each has a replacement already. `ReflectRoutes` (route struct
+fields registered by reflection) gave way to explicit `mx.Route`/`TypedRoute`
+registration on `http.ServeMux` patterns and `web.Site.RegisterRoutes`.
+`writereflect.go` (struct fields written as attributes) gave way to the typed
+attribute constructors in `html`/`svg` and the `Attrib` interface; decide the
+README "To Do" item `ReflectMarkup()` together with it, since that is the same
+idea. For `Path`, either implement it with the existing `JoinAbsPath` and
+`FormatPathValue` in `paths.go` (the commented-out body is most of it), or drop
+`Path` from the `Route` interface, since sites build URLs with
+`web.Site.URL`/`PageURL`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## Completed
 
 ### `GlobPageSource.Dir` does not scope the glob
