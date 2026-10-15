@@ -6,7 +6,9 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/domonda/go-errs"
 )
@@ -289,8 +291,14 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 				errors.New("required"))
 			continue
 		}
-		// Built-in validation chain.
-		if chainErrs := RunValidationChain(visit.Value); len(chainErrs) > 0 {
+		// Built-in validation chain. The elements of an enum set carry
+		// the enum's Validate, not the map or slice holding them, so a
+		// set is validated element by element unless it validates itself.
+		chainErrs := RunValidationChain(visit.Value)
+		if len(chainErrs) == 0 && visit.Kind == FieldKindEnumSet {
+			chainErrs = validateSetElements(visit.Value)
+		}
+		if len(chainErrs) > 0 {
 			out[visit.Path] = append(out[visit.Path], chainErrs...)
 		}
 		// Decider-supplied Validate runs after the chain (additive).
@@ -301,6 +309,33 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 		}
 	}
 	return out
+}
+
+// validateSetElements runs [RunValidationChain] on every element of a
+// set-shaped value, the keys of a map[T]struct{} or the elements of a
+// []T, so a submitted value that is none of the values of an enum T is
+// rejected like in a single enum field. The errors of a map are sorted
+// by message, because map iteration order is random.
+func validateSetElements(value reflect.Value) []error {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return nil
+		}
+		value = value.Elem()
+	}
+	var elemErrs []error
+	switch value.Kind() {
+	case reflect.Map:
+		for key := range value.Seq() {
+			elemErrs = append(elemErrs, RunValidationChain(key)...)
+		}
+		slices.SortFunc(elemErrs, func(a, b error) int { return strings.Compare(a.Error(), b.Error()) })
+	case reflect.Slice:
+		for _, elem := range value.Seq2() {
+			elemErrs = append(elemErrs, RunValidationChain(elem)...)
+		}
+	}
+	return elemErrs
 }
 
 func sentinelSet(form map[string][]string, name string) bool {

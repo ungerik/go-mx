@@ -250,6 +250,57 @@ func TestFieldDecider_ParsesEnumSet(t *testing.T) {
 	}
 }
 
+// TestReflectFormHandler_EnumSetValidatesElements posts enum sets of the
+// go-enum type [Dir] through a real handler: each element is checked with
+// the generated Validate, so a tampered POST cannot bind a value that is
+// none of the enum's values, while valid sets reach onSubmit.
+func TestReflectFormHandler_EnumSetValidatesElements(t *testing.T) {
+	type draft struct {
+		Dirs   []Dir
+		DirSet map[Dir]struct{}
+	}
+	var submitted *draft
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, d *draft) error {
+		submitted = d
+		return nil
+	}, FieldDecider)
+	post := func(dirs, dirSet []string) *httptest.ResponseRecorder {
+		values := url.Values{
+			mx.PresentSentinelName("Dirs"):   {"1"},
+			mx.PresentSentinelName("DirSet"): {"1"},
+			"Dirs":                           dirs,
+			"DirSet":                         dirSet,
+		}
+		req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+
+	rec := post([]string{"ltr", "rtl"}, []string{"auto"})
+	if rec.Code != http.StatusSeeOther || submitted == nil {
+		t.Fatalf("valid sets: status = %d, submitted = %v, body: %s", rec.Code, submitted, rec.Body.String())
+	}
+	if len(submitted.Dirs) != 2 || len(submitted.DirSet) != 1 {
+		t.Errorf("valid sets not bound: %+v", submitted)
+	}
+
+	for name, sets := range map[string][2][]string{
+		"slice": {{"ltr", "sideways"}, {"auto"}},
+		"map":   {{"ltr"}, {"auto", "sideways"}},
+	} {
+		submitted = nil
+		rec := post(sets[0], sets[1])
+		if rec.Code == http.StatusSeeOther || submitted != nil {
+			t.Errorf("%s: an invalid element reached onSubmit, status = %d", name, rec.Code)
+		}
+		if body := rec.Body.String(); !strings.Contains(body, "sideways") || !strings.Contains(body, "html.Dir") {
+			t.Errorf("%s: the Validate error of the invalid element is not rendered: %s", name, body)
+		}
+	}
+}
+
 func TestFieldDecider_EnumSetRendersCheckboxes(t *testing.T) {
 	type form struct {
 		Colors map[colorEnum]struct{}

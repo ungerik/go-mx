@@ -253,10 +253,12 @@ func derefType(t reflect.Type) reflect.Type {
 }
 
 // hasEnumMethods reports whether t (or its element type, if pointer)
-// implements either Enums()/EnumStrings() convention. The methods are
-// detected by name and signature shape — we accept any method named
-// "Enums" that returns a slice of any element type, and any method
-// named "EnumStrings" that returns []string.
+// implements either Enums()/EnumStrings() convention, like the methods
+// go-enum generates. The methods are detected by name and signature
+// shape — we accept any method named "Enums" without parameters that
+// returns a slice of any element type, and any method named
+// "EnumStrings" without parameters that returns []string. A method with
+// parameters could not be called to collect the options.
 func hasEnumMethods(t reflect.Type) bool {
 	if t == nil {
 		return false
@@ -271,8 +273,8 @@ func hasEnumMethods(t reflect.Type) bool {
 				continue
 			}
 			ft := m.Func.Type()
-			// receiver + zero or more args, returning exactly one slice
-			if ft.NumOut() != 1 {
+			// only the receiver, returning exactly one slice
+			if ft.NumIn() != 1 || ft.NumOut() != 1 {
 				continue
 			}
 			if ft.Out(0).Kind() != reflect.Slice {
