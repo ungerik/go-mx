@@ -48,6 +48,14 @@ func (a AlternateRel) Validate() error {
 	return nil
 }
 
+// ValidOr returns a if it is any of the valid values for AlternateRel, else defaultVal
+func (a AlternateRel) ValidOr(defaultVal AlternateRel) AlternateRel {
+	if a.Valid() {
+		return a
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AlternateRel
 func (AlternateRel) Enums() []AlternateRel {
 	return []AlternateRel{

@@ -40,6 +40,14 @@ func (r ResizeDirection) Validate() error {
 	return nil
 }
 
+// ValidOr returns r if it is any of the valid values for ResizeDirection, else defaultVal
+func (r ResizeDirection) ValidOr(defaultVal ResizeDirection) ResizeDirection {
+	if r.Valid() {
+		return r
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ResizeDirection
 func (ResizeDirection) Enums() []ResizeDirection {
 	return []ResizeDirection{
@@ -72,7 +80,7 @@ const resizeScript = /*js*/ `if(!window.resizeStart){window.resizeStart=function
 // [ResizableHandle]s. The shared resizeScript is appended once. direction may be
 // "" for the default (horizontal).
 func ResizablePanelGroup(direction ResizeDirection, attribsChildren ...any) *mx.Element {
-	dir := string(orDefault(direction, ResizeHorizontal))
+	dir := string(direction.ValidOr(ResizeHorizontal))
 	e := html.Div(append(attribsChildren, html.ScriptJS(resizeScript))...)
 	if e.AttribIndex("data-direction") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("direction", dir))

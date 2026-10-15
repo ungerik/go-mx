@@ -39,6 +39,14 @@ func (t ToggleGroupType) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for ToggleGroupType, else defaultVal
+func (t ToggleGroupType) ValidOr(defaultVal ToggleGroupType) ToggleGroupType {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ToggleGroupType
 func (ToggleGroupType) Enums() []ToggleGroupType {
 	return []ToggleGroupType{
@@ -88,9 +96,9 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("type", string(orDefault(groupType, ToggleGroupSingle))),
-		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
-		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
+		html.DataAttr("type", string(groupType.ValidOr(ToggleGroupSingle))),
+		html.DataAttr("variant", string(variant.ValidOr(ToggleDefault))),
+		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 		html.DataAttr("toggle-group", id),
 	)
 	return finish(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
@@ -126,8 +134,8 @@ func ToggleGroupItem(groupID, value string, variant ToggleVariant, size ToggleSi
 		e.Attribs = append(e.Attribs, html.Attrib("aria-pressed", "false"))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
-		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
+		html.DataAttr("variant", string(variant.ValidOr(ToggleDefault))),
+		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 		html.DataAttr("toggle-group", groupID),
 		html.DataAttr("toggle-group-value", value),
 	)

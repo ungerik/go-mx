@@ -45,6 +45,14 @@ func (s SheetSide) Validate() error {
 	return nil
 }
 
+// ValidOr returns s if it is any of the valid values for SheetSide, else defaultVal
+func (s SheetSide) ValidOr(defaultVal SheetSide) SheetSide {
+	if s.Valid() {
+		return s
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for SheetSide
 func (SheetSide) Enums() []SheetSide {
 	return []SheetSide{
@@ -111,7 +119,7 @@ const sheetContentBaseClasses = "open:flex flex-col fixed m-0 max-h-none max-w-n
 // <dialog> with inset:0 on every side; without the override the sheet would be
 // stretched across the viewport instead of pinned.
 func sheetSideClasses(side SheetSide) string {
-	switch side {
+	switch side.ValidOr(SheetRight) {
 	case SheetTop:
 		return "inset-x-0 top-0 bottom-auto h-auto w-full border-b"
 	case SheetBottom:

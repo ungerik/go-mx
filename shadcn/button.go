@@ -52,6 +52,14 @@ func (b ButtonVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for ButtonVariant, else defaultVal
+func (b ButtonVariant) ValidOr(defaultVal ButtonVariant) ButtonVariant {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ButtonVariant
 func (ButtonVariant) Enums() []ButtonVariant {
 	return []ButtonVariant{
@@ -128,6 +136,14 @@ func (b ButtonSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for ButtonSize, else defaultVal
+func (b ButtonSize) ValidOr(defaultVal ButtonSize) ButtonSize {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ButtonSize
 func (ButtonSize) Enums() []ButtonSize {
 	return []ButtonSize{
@@ -196,8 +212,8 @@ var buttonVariants = cva.New(cva.Config{
 // An empty or unknown variant or size resolves to the default.
 func ButtonClasses(variant ButtonVariant, size ButtonSize) string {
 	return Cn(buttonVariants(map[string]string{
-		"variant": string(orDefault(variant, ButtonDefault)),
-		"size":    string(orDefault(size, SizeDefault)),
+		"variant": string(variant.ValidOr(ButtonDefault)),
+		"size":    string(size.ValidOr(SizeDefault)),
 	}))
 }
 
@@ -210,8 +226,8 @@ func ButtonClasses(variant ButtonVariant, size ButtonSize) string {
 // explicit type would otherwise submit an enclosing form); pass html.Type to
 // override.
 func Button(variant ButtonVariant, size ButtonSize, attribsChildren ...any) *mx.Element {
-	variant = orDefault(variant, ButtonDefault)
-	size = orDefault(size, SizeDefault)
+	variant = variant.ValidOr(ButtonDefault)
+	size = size.ValidOr(SizeDefault)
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

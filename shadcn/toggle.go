@@ -40,6 +40,14 @@ func (t ToggleVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for ToggleVariant, else defaultVal
+func (t ToggleVariant) ValidOr(defaultVal ToggleVariant) ToggleVariant {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ToggleVariant
 func (ToggleVariant) Enums() []ToggleVariant {
 	return []ToggleVariant{
@@ -94,6 +102,14 @@ func (t ToggleSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for ToggleSize, else defaultVal
+func (t ToggleSize) ValidOr(defaultVal ToggleSize) ToggleSize {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ToggleSize
 func (ToggleSize) Enums() []ToggleSize {
 	return []ToggleSize{
@@ -145,8 +161,8 @@ var toggleVariants = cva.New(cva.Config{
 // default.
 func ToggleClasses(variant ToggleVariant, size ToggleSize) string {
 	return Cn(toggleVariants(map[string]string{
-		"variant": string(orDefault(variant, ToggleDefault)),
-		"size":    string(orDefault(size, ToggleSizeDefault)),
+		"variant": string(variant.ValidOr(ToggleDefault)),
+		"size":    string(size.ValidOr(ToggleSizeDefault)),
 	}))
 }
 
@@ -178,8 +194,8 @@ func Toggle(variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.
 		e.Attribs = append(e.Attribs, html.OnClick(toggleAriaPressedFlip))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
-		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
+		html.DataAttr("variant", string(variant.ValidOr(ToggleDefault))),
+		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 	)
 	return finish(e, "toggle", ToggleClasses(variant, size))
 }

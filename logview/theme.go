@@ -110,6 +110,14 @@ func (c Class) Validate() error {
 	return nil
 }
 
+// ValidOr returns c if it is any of the valid values for Class, else defaultVal
+func (c Class) ValidOr(defaultVal Class) Class {
+	if c.Valid() {
+		return c
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Class
 func (Class) Enums() []Class {
 	return []Class{

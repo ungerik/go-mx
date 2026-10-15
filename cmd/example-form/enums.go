@@ -38,6 +38,14 @@ func (t Tier) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for Tier, else defaultVal
+func (t Tier) ValidOr(defaultVal Tier) Tier {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Tier
 func (Tier) Enums() []Tier {
 	return []Tier{
@@ -95,6 +103,14 @@ func (f Feature) Validate() error {
 		return fmt.Errorf("invalid value %#v for type main.Feature", f)
 	}
 	return nil
+}
+
+// ValidOr returns f if it is any of the valid values for Feature, else defaultVal
+func (f Feature) ValidOr(defaultVal Feature) Feature {
+	if f.Valid() {
+		return f
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Feature

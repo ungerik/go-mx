@@ -46,6 +46,14 @@ func (p PermalinkStyle) Validate() error {
 	return nil
 }
 
+// ValidOr returns p if it is any of the valid values for PermalinkStyle, else defaultVal
+func (p PermalinkStyle) ValidOr(defaultVal PermalinkStyle) PermalinkStyle {
+	if p.Valid() {
+		return p
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for PermalinkStyle
 func (PermalinkStyle) Enums() []PermalinkStyle {
 	return []PermalinkStyle{

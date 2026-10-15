@@ -49,6 +49,14 @@ func (i ItemVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns i if it is any of the valid values for ItemVariant, else defaultVal
+func (i ItemVariant) ValidOr(defaultVal ItemVariant) ItemVariant {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ItemVariant
 func (ItemVariant) Enums() []ItemVariant {
 	return []ItemVariant{
@@ -104,6 +112,14 @@ func (i ItemSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns i if it is any of the valid values for ItemSize, else defaultVal
+func (i ItemSize) ValidOr(defaultVal ItemSize) ItemSize {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ItemSize
 func (ItemSize) Enums() []ItemSize {
 	return []ItemSize{
@@ -150,7 +166,7 @@ var itemVariants = cva.New(cva.Config{
 // defaults; an unknown value also resolves to the default. Compose it with [ItemMedia], [ItemContent] (holding [ItemTitle]
 // and [ItemDescription]), [ItemActions], [ItemHeader] and [ItemFooter].
 func Item(variant ItemVariant, size ItemSize, attribsChildren ...any) *mx.Element {
-	v, s := string(orDefault(variant, ItemDefault)), string(orDefault(size, ItemSizeDefault))
+	v, s := string(variant.ValidOr(ItemDefault)), string(size.ValidOr(ItemSizeDefault))
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs,
 		html.DataAttr("variant", v),
@@ -213,6 +229,14 @@ func (i ItemMediaVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns i if it is any of the valid values for ItemMediaVariant, else defaultVal
+func (i ItemMediaVariant) ValidOr(defaultVal ItemMediaVariant) ItemMediaVariant {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ItemMediaVariant
 func (ItemMediaVariant) Enums() []ItemMediaVariant {
 	return []ItemMediaVariant{
@@ -253,7 +277,7 @@ var itemMediaVariants = cva.New(cva.Config{
 // ItemMedia renders an [Item]'s leading icon, image or avatar slot. variant
 // may be "" for the default.
 func ItemMedia(variant ItemMediaVariant, attribsChildren ...any) *mx.Element {
-	variant = orDefault(variant, ItemMediaDefault)
+	variant = variant.ValidOr(ItemMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "item-media",

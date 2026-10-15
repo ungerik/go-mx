@@ -44,6 +44,14 @@ func (b ButtonGroupOrientation) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for ButtonGroupOrientation, else defaultVal
+func (b ButtonGroupOrientation) ValidOr(defaultVal ButtonGroupOrientation) ButtonGroupOrientation {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ButtonGroupOrientation
 func (ButtonGroupOrientation) Enums() []ButtonGroupOrientation {
 	return []ButtonGroupOrientation{
@@ -89,7 +97,7 @@ var buttonGroupVariants = cva.New(cva.Config{
 // [ButtonClasses]. An empty or unknown orientation resolves to horizontal.
 func ButtonGroupClasses(orientation ButtonGroupOrientation) string {
 	return Cn(buttonGroupVariants(map[string]string{
-		"orientation": string(orDefault(orientation, ButtonGroupHorizontal)),
+		"orientation": string(orientation.ValidOr(ButtonGroupHorizontal)),
 	}))
 }
 
@@ -99,7 +107,7 @@ func ButtonGroupClasses(orientation ButtonGroupOrientation) string {
 // children's data-slot attributes, which every component in this package
 // emits. A caller-supplied role is left untouched.
 func ButtonGroup(orientation ButtonGroupOrientation, attribsChildren ...any) *mx.Element {
-	o := orDefault(orientation, ButtonGroupHorizontal)
+	o := orientation.ValidOr(ButtonGroupHorizontal)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -130,6 +138,6 @@ const buttonGroupSeparatorClasses = "relative self-stretch data-[orientation=hor
 // caller class still wins over them.
 func ButtonGroupSeparator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Element {
 	return finish(
-		Separator(orDefault(orientation, SeparatorVertical), append([]any{html.Class(buttonGroupSeparatorClasses)}, attribsChildren...)...),
+		Separator(orientation.ValidOr(SeparatorVertical), append([]any{html.Class(buttonGroupSeparatorClasses)}, attribsChildren...)...),
 		"button-group-separator", "")
 }

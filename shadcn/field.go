@@ -62,6 +62,14 @@ func (f FieldOrientation) Validate() error {
 	return nil
 }
 
+// ValidOr returns f if it is any of the valid values for FieldOrientation, else defaultVal
+func (f FieldOrientation) ValidOr(defaultVal FieldOrientation) FieldOrientation {
+	if f.Valid() {
+		return f
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FieldOrientation
 func (FieldOrientation) Enums() []FieldOrientation {
 	return []FieldOrientation{
@@ -108,7 +116,7 @@ var fieldVariants = cva.New(cva.Config{
 // [FieldContent], [FieldDescription] and [FieldError]; group several Fields
 // with [FieldGroup] or [FieldSet].
 func Field(orientation FieldOrientation, attribsChildren ...any) *mx.Element {
-	o := orDefault(orientation, FieldVertical)
+	o := orientation.ValidOr(FieldVertical)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -164,6 +172,14 @@ func (f FieldLegendVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns f if it is any of the valid values for FieldLegendVariant, else defaultVal
+func (f FieldLegendVariant) ValidOr(defaultVal FieldLegendVariant) FieldLegendVariant {
+	if f.Valid() {
+		return f
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FieldLegendVariant
 func (FieldLegendVariant) Enums() []FieldLegendVariant {
 	return []FieldLegendVariant{
@@ -188,7 +204,7 @@ func (f FieldLegendVariant) String() string {
 // FieldLegend renders a [FieldSet]'s <legend>. variant may be "" for the
 // default scale; [FieldLegendLabel] matches the size of a [FieldLabel].
 func FieldLegend(variant FieldLegendVariant, attribsChildren ...any) *mx.Element {
-	variant = orDefault(variant, FieldLegendDefault)
+	variant = variant.ValidOr(FieldLegendDefault)
 	e := html.Element("legend", attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "field-legend",

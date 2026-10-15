@@ -69,6 +69,14 @@ func (i InputGroupAddonAlign) Validate() error {
 	return nil
 }
 
+// ValidOr returns i if it is any of the valid values for InputGroupAddonAlign, else defaultVal
+func (i InputGroupAddonAlign) ValidOr(defaultVal InputGroupAddonAlign) InputGroupAddonAlign {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for InputGroupAddonAlign
 func (InputGroupAddonAlign) Enums() []InputGroupAddonAlign {
 	return []InputGroupAddonAlign{
@@ -120,7 +128,7 @@ const inputGroupAddonFocus = "if(!event.target.closest('button'))this.parentElem
 // default (inline-start). Clicking the addon focuses the group's control;
 // pass your own html.OnClick to replace that.
 func InputGroupAddon(align InputGroupAddonAlign, attribsChildren ...any) *mx.Element {
-	align = orDefault(align, InputGroupAddonInlineStart)
+	align = align.ValidOr(InputGroupAddonInlineStart)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -167,6 +175,14 @@ func (i InputGroupButtonSize) Validate() error {
 		return fmt.Errorf("invalid value %#v for type shadcn.InputGroupButtonSize", i)
 	}
 	return nil
+}
+
+// ValidOr returns i if it is any of the valid values for InputGroupButtonSize, else defaultVal
+func (i InputGroupButtonSize) ValidOr(defaultVal InputGroupButtonSize) InputGroupButtonSize {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for InputGroupButtonSize
@@ -234,8 +250,8 @@ func inputGroupButtonBaseSize(s string) ButtonSize {
 // may be "" for the default (xs). Like [Button] it defaults to
 // type="button"; pass html.Type to override.
 func InputGroupButton(variant ButtonVariant, size InputGroupButtonSize, attribsChildren ...any) *mx.Element {
-	variant = orDefault(variant, ButtonGhost)
-	s := string(orDefault(size, InputGroupButtonXS))
+	variant = variant.ValidOr(ButtonGhost)
+	s := string(size.ValidOr(InputGroupButtonXS))
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

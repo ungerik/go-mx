@@ -1210,15 +1210,11 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 		}
 		st.strokeWidth = w
 	case "stroke-linecap":
-		if c := LineCapStyle(value); c.Valid() {
-			st.lineCap = c
-		}
+		st.lineCap = LineCapStyle(value).ValidOr(st.lineCap)
 	case "stroke-linejoin":
 		// SVG's arcs and miter-clip have no PDF line join, so like any
 		// other unknown value they keep the inherited join.
-		if j := LineJoinStyle(value); j.Valid() {
-			st.lineJoin = j
-		}
+		st.lineJoin = LineJoinStyle(value).ValidOr(st.lineJoin)
 	case "stroke-dasharray":
 		return st.setDashArray(value, vp)
 	case "stroke-dashoffset":

@@ -46,6 +46,14 @@ func (b BadgeVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for BadgeVariant, else defaultVal
+func (b BadgeVariant) ValidOr(defaultVal BadgeVariant) BadgeVariant {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for BadgeVariant
 func (BadgeVariant) Enums() []BadgeVariant {
 	return []BadgeVariant{
@@ -91,7 +99,7 @@ var badgeVariants = cva.New(cva.Config{
 // use it to give the badge look to another element. An empty or unknown
 // variant resolves to the default.
 func BadgeClasses(variant BadgeVariant) string {
-	return Cn(badgeVariants(map[string]string{"variant": string(orDefault(variant, BadgeDefault))}))
+	return Cn(badgeVariants(map[string]string{"variant": string(variant.ValidOr(BadgeDefault))}))
 }
 
 // Badge renders a shadcn/ui badge as a <span>. variant may be "" for the

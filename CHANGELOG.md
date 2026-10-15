@@ -320,7 +320,9 @@ API is still free to change.
 - **Closed sets of values are go-enum types, checked with the generated
   methods instead of hand-written lists.** An unknown value now fails with the
   generated `Validate` error (`invalid value "x" for type pkg.Type`) or
-  resolves to the documented default, the same way everywhere:
+  resolves to the documented default with `ValidOr`, the same way everywhere.
+  The build-time generator is pinned to go-enum v1.3.0 and all enum methods
+  have been regenerated:
   - `pdf.Renderer.SetLineCapStyle` and `SetLineJoinStyle` take, and their
     getters return, `pdf.LineCapStyle` and `pdf.LineJoinStyle` instead of a
     string. An unknown style is the renderer error rather than a silent butt

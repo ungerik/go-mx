@@ -60,6 +60,14 @@ func (e EmptyMediaVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns e if it is any of the valid values for EmptyMediaVariant, else defaultVal
+func (e EmptyMediaVariant) ValidOr(defaultVal EmptyMediaVariant) EmptyMediaVariant {
+	if e.Valid() {
+		return e
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for EmptyMediaVariant
 func (EmptyMediaVariant) Enums() []EmptyMediaVariant {
 	return []EmptyMediaVariant{
@@ -98,7 +106,7 @@ var emptyMediaVariants = cva.New(cva.Config{
 // the default. The data-slot is "empty-icon", matching upstream's empty.tsx
 // (which uses that name for the media part).
 func EmptyMedia(variant EmptyMediaVariant, attribsChildren ...any) *mx.Element {
-	variant = orDefault(variant, EmptyMediaDefault)
+	variant = variant.ValidOr(EmptyMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "empty-icon",

@@ -84,6 +84,14 @@ func (g Grid) Validate() error {
 	return nil
 }
 
+// ValidOr returns g if it is any of the valid values for Grid, else defaultVal
+func (g Grid) ValidOr(defaultVal Grid) Grid {
+	if g.Valid() {
+		return g
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Grid
 func (Grid) Enums() []Grid {
 	return []Grid{
