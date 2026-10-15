@@ -1,0 +1,21 @@
+# Example
+
+> A site about examples.
+
+Every link is the Markdown version of a page.
+
+## Docs
+
+- [Getting started](https://example.com/docs/start.md): Install and first steps
+- [/docs/](https://example.com/docs/index.md)
+- [Paren](https://example.com/docs/a%28b%29.md)
+- [Use 'go (run)](https://example.com/docs/run.md): Runs [1mit
+- [/docs/backslashes](https://example.com/docs/backslashes.md)
+
+## Blog
+
+- [Hello (world)](https://example.com/blog/hello.md)
+
+## Pages
+
+- [Imprint](https://example.com/imprint.md)

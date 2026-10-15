@@ -1,0 +1,9 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Events",
+  "description": "Upcoming concerts and talks.",
+  "url": "https://example.com/events/",
+  "inLanguage": "en",
+  "isPartOf": "https://example.com/"
+}

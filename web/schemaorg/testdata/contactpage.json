@@ -1,0 +1,12 @@
+{
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Contact",
+  "url": "https://example.com/contact",
+  "about": {
+    "@type": "Organization",
+    "name": "Example",
+    "email": "office@example.com",
+    "telephone": "+43 1 234567"
+  }
+}

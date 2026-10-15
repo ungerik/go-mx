@@ -1,0 +1,9 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Question",
+  "name": "Is there parking?",
+  "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes, in the garage next door."
+  }
+}

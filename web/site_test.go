@@ -350,6 +350,15 @@ func TestSiteValidate(t *testing.T) {
 	}
 	require.Error(t, site.Validate())
 	require.Error(t, site.RegisterRoutes(http.NewServeMux()))
+
+	// The languages end up in hreflang attributes and Link headers, where a
+	// malformed tag is ignored by crawlers rather than reported.
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en_US"}
+	require.ErrorContains(t, site.Validate(), "Site.Lang")
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en", DefaultLang: "x-default"}
+	require.ErrorContains(t, site.Validate(), "Site.DefaultLang")
+	site = &web.Site{BaseURL: "https://example.com", Lang: "en", DefaultLang: "de"}
+	require.NoError(t, site.Validate())
 }
 
 // errorPages is a PageSource that fails while iterating.

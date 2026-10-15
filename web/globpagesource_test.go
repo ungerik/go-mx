@@ -20,6 +20,7 @@ func TestGlobPageSourceMarkdownFrontmatter(t *testing.T) {
 		"---\n"+
 			"title: Hello World\n"+
 			"description: The first post\n"+
+			"lang: en-GB\n"+
 			"publishDate: 2026-06-01T08:00:00Z\n"+
 			"tags: [go, web]\n"+
 			"---\n"+
@@ -48,8 +49,13 @@ func TestGlobPageSourceMarkdownFrontmatter(t *testing.T) {
 	require.Equal(t, "post", page.Type)
 	require.Equal(t, "Site Author", page.Author)
 	require.Equal(t, mx.ContentTypeMarkdown, page.ContentType)
+	require.Equal(t, "en-GB", page.Lang)
 	require.True(t, page.IsPublished())
-	require.NotNil(t, page.Content)
+	// The front matter is parsed into the page fields, not published again
+	// as part of the content.
+	markdown, ok := page.MarkdownSource()
+	require.True(t, ok)
+	require.Equal(t, "# Hello\n", string(markdown))
 }
 
 func TestGlobPageSourceDraft(t *testing.T) {

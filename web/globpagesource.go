@@ -3,7 +3,6 @@ package web
 import (
 	"bytes"
 	"context"
-	"errors"
 	"iter"
 	"net/url"
 	"path"
@@ -21,8 +20,10 @@ import (
 // https://github.com/yuin/goldmark
 
 // GlobPageSource is a PageSource that yields pages from files matching a glob
-// Pattern below Dir. Markdown files are parsed for frontmatter metadata, and
-// HTML and plain-text files are loaded with their respective content types.
+// Pattern below Dir. Markdown files are parsed for frontmatter metadata (title,
+// description, lang, date, publishDate, draft, tags), which is not part of the
+// page content, and HTML and plain-text files are loaded with their respective
+// content types.
 //
 //	source := &web.GlobPageSource{Dir: fs.File("content/blog"), Pattern: "*.md"}
 //	// content/blog/hello.md -> Page{Path: "/hello"}
@@ -77,14 +78,17 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				var matter struct {
 					Title       string    `yaml:"title"       toml:"title"       json:"title"`
 					Description string    `yaml:"description" toml:"description" json:"description"`
+					Lang        string    `yaml:"lang"        toml:"lang"        json:"lang"`
 					Date        time.Time `yaml:"date"        toml:"date"        json:"date"`
 					PublishDate time.Time `yaml:"publishDate" toml:"publishDate" json:"publishDate"`
 					Draft       bool      `yaml:"draft"       toml:"draft"       json:"draft"`
 					Tags        []string  `yaml:"tags"        toml:"tags"        json:"tags"`
 				}
-				_, err = frontmatter.Parse(bytes.NewReader(data), &matter)
-				if errors.Is(err, frontmatter.ErrNotFound) {
-				}
+				// The front matter is metadata, parsed into the page fields
+				// below. The content is the Markdown after it, which is what
+				// a ContentRenderer renders and what a Markdown alternate
+				// publishes (see [Page.MarkdownSource]).
+				body, err := frontmatter.Parse(bytes.NewReader(data), &matter)
 				if err != nil {
 					yield(nil, err)
 					return
@@ -96,6 +100,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					Author:      s.DefaultAuthor,
 					Title:       matter.Title,
 					Description: matter.Description,
+					Lang:        matter.Lang,
 					Created:     matter.Date,
 					LastUpdated: matter.Date,
 					Published:   matter.PublishDate,
@@ -105,7 +110,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					page.Published = time.Time{}
 				}
 				if withContent {
-					page.Content = data
+					page.Content = body
 				}
 				if !yield(page, nil) {
 					return

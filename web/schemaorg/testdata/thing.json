@@ -1,0 +1,13 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Brand",
+  "@id": "https://example.com/#brand",
+  "name": "Example",
+  "description": "The brand of Example Inc.",
+  "url": "https://example.com/",
+  "sameAs": [
+    "https://en.wikipedia.org/wiki/Example",
+    "https://github.com/example"
+  ],
+  "image": "https://example.com/brand.png"
+}

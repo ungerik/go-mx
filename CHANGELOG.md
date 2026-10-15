@@ -5,7 +5,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Versions use the Go module scheme, `vMAJOR.MINOR.PATCH`, and a release tags
 every module of the repo in lockstep: the root module as `vX.Y.Z` and each
-submodule with its path as prefix (`fpdf/vX.Y.Z`, `wordpress/vX.Y.Z`).
+submodule with its path as prefix (`fpdf/vX.Y.Z`, `wordpress/vX.Y.Z`,
+`mcp/vX.Y.Z`).
 
 This file starts with the entry below; the changes made before it are in the
 commit history. Nothing is tagged yet, so everything here is unreleased and the
@@ -14,6 +15,71 @@ API is still free to change.
 ## [Unreleased]
 
 ### Added
+
+- **A public knowledge layer for crawlers and AI agents.** A site publishes the
+  same pages as HTML, Markdown, an llms.txt index, schema.org JSON-LD and MCP
+  tools, and every one of those surfaces lists exactly the pages
+  `web.Page.Indexable` lets a search engine see — one predicate for "public",
+  so a draft cannot leak through a surface that forgot to check. Only the parts
+  that need no knowledge of what a site sells live here; prices, offerings and
+  revision policy stay with the site.
+- **`web.Alternate` and `web.Page.Alternates`: translations and other formats
+  of a page, from one list.** `Site.AddPageMetadata` renders them as `<link>`
+  elements after the canonical link and `Site.PageHeaders` returns the same
+  links as `Link` headers, so the HTML head and the response headers cannot
+  drift apart.
+  - A page with translations also names itself, from the new `Page.Lang`
+    (falling back to `Site.Lang`): search engines ignore an hreflang set whose
+    pages do not each list themselves. A translated page without any language
+    is an error, not a set crawlers will discard.
+  - `Site.DefaultLang` adds the `hreflang="x-default"` link, pointing at the
+    version in that language, and only when that version exists. An explicit
+    `x-default` alternate (a language chooser) takes precedence.
+  - `Page.Validate` rejects what would give crawlers two answers to one
+    question: a repeated rel, type and hreflang, a translation in the page's own
+    language, or a translation pointing back at the page itself.
+- **Markdown alternates of pages.** A page with Markdown content gets a
+  Markdown version for readers that have no use for layout and scripts.
+  `Site.MarkdownAlternate` puts a header in front of the page's own source —
+  title, description, canonical URL, language, last update and translations —
+  so the document makes sense without the HTML page around it, and leaves room
+  for `MarkdownDocument.Sections` a site adds itself. `MarkdownPath` maps
+  `/en/faq` to `/en/faq.md`. `Site.ServeMarkdown` serves it with a canonical
+  `Link` header pointing at the HTML page, `Vary: Accept`, and conditional
+  requests answered by `http.ServeContent`, and `AcceptsMarkdown` decides from
+  the `Accept` header whether a client asked for Markdown over HTML — a
+  browser's `*/*` never counts as asking, while an agent's
+  `text/markdown, text/html, */*` does, because at equal quality the client's
+  order decides.
+- **`web.LLMsTxt`** renders an [llms.txt](https://llmstxt.org) index and, like
+  `web.Robots`, validates first: a line break in any field, a bracket in a link
+  title or a parenthesis in a URL would add a heading or a link nobody wrote,
+  so each is an error instead of a file. `HandleHTTP` serves it with an ETag
+  derived from the content. `Site.LLMsTxt` builds one from the public pages
+  with a Markdown alternate, grouped by `Page.Type`.
+- **`html.JSONLD`** embeds structured data as a
+  `<script type="application/ld+json">`. Unlike `html.ScriptJS` it is safe for
+  untrusted values: `encoding/json` escapes `<`, `>` and `&` inside strings, so
+  no `</script` can end the element early. A value that fails to marshal, or
+  marshals to `null`, is a deferred render error.
+- **`web/schemaorg`: a typed subset of schema.org** — `Person`,
+  `Organization`, `WebSite`, `WebPage` and its `AboutPage`/`ContactPage`/
+  `CollectionPage`/`FAQPage` subtypes, `ItemList`, `Service`, `Offer`,
+  `Event`, `Place`, `VirtualLocation`, `PostalAddress`, `Question`/`Answer` —
+  as plain structs that marshal to JSON-LD. `Price` formats integer cents as a
+  decimal string and there is no `float64` in the package, so a price is never
+  whatever its nearest float rounds back to. `EventStatus`,
+  `EventAttendanceMode` and `Availability` are typed enums carrying the
+  schema.org URLs.
+- **`mcp` module: a site's public pages as MCP tools.** `AddPageTools` adds
+  `search_pages`, `list_pages` and `get_page` — read-only, returning Markdown
+  alternates of public pages only — to a Model Context Protocol server of the
+  official Go SDK that the caller owns, next to the caller's own tools.
+  Nothing is exposed without the caller passing a source, `get_page` answers a
+  missing page and a non-public one alike, and server-side failures reach the
+  client only as "unavailable". `GuardHandler` adds what a public endpoint
+  needs: an `Origin` allowlist, a 413 for oversized bodies, and `no-store`. It
+  is a nested module, so the SDK stays out of the core module.
 
 - **`mx.SSEResponse`: components streamed to a client as Server-Sent Events.**
   go-mx buffers whole responses on purpose, so that a deferred computation
@@ -187,6 +253,16 @@ API is still free to change.
   indexable at all.
 
 ### Changed
+
+- **`web.GlobPageSource` no longer includes the front matter in the content of
+  a Markdown page.** It is parsed into the page fields, and passing it along as
+  well put it into every rendering of the page — and into the Markdown
+  alternate, where a reader would get the YAML block as text. The front matter
+  is also read for a `lang`, the new `Page.Lang`.
+- `Site.AddPageMetadata` sets the html `lang` attribute from `Page.Lang` before
+  `Site.Lang`, and fails for a page that does not pass `Page.Validate` even
+  when the renderer declared the page URL itself. `Site.Validate` checks `Lang`
+  and `DefaultLang` too.
 
 - **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
   its own transport failures at the `EventSource` under the name `error`, so a

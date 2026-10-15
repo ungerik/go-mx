@@ -134,7 +134,19 @@ For streaming output or serving over HTTP, render a `Component` into an
   renders it as a static shadcn site plus an import-diagnostics report. Its own
   nested module, so its `golang.org/x/net/html` dependency stays out of core. See
   [wordpress/README.md](wordpress/README.md).
-- **`web`**, **`doc`** — higher-level abstractions, partially implemented.
+- **`web`** — a site above `html`: pages from a `PageSource`, rendered by a
+  `PageRenderer`, and a `Site` that derives what crawlers and agents read from
+  its public pages: sitemap and robots.txt, canonical and hreflang links (in
+  the HTML head and as `Link` headers from one list), Markdown alternates of
+  pages, and an `llms.txt` index. The
+  [`web/schemaorg`](web/schemaorg) subpackage is a typed schema.org subset for
+  structured data, embedded with `html.JSONLD`.
+- **`mcp`** — the public pages of a `web.Site` as read-only
+  [Model Context Protocol](https://modelcontextprotocol.io) tools for AI
+  agents, added to a server of the official Go SDK, plus a guard for the HTTP
+  endpoint. Its own nested module, so the SDK stays out of core. See
+  [mcp/README.md](mcp/README.md).
+- **`doc`** — higher-level abstractions, partially implemented.
 
 ## Streaming
 

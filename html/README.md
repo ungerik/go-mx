@@ -134,9 +134,17 @@ pairings you write in almost every document — `<meta>`, `<script>`, and
 | `ScriptJS(js…)`                   | `<script>…</script>` inline classic script |
 | `ScriptModule(…)`                 | `<script type="module">` ES module   |
 | `ScriptModuleJS(js…)`             | `<script type="module">…</script>` inline ES module |
+| `JSONLD(v)`                       | `<script type="application/ld+json">…</script>` structured data, safe for untrusted values |
 | `StyleSheet(href, …)`             | `<link rel="stylesheet" href="…">`   |
 | `Icon(href, …)`                   | `<link rel="icon" href="…">` favicon |
 | `LinkPreload(href, as, …)`        | `<link rel="preload" href="…" as="…">` |
+
+`JSONLD` marshals `v` with `encoding/json`, whose HTML escaping turns `<`, `>`
+and `&` inside strings into `\u003c`, `\u003e` and `\u0026`, so unlike
+`ScriptJS` no value can end the script early. A marshal error, a nil `v` or a
+`v` marshaling to `null` is deferred to render time (and visible in the
+returned element's `Err`). The typed schema.org values of
+[`web/schemaorg`](../web/schemaorg) are made for it.
 
 `LinkPreload` takes the typed `As` destination enum (`AsScript`, `AsStyle`,
 `AsFont`, …); it is named `LinkPreload` rather than `Preload` because `Preload`

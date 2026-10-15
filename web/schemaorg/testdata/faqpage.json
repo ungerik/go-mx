@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "name": "FAQ",
+  "url": "https://example.com/faq",
+  "inLanguage": "en",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Where do I get tickets?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "At the \u003ca href=\"https://example.com/tickets\"\u003ebox office\u003c/a\u003e."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there parking?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, in the garage next door."
+      }
+    }
+  ]
+}

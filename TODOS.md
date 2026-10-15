@@ -241,6 +241,76 @@ under `docs/shadcn/gallery/` is generated and unaffected. `cmd/example-sse` and
 **Priority:** P3
 **Depends on:** None
 
+## web knowledge layer
+
+Deliberate omissions from the alternates, Markdown alternates and llms.txt
+work, recorded so they read as decisions rather than oversights.
+
+### `Site.RegisterRoutes` serves neither llms.txt nor the Markdown alternates
+
+**What:** `Site.RegisterRoutes` registers robots.txt and the sitemap, but not
+`LLMsTxtPath` or the `.md` URLs that `MarkdownPath` derives.
+
+**Why:** Both are opt-in publishing decisions — which pages an agent may read,
+whether the alternate is served at its own URL, under the page URL by
+`AcceptsMarkdown`, or both, and with which revision as ETag — so a site wires
+them explicitly instead of getting them by default.
+
+**Context:** A `Site.LLMsTxtOptions` field plus a catch-all `GET /{path...}.md`
+route resolving the page by `MarkdownPath` would make it one line for the common
+case. ServeMux cannot match a suffix, so the route needs a pattern per page or
+a handler that strips `.md` itself.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### No `og:locale:alternate` for translations
+
+**What:** `Site.AddPageMetadata` emits hreflang links for translations but no
+Open Graph `og:locale:alternate` tags.
+
+**Why:** Link previews (Facebook, LinkedIn) read the Open Graph locales, not
+hreflang, to offer a translated preview.
+
+**Context:** `html.Document.MetaProperty` is a `map[string]string`, which holds
+one value per property, while `og:locale:alternate` repeats once per locale.
+It needs a document field that allows repeated properties, or the tags rendered
+into `HeadCustom` next to the alternate links from the same list.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## mx dead code
+
+### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`
+
+**What:** Three pieces of the root package are dead: `reflectroutes.go` (and
+its `reflectroutes_test.go`) and `writereflect.go` are entirely commented out,
+and `TypedRoute.Path` at `route.go:141` is a stub returning the raw pattern,
+with its implementation commented out under a `TODO`.
+
+**Why:** Dead code reads as API to a newcomer and to an agent searching the
+repo, and `Path` is worse than dead: it is part of the `Route` interface, so a
+caller building a URL with it silently gets `"/blog/{slug}"` back, placeholders
+and all.
+
+**Context:** Each has a replacement already. `ReflectRoutes` (route struct
+fields registered by reflection) gave way to explicit `mx.Route`/`TypedRoute`
+registration on `http.ServeMux` patterns and `web.Site.RegisterRoutes`.
+`writereflect.go` (struct fields written as attributes) gave way to the typed
+attribute constructors in `html`/`svg` and the `Attrib` interface; decide the
+README "To Do" item `ReflectMarkup()` together with it, since that is the same
+idea. For `Path`, either implement it with the existing `JoinAbsPath` and
+`FormatPathValue` in `paths.go` (the commented-out body is most of it), or drop
+`Path` from the `Route` interface, since sites build URLs with
+`web.Site.URL`/`PageURL`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## Completed
 
 ### `GlobPageSource.Dir` does not scope the glob

@@ -1,0 +1,30 @@
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Upcoming events",
+  "itemListElement": [
+    {
+      "@context": "https://schema.org",
+      "@type": "ListItem",
+      "position": 1,
+      "item": {
+        "@type": "Event",
+        "name": "Autumn Concert",
+        "url": "https://example.com/events/autumn-concert",
+        "startDate": "2026-10-15T19:30:00+02:00"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ListItem",
+      "position": 2,
+      "item": {
+        "@type": "Event",
+        "name": "Winter Talk",
+        "url": "https://example.com/events/winter-talk",
+        "startDate": "2026-12-03T18:00:00+02:00"
+      }
+    }
+  ],
+  "numberOfItems": 2
+}

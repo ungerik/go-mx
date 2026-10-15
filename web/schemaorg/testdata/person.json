@@ -1,0 +1,30 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "@id": "https://example.com/about#ada",
+  "name": "Ada Lovelace",
+  "sameAs": [
+    "https://en.wikipedia.org/wiki/Ada_Lovelace"
+  ],
+  "givenName": "Ada",
+  "familyName": "Lovelace",
+  "jobTitle": "Mathematician",
+  "email": "ada@example.com",
+  "telephone": "+44 20 7946 0000",
+  "worksFor": {
+    "@type": "Organization",
+    "name": "Analytical Engines Ltd",
+    "url": "https://analytical-engines.example/"
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "12 St James's Square",
+    "addressLocality": "London",
+    "postalCode": "SW1Y 4JH",
+    "addressCountry": "GB"
+  },
+  "knowsLanguage": [
+    "en",
+    "fr"
+  ]
+}
