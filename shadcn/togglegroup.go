@@ -68,20 +68,12 @@ func (t ToggleGroupType) String() string {
 // htmx drives the state change instead.
 const toggleGroupClickScript = /*js*/ `if(!window.toggleGroupClick){window.toggleGroupClick=function(btn){var g=btn.closest('[data-toggle-group]');if(!g)return;if(g.getAttribute('data-type')==='single'){g.querySelectorAll('[data-slot="toggle-group-item"]').forEach(function(b){b.setAttribute('aria-pressed','false');});btn.setAttribute('aria-pressed','true');}else{btn.setAttribute('aria-pressed',btn.getAttribute('aria-pressed')==='true'?'false':'true');}};}`
 
-// normToggleGroupType maps an empty or unknown type to single (matching Radix
-// which has no implicit default — but a single-mode group is the more common
-// shadcn use, so it makes a defensible fallback).
-func normToggleGroupType(t ToggleGroupType) string {
-	if t == ToggleGroupMultiple {
-		return string(ToggleGroupMultiple)
-	}
-	return string(ToggleGroupSingle)
-}
-
 // ToggleGroup renders a shadcn/ui toggle group as a <div role="group">. id is
 // a stable identifier (validated) used as the data-toggle-group attribute that
 // the shared toggleGroupClick script targets via Element.closest. variant and
-// size are reused by [ToggleGroupItem]; an empty value resolves to the default.
+// size are reused by [ToggleGroupItem]; an empty or unknown value resolves to
+// the default. An empty or unknown groupType resolves to single: Radix has no
+// implicit default, but a single-mode group is the more common shadcn use.
 //
 // The group emits its variant/size as data-variant / data-size so shadcn's
 // data-[variant=outline]:* selectors (carried on both the root and the items)
@@ -96,9 +88,9 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("type", normToggleGroupType(groupType)),
-		html.DataAttr("variant", normToggleVariant(variant)),
-		html.DataAttr("size", normToggleSize(size)),
+		html.DataAttr("type", string(orDefault(groupType, ToggleGroupSingle))),
+		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
+		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
 		html.DataAttr("toggle-group", id),
 	)
 	return finish(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
@@ -134,8 +126,8 @@ func ToggleGroupItem(groupID, value string, variant ToggleVariant, size ToggleSi
 		e.Attribs = append(e.Attribs, html.Attrib("aria-pressed", "false"))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("variant", normToggleVariant(variant)),
-		html.DataAttr("size", normToggleSize(size)),
+		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
+		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
 		html.DataAttr("toggle-group", groupID),
 		html.DataAttr("toggle-group-value", value),
 	)

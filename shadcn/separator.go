@@ -70,10 +70,7 @@ const separatorClasses = "bg-border shrink-0 data-[orientation=horizontal]:h-px 
 // aria-orientation="vertical". A caller-supplied role, data-orientation or
 // aria-orientation is left untouched.
 func Separator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Element {
-	o := SeparatorHorizontal
-	if orientation == SeparatorVertical {
-		o = SeparatorVertical
-	}
+	o := orDefault(orientation, SeparatorHorizontal)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("separator"))

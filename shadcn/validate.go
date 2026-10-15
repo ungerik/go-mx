@@ -48,3 +48,14 @@ func validateID(id string) error {
 	}
 	return nil
 }
+
+// orDefault returns v if it is one of the values of its go-enum type, else
+// def. The components resolve an empty or unknown variant, size, side or
+// orientation argument to their default with it, so a value added to an enum
+// type is accepted without touching the component.
+func orDefault[T interface{ Valid() bool }](v, def T) T {
+	if v.Valid() {
+		return v
+	}
+	return def
+}

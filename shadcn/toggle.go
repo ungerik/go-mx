@@ -141,30 +141,13 @@ var toggleVariants = cva.New(cva.Config{
 // ToggleClasses returns the merged base + variant + size toggle class string.
 // It is the equivalent of shadcn/ui's exported toggleVariants and mirrors
 // [ButtonClasses]: use it to style a non-button element (or a [ToggleGroupItem])
-// with the toggle look. An empty variant or size resolves to the default.
+// with the toggle look. An empty or unknown variant or size resolves to the
+// default.
 func ToggleClasses(variant ToggleVariant, size ToggleSize) string {
 	return Cn(toggleVariants(map[string]string{
-		"variant": normToggleVariant(variant),
-		"size":    normToggleSize(size),
+		"variant": string(orDefault(variant, ToggleDefault)),
+		"size":    string(orDefault(size, ToggleSizeDefault)),
 	}))
-}
-
-// normToggleVariant maps an empty or unknown variant to the default.
-func normToggleVariant(v ToggleVariant) string {
-	if v == ToggleOutline {
-		return string(ToggleOutline)
-	}
-	return string(ToggleDefault)
-}
-
-// normToggleSize maps an empty or unknown size to the default.
-func normToggleSize(s ToggleSize) string {
-	switch s {
-	case ToggleSizeSM, ToggleSizeLG:
-		return string(s)
-	default:
-		return string(ToggleSizeDefault)
-	}
 }
 
 // toggleAriaPressedFlip is the default onclick that flips aria-pressed in
@@ -195,8 +178,8 @@ func Toggle(variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.
 		e.Attribs = append(e.Attribs, html.OnClick(toggleAriaPressedFlip))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("variant", normToggleVariant(variant)),
-		html.DataAttr("size", normToggleSize(size)),
+		html.DataAttr("variant", string(orDefault(variant, ToggleDefault))),
+		html.DataAttr("size", string(orDefault(size, ToggleSizeDefault))),
 	)
 	return finish(e, "toggle", ToggleClasses(variant, size))
 }

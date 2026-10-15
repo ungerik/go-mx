@@ -81,11 +81,7 @@ func Alert(variant AlertVariant, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	v := string(AlertDefault)
-	if variant == AlertDestructive {
-		v = string(AlertDestructive)
-	}
-	return finish(e, "alert", alertVariants(map[string]string{"variant": v}))
+	return finish(e, "alert", alertVariants(map[string]string{"variant": string(orDefault(variant, AlertDefault))}))
 }
 
 // AlertTitle renders the title row of an [Alert]. shadcn/ui uses a div here

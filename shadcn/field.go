@@ -102,24 +102,13 @@ var fieldVariants = cva.New(cva.Config{
 	DefaultVariants: map[string]string{"orientation": "vertical"},
 })
 
-// normFieldOrientation maps an empty or unknown orientation to the default
-// (vertical).
-func normFieldOrientation(o FieldOrientation) FieldOrientation {
-	switch o {
-	case FieldHorizontal, FieldResponsive:
-		return o
-	default:
-		return FieldVertical
-	}
-}
-
 // Field groups one form field's label, control, description and error as a
 // <div role="group">. orientation may be "" for the default (vertical). A
 // caller-supplied role is left untouched. Compose it with [FieldLabel],
 // [FieldContent], [FieldDescription] and [FieldError]; group several Fields
 // with [FieldGroup] or [FieldSet].
 func Field(orientation FieldOrientation, attribsChildren ...any) *mx.Element {
-	o := normFieldOrientation(orientation)
+	o := orDefault(orientation, FieldVertical)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -199,9 +188,7 @@ func (f FieldLegendVariant) String() string {
 // FieldLegend renders a [FieldSet]'s <legend>. variant may be "" for the
 // default scale; [FieldLegendLabel] matches the size of a [FieldLabel].
 func FieldLegend(variant FieldLegendVariant, attribsChildren ...any) *mx.Element {
-	if variant != FieldLegendLabel {
-		variant = FieldLegendDefault
-	}
+	variant = orDefault(variant, FieldLegendDefault)
 	e := html.Element("legend", attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "field-legend",

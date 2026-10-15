@@ -26,8 +26,8 @@ func icon(name, extraClass string, shapes ...any) *mx.Element {
 		svg.Fill("none"),
 		svg.Stroke("currentColor"),
 		svg.StrokeWidth(2),
-		svg.StrokeLineCap("round"),
-		svg.StrokeLineJoin("round"),
+		svg.StrokeLineCapRound,
+		svg.StrokeLineJoinRound,
 		svg.Class(cls),
 	}
 	return svg.SVG(append(attribs, shapes...)...)

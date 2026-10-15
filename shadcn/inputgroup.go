@@ -120,11 +120,7 @@ const inputGroupAddonFocus = "if(!event.target.closest('button'))this.parentElem
 // default (inline-start). Clicking the addon focuses the group's control;
 // pass your own html.OnClick to replace that.
 func InputGroupAddon(align InputGroupAddonAlign, attribsChildren ...any) *mx.Element {
-	switch align {
-	case InputGroupAddonInlineEnd, InputGroupAddonBlockStart, InputGroupAddonBlockEnd:
-	default:
-		align = InputGroupAddonInlineStart
-	}
+	align = orDefault(align, InputGroupAddonInlineStart)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -216,16 +212,6 @@ var inputGroupButtonVariants = cva.New(cva.Config{
 	DefaultVariants: map[string]string{"size": "xs"},
 })
 
-// normInputGroupButtonSize maps an empty or unknown size to the default (xs).
-func normInputGroupButtonSize(s InputGroupButtonSize) string {
-	switch s {
-	case InputGroupButtonSM, InputGroupButtonIconXS, InputGroupButtonIconSM:
-		return string(s)
-	default:
-		return string(InputGroupButtonXS)
-	}
-}
-
 // inputGroupButtonBaseSize picks the [ButtonSize] whose classes an
 // [InputGroupButton] layers its input-group size over. xs and sm carry the
 // matching Button size so the default size's h-9/px-4/py-2 padding never
@@ -248,10 +234,8 @@ func inputGroupButtonBaseSize(s string) ButtonSize {
 // may be "" for the default (xs). Like [Button] it defaults to
 // type="button"; pass html.Type to override.
 func InputGroupButton(variant ButtonVariant, size InputGroupButtonSize, attribsChildren ...any) *mx.Element {
-	if variant == "" {
-		variant = ButtonGhost
-	}
-	s := normInputGroupButtonSize(size)
+	variant = orDefault(variant, ButtonGhost)
+	s := string(orDefault(size, InputGroupButtonXS))
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

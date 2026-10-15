@@ -84,21 +84,12 @@ var buttonGroupVariants = cva.New(cva.Config{
 	DefaultVariants: map[string]string{"orientation": "horizontal"},
 })
 
-// normButtonGroupOrientation maps an empty or unknown orientation to the
-// default (horizontal).
-func normButtonGroupOrientation(o ButtonGroupOrientation) ButtonGroupOrientation {
-	if o == ButtonGroupVertical {
-		return ButtonGroupVertical
-	}
-	return ButtonGroupHorizontal
-}
-
 // ButtonGroupClasses returns the merged base + orientation class string. It
 // is the equivalent of shadcn/ui's exported buttonGroupVariants and mirrors
 // [ButtonClasses]. An empty or unknown orientation resolves to horizontal.
 func ButtonGroupClasses(orientation ButtonGroupOrientation) string {
 	return Cn(buttonGroupVariants(map[string]string{
-		"orientation": string(normButtonGroupOrientation(orientation)),
+		"orientation": string(orDefault(orientation, ButtonGroupHorizontal)),
 	}))
 }
 
@@ -108,7 +99,7 @@ func ButtonGroupClasses(orientation ButtonGroupOrientation) string {
 // children's data-slot attributes, which every component in this package
 // emits. A caller-supplied role is left untouched.
 func ButtonGroup(orientation ButtonGroupOrientation, attribsChildren ...any) *mx.Element {
-	o := normButtonGroupOrientation(orientation)
+	o := orDefault(orientation, ButtonGroupHorizontal)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
@@ -138,11 +129,7 @@ const buttonGroupSeparatorClasses = "relative self-stretch data-[orientation=hor
 // win the merge (bg-input over bg-border, h-auto over h-full) while any
 // caller class still wins over them.
 func ButtonGroupSeparator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Element {
-	o := SeparatorVertical
-	if orientation == SeparatorHorizontal {
-		o = SeparatorHorizontal
-	}
 	return finish(
-		Separator(o, append([]any{html.Class(buttonGroupSeparatorClasses)}, attribsChildren...)...),
+		Separator(orDefault(orientation, SeparatorVertical), append([]any{html.Class(buttonGroupSeparatorClasses)}, attribsChildren...)...),
 		"button-group-separator", "")
 }

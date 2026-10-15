@@ -91,17 +91,7 @@ var badgeVariants = cva.New(cva.Config{
 // use it to give the badge look to another element. An empty or unknown
 // variant resolves to the default.
 func BadgeClasses(variant BadgeVariant) string {
-	return Cn(badgeVariants(map[string]string{"variant": normBadgeVariant(variant)}))
-}
-
-// normBadgeVariant maps an empty or unknown variant to the default.
-func normBadgeVariant(v BadgeVariant) string {
-	switch v {
-	case BadgeSecondary, BadgeDestructive, BadgeOutline:
-		return string(v)
-	default:
-		return string(BadgeDefault)
-	}
+	return Cn(badgeVariants(map[string]string{"variant": string(orDefault(variant, BadgeDefault))}))
 }
 
 // Badge renders a shadcn/ui badge as a <span>. variant may be "" for the

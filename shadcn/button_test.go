@@ -77,8 +77,10 @@ func TestButtonCallerClassMerges(t *testing.T) {
 
 func TestButtonUnknownVariantFallsBack(t *testing.T) {
 	out := render(t, Button(ButtonVariant("bogus"), ButtonSize("nope"), "x"))
-	if !strings.Contains(out, `data-variant="bogus"`) {
-		t.Errorf("unknown variant should still be echoed verbatim: %s", out)
+	// The data attributes name the variant whose classes were applied, like
+	// every other component's, so data-[variant=…] selectors stay in sync.
+	if !strings.Contains(out, `data-variant="default"`) || !strings.Contains(out, `data-size="default"`) {
+		t.Errorf("unknown variant/size should be emitted as the default: %s", out)
 	}
 	if !strings.Contains(out, "bg-primary") || !strings.Contains(out, "h-9") {
 		t.Errorf("unknown variant/size should fall back to default classes: %s", out)

@@ -146,31 +146,11 @@ var itemVariants = cva.New(cva.Config{
 	DefaultVariants: map[string]string{"variant": "default", "size": "default"},
 })
 
-// normItemVariant maps an empty or unknown variant to the default.
-func normItemVariant(v ItemVariant) string {
-	switch v {
-	case ItemOutline, ItemMuted:
-		return string(v)
-	default:
-		return string(ItemDefault)
-	}
-}
-
-// normItemSize maps an empty or unknown size to the default.
-func normItemSize(s ItemSize) string {
-	switch s {
-	case ItemSizeSM, ItemSizeXS:
-		return string(s)
-	default:
-		return string(ItemSizeDefault)
-	}
-}
-
 // Item renders one media-object row. variant and size may be "" for the
-// defaults. Compose it with [ItemMedia], [ItemContent] (holding [ItemTitle]
+// defaults; an unknown value also resolves to the default. Compose it with [ItemMedia], [ItemContent] (holding [ItemTitle]
 // and [ItemDescription]), [ItemActions], [ItemHeader] and [ItemFooter].
 func Item(variant ItemVariant, size ItemSize, attribsChildren ...any) *mx.Element {
-	v, s := normItemVariant(variant), normItemSize(size)
+	v, s := string(orDefault(variant, ItemDefault)), string(orDefault(size, ItemSizeDefault))
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs,
 		html.DataAttr("variant", v),
@@ -273,9 +253,7 @@ var itemMediaVariants = cva.New(cva.Config{
 // ItemMedia renders an [Item]'s leading icon, image or avatar slot. variant
 // may be "" for the default.
 func ItemMedia(variant ItemMediaVariant, attribsChildren ...any) *mx.Element {
-	if variant != ItemMediaIcon && variant != ItemMediaImage {
-		variant = ItemMediaDefault
-	}
+	variant = orDefault(variant, ItemMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "item-media",

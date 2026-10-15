@@ -78,16 +78,6 @@ func (p PopoverSide) String() string {
 	return string(p)
 }
 
-// normPopoverSide maps an empty or unknown side to the default (bottom).
-func normPopoverSide(s PopoverSide) PopoverSide {
-	switch s {
-	case PopoverTop, PopoverRight, PopoverLeft:
-		return s
-	default:
-		return PopoverBottom
-	}
-}
-
 // popoverAnchorStyle is the trigger-side style fragment that names this
 // element as a CSS anchor for its associated popover content.
 func popoverAnchorStyle(name string) string {
@@ -99,7 +89,7 @@ func popoverAnchorStyle(name string) string {
 // Uses CSS position-area; Chrome 129+ and Safari 26+ understand it.
 func popoverContentStyle(name string, side PopoverSide) string {
 	base := "position-anchor: --" + name + "; position-area: "
-	switch normPopoverSide(side) {
+	switch side {
 	case PopoverTop:
 		return base + "top; margin-bottom: 4px"
 	case PopoverRight:

@@ -98,9 +98,7 @@ var emptyMediaVariants = cva.New(cva.Config{
 // the default. The data-slot is "empty-icon", matching upstream's empty.tsx
 // (which uses that name for the media part).
 func EmptyMedia(variant EmptyMediaVariant, attribsChildren ...any) *mx.Element {
-	if variant != EmptyMediaIcon {
-		variant = EmptyMediaDefault
-	}
+	variant = orDefault(variant, EmptyMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
 	return finish(e, "empty-icon",
