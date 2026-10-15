@@ -289,7 +289,9 @@ func (s *Site) Pages(ctx context.Context, withContent bool) iter.Seq2[*Page, err
 //
 // An indexable page without a Path is an error rather than a skipped entry: it
 // cannot be pointed at, which is a bug in the PageSource and not something to
-// discover as a silently incomplete sitemap.
+// discover as a silently incomplete sitemap. So is a page whose links cannot
+// be built (see [Page.Validate]), because [Site.RenderPage] fails for it and
+// the sitemap would point crawlers at an error.
 func (s *Site) Sitemap(ctx context.Context) (*Sitemap, error) {
 	sitemap := new(Sitemap)
 	for page, err := range s.Pages(ctx, false) {
@@ -303,11 +305,10 @@ func (s *Site) Sitemap(ctx context.Context) (*Sitemap, error) {
 		if err != nil {
 			return nil, err
 		}
-		lastMod := page.LastUpdated
-		if lastMod.IsZero() {
-			lastMod = page.Published
+		if err := s.validatePageLinks(page); err != nil {
+			return nil, err
 		}
-		sitemap.URLs = append(sitemap.URLs, SitemapURL{Loc: loc, LastMod: lastMod})
+		sitemap.URLs = append(sitemap.URLs, SitemapURL{Loc: loc, LastMod: page.LastModified()})
 	}
 	slices.SortFunc(sitemap.URLs, func(a, b SitemapURL) int {
 		return strings.Compare(a.Loc, b.Loc)
@@ -376,7 +377,10 @@ func (s *Site) RenderPage(ctx context.Context, page *Page) (html.Document, error
 //     of the page (see [Site.PageHeaders] for the same links as headers).
 //     They are skipped for a page without a Path because there is no URL to
 //     point at, and for a document that already carries an og:url, which is
-//     taken as the renderer having declared the page URL and its links itself
+//     taken as the renderer having declared the page URL and its links itself.
+//     That og:url has to be the canonical URL of the page, though, because
+//     [Site.PageHeaders] sends that one as a Link header: a document
+//     declaring another URL is an error
 //
 // The one exception is the robots meta tag: a page that is not
 // [Page.Indexable] is always marked "noindex, nofollow", so that drafts,
@@ -400,7 +404,7 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 	pageURLSet := doc.MetaProperty["og:url"] != ""
 
 	if doc.Lang == "" {
-		doc.Lang = s.pageLang(page)
+		doc.Lang = s.PageLang(page)
 	}
 	if doc.Title == "" {
 		doc.Title = page.Title
@@ -410,7 +414,7 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 	setMetaIfEmpty(doc, "description", description)
 	setMetaIfEmpty(doc, "author", author)
 	if !page.Indexable() {
-		setMeta(doc, "robots", "noindex, nofollow")
+		setMeta(doc, "robots", robotsNoIndex)
 	}
 
 	// https://ogp.me/
@@ -438,11 +442,21 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 	if err != nil {
 		return err
 	}
-	if len(links) == 0 || pageURLSet {
+	if len(links) == 0 {
 		return nil
 	}
 	// The canonical link comes first, see pageLinks.
-	setMetaPropertyIfEmpty(doc, "og:url", links[0].url)
+	canonical := links[0].url
+	if pageURLSet {
+		// Site.PageHeaders sends the canonical URL of the site with the
+		// response, so a page declared under another URL would get two
+		// contradicting canonicals, one in the head and one in the headers.
+		if declared := doc.MetaProperty["og:url"]; declared != canonical {
+			return fmt.Errorf("page %q: the document declares og:url %q, but the canonical URL of the page is %q", page.Path, declared, canonical)
+		}
+		return nil
+	}
+	setMetaPropertyIfEmpty(doc, "og:url", canonical)
 	elements := make(mx.Components, len(links))
 	for i, link := range links {
 		elements[i] = link.element()

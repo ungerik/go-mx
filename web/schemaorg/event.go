@@ -60,9 +60,7 @@ type Event struct {
 // NewEvent returns an Event with the given name, starting at start formatted
 // with [DateTime]. For an all-day event overwrite StartDate with [Date].
 func NewEvent(name string, start time.Time) *Event {
-	event := &Event{Thing: newThing("Event"), StartDate: DateTime(start)}
-	event.Name = name
-	return event
+	return &Event{Thing: newThing("Event", name), StartDate: DateTime(start)}
 }
 
 // EventStatus is the status of an [Event]. The values are the full schema.org

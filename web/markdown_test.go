@@ -46,6 +46,9 @@ func TestMarkdownPath(t *testing.T) {
 		{path: "/en/index", wantErr: "ends in /index"},
 		{path: "/index", wantErr: "ends in /index"},
 		{path: "/en/indexes", want: "/en/indexes.md"},
+		// The checks look at the decoded path a server routes by.
+		{path: "/en/faq%2Emd", wantErr: "already ends in .md"},
+		{path: "/en/%69ndex", wantErr: "ends in /index"},
 		{path: "/README.MD", wantErr: "already ends in .md"},
 		{path: "", wantErr: "empty"},
 		{path: "en/faq", wantErr: "does not start with '/'"},
@@ -115,6 +118,25 @@ func TestSiteMarkdownAlternate(t *testing.T) {
 	requireGolden(t, "markdown_alternate_sections.md", doc.Bytes())
 }
 
+func TestSiteMarkdownAlternateTranslationOfDefault(t *testing.T) {
+	// A translation of the version in Site.DefaultLang gets an x-default link
+	// pointing at that version, but x-default is no language: only the
+	// translation itself is listed.
+	page := markdownPage()
+	page.Path = "/de/faq"
+	page.Lang = "de"
+	page.Alternates = []web.Alternate{{HrefLang: "en", Path: "/en/faq"}}
+
+	headers, err := markdownSite().PageHeaders(page)
+	require.NoError(t, err)
+	require.Contains(t, headers.Values("Link"), `<https://example.com/en/faq>; rel="alternate"; hreflang="x-default"`)
+
+	doc, err := markdownSite().MarkdownAlternate(page)
+	require.NoError(t, err)
+	require.Equal(t, "de", doc.Lang)
+	require.Equal(t, []web.Translation{{Lang: "en", URL: "https://example.com/en/faq"}}, doc.Translations)
+}
+
 func TestSiteMarkdownAlternateMinimal(t *testing.T) {
 	// Without a description, a language or translations, the header is just
 	// the title and the facts that always exist. LastUpdated falls back to
@@ -152,6 +174,36 @@ func TestSiteMarkdownAlternateErrors(t *testing.T) {
 	require.ErrorContains(t, err, "repeats")
 }
 
+func TestSiteMarkdownAlternateURL(t *testing.T) {
+	site := markdownSite()
+
+	got, err := site.MarkdownAlternateURL(markdownPage())
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/en/faq.md", got)
+
+	// Every page MarkdownAlternate fails for gets no URL either, so nothing
+	// lists an alternate that answers with an error.
+	page := markdownPage()
+	page.Path = ""
+	_, err = site.MarkdownAlternateURL(page)
+	require.ErrorContains(t, err, "path is empty")
+
+	page = markdownPage()
+	page.Alternates = append(page.Alternates, web.Alternate{HrefLang: "de", Path: "/de/faq-2"})
+	_, err = site.MarkdownAlternateURL(page)
+	require.ErrorContains(t, err, "repeats")
+
+	// Translations need the page's own language for the hreflang links.
+	_, err = (&web.Site{BaseURL: "https://example.com"}).MarkdownAlternateURL(markdownPage())
+	require.ErrorContains(t, err, "no language")
+
+	// A path whose Markdown path would collide has no alternate URL.
+	page = markdownPage()
+	page.Path = "/en/index"
+	_, err = site.MarkdownAlternateURL(page)
+	require.ErrorContains(t, err, "ends in /index")
+}
+
 func TestMarkdownDocumentLineBreaks(t *testing.T) {
 	// CommonMark ends a line at a lone carriage return, so every kind of line
 	// break in a description has to continue the block quote, or what
@@ -169,6 +221,29 @@ func TestMarkdownDocumentLineBreaks(t *testing.T) {
 			"---\n\n",
 		string(doc.Bytes()),
 	)
+}
+
+func TestMarkdownDocumentOneLineMetadata(t *testing.T) {
+	// The fields of a document are the caller's to set, and every metadata
+	// item is one list item, so none of them may start a block of its own.
+	doc := &web.MarkdownDocument{
+		URL:          "https://example.com/a\n# Injected",
+		Translations: []web.Translation{{Lang: "de\n# Injected](x) [y", URL: "https://example.com/de\n# Injected"}},
+	}
+	require.Equal(t,
+		"- Canonical URL: https://example.com/a # Injected\n"+
+			"- Translations: [de # Injected)(x) (y](https://example.com/de%20#%20Injected)\n\n"+
+			"---\n\n",
+		string(doc.Bytes()),
+	)
+
+	// A trailing backslash would escape the closing bracket or parenthesis,
+	// and a translation without a usable label is left out.
+	doc = &web.MarkdownDocument{Translations: []web.Translation{
+		{Lang: `de\`, URL: `https://example.com/de\`},
+		{Lang: `\`, URL: "https://example.com/x"},
+	}}
+	require.Equal(t, "- Translations: [de](https://example.com/de%5C)\n\n---\n\n", string(doc.Bytes()))
 }
 
 func TestMarkdownDocumentWriteTo(t *testing.T) {
@@ -193,8 +268,9 @@ func TestSiteServeMarkdown(t *testing.T) {
 	// The alternate points search engines at the HTML page.
 	require.Equal(t, []string{`<https://example.com/en/faq>; rel="canonical"`}, response.Header().Values("Link"))
 	require.Equal(t, "Accept", response.Header().Get("Vary"))
-	// http.ServeContent cannot match an unquoted entity tag.
-	require.Equal(t, `"rev-42"`, response.Header().Get("ETag"))
+	// http.ServeContent cannot match an unquoted entity tag, and the tag of
+	// the alternate must not be the one of the HTML page sharing its URL.
+	require.Equal(t, `"rev-42-md"`, response.Header().Get("ETag"))
 	require.Equal(t, updated.Format(http.TimeFormat), response.Header().Get("Last-Modified"))
 	require.Empty(t, response.Header().Get("X-Robots-Tag"))
 	doc, err := site.MarkdownAlternate(page)
@@ -203,12 +279,21 @@ func TestSiteServeMarkdown(t *testing.T) {
 
 	t.Run("if-none-match", func(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/en/faq.md", nil)
-		request.Header.Set("If-None-Match", `"rev-42"`)
+		request.Header.Set("If-None-Match", `"rev-42-md"`)
 		response := httptest.NewRecorder()
 		site.ServeMarkdown(response, request, page, `"rev-42"`, updated)
 		require.Equal(t, http.StatusNotModified, response.Code)
 		require.Empty(t, response.Body.String())
 		require.Equal(t, "Accept", response.Header().Get("Vary"))
+	})
+
+	t.Run("vary set by the caller", func(t *testing.T) {
+		// A handler negotiating HTML and Markdown on the page's URL sets
+		// "Vary: Accept" before it knows which one it answers with.
+		response := httptest.NewRecorder()
+		response.Header().Add("Vary", "Origin, accept")
+		site.ServeMarkdown(response, httptest.NewRequest(http.MethodGet, "/en/faq", nil), page, "", updated)
+		require.Equal(t, []string{"Origin, accept"}, response.Header().Values("Vary"))
 	})
 
 	t.Run("if-none-match outdated", func(t *testing.T) {
@@ -222,7 +307,13 @@ func TestSiteServeMarkdown(t *testing.T) {
 	t.Run("weak etag", func(t *testing.T) {
 		response := httptest.NewRecorder()
 		site.ServeMarkdown(response, httptest.NewRequest(http.MethodGet, "/en/faq.md", nil), page, `W/"rev-42"`, updated)
-		require.Equal(t, `W/"rev-42"`, response.Header().Get("ETag"))
+		require.Equal(t, `W/"rev-42-md"`, response.Header().Get("ETag"))
+	})
+
+	t.Run("malformed etag", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		site.ServeMarkdown(response, httptest.NewRequest(http.MethodGet, "/en/faq.md", nil), page, `"rev-42`, updated)
+		require.Equal(t, `"rev-42-md"`, response.Header().Get("ETag"))
 	})
 
 	t.Run("without etag", func(t *testing.T) {
@@ -248,6 +339,16 @@ func TestSiteServeMarkdown(t *testing.T) {
 		htmlPage.ContentType = mx.ContentTypeHTML
 		response := httptest.NewRecorder()
 		site.ServeMarkdown(response, httptest.NewRequest(http.MethodGet, "/en/faq.md", nil), htmlPage, "", updated)
+		// Regression: an HTML-only page answered every agent preferring
+		// Markdown with a 500 when wired as the docs show.
+		require.Equal(t, http.StatusNotFound, response.Code)
+	})
+
+	t.Run("broken alternates", func(t *testing.T) {
+		broken := markdownPage()
+		broken.Alternates = append(broken.Alternates, web.Alternate{HrefLang: "de", Path: "/de/faq-2"})
+		response := httptest.NewRecorder()
+		site.ServeMarkdown(response, httptest.NewRequest(http.MethodGet, "/en/faq.md", nil), broken, "", updated)
 		require.Equal(t, http.StatusInternalServerError, response.Code)
 	})
 }

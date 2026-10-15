@@ -79,12 +79,16 @@ type LLMsLink struct {
 }
 
 // Validate returns an error if the Title is missing, or if a field holds what
-// would change the structure of the rendered file: a line break in any field,
-// a context starting with "#", an empty section or link title, a bracket,
-// backtick or trailing backslash in a link title, which would end, escape or
-// swallow the link text, a parenthesis or whitespace in a URL, which would end
-// the link destination early, or a URL that is neither an absolute http or
-// https URL nor a path within the site.
+// would change the structure of the rendered file: a line break or another
+// control character in any field, a context that would open a block of its
+// own (a heading, a block quote, a code block or fence, raw HTML), an empty
+// section or link title, a bracket, backtick, angle bracket or trailing
+// backslash in a link title, which would end, escape or swallow the link
+// text, a link title that is a lone "x", which GFM renders as a checked task
+// list box instead of the link, a parenthesis, angle bracket, backslash or
+// whitespace in a URL, which would end or escape the link destination, or a
+// URL that is neither an absolute http or https URL nor a path within the
+// site.
 func (l *LLMsTxt) Validate() error {
 	if strings.TrimSpace(l.Title) == "" {
 		return fmt.Errorf("llms.txt title is empty")
@@ -99,9 +103,19 @@ func (l *LLMsTxt) Validate() error {
 		return err
 	}
 	// The context is the one value rendered at the start of a line of its
-	// own, where a "#" makes it a heading — and a "## " heading a section.
-	if strings.HasPrefix(strings.TrimLeft(l.Context, " \t"), "#") {
+	// own, where a "#" makes it a heading — and a "## " heading a section —
+	// and a ">" a block quote, which a parser takes for the summary. An
+	// indentation of four columns or an HTML tag turn it into a code or HTML
+	// block, and an unclosed fence or HTML comment swallows every section
+	// after it.
+	switch start := strings.TrimLeft(l.Context, " \t"); {
+	case strings.HasPrefix(start, "#"):
 		return fmt.Errorf("llms.txt context %q starts with '#', which makes it a heading", l.Context)
+	case strings.HasPrefix(start, ">"):
+		return fmt.Errorf("llms.txt context %q starts with '>', which makes it a block quote like the summary", l.Context)
+	case strings.HasPrefix(start, "```"), strings.HasPrefix(start, "~~~"), strings.HasPrefix(start, "<"),
+		indentationColumns(l.Context) >= 4:
+		return fmt.Errorf("llms.txt context %q starts a code or HTML block instead of a paragraph", l.Context)
 	}
 	for i, section := range l.Sections {
 		if err := section.Validate(); err != nil {
@@ -144,18 +158,41 @@ func (l LLMsLink) Validate() error {
 	if strings.ContainsAny(l.Title, "[]") {
 		return fmt.Errorf("link title %q contains a square bracket", l.Title)
 	}
-	// A backtick opens a code span, which takes precedence over the link and
-	// can run on into the note, swallowing the "](URL)" in between.
-	if strings.Contains(l.Title, "`") {
-		return fmt.Errorf("link title %q contains a backtick", l.Title)
+	// A backtick opens a code span and a "<" an HTML tag or autolink, which
+	// take precedence over the link and can run on into the note, swallowing
+	// the "](URL)" in between.
+	if strings.ContainsAny(l.Title, "`<") {
+		return fmt.Errorf("link title %q contains a backtick or '<'", l.Title)
 	}
 	if strings.HasSuffix(l.Title, `\`) {
 		return fmt.Errorf("link title %q ends in a backslash, which escapes the closing bracket", l.Title)
+	}
+	// "- [x](…)" is the checked box of a GFM task list item to goldmark,
+	// which then renders no link at all.
+	if strings.EqualFold(strings.TrimSpace(l.Title), "x") {
+		return fmt.Errorf("link title %q would be read as a task list checkbox", l.Title)
 	}
 	if err := validateLLMsURL(l.URL); err != nil {
 		return err
 	}
 	return validateLLMsLine("link note", l.Note)
+}
+
+// indentationColumns returns the width of the leading spaces and tabs of s in
+// columns, with tab stops every four columns as CommonMark counts them.
+func indentationColumns(s string) int {
+	columns := 0
+	for _, r := range s {
+		switch r {
+		case ' ':
+			columns++
+		case '\t':
+			columns += 4 - columns%4
+		default:
+			return columns
+		}
+	}
+	return columns
 }
 
 // validateLLMsLine returns an error if value contains a line break or another
@@ -168,17 +205,17 @@ func validateLLMsLine(field, value string) error {
 }
 
 // validateLLMsURL returns an error if rawURL is not an absolute http or https
-// URL or a path within the site, or holds a character that would end the
-// destination of a Markdown link early. A "(" and ")" can be percent-encoded
-// as %28 and %29 without changing the URL.
+// URL or a path within the site, or holds a character that would end or
+// escape the destination of a Markdown link. A "(", ")" and "\" can be
+// percent-encoded as %28, %29 and %5C without changing the URL.
 func validateLLMsURL(rawURL string) error {
 	switch {
 	case rawURL == "":
 		return fmt.Errorf("link URL is empty")
 	case strings.ContainsFunc(rawURL, func(r rune) bool { return r <= ' ' || r == 0x7F }):
 		return fmt.Errorf("link URL %q contains whitespace or control characters", rawURL)
-	case strings.ContainsAny(rawURL, "()<>"):
-		return fmt.Errorf("link URL %q contains a parenthesis or angle bracket (percent-encode it)", rawURL)
+	case strings.ContainsAny(rawURL, "()<>\\"):
+		return fmt.Errorf("link URL %q contains a parenthesis, angle bracket or backslash (percent-encode it)", rawURL)
 	// "//host/path" starts with a slash too, but is a URL on another host.
 	case strings.HasPrefix(rawURL, "/") && !strings.HasPrefix(rawURL, "//"):
 		if _, err := url.Parse(rawURL); err != nil {
@@ -301,9 +338,10 @@ type LLMsTxtOptions struct {
 // Page titles and descriptions are site content rather than the structure of
 // the file, so instead of failing the whole file they are made to fit: line
 // breaks become spaces, other control characters are dropped, square brackets
-// in a title become parentheses and backticks apostrophes, and the
-// parentheses of a URL are percent-encoded. A page without a usable title is
-// listed by its path.
+// in a title become parentheses, backticks apostrophes and "<" a "‹", a
+// trailing backslash is dropped, and the parentheses, spaces and backslashes
+// of a URL are percent-encoded. A page without a usable title — or with one
+// that is a lone "x" (see [LLMsLink.Validate]) — is listed by its path.
 //
 // A public page that has no Path, or whose Markdown alternate could not be
 // built, fails the whole file like it fails the sitemap: it is a bug in the
@@ -328,15 +366,7 @@ func (s *Site) LLMsTxt(ctx context.Context, opts LLMsTxtOptions) (*LLMsTxt, erro
 		if _, ok := page.MarkdownSource(); !ok {
 			continue
 		}
-		// A page whose alternate cannot be built would be linked to a 500.
-		if _, err := s.pageLinks(page); err != nil {
-			return nil, err
-		}
-		markdownPath, err := MarkdownPath(page.Path)
-		if err != nil {
-			return nil, fmt.Errorf("page %q: %w", page.Title, err)
-		}
-		alternateURL, err := s.URL(markdownPath)
+		alternateURL, err := s.MarkdownAlternateURL(page)
 		if err != nil {
 			return nil, err
 		}
@@ -353,7 +383,7 @@ func (s *Site) LLMsTxt(ctx context.Context, opts LLMsTxtOptions) (*LLMsTxt, erro
 			llms.Sections = append(llms.Sections, LLMsSection{Title: title})
 		}
 		llms.Sections[i].Links = append(llms.Sections[i].Links, LLMsLink{
-			Title: firstNonEmpty(llmsLinkTitle(page.Title), llmsLinkTitle(page.Path)),
+			Title: llmsTitle(page),
 			URL:   markdownURL(alternateURL),
 			Note:  markdownLine(page.Description),
 		})
@@ -364,10 +394,11 @@ func (s *Site) LLMsTxt(ctx context.Context, opts LLMsTxtOptions) (*LLMsTxt, erro
 	return llms, nil
 }
 
-// llmsLinkTitle makes a page title usable as the text of an [LLMsLink]: on
-// one line, with square brackets as parentheses, backticks as apostrophes and
-// no trailing backslash. It returns "" if nothing usable is left.
-func llmsLinkTitle(title string) string {
-	title = strings.NewReplacer("[", "(", "]", ")", "`", "'").Replace(markdownLine(title))
-	return strings.TrimSpace(strings.TrimRight(title, `\`))
+// llmsTitle returns the link title of a page in [Site.LLMsTxt]: its title made
+// to fit (see markdownLinkText), else its path.
+func llmsTitle(page *Page) string {
+	if title := markdownLinkText(page.Title); title != "" && !strings.EqualFold(title, "x") {
+		return title
+	}
+	return markdownLinkText(page.Path)
 }

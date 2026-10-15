@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
+	"iter"
 	"slices"
 	"strings"
 	"time"
@@ -15,6 +15,7 @@ import (
 	"github.com/domonda/go-errs"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/web"
 )
 
@@ -27,12 +28,31 @@ const (
 	// the call asks for.
 	MaxSearchLimit = 25
 
+	// MaxQueryBytes and MaxQueryWords bound a search_pages query, whose cost
+	// grows with its words times the text of every public page: a query
+	// longer than MaxQueryBytes or with more than MaxQueryWords distinct
+	// words is refused rather than scanned. Repeated words count once.
+	MaxQueryBytes = 256
+	MaxQueryWords = 16
+
 	// DefaultMaxResponseBytes is the size get_page truncates a page at when
 	// PageToolsOptions.MaxResponseBytes is zero.
 	DefaultMaxResponseBytes = 64 << 10
 
 	// snippetRunes is about how long a search_pages snippet is.
 	snippetRunes = 160
+
+	// maxLanguageBytes is the longest language filter accepted, the length
+	// of the longest BCP 47 tag in practical use.
+	maxLanguageBytes = 35
+
+	// The search_pages score of a query word: a word in the title counts
+	// most, one in the description more than one in the text, where every
+	// occurrence counts up to maxTextScore. The cap stays below titleScore,
+	// so a long page repeating a word cannot outrank the page about it.
+	titleScore       = 10
+	descriptionScore = 3
+	maxTextScore     = titleScore - 1
 )
 
 // ErrPageNotFound is the tool error get_page answers with for a path that is
@@ -55,16 +75,18 @@ type PageToolsOptions struct {
 	MaxResponseBytes int
 
 	// Language returns the BCP 47 language tag of a page, which the tools
-	// report and filter by. The default is Page.Lang, else the first path
-	// segment if it is a language tag with a two-letter ISO 639-1 language
-	// ("en", "de-AT"), else Site.Lang. The path heuristic knows neither
-	// three-letter languages nor a site whose "/no/" or "/my/" is not
-	// Norwegian or Burmese, so set Page.Lang or this function where it errs.
+	// report and filter by and get_page puts into the Markdown header. The
+	// default is [web.Site.PageLang], Page.Lang else Site.Lang, the language
+	// the page is rendered with, so the tools never contradict the page.
 	Language func(*web.Page) string
 
 	// OnError is called with the errors the tools do not show the client: a
-	// failing source, or a page whose URLs or Markdown alternate cannot be
-	// built and is left out of the results. Nil ignores them.
+	// failing source, a panic in a tool (the source, the Language hook or a
+	// page), or a page whose URLs or Markdown alternate cannot be built and
+	// is left out of the results. A call the client cancelled is no error
+	// and is not reported. A broken page is reported again by every call
+	// that reads it, so a hook writing to a log should deduplicate or
+	// rate-limit. Nil ignores them.
 	OnError func(ctx context.Context, err error)
 }
 
@@ -80,7 +102,7 @@ type PageInfo struct {
 }
 
 type searchPagesInput struct {
-	Query    string `json:"query" jsonschema:"the words to search for in the title, description and text of the pages; a page has to contain every word"`
+	Query    string `json:"query" jsonschema:"the words to search for in the title, description and text of the pages; a page has to contain every word; at most 16 words and 256 bytes"`
 	Language string `json:"language,omitempty" jsonschema:"only return pages in this BCP 47 language, like en or de"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"the maximum number of results: 10 when not given, at most 25"`
 }
@@ -112,17 +134,29 @@ type getPageOutput struct {
 //   - search_pages(query, language?, limit?) finds pages containing every word
 //     of the query in their title, description or Markdown source, best match
 //     first, with a snippet around a match. It returns [DefaultSearchLimit]
-//     results unless asked for another number, at most [MaxSearchLimit].
+//     results unless asked for another number, at most [MaxSearchLimit], and
+//     refuses a query beyond [MaxQueryBytes] or [MaxQueryWords].
 //   - list_pages(language?) lists all of them.
 //   - get_page(path) returns the Markdown alternate of one page (see
 //     [web.Site.MarkdownAlternate]), truncated at
 //     PageToolsOptions.MaxResponseBytes.
 //
+// The language of search_pages and list_pages matches a page in it or in a
+// regional variant of it, and is refused if it is no BCP 47 language tag.
+//
 // A page is public if it is [web.Page.Indexable] and has a Markdown source
-// (see [web.Page.MarkdownSource]); no tool ever returns another one. The
-// source is read with content on every call, so a site with an expensive
+// (see [web.Page.MarkdownSource]); no tool ever returns another one. Indexable
+// is no access control, though: a page meant for logged-in readers only that
+// search engines may still index, like one behind a paywall, has to be left
+// out of the source passed here, or the tools hand its text to anyone. Its
+// Markdown source is published as it is, HTML comments included, which an
+// HTML renderer may drop from the page.
+//
+// The source is read with content on every call, so a site with an expensive
 // source should pass a cached one. The site builds the URLs, and is usually
-// the source as well.
+// the source as well. The markdown_url of a page and the note on a truncated
+// one point at [web.Site.MarkdownAlternateURL], so the site should serve the
+// alternates there (see [web.Site.ServeMarkdown]).
 //
 // Passing the source is what exposes it: a nil source registers nothing and
 // returns an error, as does a nil server or a site that does not validate.
@@ -144,34 +178,49 @@ func AddPageTools(server *sdk.Server, source web.PageSource, site *web.Site, opt
 		opts.MaxResponseBytes = DefaultMaxResponseBytes
 	}
 	if opts.Language == nil {
-		opts.Language = defaultLanguage(site)
+		opts.Language = site.PageLang
 	}
 	tools := &pageTools{source: source, site: site, opts: opts}
 
-	of := "the site"
-	if site.Title != "" {
-		of = site.Title
-	}
+	of := cmp.Or(site.Title, "the site")
 	readOnly := &sdk.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: new(false)}
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "search_pages",
 		Title:       "Search pages",
 		Description: "Search the public pages of " + of + " for words in their title, description and text. Returns the best matches first, each with a snippet; read one with get_page.",
 		Annotations: readOnly,
-	}, tools.searchPages)
+	}, recovered(tools, tools.searchPages))
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "list_pages",
 		Title:       "List pages",
 		Description: "List all public pages of " + of + ", optionally only those in one language. Read one with get_page.",
 		Annotations: readOnly,
-	}, tools.listPages)
+	}, recovered(tools, tools.listPages))
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "get_page",
 		Title:       "Get page",
 		Description: "Get the content of a public page of " + of + " as Markdown, starting with its title, description, URL, language and translations.",
 		Annotations: readOnly,
-	}, tools.getPage)
+	}, recovered(tools, tools.getPage))
 	return nil
+}
+
+// recovered wraps a tool handler so that a panic in it — a bug in the source,
+// the Language hook or a page — fails the call as unavailable and is reported
+// to OnError, instead of crashing the process. The SDK calls tool handlers on
+// goroutines of its own, where the per-request recover of net/http does not
+// reach, so without this one page that makes the code panic would take the
+// whole server down on every call that reads it.
+func recovered[In, Out any](t *pageTools, handler sdk.ToolHandlerFor[In, Out]) sdk.ToolHandlerFor[In, Out] {
+	return func(ctx context.Context, request *sdk.CallToolRequest, input In) (result *sdk.CallToolResult, output Out, err error) {
+		defer func() {
+			if p := recover(); p != nil {
+				var zero Out
+				result, output, err = nil, zero, t.unavailable(ctx, errs.Errorf("mcp page tool panicked: %v", p))
+			}
+		}()
+		return handler(ctx, request, input)
+	}
 }
 
 // pageTools implements the tools of [AddPageTools].
@@ -188,59 +237,58 @@ type publicPage struct {
 	markdown []byte
 }
 
-// publicPages returns the public pages of the source in source order, keeping
-// only those in language if it is not empty. A page whose URLs or Markdown
+// publicPages iterates the public pages of the source in source order, keeping
+// only those matching the language filter (see [languageFilter]) if it is not
+// empty. A page whose URLs or Markdown
 // alternate cannot be built is reported to OnError and left out, so that one
 // broken page does not take every other page offline with it, and so that no
 // tool lists a page get_page cannot return.
-func (t *pageTools) publicPages(ctx context.Context, language string) ([]publicPage, error) {
-	var pages []publicPage
-	for page, err := range t.source.Pages(ctx, true) {
-		if err != nil {
-			return nil, err
+func (t *pageTools) publicPages(ctx context.Context, language string) iter.Seq2[publicPage, error] {
+	return func(yield func(publicPage, error) bool) {
+		for page, err := range t.source.Pages(ctx, true) {
+			if err != nil {
+				yield(publicPage{}, err)
+				return
+			}
+			// A call the client gave up on stops between pages, rather
+			// than reading and searching the rest of the source for no one.
+			if err := ctx.Err(); err != nil {
+				yield(publicPage{}, err)
+				return
+			}
+			if !page.Indexable() {
+				continue
+			}
+			markdown, ok := page.MarkdownSource()
+			if !ok {
+				continue
+			}
+			info, err := t.pageInfo(page)
+			if err != nil {
+				t.reportError(ctx, err)
+				continue
+			}
+			if !matchesLanguage(info.Language, language) {
+				continue
+			}
+			if !yield(publicPage{page: page, info: info, markdown: markdown}, nil) {
+				return
+			}
 		}
-		if !page.Indexable() {
-			continue
-		}
-		markdown, ok := page.MarkdownSource()
-		if !ok {
-			continue
-		}
-		info, err := t.pageInfo(page)
-		if err != nil {
-			t.reportError(ctx, err)
-			continue
-		}
-		if !matchesLanguage(info.Language, language) {
-			continue
-		}
-		pages = append(pages, publicPage{page: page, info: info, markdown: markdown})
 	}
-	return pages, nil
 }
 
 // pageInfo returns the description of a page in the tool results.
 func (t *pageTools) pageInfo(page *web.Page) (PageInfo, error) {
-	// PageHeaders builds the links a Markdown alternate is built from, which
-	// is what fails for a page with invalid alternates or no language.
-	if _, err := t.site.PageHeaders(page); err != nil {
+	// The Markdown URL is only built for a page whose Markdown alternate can
+	// be built, which is what fails for invalid alternates or no language.
+	markdownURL, err := t.site.MarkdownAlternateURL(page)
+	if err != nil {
 		return PageInfo{}, err
 	}
 	canonical, err := t.site.PageURL(page)
 	if err != nil {
 		return PageInfo{}, err
-	}
-	markdownPath, err := web.MarkdownPath(page.Path)
-	if err != nil {
-		return PageInfo{}, err
-	}
-	markdownURL, err := t.site.URL(markdownPath)
-	if err != nil {
-		return PageInfo{}, err
-	}
-	lastUpdated := page.LastUpdated
-	if lastUpdated.IsZero() {
-		lastUpdated = page.Published
 	}
 	info := PageInfo{
 		Title:       page.Title,
@@ -249,7 +297,7 @@ func (t *pageTools) pageInfo(page *web.Page) (PageInfo, error) {
 		MarkdownURL: markdownURL,
 		Language:    t.opts.Language(page),
 	}
-	if !lastUpdated.IsZero() {
+	if lastUpdated := page.LastModified(); !lastUpdated.IsZero() {
 		info.LastUpdated = lastUpdated.Format(time.RFC3339)
 	}
 	return info, nil
@@ -262,16 +310,45 @@ func (t *pageTools) reportError(ctx context.Context, err error) {
 	}
 }
 
-// unavailable reports err and returns the error the client sees instead.
+// unavailable reports err and returns the error the client sees instead. A
+// call the client cancelled is no failure of the server to report.
 func (t *pageTools) unavailable(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+		return ctxErr
+	}
 	t.reportError(ctx, err)
 	return errUnavailable
 }
 
+// queryWords returns the distinct lower-cased words of a search_pages query,
+// or an error the client sees if the query is empty or too long to search.
+func queryWords(query string) ([]string, error) {
+	if len(query) > MaxQueryBytes {
+		return nil, fmt.Errorf("the query is longer than %d bytes", MaxQueryBytes)
+	}
+	var words []string
+	for word := range strings.FieldsSeq(strings.ToLower(query)) {
+		if !slices.Contains(words, word) {
+			words = append(words, word)
+		}
+	}
+	switch {
+	case len(words) == 0:
+		return nil, errors.New("the query is empty")
+	case len(words) > MaxQueryWords:
+		return nil, fmt.Errorf("the query has more than %d words", MaxQueryWords)
+	}
+	return words, nil
+}
+
 func (t *pageTools) searchPages(ctx context.Context, _ *sdk.CallToolRequest, input searchPagesInput) (*sdk.CallToolResult, searchPagesOutput, error) {
-	words := strings.Fields(strings.ToLower(input.Query))
-	if len(words) == 0 {
-		return nil, searchPagesOutput{}, errors.New("the query is empty")
+	words, err := queryWords(input.Query)
+	if err != nil {
+		return nil, searchPagesOutput{}, err
+	}
+	language, err := languageFilter(input.Language)
+	if err != nil {
+		return nil, searchPagesOutput{}, err
 	}
 	limit := input.Limit
 	if limit <= 0 {
@@ -279,100 +356,112 @@ func (t *pageTools) searchPages(ctx context.Context, _ *sdk.CallToolRequest, inp
 	}
 	limit = min(limit, MaxSearchLimit)
 
-	pages, err := t.publicPages(ctx, input.Language)
-	if err != nil {
-		return nil, searchPagesOutput{}, t.unavailable(ctx, err)
-	}
 	type match struct {
-		info  PageInfo
+		page  publicPage
 		score int
+		at    int
 	}
 	var matches []match
-	for _, page := range pages {
-		score, snippet := searchPage(page, words)
-		if score == 0 {
-			continue
+	for page, err := range t.publicPages(ctx, language) {
+		if err != nil {
+			return nil, searchPagesOutput{}, t.unavailable(ctx, err)
 		}
-		page.info.Snippet = snippet
-		matches = append(matches, match{info: page.info, score: score})
+		if score, at := searchPage(page, words); score > 0 {
+			matches = append(matches, match{page: page, score: score, at: at})
+		}
 	}
 	// Stable, so that equally good matches stay in source order.
 	slices.SortStableFunc(matches, func(a, b match) int { return cmp.Compare(b.score, a.score) })
-	output := searchPagesOutput{Results: make([]PageInfo, 0, min(len(matches), limit))}
-	for _, m := range matches[:min(len(matches), limit)] {
-		output.Results = append(output.Results, m.info)
+	matches = matches[:min(len(matches), limit)]
+	output := searchPagesOutput{Results: make([]PageInfo, len(matches))}
+	// Snippets are only cut for the matches that are returned.
+	for i, m := range matches {
+		output.Results[i] = m.page.info
+		if m.at < 0 {
+			output.Results[i].Snippet = oneLine(m.page.info.Description)
+		} else {
+			output.Results[i].Snippet = excerpt(string(m.page.markdown), m.at)
+		}
 	}
 	return nil, output, nil
 }
 
 // searchPage scores how well the page matches the lower-cased words — zero if
-// one of them is missing from the page — and returns a snippet of the
-// Markdown source around the first match in it, or the description if only
-// the title and description match.
-//
-// A word in the title counts most and one in the description more than one in
-// the text, where every occurrence counts, up to a cap so that a long page
-// repeating a word does not outrank the page that is about it.
-func searchPage(page publicPage, words []string) (score int, snippet string) {
+// one of them is missing from the page, see [titleScore] for the weights —
+// and returns the rune index of the first match in its Markdown source, or -1
+// if only the title and description match.
+func searchPage(page publicPage, words []string) (score, at int) {
 	title := strings.ToLower(page.info.Title)
 	description := strings.ToLower(page.info.Description)
-	text := strings.ToLower(string(page.markdown))
+	// Lowered as bytes, so the source is copied once per query, not twice.
+	text := bytes.ToLower(page.markdown)
 	first := -1
 	for _, word := range words {
 		wordScore := 0
 		if strings.Contains(title, word) {
-			wordScore += 10
+			wordScore += titleScore
 		}
 		if strings.Contains(description, word) {
-			wordScore += 3
+			wordScore += descriptionScore
 		}
-		if i := strings.Index(text, word); i >= 0 {
-			wordScore += min(strings.Count(text, word), 10)
+		w := []byte(word)
+		if i := bytes.Index(text, w); i >= 0 {
+			// Counted from the first match on rather than from the start.
+			wordScore += min(1+bytes.Count(text[i+len(w):], w), maxTextScore)
 			if first < 0 || i < first {
 				first = i
 			}
 		}
 		if wordScore == 0 {
-			return 0, ""
+			return 0, -1
 		}
 		score += wordScore
 	}
 	if first < 0 {
-		return score, oneLine(page.info.Description)
+		return score, -1
 	}
-	return score, excerpt(string(page.markdown), text, first)
+	// Lower-casing maps every rune to exactly one rune, but not always to one
+	// of the same byte length, so the offset is returned as a rune index.
+	return score, utf8.RuneCount(text[:first])
 }
 
-// excerpt returns about [snippetRunes] runes of text around the byte offset
-// at in lower, the lower-cased text, on one line, with an ellipsis where it
-// cuts the text.
-//
-// The offset is converted through the rune index, because lower-casing maps
-// every rune to exactly one rune but not always to one of the same byte
-// length.
-func excerpt(text, lower string, at int) string {
-	runes := []rune(text)
-	center := utf8.RuneCountInString(lower[:at])
-	start := max(0, center-snippetRunes/3)
-	end := min(len(runes), start+snippetRunes)
-	snippet := oneLine(string(runes[start:end]))
+// excerpt returns about [snippetRunes] runes of text around the rune index
+// center, on one line, with an ellipsis where it cuts the text.
+func excerpt(text string, center int) string {
+	first := max(0, center-snippetRunes/3)
+	start, end := 0, len(text)
+	runes := 0
+	for i := range text {
+		if runes == first {
+			start = i
+		}
+		if runes == first+snippetRunes {
+			end = i
+			break
+		}
+		runes++
+	}
+	snippet := oneLine(text[start:end])
 	if start > 0 {
 		snippet = "…" + snippet
 	}
-	if end < len(runes) {
+	if end < len(text) {
 		snippet += "…"
 	}
 	return snippet
 }
 
 func (t *pageTools) listPages(ctx context.Context, _ *sdk.CallToolRequest, input listPagesInput) (*sdk.CallToolResult, listPagesOutput, error) {
-	pages, err := t.publicPages(ctx, input.Language)
+	output := listPagesOutput{Pages: []PageInfo{}}
+	language, err := languageFilter(input.Language)
 	if err != nil {
-		return nil, listPagesOutput{}, t.unavailable(ctx, err)
+		return nil, listPagesOutput{}, err
 	}
-	output := listPagesOutput{Pages: make([]PageInfo, len(pages))}
-	for i, page := range pages {
-		output.Pages[i] = page.info
+	for page, err := range t.publicPages(ctx, language) {
+		if err != nil {
+			return nil, listPagesOutput{}, t.unavailable(ctx, err)
+		}
+		output.Pages = append(output.Pages, page.info)
 	}
 	return nil, output, nil
 }
@@ -381,29 +470,39 @@ func (t *pageTools) getPage(ctx context.Context, _ *sdk.CallToolRequest, input g
 	if input.Path == "" {
 		return nil, getPageOutput{}, errors.New("the path is empty")
 	}
-	pages, err := t.publicPages(ctx, "")
-	if err != nil {
-		return nil, getPageOutput{}, t.unavailable(ctx, err)
-	}
-	i := slices.IndexFunc(pages, func(page publicPage) bool {
+	var found *publicPage
+	for page, err := range t.publicPages(ctx, "") {
+		if err != nil {
+			return nil, getPageOutput{}, t.unavailable(ctx, err)
+		}
+		// The rest of the source is still read after a match, so that a
+		// source failing half way fails every call alike instead of only the
+		// ones for pages behind the failure.
+		if found != nil {
+			continue
+		}
 		markdownPath, _ := web.MarkdownPath(page.page.Path)
-		return input.Path == page.page.Path || input.Path == markdownPath ||
-			input.Path == page.info.URL || input.Path == page.info.MarkdownURL
-	})
-	if i < 0 {
+		if input.Path == page.page.Path || input.Path == markdownPath ||
+			input.Path == page.info.URL || input.Path == page.info.MarkdownURL {
+			found = &page
+		}
+	}
+	if found == nil {
 		return nil, getPageOutput{}, ErrPageNotFound
 	}
-	page := pages[i]
-	doc, err := t.site.MarkdownAlternate(page.page)
+	doc, err := t.site.MarkdownAlternate(found.page)
 	if err != nil {
 		return nil, getPageOutput{}, t.unavailable(ctx, err)
 	}
-	markdown, truncated := truncate(doc.Bytes(), t.opts.MaxResponseBytes, page.info.MarkdownURL)
+	// The header names the language the other tools report the page in,
+	// which a PageToolsOptions.Language of the site's own may decide.
+	doc.Lang = found.info.Language
+	markdown, truncated := truncate(doc.Bytes(), t.opts.MaxResponseBytes, found.info.MarkdownURL)
 	// The Markdown goes to the model as text, the metadata as structured
 	// content, so the page is not sent twice — once as text and once
 	// JSON-escaped — as it would be with the Markdown in the output struct.
 	result := &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(markdown)}}}
-	return result, getPageOutput{Page: page.info, Truncated: truncated}, nil
+	return result, getPageOutput{Page: found.info, Truncated: truncated}, nil
 }
 
 // truncate cuts markdown to at most maxBytes, on a line break if there is one
@@ -424,55 +523,29 @@ func truncate(markdown []byte, maxBytes int, markdownURL string) ([]byte, bool) 
 	return append(markdown[:cut:cut], note...), true
 }
 
-// pathLanguageRegexp matches a first path segment that is taken for a
-// language tag: a two-letter language with optional subtags, like "en",
-// "de-AT" or "zh-Hant". Longer primary subtags are left out on purpose, as
-// they would mistake "/faq/" or "/api/" for a language.
-var pathLanguageRegexp = regexp.MustCompile(`^[A-Za-z]{2}(-[A-Za-z0-9]{2,8})*$`)
-
-// iso639_1 are the two-letter ISO 639-1 language codes. Matching the primary
-// subtag against them keeps "/go/", "/ai/" or "/ui/" from being taken for a
-// language.
-var iso639_1 = func() map[string]bool {
-	codes := make(map[string]bool)
-	for code := range strings.FieldsSeq(`
-		aa ab ae af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce
-		ch co cr cs cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr
-		fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is
-		it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln
-		lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv
-		ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk
-		sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr ts tt tw
-		ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu`) {
-		codes[code] = true
+// languageFilter returns the language argument of a tool call lower-cased for
+// [matchesLanguage], or an error the client sees if it is no language tag.
+// It is checked once per call, because it is compared with every page.
+func languageFilter(language string) (string, error) {
+	if language == "" {
+		return "", nil
 	}
-	return codes
-}()
-
-// defaultLanguage returns the default PageToolsOptions.Language for site.
-func defaultLanguage(site *web.Site) func(*web.Page) string {
-	return func(page *web.Page) string {
-		if page.Lang != "" {
-			return page.Lang
-		}
-		segment, _, _ := strings.Cut(strings.TrimPrefix(page.Path, "/"), "/")
-		if pathLanguageRegexp.MatchString(segment) && iso639_1[strings.ToLower(segment[:2])] {
-			return segment
-		}
-		return site.Lang
+	if len(language) > maxLanguageBytes || !html.ValidLangTag(language) {
+		return "", errors.New("the language is not a BCP 47 language tag")
 	}
+	return strings.ToLower(language), nil
 }
 
 // matchesLanguage reports whether a page in language belongs to the results
-// for the filter: every page for an empty filter, else a page in the language
-// itself or in a regional variant of it, so "en" finds "en-GB" too. Language
-// tags are case-insensitive.
+// for the lower-cased filter: every page for an empty filter, else a page in
+// the language itself or in a regional variant of it, so "en" finds "en-GB"
+// too. Language tags are case-insensitive.
 func matchesLanguage(language, filter string) bool {
 	if filter == "" {
 		return true
 	}
-	language, filter = strings.ToLower(language), strings.ToLower(filter)
-	return language == filter || strings.HasPrefix(language, filter+"-")
+	language = strings.ToLower(language)
+	return strings.HasPrefix(language, filter) && (len(language) == len(filter) || language[len(filter)] == '-')
 }
 
 // oneLine collapses every run of whitespace in s, line breaks included, into

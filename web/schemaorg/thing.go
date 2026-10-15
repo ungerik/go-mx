@@ -52,13 +52,12 @@ type Thing struct {
 // covers types this package has no struct for, as far as the common properties
 // describe them — a Country for [Service.AreaServed], a Brand, a Language.
 func NewThing(typ, name string) *Thing {
-	thing := newThing(typ)
-	thing.Name = name
+	thing := newThing(typ, name)
 	return &thing
 }
 
-// newThing returns the Thing every constructor starts from: the type plus the
-// @context that makes the result a valid root.
-func newThing(typ string) Thing {
-	return Thing{Context: Context, Type: typ}
+// newThing returns the Thing every constructor starts from: the type and name
+// plus the @context that makes the result a valid root.
+func newThing(typ, name string) Thing {
+	return Thing{Context: Context, Type: typ, Name: name}
 }

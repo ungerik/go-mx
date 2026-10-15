@@ -150,9 +150,13 @@ func TestEventJSONLD(t *testing.T) {
 	require.NotContains(t, rendered, "<!--")
 	require.NotContains(t, rendered, "alert(1)</")
 
-	body, found := strings.CutPrefix(rendered, `<script type="application/ld+json">`)
+	body, found := strings.CutPrefix(rendered,
+		/*html*/ `<script type="application/ld+json">`,
+	)
 	require.True(t, found, rendered)
-	body, found = strings.CutSuffix(body, `</script>`)
+	body, found = strings.CutSuffix(body,
+		/*html*/ `</script>`,
+	)
 	require.True(t, found, rendered)
 
 	var got map[string]any

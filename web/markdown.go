@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	gopath "path"
 	"strconv"
 	"strings"
@@ -31,14 +32,20 @@ func MarkdownPath(pagePath string) (string, error) {
 	if err := validateSitePath(pagePath); err != nil {
 		return "", err
 	}
-	if strings.HasSuffix(strings.ToLower(pagePath), ".md") {
+	// The checks look at the decoded path, the one a server routes by:
+	// "/en/faq%2Emd" is "/en/faq.md" there, and "/en/%69ndex" is "/en/index".
+	parsed, err := url.Parse(pagePath)
+	if err != nil {
+		return "", fmt.Errorf("path %q: %w", pagePath, err)
+	}
+	if strings.HasSuffix(strings.ToLower(parsed.Path), ".md") {
 		return "", fmt.Errorf("path %q already ends in .md", pagePath)
 	}
 	if strings.HasSuffix(pagePath, "/") {
 		return pagePath + "index.md", nil
 	}
-	if gopath.Base(pagePath) == "index" {
-		return "", fmt.Errorf("path %q ends in /index, whose Markdown path would be that of %q", pagePath, gopath.Dir(pagePath))
+	if gopath.Base(parsed.Path) == "index" {
+		return "", fmt.Errorf("path %q ends in /index, whose Markdown path would be that of %q", pagePath, gopath.Dir(parsed.Path))
 	}
 	return pagePath + ".md", nil
 }
@@ -104,7 +111,8 @@ type MarkdownDocument struct {
 	// RFC 3339 date. The zero time is left out.
 	LastUpdated time.Time
 
-	// Translations are the versions of the page in other languages.
+	// Translations are the versions of the page in other languages. One
+	// whose Lang leaves no usable link text is left out.
 	Translations []Translation
 
 	// Sections are rendered after the metadata and before the page's
@@ -126,7 +134,7 @@ func (d *MarkdownDocument) Bytes() []byte {
 		// CommonMark ends a line at a lone carriage return too, so it has to
 		// get its "> " prefix like any other line break, or the rest of the
 		// description would leave the block quote and could be a heading.
-		description := strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(d.Description)
+		description := lineBreakNormalizer.Replace(d.Description)
 		for line := range strings.Lines(strings.TrimSpace(description)) {
 			line = strings.TrimRight(line, " \t\r\n")
 			if line == "" {
@@ -138,21 +146,25 @@ func (d *MarkdownDocument) Bytes() []byte {
 		b.WriteByte('\n')
 	}
 
+	// Every metadata item is one line of a list. The fields are the
+	// caller's to set, so each is put on one line before it is written.
 	var metadata []string
-	if d.URL != "" {
-		metadata = append(metadata, "Canonical URL: "+d.URL)
+	if u := markdownLine(d.URL); u != "" {
+		metadata = append(metadata, "Canonical URL: "+u)
 	}
-	if d.Lang != "" {
-		metadata = append(metadata, "Language: "+d.Lang)
+	if lang := markdownLine(d.Lang); lang != "" {
+		metadata = append(metadata, "Language: "+lang)
 	}
 	if !d.LastUpdated.IsZero() {
 		metadata = append(metadata, "Last updated: "+d.LastUpdated.Format(time.DateOnly))
 	}
-	if len(d.Translations) > 0 {
-		translations := make([]string, len(d.Translations))
-		for i, translation := range d.Translations {
-			translations[i] = "[" + translation.Lang + "](" + markdownURL(translation.URL) + ")"
+	var translations []string
+	for _, translation := range d.Translations {
+		if lang := markdownLinkText(translation.Lang); lang != "" {
+			translations = append(translations, "["+lang+"]("+markdownURL(markdownLine(translation.URL))+")")
 		}
+	}
+	if len(translations) > 0 {
 		metadata = append(metadata, "Translations: "+strings.Join(translations, ", "))
 	}
 	for _, item := range metadata {
@@ -185,10 +197,13 @@ func (d *MarkdownDocument) WriteTo(w io.Writer) (int64, error) {
 // MarkdownAlternate returns the Markdown alternate of the page: its Markdown
 // source (see [Page.MarkdownSource]) with a header carrying its title,
 // description, canonical URL, language, last update — LastUpdated, falling back
-// to Published — and the URLs of its translations.
+// to Published — and the URLs of its translations. The source is published as
+// it is, HTML comments included, which an HTML renderer may drop from the page.
 //
-// It is an error for the page to have no Markdown source or no Path, or to
-// fail [Page.Validate]. Whether the page should be published at all is the
+// It is an error for the page to have no Markdown source or no Path, to fail
+// [Page.Validate], or to fail the checks of its links that need the site: a
+// BaseURL, and for a page with translations a valid language of its own (from
+// Page.Lang or Site.Lang) that none of them repeats. Whether the page should be published at all is the
 // caller's decision: unlike the sitemap, this does not check
 // [Page.Indexable], so a handler serving the alternates of a site has to,
 // just as it does for the HTML pages.
@@ -201,30 +216,47 @@ func (s *Site) MarkdownAlternate(page *Page) (*MarkdownDocument, error) {
 	if err != nil {
 		return nil, err
 	}
-	links, err := s.pageLinks(page)
+	// A page whose hreflang links are broken gets no alternate either.
+	err = s.validatePageLinks(page)
 	if err != nil {
 		return nil, err
-	}
-	lastUpdated := page.LastUpdated
-	if lastUpdated.IsZero() {
-		lastUpdated = page.Published
 	}
 	doc := &MarkdownDocument{
 		Title:       page.Title,
 		Description: page.Description,
 		URL:         canonical,
-		Lang:        s.pageLang(page),
-		LastUpdated: lastUpdated,
+		Lang:        s.PageLang(page),
+		LastUpdated: page.LastModified(),
 		Source:      source,
 	}
-	for _, link := range links {
-		isTranslation := link.rel == RelAlternate && link.typ == "" && link.hrefLang != ""
-		if !isTranslation || link.url == canonical || strings.EqualFold(link.hrefLang, HrefLangDefault) {
+	for _, alternate := range page.Alternates {
+		if !alternate.IsTranslation() || strings.EqualFold(alternate.HrefLang, HrefLangDefault) {
 			continue
 		}
-		doc.Translations = append(doc.Translations, Translation{Lang: link.hrefLang, URL: link.url})
+		u, err := s.URL(alternate.Path)
+		if err != nil {
+			return nil, err
+		}
+		doc.Translations = append(doc.Translations, Translation{Lang: alternate.HrefLang, URL: u})
 	}
 	return doc, nil
+}
+
+// MarkdownAlternateURL returns the absolute URL of the page's Markdown
+// alternate, at the [MarkdownPath] of its Path. It fails for a page without a
+// valid Path and for one whose links cannot be built, as
+// [Site.MarkdownAlternate] does, so the alternate can be served wherever this
+// URL is listed. Whether the page has a Markdown source is not checked.
+func (s *Site) MarkdownAlternateURL(page *Page) (string, error) {
+	err := s.validatePageLinks(page)
+	if err != nil {
+		return "", err
+	}
+	markdownPath, err := MarkdownPath(page.Path)
+	if err != nil {
+		return "", fmt.Errorf("page %q: %w", page.Title, err)
+	}
+	return s.URL(markdownPath)
 }
 
 // ServeMarkdown writes the Markdown alternate of the page (see
@@ -238,10 +270,19 @@ func (s *Site) MarkdownAlternate(page *Page) (*MarkdownDocument, error) {
 // "X-Robots-Tag: noindex, nofollow", the header form of its robots meta tag.
 //
 // The etag and lastMod are the caller's revision of the page, or empty and
-// zero for none. An etag that is not quoted yet is quoted. Conditional and
-// range requests are answered by [http.ServeContent], so a client presenting
-// the current etag gets a 304.
+// zero for none. The etag is quoted if it is not yet and marked "-md" inside
+// the quotes: under content negotiation the alternate shares its URL with the
+// HTML page, and a cache revalidating both with one tag could answer a
+// Markdown client with the HTML. Conditional and range requests are answered
+// by [http.ServeContent], so a client presenting the current tag gets a 304.
+//
+// A page without a Markdown source has no alternate to serve and gets a 404;
+// any other failure of [Site.MarkdownAlternate] is a 500.
 func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request, page *Page, etag string, lastMod time.Time) {
+	if _, ok := page.MarkdownSource(); !ok {
+		http.NotFound(response, request)
+		return
+	}
 	doc, err := s.MarkdownAlternate(page)
 	if err != nil {
 		mx.RespondNonContextError(response, err)
@@ -250,14 +291,31 @@ func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request
 	header := response.Header()
 	header.Set("Content-Type", mx.ContentTypeMarkdown)
 	header.Add("Link", pageLink{rel: "canonical", url: doc.URL}.headerValue())
-	header.Add("Vary", "Accept")
+	// The caller may have set it already, for the HTML response it would
+	// have answered with instead (see AcceptsMarkdown).
+	if !headerListContains(header.Values("Vary"), "Accept") {
+		header.Add("Vary", "Accept")
+	}
 	if etag != "" {
-		header.Set("ETag", quoteETag(etag))
+		header.Set("ETag", markdownETag(etag))
 	}
 	if !page.Indexable() {
-		header.Set("X-Robots-Tag", "noindex, nofollow")
+		header.Set("X-Robots-Tag", robotsNoIndex)
 	}
 	http.ServeContent(response, request, "", lastMod, bytes.NewReader(doc.Bytes()))
+}
+
+// headerListContains reports whether element is one of the comma-separated
+// elements of the header values, compared case-insensitively.
+func headerListContains(values []string, element string) bool {
+	for _, value := range values {
+		for e := range strings.SplitSeq(value, ",") {
+			if strings.EqualFold(strings.TrimSpace(e), element) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // AcceptsMarkdown reports whether the request's Accept header prefers
@@ -272,12 +330,21 @@ func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request
 //
 // A browser's Accept header ends in "*/*" and names no Markdown, so it gets
 // HTML; a client that sends "text/markdown" gets Markdown. Wrap the HTML
-// handler of a page with it to serve the alternate under the page's own URL:
+// handler of a page with it to serve the alternate under the page's own URL.
+// Both answers then depend on the Accept header, so the HTML response needs
+// "Vary: Accept" as much as the Markdown one, or a cache that kept a browser's
+// HTML hands it to the next agent asking for Markdown. A CDN that ignores Vary
+// for HTML defeats this either way; link agents to the alternate's own URL
+// (see [Site.MarkdownAlternateURL]) behind one:
 //
-//	if web.AcceptsMarkdown(request) {
+//	response.Header().Add("Vary", "Accept")
+//	if _, ok := page.MarkdownSource(); ok && web.AcceptsMarkdown(request) {
 //	    site.ServeMarkdown(response, request, page, etag, lastMod)
 //	    return
 //	}
+//
+// A page without a Markdown source has no alternate, so it answers with HTML
+// whatever the client prefers.
 func AcceptsMarkdown(request *http.Request) bool {
 	// The quality of the most specific range matching a type wins
 	// (RFC 9110, section 12.5.1), so text/html is tracked per specificity.
@@ -346,14 +413,25 @@ func parseMediaRange(mediaRange string) (mediaType string, q float64, ok bool) {
 	return mediaType, q, true
 }
 
-// quoteETag returns etag as an entity tag: unchanged if it already is a
-// strong ("…") or weak (W/"…") one, otherwise quoted as a strong one, because
+// markdownETag returns the entity tag of a Markdown alternate for the
+// caller's etag: a strong ("…") or weak (W/"…") tag with "-md" added inside
+// its quotes, anything else quoted as a strong one first, because
 // [http.ServeContent] cannot match an unquoted tag and would never answer 304.
-func quoteETag(etag string) string {
-	if strings.HasPrefix(etag, `"`) || strings.HasPrefix(etag, `W/"`) {
-		return etag
+func markdownETag(etag string) string {
+	weak := strings.HasPrefix(etag, `W/`)
+	opaque := strings.TrimPrefix(etag, `W/`)
+	if len(opaque) >= 2 && strings.HasPrefix(opaque, `"`) && strings.HasSuffix(opaque, `"`) {
+		opaque = opaque[1 : len(opaque)-1]
+	} else {
+		// Not a tag yet: all of it, quotes removed, becomes the opaque part.
+		weak = false
+		opaque = strings.ReplaceAll(etag, `"`, "")
 	}
-	return `"` + etag + `"`
+	tag := `"` + opaque + `-md"`
+	if weak {
+		return `W/` + tag
+	}
+	return tag
 }
 
 // markdownLine returns s on a single line, with every run of whitespace —
@@ -370,8 +448,31 @@ func markdownLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// markdownURL percent-encodes the parentheses of a URL, which is the same URL
-// to every client but cannot end the destination of a Markdown link early.
+// lineBreakNormalizer turns CRLF and lone CR line breaks into LF.
+var lineBreakNormalizer = strings.NewReplacer("\r\n", "\n", "\r", "\n")
+
+// markdownURLEscaper percent-encodes the parentheses, spaces and backslashes
+// of a URL.
+var markdownURLEscaper = strings.NewReplacer("(", "%28", ")", "%29", " ", "%20", `\`, "%5C")
+
+// markdownLinkText makes s usable as the text of a Markdown link: on one line,
+// with square brackets as parentheses, backticks as apostrophes, "<" as "‹"
+// and no trailing backslash, so it can neither end, escape nor swallow the
+// link. It returns "" if nothing usable is left.
+func markdownLinkText(s string) string {
+	// Spaces and backslashes are trimmed together, so `a \ \` leaves
+	// no backslash at the end.
+	s = markdownLinkTextReplacer.Replace(markdownLine(s))
+	return strings.TrimRight(s, ` \`)
+}
+
+// markdownLinkTextReplacer replaces what [markdownLinkText] may not hold with
+// look-alikes.
+var markdownLinkTextReplacer = strings.NewReplacer("[", "(", "]", ")", "`", "'", "<", "‹")
+
+// markdownURL percent-encodes the parentheses, spaces and backslashes of a
+// URL, which is the same URL to every client but cannot end or escape the
+// destination of a Markdown link early.
 func markdownURL(u string) string {
-	return strings.NewReplacer("(", "%28", ")", "%29").Replace(u)
+	return markdownURLEscaper.Replace(u)
 }

@@ -8,6 +8,7 @@ import (
 	"iter"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -68,12 +69,14 @@ func testPages() pages {
 	draft.Published = time.Time{}
 	hidden := markdownPage("/en/hidden", "Hidden pricing", "", "pricing")
 	hidden.NoIndex = true
+	aboutGB := markdownPage("/en-GB/about", "About us", "Who we are, in British English", "Colour and pricing.")
+	aboutGB.Lang = "en-GB"
 
 	return pages{
 		faq,
 		faqDE,
 		markdownPage("/en/about", "About us", "Who we are", "We have been selling things since 2020. Our pricing is fair."),
-		markdownPage("/en-GB/about", "About us", "Who we are, in British English", "Colour and pricing."),
+		aboutGB,
 		markdownPage("/blog/hello", "Hello", "", "The first post."),
 		markdownPage("/go/tour", "Go tour", "", "A tour of Go."),
 		// Never returned: not public, or no Markdown alternate.
@@ -265,6 +268,19 @@ func TestSearchPages(t *testing.T) {
 	})
 }
 
+func TestSearchPagesTitleOutranksText(t *testing.T) {
+	// A page about the word, which has it in its title, ranks above an
+	// earlier one that only mentions it a few times.
+	session := connect(t, pages{
+		markdownPage("/mentions", "Mentions", "", "Pricing, pricing and more pricing."),
+		markdownPage("/pricing", "Pricing", "", "What things cost."),
+	}, testSite(), mxmcp.PageToolsOptions{})
+
+	var output searchOutput
+	call(t, session, "search_pages", map[string]any{"query": "pricing"}, &output)
+	require.Equal(t, []string{"https://example.com/pricing", "https://example.com/mentions"}, urls(output.Results))
+}
+
 func TestSearchPagesLimit(t *testing.T) {
 	var many pages
 	for i := range 30 {
@@ -313,6 +329,176 @@ func TestSearchPagesSnippet(t *testing.T) {
 	require.LessOrEqual(t, len([]rune(snippet)), 170)
 }
 
+func TestSearchPagesQueryBounds(t *testing.T) {
+	// Regression: a query of 64 KiB of words, each searched in the text of
+	// every page, kept a CPU core busy for tens of seconds.
+	session := connect(t, testPages(), testSite(), mxmcp.PageToolsOptions{})
+
+	tooLong := strings.Repeat("x", mxmcp.MaxQueryBytes+1)
+	result := call(t, session, "search_pages", map[string]any{"query": tooLong}, nil)
+	require.True(t, result.IsError)
+	require.Equal(t, fmt.Sprintf("the query is longer than %d bytes", mxmcp.MaxQueryBytes), text(t, result))
+
+	var words []string
+	for i := range mxmcp.MaxQueryWords + 1 {
+		words = append(words, fmt.Sprintf("w%d", i))
+	}
+	result = call(t, session, "search_pages", map[string]any{"query": strings.Join(words, " ")}, nil)
+	require.True(t, result.IsError)
+	require.Equal(t, fmt.Sprintf("the query has more than %d words", mxmcp.MaxQueryWords), text(t, result))
+
+	// At the limits the query is searched, and repeated words count once.
+	result = call(t, session, "search_pages", map[string]any{"query": strings.Repeat("x", mxmcp.MaxQueryBytes)}, nil)
+	require.False(t, result.IsError, text(t, result))
+	var output searchOutput
+	result = call(t, session, "search_pages", map[string]any{"query": strings.Join(words[:mxmcp.MaxQueryWords], " ")}, &output)
+	require.False(t, result.IsError, text(t, result))
+	result = call(t, session, "search_pages", map[string]any{"query": strings.Repeat("Pricing pricing ", 15)}, &output)
+	require.False(t, result.IsError, text(t, result))
+	require.Equal(t, "https://example.com/en/faq", output.Results[0].URL)
+
+	// The model is told the limits the tool enforces.
+	tools, err := session.ListTools(context.Background(), nil)
+	require.NoError(t, err)
+	for _, tool := range tools.Tools {
+		if tool.Name == "search_pages" {
+			schema, err := json.Marshal(tool.InputSchema)
+			require.NoError(t, err)
+			require.Contains(t, string(schema), fmt.Sprintf("at most %d words and %d bytes", mxmcp.MaxQueryWords, mxmcp.MaxQueryBytes))
+		}
+	}
+}
+
+func TestSearchPagesStopsWhenCancelled(t *testing.T) {
+	// A call the client gave up on stops reading the source between pages,
+	// and is no server failure to report.
+	recorder := new(errorRecorder)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var read atomic.Int64
+	done := make(chan struct{})
+	source := web.PageSourceFunc(func(serverCtx context.Context, withContent bool) iter.Seq2[*web.Page, error] {
+		return func(yield func(*web.Page, error) bool) {
+			defer close(done)
+			for i := range 1000 {
+				read.Store(int64(i + 1))
+				if i == 1 {
+					// The client cancels; wait until the server sees it.
+					cancel()
+					select {
+					case <-serverCtx.Done():
+					case <-time.After(5 * time.Second):
+					}
+				}
+				page := markdownPage(fmt.Sprintf("/p%d", i), "Page", "", "text")
+				if !yield(&page, nil) {
+					return
+				}
+			}
+		}
+	})
+	session := connect(t, source, testSite(), mxmcp.PageToolsOptions{OnError: recorder.onError})
+	_, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "search_pages", Arguments: map[string]any{"query": "text"}})
+	require.Error(t, err)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the source was still read after the call was cancelled")
+	}
+	// The page being read when the cancellation arrived is the last one.
+	require.Equal(t, int64(2), read.Load())
+	require.Empty(t, recorder.recorded())
+}
+
+func TestPageToolsReportSourceFailureDuringCancel(t *testing.T) {
+	// Only the context error of a cancelled call goes unreported, not a
+	// failure of the source that happens while the call is cancelled.
+	recorder := new(errorRecorder)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	source := web.PageSourceFunc(func(serverCtx context.Context, withContent bool) iter.Seq2[*web.Page, error] {
+		return func(yield func(*web.Page, error) bool) {
+			defer close(done)
+			cancel()
+			select {
+			case <-serverCtx.Done():
+			case <-time.After(5 * time.Second):
+			}
+			yield(nil, errors.New("database failed"))
+		}
+	})
+	session := connect(t, source, testSite(), mxmcp.PageToolsOptions{OnError: recorder.onError})
+	_, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "list_pages"})
+	require.Error(t, err)
+	<-done
+	require.Eventually(t, func() bool { return len(recorder.recorded()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	require.ErrorContains(t, recorder.recorded()[0], "database failed")
+}
+
+func TestSearchPagesSnippetAfterMultibyteText(t *testing.T) {
+	// Every "Größenänderung " is 3 bytes longer than it has runes, so a snippet
+	// centered on the byte offset of the match would start ~90 runes past it.
+	long := strings.Repeat("Größenänderung ", 30) + "NEEDLE here " + strings.Repeat("more text ", 40)
+	session := connect(t, pages{markdownPage("/long", "Long", "", long)}, testSite(), mxmcp.PageToolsOptions{})
+
+	var output searchOutput
+	call(t, session, "search_pages", map[string]any{"query": "needle"}, &output)
+	require.Len(t, output.Results, 1)
+	require.Contains(t, output.Results[0].Snippet, "NEEDLE here")
+}
+
+func TestSearchPagesRanksTitleThenDescriptionThenText(t *testing.T) {
+	// Listed worst first, so a tie would keep the wrong order.
+	session := connect(t, pages{
+		markdownPage("/text", "Text", "", "about pricing"),
+		markdownPage("/description", "Description", "All about pricing", "text"),
+		markdownPage("/title", "Pricing", "", "text"),
+	}, testSite(), mxmcp.PageToolsOptions{})
+
+	var output searchOutput
+	call(t, session, "search_pages", map[string]any{"query": "pricing"}, &output)
+	require.Equal(t,
+		[]string{"https://example.com/title", "https://example.com/description", "https://example.com/text"},
+		urls(output.Results),
+	)
+}
+
+func TestPageToolsInvalidLanguage(t *testing.T) {
+	// The filter is compared with every page, so a value that is no
+	// language tag, or one longer than any in use, is refused before the
+	// source is read.
+	session := connect(t, testPages(), testSite(), mxmcp.PageToolsOptions{})
+	const longest = "en-abcdefgh-abcdefgh-abcdefgh-abcde" // 35 bytes
+	result := call(t, session, "list_pages", map[string]any{"language": longest}, nil)
+	require.False(t, result.IsError, text(t, result))
+	for _, language := range []string{"en_US", "en us", strings.Repeat("a", 36), longest + "f"} {
+		for _, c := range []struct {
+			tool      string
+			arguments map[string]any
+		}{
+			{"search_pages", map[string]any{"query": "pricing", "language": language}},
+			{"list_pages", map[string]any{"language": language}},
+		} {
+			result := call(t, session, c.tool, c.arguments, nil)
+			require.True(t, result.IsError, "%s %q", c.tool, language)
+			require.Equal(t, "the language is not a BCP 47 language tag", text(t, result))
+		}
+	}
+}
+
+func TestSearchPagesRepeatedMentionsDoNotOutrankTitle(t *testing.T) {
+	// Listed first, so a tie would go to the page that only repeats the word.
+	session := connect(t, pages{
+		markdownPage("/mentions", "Mentions", "", strings.Repeat("pricing ", 12)),
+		markdownPage("/pricing", "Pricing", "", "What things cost."),
+	}, testSite(), mxmcp.PageToolsOptions{})
+
+	var output searchOutput
+	call(t, session, "search_pages", map[string]any{"query": "pricing"}, &output)
+	require.Equal(t, []string{"https://example.com/pricing", "https://example.com/mentions"}, urls(output.Results))
+}
+
 func TestListPages(t *testing.T) {
 	session := connect(t, testPages(), testSite(), mxmcp.PageToolsOptions{})
 
@@ -333,8 +519,8 @@ func TestListPages(t *testing.T) {
 	for _, page := range output.Pages {
 		require.Empty(t, page.Snippet)
 	}
-	// The language comes from Page.Lang, else a path segment that is a
-	// language tag, else the site. Neither "blog" nor "go" is a language.
+	// The language comes from Page.Lang, else the site, as it does for the
+	// rendered page.
 	require.Equal(t, []string{"en", "de", "en", "en-GB", "en", "en"}, languages(output.Pages))
 
 	call(t, session, "list_pages", map[string]any{"language": "de"}, &output)
@@ -345,6 +531,19 @@ func TestListPages(t *testing.T) {
 	require.Empty(t, output.Pages)
 }
 
+func TestListPagesLanguageIsNotAPlainPrefix(t *testing.T) {
+	// "ary" (Moroccan Arabic) starts with "ar" but is no variant of it.
+	ary := markdownPage("/ary/faq", "FAQ", "", "text")
+	ary.Lang = "ary"
+	arEG := markdownPage("/ar-eg/faq", "FAQ", "", "text")
+	arEG.Lang = "ar-EG"
+	session := connect(t, pages{ary, arEG}, testSite(), mxmcp.PageToolsOptions{})
+
+	var output listOutput
+	call(t, session, "list_pages", map[string]any{"language": "ar"}, &output)
+	require.Equal(t, []string{"https://example.com/ar-eg/faq"}, urls(output.Pages))
+}
+
 func TestListPagesLanguageOption(t *testing.T) {
 	session := connect(t, testPages(), testSite(), mxmcp.PageToolsOptions{
 		Language: func(page *web.Page) string { return "x-" + page.Title },
@@ -352,6 +551,33 @@ func TestListPagesLanguageOption(t *testing.T) {
 	var output listOutput
 	call(t, session, "list_pages", map[string]any{"language": "x-FAQ"}, &output)
 	require.Equal(t, []string{"https://example.com/en/faq"}, urls(output.Pages))
+
+	// get_page tells the agent the same language in the Markdown header.
+	result := call(t, session, "get_page", map[string]any{"path": "/en/faq"}, nil)
+	require.Contains(t, text(t, result), "\n- Language: x-FAQ\n")
+}
+
+func TestPageToolsLanguageIsThePages(t *testing.T) {
+	// Regression: the tools took the language of a page without Page.Lang
+	// from its first path segment, while the page was rendered — and its
+	// Markdown header written — in Site.Lang, so an agent was told two
+	// languages for one page.
+	impressum := markdownPage("/en/impressum", "Impressum", "", "Angaben gemäß § 5 DDG.")
+	impressum.Lang = "de"
+	source := pages{markdownPage("/de/faq", "FAQ", "", "No language of its own."), impressum}
+	session := connect(t, source, testSite(), mxmcp.PageToolsOptions{})
+
+	var list listOutput
+	call(t, session, "list_pages", nil, &list)
+	// Page.Lang wins over the path, and the path never decides.
+	require.Equal(t, []string{"en", "de"}, languages(list.Pages))
+
+	for i, path := range []string{"/de/faq", "/en/impressum"} {
+		var output getOutput
+		result := call(t, session, "get_page", map[string]any{"path": path}, &output)
+		require.Equal(t, list.Pages[i].Language, output.Page.Language)
+		require.Contains(t, text(t, result), "\n- Language: "+list.Pages[i].Language+"\n")
+	}
 }
 
 func TestGetPage(t *testing.T) {
@@ -407,6 +633,21 @@ func TestGetPageTruncated(t *testing.T) {
 	require.LessOrEqual(t, len(markdown), 2000)
 	require.True(t, strings.HasPrefix(markdown, "# Big\n"))
 	require.Contains(t, markdown, "A line of text that goes on.\n\n[Truncated: the page has ")
+	require.True(t, strings.HasSuffix(markdown, "The whole page is at https://example.com/big.md]\n"), markdown)
+}
+
+func TestGetPageTruncatedToNote(t *testing.T) {
+	// A limit smaller than the truncation note leaves nothing of the page
+	// but the note, rather than a negative cut.
+	page := markdownPage("/big", "Big", "", "Some text.")
+	session := connect(t, pages{page}, testSite(), mxmcp.PageToolsOptions{MaxResponseBytes: 10})
+
+	var output getOutput
+	result := call(t, session, "get_page", map[string]any{"path": "/big"}, &output)
+	require.False(t, result.IsError)
+	require.True(t, output.Truncated)
+	markdown := text(t, result)
+	require.True(t, strings.HasPrefix(markdown, "\n\n[Truncated: the page has "), markdown)
 	require.True(t, strings.HasSuffix(markdown, "The whole page is at https://example.com/big.md]\n"), markdown)
 }
 
@@ -480,6 +721,37 @@ func TestPageToolsHideInternalErrors(t *testing.T) {
 	// The details go to the server's log instead.
 	require.Len(t, recorder.recorded(), len(calls))
 	require.ErrorContains(t, recorder.recorded()[0], "password")
+}
+
+// panickingPages is a PageSource with a bug: it yields a nil page.
+var panickingPages = web.PageSourceFunc(func(ctx context.Context, withContent bool) iter.Seq2[*web.Page, error] {
+	return func(yield func(*web.Page, error) bool) { yield(nil, nil) }
+})
+
+func TestPageToolsRecoverFromPanics(t *testing.T) {
+	// Regression: the SDK calls tool handlers on goroutines of its own, so a
+	// panic on the page path crashed the whole process instead of one call.
+	recorder := new(errorRecorder)
+	session := connect(t, panickingPages, testSite(), mxmcp.PageToolsOptions{OnError: recorder.onError})
+
+	for _, c := range []struct {
+		tool      string
+		arguments map[string]any
+	}{
+		{"search_pages", map[string]any{"query": "x"}},
+		{"list_pages", nil},
+		{"get_page", map[string]any{"path": "/x"}},
+	} {
+		result := call(t, session, c.tool, c.arguments, nil)
+		require.True(t, result.IsError, c.tool)
+		require.Contains(t, text(t, result), "unavailable", c.tool)
+		require.NotContains(t, text(t, result), "nil pointer", c.tool)
+	}
+	// The panic goes to the server's log, and the server still answers.
+	require.Len(t, recorder.recorded(), 3)
+	require.ErrorContains(t, recorder.recorded()[0], "panicked")
+	_, err := session.ListTools(context.Background(), nil)
+	require.NoError(t, err)
 }
 
 func TestPageToolsSkipBrokenPages(t *testing.T) {

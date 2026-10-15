@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/ungerik/go-mx"
@@ -80,6 +81,17 @@ func (a Alternate) IsTranslation() bool {
 	return a.RelOrDefault() == RelAlternate && a.Type == "" && a.HrefLang != ""
 }
 
+// isOwnMarkdown reports whether the alternate is the page's own Markdown
+// version: a text/markdown alternate without a language, which would be the
+// Markdown version of a translation instead.
+func (a Alternate) isOwnMarkdown() bool {
+	if a.RelOrDefault() != RelAlternate || a.HrefLang != "" {
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(a.Type)
+	return err == nil && mediaType == "text/markdown"
+}
+
 // Validate returns an error if Rel is neither [RelAlternate] nor
 // [RelDescribedBy], Type is not a media type, HrefLang is not a language tag,
 // Path is not a valid path within a site, or if an alternate has neither a
@@ -108,7 +120,7 @@ func (a Alternate) Validate() error {
 			return fmt.Errorf("alternate type %q is not a media type: missing subtype", a.Type)
 		}
 	}
-	if a.HrefLang != "" && !langTagRegexp.MatchString(a.HrefLang) {
+	if a.HrefLang != "" && !html.ValidLangTag(a.HrefLang) {
 		return fmt.Errorf("alternate hreflang %q is not a valid BCP 47 language tag", a.HrefLang)
 	}
 	if a.RelOrDefault() == RelAlternate && a.Type == "" && a.HrefLang == "" {
@@ -148,6 +160,10 @@ func (l pageLink) element() *mx.Element {
 	return html.Link(append(attribs, html.HRef(l.url))...)
 }
 
+// linkHeaderURLEscaper percent-encodes what would end the URL reference of a
+// Link header early.
+var linkHeaderURLEscaper = strings.NewReplacer("<", "%3C", ">", "%3E", `"`, "%22")
+
 // headerValue returns the link as the value of a Link header (RFC 8288).
 // Type and HrefLang have been validated to hold no quote. The URL path is
 // escaped by [Site.URL], but the host comes from Site.BaseURL, which the URL
@@ -155,8 +171,7 @@ func (l pageLink) element() *mx.Element {
 // here rather than trusted to end the URL reference where it should.
 func (l pageLink) headerValue() string {
 	var b strings.Builder
-	u := strings.NewReplacer("<", "%3C", ">", "%3E", `"`, "%22").Replace(l.url)
-	b.WriteString("<" + u + `>; rel="` + l.rel + `"`)
+	b.WriteString("<" + linkHeaderURLEscaper.Replace(l.url) + `>; rel="` + l.rel + `"`)
 	if l.typ != "" {
 		b.WriteString(`; type="` + l.typ + `"`)
 	}
@@ -166,9 +181,11 @@ func (l pageLink) headerValue() string {
 	return b.String()
 }
 
-// pageLang returns the language of the page: its own Lang, or the Lang of the
-// site.
-func (s *Site) pageLang(page *Page) string {
+// PageLang returns the language of the page: its own Lang, or the Lang of the
+// site. It is the language of the html lang attribute, of the page's own
+// hreflang link and of its Markdown alternate, so anything else describing
+// the page should report it too.
+func (s *Site) PageLang(page *Page) string {
 	return firstNonEmpty(page.Lang, s.Lang)
 }
 
@@ -178,7 +195,7 @@ func (s *Site) pageLang(page *Page) string {
 // Alternates in order, and finally the x-default link derived from
 // Site.DefaultLang. A page without a Path has no URL to link and no links.
 func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
-	if err := page.Validate(); err != nil {
+	if err := s.validatePageLinks(page); err != nil {
 		return nil, err
 	}
 	if page.Path == "" {
@@ -190,28 +207,14 @@ func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
 	}
 	links := []pageLink{{rel: "canonical", url: canonical}}
 
-	lang := s.pageLang(page)
+	lang := s.PageLang(page)
 	var defaultURL string
 	var explicitDefault bool
-	for _, alternate := range page.Alternates {
-		if !alternate.IsTranslation() {
-			continue
-		}
-		// A set of translations is only followed if every version names
-		// itself too, so a page that has some has to know its own language.
-		if lang == "" {
-			return nil, fmt.Errorf("page %q has translations but no language, set Page.Lang or Site.Lang", page.Path)
-		}
-		// Page.Lang has been validated with the page, but Site.Lang only
-		// by Site.Validate, which nothing here can rely on having run.
-		if err := validateLang(lang); err != nil {
-			return nil, fmt.Errorf("page %q: language: %w", page.Path, err)
-		}
+	if slices.ContainsFunc(page.Alternates, Alternate.IsTranslation) {
 		links = append(links, pageLink{rel: RelAlternate, hrefLang: lang, url: canonical})
 		if strings.EqualFold(lang, s.DefaultLang) {
 			defaultURL = canonical
 		}
-		break
 	}
 	for _, alternate := range page.Alternates {
 		u, err := s.URL(alternate.Path)
@@ -220,8 +223,6 @@ func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
 		}
 		if alternate.IsTranslation() {
 			switch {
-			case strings.EqualFold(alternate.HrefLang, lang):
-				return nil, fmt.Errorf("page %q: alternate %q has the language %q of the page itself", page.Path, alternate.Path, lang)
 			case strings.EqualFold(alternate.HrefLang, HrefLangDefault):
 				explicitDefault = true
 			case strings.EqualFold(alternate.HrefLang, s.DefaultLang):
@@ -236,10 +237,58 @@ func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
 	return links, nil
 }
 
+// validatePageLinks returns the error [Site.pageLinks] fails with for the
+// page, without building any of its URLs: what [Page.Validate] checks, plus
+// what needs the site — a BaseURL to build URLs from and, for a page with
+// translations, a valid language of its own that none of them repeats. It is
+// what a caller that only needs to know whether the links can be built, like
+// the sitemap, calls for every page.
+func (s *Site) validatePageLinks(page *Page) error {
+	if err := page.Validate(); err != nil {
+		return err
+	}
+	if page.Path == "" {
+		return nil
+	}
+	if _, err := s.baseURL(); err != nil {
+		return err
+	}
+	if !slices.ContainsFunc(page.Alternates, Alternate.IsTranslation) {
+		return nil
+	}
+	// A set of translations is only followed if every version names itself
+	// too, so a page that has some has to know its own language.
+	lang := s.PageLang(page)
+	if lang == "" {
+		return fmt.Errorf("page %q has translations but no language, set Page.Lang or Site.Lang", page.Path)
+	}
+	// Page.Lang has been validated with the page, but Site.Lang only by
+	// Site.Validate, which nothing here can rely on having run.
+	if err := validateLang(lang); err != nil {
+		return fmt.Errorf("page %q: language: %w", page.Path, err)
+	}
+	for _, alternate := range page.Alternates {
+		if alternate.IsTranslation() && strings.EqualFold(alternate.HrefLang, lang) {
+			return fmt.Errorf("page %q: alternate %q has the language %q of the page itself", page.Path, alternate.Path, lang)
+		}
+	}
+	return nil
+}
+
 // PageHeaders returns the Link headers of the page: its canonical URL and its
 // [Alternate]s, built from the same list [Site.AddPageMetadata] renders into
 // the HTML head, so a crawler reading either finds the same links. A page
 // without a Path has none and gets an empty header.
+//
+// Every translation is one header line of about a hundred bytes, which adds
+// up for a page in dozens of languages: proxies limit the size of response
+// headers (nginx to 4 KiB by default). The links in the HTML head alone are
+// enough for an HTML page; the headers matter most for responses without a
+// head of their own.
+//
+// The translations are published as the page lists them. Alternates should
+// name only public pages, since search engines discard a set that points at
+// a page marked noindex, and a draft's URL would be published with it.
 //
 // Add them to the response of the page before writing it:
 //

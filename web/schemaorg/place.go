@@ -17,9 +17,7 @@ type Place struct {
 
 // NewPlace returns a Place with the given name, e.g. the name of a venue.
 func NewPlace(name string) *Place {
-	place := &Place{Thing: newThing("Place")}
-	place.Name = name
-	return place
+	return &Place{Thing: newThing("Place", name)}
 }
 
 // VirtualLocation is the online location of an [Event], the page or stream
@@ -34,7 +32,7 @@ type VirtualLocation struct {
 // NewVirtualLocation returns a VirtualLocation with the URL where the event is
 // attended.
 func NewVirtualLocation(url string) *VirtualLocation {
-	location := &VirtualLocation{Thing: newThing("VirtualLocation")}
+	location := &VirtualLocation{Thing: newThing("VirtualLocation", "")}
 	location.URL = url
 	return location
 }
@@ -70,5 +68,5 @@ type PostalAddress struct {
 // arguments because no single part of an address is required, and several
 // positional strings would be too easy to mix up.
 func NewPostalAddress() *PostalAddress {
-	return &PostalAddress{Thing: newThing("PostalAddress")}
+	return &PostalAddress{Thing: newThing("PostalAddress", "")}
 }

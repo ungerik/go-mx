@@ -23,7 +23,7 @@ type ItemList struct {
 
 // NewItemList returns an ItemList with the given entries.
 func NewItemList(items ...*ListItem) *ItemList {
-	return &ItemList{Thing: newThing("ItemList"), ItemListElement: items}
+	return &ItemList{Thing: newThing("ItemList", ""), ItemListElement: items}
 }
 
 // ListItem is one entry of an [ItemList]. Its position is explicit rather than
@@ -45,5 +45,5 @@ type ListItem struct {
 
 // NewListItem returns a ListItem for item at the 1-based position.
 func NewListItem(position int, item any) *ListItem {
-	return &ListItem{Thing: newThing("ListItem"), Position: position, Item: item}
+	return &ListItem{Thing: newThing("ListItem", ""), Position: position, Item: item}
 }

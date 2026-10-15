@@ -31,7 +31,5 @@ type Service struct {
 
 // NewService returns a Service with the given name.
 func NewService(name string) *Service {
-	service := &Service{Thing: newThing("Service")}
-	service.Name = name
-	return service
+	return &Service{Thing: newThing("Service", name)}
 }

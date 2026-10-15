@@ -46,6 +46,13 @@ type Document struct {
 // and cannot break out of the double-quoted lang attribute value.
 var langTagRegexp = regexp.MustCompile(`^[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*$`)
 
+// ValidLangTag reports whether tag matches the BCP 47 language-tag charset,
+// the check Document.Lang is rendered with. Every tag passing it is safe to
+// put into an attribute value or a quoted header parameter as is.
+func ValidLangTag(tag string) bool {
+	return langTagRegexp.MatchString(tag)
+}
+
 // NewDocument returns a Document with the given <title> and the body
 // arguments converted to its Body component via mx.AsComponents.
 func NewDocument(title string, body ...any) *Document {
@@ -66,7 +73,7 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 	// broken or unescaped markup.
 	htmlOpen := Raw("\n<html>")
 	if d.Lang != "" {
-		if !langTagRegexp.MatchString(d.Lang) {
+		if !ValidLangTag(d.Lang) {
 			return errs.Errorf("html.Document.Lang %q is not a valid BCP 47 language tag", d.Lang)
 		}
 		htmlOpen = Raw("\n<html lang=\"" + d.Lang + "\">")

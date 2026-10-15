@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"iter"
 	"net/url"
 	"path"
@@ -23,7 +24,9 @@ import (
 // Pattern below Dir. Markdown files are parsed for frontmatter metadata (title,
 // description, lang, date, publishDate, draft, tags), which is not part of the
 // page content, and HTML and plain-text files are loaded with their respective
-// content types.
+// content types. A lang holding a locale like "en_US" becomes the language tag
+// "en-US", and one that is no language tag fails the source with the name of
+// the file, like front matter that cannot be parsed.
 //
 //	source := &web.GlobPageSource{Dir: fs.File("content/blog"), Pattern: "*.md"}
 //	// content/blog/hello.md -> Page{Path: "/hello"}
@@ -90,7 +93,12 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				// publishes (see [Page.MarkdownSource]).
 				body, err := frontmatter.Parse(bytes.NewReader(data), &matter)
 				if err != nil {
-					yield(nil, err)
+					yield(nil, errs.Errorf("%s: front matter: %w", file, err))
+					return
+				}
+				lang, err := frontMatterLang(matter.Lang)
+				if err != nil {
+					yield(nil, fmt.Errorf("%s: front matter lang: %w", file, err))
 					return
 				}
 				page := &Page{
@@ -100,7 +108,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					Author:      s.DefaultAuthor,
 					Title:       matter.Title,
 					Description: matter.Description,
-					Lang:        matter.Lang,
+					Lang:        lang,
 					Created:     matter.Date,
 					LastUpdated: matter.Date,
 					Published:   matter.PublishDate,
@@ -168,6 +176,22 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			}
 		}
 	}
+}
+
+// frontMatterLang returns the lang of a page's front matter as a BCP 47
+// language tag. Front matter written for Jekyll or Hugo often holds a locale
+// like "en_US", which is turned into the tag "en-US" it stands for. Anything
+// else that is no language tag is an error, reported with the file it is in
+// rather than by every surface the page's language ends up in.
+func frontMatterLang(lang string) (string, error) {
+	lang = strings.ReplaceAll(strings.TrimSpace(lang), "_", "-")
+	if lang == "" {
+		return "", nil
+	}
+	if err := validateLang(lang); err != nil {
+		return "", err
+	}
+	return lang, nil
 }
 
 // pagePath derives the URL path of a page from the path of its file: the path

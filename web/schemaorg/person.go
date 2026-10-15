@@ -40,7 +40,5 @@ type Person struct {
 
 // NewPerson returns a Person with the given full name.
 func NewPerson(name string) *Person {
-	person := &Person{Thing: newThing("Person")}
-	person.Name = name
-	return person
+	return &Person{Thing: newThing("Person", name)}
 }

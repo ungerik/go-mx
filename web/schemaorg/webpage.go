@@ -46,7 +46,8 @@ type WebPage struct {
 
 // NewWebPage returns a WebPage with the given title and canonical URL.
 func NewWebPage(name, url string) *WebPage {
-	return newWebPage("WebPage", name, url)
+	page := newWebPage("WebPage", name, url)
+	return &page
 }
 
 // AboutPage is the page about the site or the organization or person behind
@@ -59,7 +60,7 @@ type AboutPage struct {
 
 // NewAboutPage returns an AboutPage with the given title and canonical URL.
 func NewAboutPage(name, url string) *AboutPage {
-	return &AboutPage{WebPage: *newWebPage("AboutPage", name, url)}
+	return &AboutPage{WebPage: newWebPage("AboutPage", name, url)}
 }
 
 // ContactPage is the page with the contact details of the site.
@@ -71,7 +72,7 @@ type ContactPage struct {
 
 // NewContactPage returns a ContactPage with the given title and canonical URL.
 func NewContactPage(name, url string) *ContactPage {
-	return &ContactPage{WebPage: *newWebPage("ContactPage", name, url)}
+	return &ContactPage{WebPage: newWebPage("ContactPage", name, url)}
 }
 
 // CollectionPage is a page listing other items, such as a blog index, an
@@ -86,14 +87,13 @@ type CollectionPage struct {
 // NewCollectionPage returns a CollectionPage with the given title and
 // canonical URL.
 func NewCollectionPage(name, url string) *CollectionPage {
-	return &CollectionPage{WebPage: *newWebPage("CollectionPage", name, url)}
+	return &CollectionPage{WebPage: newWebPage("CollectionPage", name, url)}
 }
 
 // newWebPage returns a WebPage of the given type, the shared part of the
 // WebPage family's constructors.
-func newWebPage(typ, name, url string) *WebPage {
-	page := &WebPage{Thing: newThing(typ)}
-	page.Name = name
+func newWebPage(typ, name, url string) WebPage {
+	page := WebPage{Thing: newThing(typ, name)}
 	page.URL = url
 	return page
 }

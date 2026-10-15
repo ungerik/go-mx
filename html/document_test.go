@@ -38,6 +38,20 @@ func renderDocument(t *testing.T, d *Document) string {
 	return b.String()
 }
 
+func TestValidLangTag(t *testing.T) {
+	for _, tag := range []string{"de", "de-AT", "zh-Hant-TW", "x-default"} {
+		if !ValidLangTag(tag) {
+			t.Errorf("ValidLangTag(%q) = false, want true", tag)
+		}
+	}
+	// Everything else could break the attribute or header it is put into.
+	for _, tag := range []string{"", "en_US", "de-", "-de", `de" onload=x`, "toolonglang"} {
+		if ValidLangTag(tag) {
+			t.Errorf("ValidLangTag(%q) = true, want false", tag)
+		}
+	}
+}
+
 // TestDocumentLang guards the <html lang> attribute added for WCAG 3.1.1.
 func TestDocumentLang(t *testing.T) {
 	// The zero value must render exactly as before: a bare <html> tag with

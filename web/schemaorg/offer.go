@@ -46,7 +46,7 @@ type Offer struct {
 // NewOffer returns an Offer at the given price, built with [Price], in the
 // currency with the given ISO 4217 code: NewOffer(Price(18000), "EUR").
 func NewOffer(price, currency string) *Offer {
-	return &Offer{Thing: newThing("Offer"), Price: price, PriceCurrency: currency}
+	return &Offer{Thing: newThing("Offer", ""), Price: price, PriceCurrency: currency}
 }
 
 // Availability is the availability of an [Offer]. The values are the full
@@ -125,13 +125,18 @@ func (a Availability) String() string {
 	return string(a)
 }
 
-// Price formats an amount given in cents, the minor unit of the currency, as
-// a decimal string with exactly two decimals: 18000 is "180.00", -5 is
-// "-0.05". It uses integer arithmetic only, so every amount is exact, which
-// binary floating point cannot promise: there 0.1 + 0.2 is 0.30000000000000004.
+// Price formats an amount given in hundredths of the currency's major unit —
+// cents for EUR or USD — as a decimal string with exactly two decimals: 18000
+// is "180.00", -5 is "-0.05". It uses integer arithmetic only, so every amount
+// is exact, which binary floating point cannot promise: there 0.1 + 0.2 is
+// 0.30000000000000004.
 //
-// For a currency without a minor unit, such as JPY, pass the amount times 100:
-// Price(1000 * 100) is "1000.00", whose zero decimals state the same value.
+// The argument is hundredths whatever the currency's minor unit: for one
+// without a minor unit, such as JPY, pass the amount times 100 (Price(1000 *
+// 100) is "1000.00"), and for one whose minor unit is a thousandth, such as
+// KWD, BHD or TND, pass hundredths too (1.500 KWD is Price(150), not the 1500
+// fils, which would state ten times the price). An amount that needs a third
+// decimal cannot be built with Price.
 func Price(cents int64) string {
 	// The magnitude goes through uint64 because the negation of
 	// math.MinInt64 does not fit an int64. Negating the uint64 conversion

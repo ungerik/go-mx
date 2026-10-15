@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/web"
 )
 
@@ -34,6 +35,7 @@ func TestAlternateValidate(t *testing.T) {
 	}{
 		"unknown rel":           {web.Alternate{Rel: "canonical", HrefLang: "de", Path: "/de"}, "rel"},
 		"not a media type":      {web.Alternate{Type: "markdown", Path: "/a.md"}, "not a media type"},
+		"malformed parameter":   {web.Alternate{Type: "text/markdown; charset", Path: "/a.md"}, "not a media type"},
 		"quote in type":         {web.Alternate{Type: `text/markdown; x="a"`, Path: "/a.md"}, "quote"},
 		"line break in type":    {web.Alternate{Type: "text/markdown\r\nX: y", Path: "/a.md"}, "control"},
 		"invalid hreflang":      {web.Alternate{HrefLang: "de AT", Path: "/de"}, "hreflang"},
@@ -191,6 +193,32 @@ func TestSitePageLinks(t *testing.T) {
 		)
 	})
 
+	t.Run("default language in another case", func(t *testing.T) {
+		// Language tags are case-insensitive, so the x-default must not
+		// depend on how DefaultLang and the hreflang are spelled.
+		site := &web.Site{BaseURL: base, Lang: "de", DefaultLang: "en-GB"}
+		page := &web.Page{
+			Path:       "/de/faq",
+			Published:  published,
+			Alternates: []web.Alternate{{HrefLang: "en-gb", Path: "/en-gb/faq"}},
+		}
+		requirePageLinks(t, site, page,
+			link{rel: "canonical", url: base + "/de/faq"},
+			link{rel: "alternate", hrefLang: "de", url: base + "/de/faq"},
+			link{rel: "alternate", hrefLang: "en-gb", url: base + "/en-gb/faq"},
+			link{rel: "alternate", hrefLang: "x-default", url: base + "/en-gb/faq"},
+		)
+
+		site = &web.Site{BaseURL: base, Lang: "en-gb", DefaultLang: "EN-GB"}
+		page = &web.Page{Path: "/en-gb/faq", Published: published, Alternates: []web.Alternate{{HrefLang: "de", Path: "/de/faq"}}}
+		requirePageLinks(t, site, page,
+			link{rel: "canonical", url: base + "/en-gb/faq"},
+			link{rel: "alternate", hrefLang: "en-gb", url: base + "/en-gb/faq"},
+			link{rel: "alternate", hrefLang: "de", url: base + "/de/faq"},
+			link{rel: "alternate", hrefLang: "x-default", url: base + "/en-gb/faq"},
+		)
+	})
+
 	t.Run("no default language", func(t *testing.T) {
 		site := &web.Site{BaseURL: base}
 		page := &web.Page{
@@ -328,4 +356,41 @@ func TestSiteRenderPageLang(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "de", doc.Lang)
 	require.Equal(t, "de", doc.MetaProperty["og:locale"])
+}
+
+// declaringRenderer returns a renderer that declares the page URL itself, as
+// og:url, which leaves the canonical link and the alternates to it.
+func declaringRenderer(pageURL string) web.PageRenderer {
+	return web.PageRendererFunc(func(ctx context.Context, page *web.Page) (html.Document, error) {
+		return html.Document{MetaProperty: map[string]string{"og:url": pageURL}}, nil
+	})
+}
+
+func TestSiteRenderPageRejectsDeclaredOtherCanonical(t *testing.T) {
+	// Regression: a renderer declaring the page under another URL kept its own
+	// canonical in the head while PageHeaders sent the site's, so the response
+	// named two canonical URLs, and crawlers seeing two ignore both.
+	page := &web.Page{Path: "/a", Published: published}
+	site := &web.Site{BaseURL: "https://example.com", Renderer: declaringRenderer("https://example.com/other")}
+	_, err := site.RenderPage(context.Background(), page)
+	require.ErrorContains(t, err, "og:url")
+
+	// Declaring the canonical URL of the page is fine.
+	site.Renderer = declaringRenderer("https://example.com/a")
+	_, err = site.RenderPage(context.Background(), page)
+	require.NoError(t, err)
+}
+
+func TestSiteRenderPageValidatesUnrenderedAlternates(t *testing.T) {
+	// The alternates are validated even where none of them is rendered — for
+	// a document that declared the page URL itself and for a page without a
+	// Path — so an invalid one fails every render of the page, not only some.
+	invalid := []web.Alternate{{Path: "/de/a"}} // neither a type nor a hreflang
+	site := &web.Site{BaseURL: "https://example.com", Renderer: declaringRenderer("https://example.com/a")}
+	_, err := site.RenderPage(context.Background(), &web.Page{Path: "/a", Published: published, Alternates: invalid})
+	require.ErrorContains(t, err, "neither a type nor a hreflang")
+
+	site.Renderer = nil
+	_, err = site.RenderPage(context.Background(), &web.Page{Published: published, Alternates: invalid})
+	require.ErrorContains(t, err, "neither a type nor a hreflang")
 }

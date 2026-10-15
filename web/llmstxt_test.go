@@ -51,31 +51,43 @@ func TestLLMsTxtValidate(t *testing.T) {
 		modify  func(*web.LLMsTxt)
 		wantErr string
 	}{
-		"empty title":            {func(l *web.LLMsTxt) { l.Title = " " }, "title is empty"},
-		"line break in title":    {func(l *web.LLMsTxt) { l.Title = "Example\n## Injected" }, "line break"},
-		"line break in summary":  {func(l *web.LLMsTxt) { l.Summary = "a\r\nb" }, "line break"},
-		"line break in context":  {func(l *web.LLMsTxt) { l.Context = "a\nb" }, "line break"},
-		"control character":      {func(l *web.LLMsTxt) { l.Summary = "a\x00b" }, "control character"},
-		"context is a heading":   {func(l *web.LLMsTxt) { l.Context = "  ## Injected" }, "heading"},
-		"empty section title":    {func(l *web.LLMsTxt) { l.Sections[0].Title = "" }, "section 0: section title is empty"},
-		"line break in section":  {func(l *web.LLMsTxt) { l.Sections[1].Title = "a\nb" }, "section 1"},
-		"empty link title":       {func(l *web.LLMsTxt) { l.Sections[0].Links[1].Title = "" }, "link 1: link title is empty"},
-		"line break in link":     {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a\nb" }, "line break"},
-		"bracket in link title":  {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a]b" }, "square bracket"},
-		"opening bracket":        {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a[b" }, "square bracket"},
-		"trailing backslash":     {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = `a\` }, "backslash"},
-		"backtick in link title": {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "use `go" }, "backtick"},
-		"line break in note":     {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Note = "a\n- [x](/x)" }, "line break"},
-		"empty URL":              {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "" }, "URL is empty"},
-		"parenthesis in URL":     {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/a)b" }, "parenthesis"},
-		"space in URL":           {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/a b" }, "whitespace"},
-		"relative URL":           {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "docs/a.md" }, "neither"},
-		"protocol-relative URL":  {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "//evil.example/a.md" }, "neither"},
-		"other scheme":           {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "javascript:alert(1)" }, "parenthesis"},
-		"other scheme no parens": {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "ftp://example.com/a.md" }, "neither"},
-		"URL without host":       {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "https:///a.md" }, "neither"},
-		"invalid URL":            {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "https://example.com/%zz" }, "invalid URL escape"},
-		"invalid path":           {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/%zz" }, "invalid URL escape"},
+		"empty title":           {func(l *web.LLMsTxt) { l.Title = " " }, "title is empty"},
+		"line break in title":   {func(l *web.LLMsTxt) { l.Title = "Example\n## Injected" }, "line break"},
+		"line break in summary": {func(l *web.LLMsTxt) { l.Summary = "a\r\nb" }, "line break"},
+		"line break in context": {func(l *web.LLMsTxt) { l.Context = "a\nb" }, "line break"},
+		"control character":     {func(l *web.LLMsTxt) { l.Summary = "a\x00b" }, "control character"},
+		"context is a heading":  {func(l *web.LLMsTxt) { l.Context = "  ## Injected" }, "heading"},
+		"context is a quote":    {func(l *web.LLMsTxt) { l.Context = " > Not the summary" }, "block quote"},
+		// Each of these makes the context a code or HTML block instead of a
+		// paragraph; an unclosed fence or comment takes the sections along.
+		"context is a fence":          {func(l *web.LLMsTxt) { l.Context = "```" }, "code or HTML block"},
+		"context is a tilde fence":    {func(l *web.LLMsTxt) { l.Context = " ~~~ go" }, "code or HTML block"},
+		"context is HTML":             {func(l *web.LLMsTxt) { l.Context = "<!-- note" }, "code or HTML block"},
+		"context is indented code":    {func(l *web.LLMsTxt) { l.Context = "    code" }, "code or HTML block"},
+		"context is tab-indented":     {func(l *web.LLMsTxt) { l.Context = "\tcode" }, "code or HTML block"},
+		"angle bracket in link title": {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = `Docs <b title="` }, "'<'"},
+		"empty section title":         {func(l *web.LLMsTxt) { l.Sections[0].Title = "" }, "section 0: section title is empty"},
+		"line break in section":       {func(l *web.LLMsTxt) { l.Sections[1].Title = "a\nb" }, "section 1"},
+		"empty link title":            {func(l *web.LLMsTxt) { l.Sections[0].Links[1].Title = "" }, "link 1: link title is empty"},
+		"line break in link":          {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a\nb" }, "line break"},
+		"bracket in link title":       {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a]b" }, "square bracket"},
+		"opening bracket":             {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "a[b" }, "square bracket"},
+		"trailing backslash":          {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = `a\` }, "backslash"},
+		"link title x":                {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "X" }, "task list checkbox"},
+		"backtick in link title":      {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Title = "use `go" }, "backtick"},
+		"line break in note":          {func(l *web.LLMsTxt) { l.Sections[0].Links[0].Note = "a\n- [x](/x)" }, "line break"},
+		"empty URL":                   {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "" }, "URL is empty"},
+		"parenthesis in URL":          {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/a)b" }, "parenthesis"},
+		"space in URL":                {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/a b" }, "whitespace"},
+		"relative URL":                {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "docs/a.md" }, "neither"},
+		"protocol-relative URL":       {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "//evil.example/a.md" }, "neither"},
+		"other scheme":                {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "javascript:alert(1)" }, "parenthesis"},
+		"tab-stop indentation":        {func(l *web.LLMsTxt) { l.Context = " \tcode" }, "code or HTML block"},
+		"backslash in URL":            {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = `https://example.com/a\` }, "backslash"},
+		"other scheme no parens":      {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "ftp://example.com/a.md" }, "neither"},
+		"URL without host":            {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "https:///a.md" }, "neither"},
+		"invalid URL":                 {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "https://example.com/%zz" }, "invalid URL escape"},
+		"invalid path":                {func(l *web.LLMsTxt) { l.Sections[0].Links[0].URL = "/%zz" }, "invalid URL escape"},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -90,6 +102,11 @@ func TestLLMsTxtValidate(t *testing.T) {
 		})
 	}
 	require.NoError(t, exampleLLMsTxt().Validate())
+
+	// Up to three columns of indentation keep the context a paragraph.
+	llms := exampleLLMsTxt()
+	llms.Context = "   Three spaces are a paragraph."
+	require.NoError(t, llms.Validate())
 }
 
 func TestLLMsSectionValidate(t *testing.T) {
@@ -186,8 +203,10 @@ func TestSiteLLMsTxt(t *testing.T) {
 			markdown("Imprint", "/imprint", "", ""),
 			markdown("Paren", "/docs/a(b)", "guide", ""),
 			// Site content is made to fit instead of failing the file.
-			markdown("Use `go\x00 [run]\\", "/docs/run", "doc", "Runs \x1b[1mit\x07"),
+			markdown("Use `go\x00 [run] <b>\\", "/docs/run", "doc", "Runs \x1b[1mit\x07"),
 			markdown(`\\`, "/docs/backslashes", "doc", ""),
+			// A lone "x" would render as a checkbox, so the path stands in.
+			markdown("x", "/docs/x", "doc", ""),
 			// Not listed: a draft, a page marked NoIndex, and pages without
 			// a Markdown source.
 			func() web.Page { p := markdown("Draft", "/blog/draft", "post", ""); p.Published = scheduled; return p }(),
@@ -224,6 +243,18 @@ func TestSiteLLMsTxt(t *testing.T) {
 	t.Run("no title", func(t *testing.T) {
 		_, err := (&web.Site{BaseURL: "https://example.com"}).LLMsTxt(context.Background(), web.LLMsTxtOptions{})
 		require.ErrorContains(t, err, "title is empty")
+	})
+
+	t.Run("backslashes around a trailing space", func(t *testing.T) {
+		// Regression: the trailing backslashes were trimmed before the space
+		// between them, which left one at the end of the link title and
+		// failed the whole file.
+		site := &web.Site{BaseURL: "https://example.com", Title: "Example", Sources: []web.PageSource{contentPages{
+			markdown(`Foo \ \`, "/foo", "", ""),
+		}}}
+		llms, err := site.LLMsTxt(context.Background(), web.LLMsTxtOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "Foo", llms.Sections[0].Links[0].Title)
 	})
 
 	t.Run("source error", func(t *testing.T) {

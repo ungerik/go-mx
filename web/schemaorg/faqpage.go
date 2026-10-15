@@ -20,7 +20,7 @@ type FAQPage struct {
 // questions.
 func NewFAQPage(name, url string, questions ...*Question) *FAQPage {
 	return &FAQPage{
-		WebPage:    *newWebPage("FAQPage", name, url),
+		WebPage:    newWebPage("FAQPage", name, url),
 		MainEntity: questions,
 	}
 }
@@ -41,12 +41,10 @@ type Question struct {
 // Question it can never be the root of a script, so it would only repeat the
 // context it is nested in.
 func NewQuestion(question, answer string) *Question {
-	q := &Question{
-		Thing:          newThing("Question"),
+	return &Question{
+		Thing:          newThing("Question", question),
 		AcceptedAnswer: &Answer{Thing: Thing{Type: "Answer"}, Text: answer},
 	}
-	q.Name = question
-	return q
 }
 
 // Answer is the answer to a [Question].

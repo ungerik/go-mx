@@ -15,8 +15,8 @@ import (
 // JSON-LD script, failing the test if the markup has another shape.
 func jsonLDBody(t *testing.T, rendered string) string {
 	t.Helper()
-	const start = `<script type="` + html.JSONLDType + `">`
-	const end = `</script>`
+	const start = /*html*/ `<script type="` + html.JSONLDType + `">`
+	const end = /*html*/ `</script>`
 	i := strings.Index(rendered, start)
 	require.GreaterOrEqual(t, i, 0, "no JSON-LD start tag in %s", rendered)
 	body, _, found := strings.Cut(rendered[i+len(start):], end)
@@ -51,7 +51,7 @@ func TestJSONLD(t *testing.T) {
 	require.NoError(t, element.Err)
 	rendered := renderJSONLD(t, value)
 	require.Equal(t,
-		`<script type="application/ld+json">`+
+		/*html*/ `<script type="application/ld+json">`+
 			`{"@context":"https://schema.org","@type":"Person","name":"Ada Lovelace","knowsLanguage":["en","fr"]}`+
 			`</script>`,
 		rendered,
@@ -143,7 +143,7 @@ func TestJSONLDInDocumentHead(t *testing.T) {
 	head, _, found := strings.Cut(rendered, "</head>")
 	require.True(t, found, rendered)
 	require.Contains(t, head,
-		`<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Structured"}</script>`,
+		/*html*/ `<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Structured"}</script>`,
 	)
 
 	var roundTrip map[string]any

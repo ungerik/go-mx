@@ -36,7 +36,5 @@ type Organization struct {
 
 // NewOrganization returns an Organization with the given name.
 func NewOrganization(name string) *Organization {
-	organization := &Organization{Thing: newThing("Organization")}
-	organization.Name = name
-	return organization
+	return &Organization{Thing: newThing("Organization", name)}
 }

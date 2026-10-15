@@ -9,8 +9,9 @@ Every link is the Markdown version of a page.
 - [Getting started](https://example.com/docs/start.md): Install and first steps
 - [/docs/](https://example.com/docs/index.md)
 - [Paren](https://example.com/docs/a%28b%29.md)
-- [Use 'go (run)](https://example.com/docs/run.md): Runs [1mit
+- [Use 'go (run) ‹b>](https://example.com/docs/run.md): Runs [1mit
 - [/docs/backslashes](https://example.com/docs/backslashes.md)
+- [/docs/x](https://example.com/docs/x.md)
 
 ## Blog
 

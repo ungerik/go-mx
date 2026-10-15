@@ -23,8 +23,7 @@ type WebSite struct {
 // NewWebSite returns a WebSite with the given name and home page URL, the two
 // properties a site name is taken from.
 func NewWebSite(name, url string) *WebSite {
-	site := &WebSite{Thing: newThing("WebSite")}
-	site.Name = name
+	site := &WebSite{Thing: newThing("WebSite", name)}
 	site.URL = url
 	return site
 }
