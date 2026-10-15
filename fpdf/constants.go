@@ -57,8 +57,8 @@ func (Orientation) Enums() []Orientation {
 // EnumStrings returns all valid values for Orientation as strings
 func (Orientation) EnumStrings() []string {
 	return []string{
-		fpdf.OrientationPortrait,
-		fpdf.OrientationLandscape,
+		string(Portrait),
+		string(Landscape),
 	}
 }
 
@@ -118,10 +118,10 @@ func (Unit) Enums() []Unit {
 // EnumStrings returns all valid values for Unit as strings
 func (Unit) EnumStrings() []string {
 	return []string{
-		fpdf.UnitPoint,
-		fpdf.UnitMillimeter,
-		fpdf.UnitCentimeter,
-		fpdf.UnitInch,
+		string(UnitPoint),
+		string(UnitMillimeter),
+		string(UnitCentimeter),
+		string(UnitInch),
 	}
 }
 
@@ -212,14 +212,14 @@ func (PageSize) EnumStrings() []string {
 	return []string{
 		"A1",
 		"A2",
-		fpdf.PageSizeA3,
-		fpdf.PageSizeA4,
-		fpdf.PageSizeA5,
+		string(A3),
+		string(A4),
+		string(A5),
 		"A6",
 		"A7",
 		"A8",
-		fpdf.PageSizeLetter,
-		fpdf.PageSizeLegal,
+		string(Letter),
+		string(Legal),
 		"Tabloid",
 	}
 }

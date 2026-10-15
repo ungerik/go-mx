@@ -43,6 +43,16 @@ jobs:
     - name: Build tools module
       run: go build -C tools ./...
 
+    # The go-enum methods are committed next to their //#enum types; -validate
+    # fails if any are missing or outdated. ../... covers the root module but
+    # stops at nested modules, so each of them gets its own run.
+    - name: Enum methods up to date
+      run: |
+        go -C tools tool go-enum -validate ../...
+        go -C tools tool go-enum -validate ../fpdf/...
+        go -C tools tool go-enum -validate ../wordpress/...
+        go -C tools tool go-enum -validate ../mcp/...
+
   gallery:
     name: Gallery up to date
     runs-on: ubuntu-latest
