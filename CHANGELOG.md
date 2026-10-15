@@ -317,6 +317,29 @@ API is still free to change.
   verified against the jsDelivr bytes. A Content-Security-Policy `script-src`
   allowlist that names `unpkg.com` has to name `cdn.jsdelivr.net` instead.
 
+- **Closed sets of values are go-enum types, checked with the generated
+  methods instead of hand-written lists.** An unknown value now fails with the
+  generated `Validate` error (`invalid value "x" for type pkg.Type`) or
+  resolves to the documented default, the same way everywhere:
+  - `pdf.Renderer.SetLineCapStyle` and `SetLineJoinStyle` take, and their
+    getters return, `pdf.LineCapStyle` and `pdf.LineJoinStyle` instead of a
+    string. An unknown style is the renderer error rather than a silent butt
+    cap or miter join, so `pdf.LineCap` and `pdf.LineJoin` fail the render
+    for one. The errors for an invalid unit, page size, orientation, blend
+    mode or attachment `AFRelationship` are the generated ones too.
+  - `hx.SetReswap` takes a `hx.SwapStyle` plus modifiers like `hx.Swap`, and
+    returns the `Validate` error of an invalid style instead of sending it.
+  - `web.Alternate.Rel` is the new `web.AlternateRel` type.
+  - `shadcn.Button` and `shadcn.InputGroupButton` emit the default in
+    `data-variant` and `data-size` for an unknown value, like every other
+    component, instead of echoing it next to the default classes.
+    `shadcn.SheetSide` and `shadcn.ResizeDirection` get the go-enum methods.
+  - `logview.Class` gets the go-enum methods, and `Theme.CSS` ignores a
+    `Styles` key that is none of the classes, as no markup carries it.
+  - `wordpress.PermalinkStyle` gets the go-enum methods. `WriteStatic`
+    rejects an unknown `Options.Permalinks` instead of writing slug URLs, and
+    `wordpress-import -permalinks` fails on one.
+
 ### Removed
 
 - **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
@@ -328,6 +351,28 @@ API is still free to change.
 
 - PDF output intent subtypes escape spaces, delimiters, and other special
   bytes as PDF names, preserving custom extension values without malformed markup.
+  The `OutputConditionIdentifier` and `Info` strings of an output intent are
+  escaped too, so a parenthesis or backslash no longer ends the string early,
+  and a protected document encrypts them like its other strings.
+
+- **Every string of a protected PDF decrypts, not only the first of each
+  object.** The engine, like upstream fpdf, kept one RC4 cipher per object
+  number, so the second string of an object continued the first one's
+  keystream, while a reader decrypts each string on its own: the `Title`,
+  `Author` and other metadata after `Producer` came out as garbage, as did an
+  embedded file stream after its `/ModDate`. Each string and stream now starts
+  a new keystream from the object key.
+
+- **A reflected form validates every element of an enum set.** For a
+  `[]T` or `map[T]struct{}` field the validation chain only probed the slice
+  or map, which has no `Validate`, so a tampered POST could bind any string
+  as an element. Each element now runs through the chain of `T`, rejecting a
+  value that is none of the enum's values like a single enum field does.
+- `mx.DetectField` no longer takes a type whose `Enums` or `EnumStrings`
+  method has parameters for an enum: the options could not be collected, so
+  it rendered an empty select.
+- The committed go-enum methods of `fpdf` were out of date. CI now runs
+  `go-enum -validate` on every module.
 
 - `web.DefaultRenderPage` no longer panics when a page is marked `NoIndex`, and
   now marks drafts and scheduled pages `noindex, nofollow` too — previously
