@@ -49,14 +49,14 @@ func LineWidth(w float64) Component {
 // LineCap sets the shape drawn at the ends of open stroked paths.
 func LineCap(style LineCapStyle) Component {
 	return op(func(r *Renderer) {
-		r.SetLineCapStyle(string(style))
+		r.SetLineCapStyle(style)
 	})
 }
 
 // LineJoin sets the shape drawn where stroked path segments meet.
 func LineJoin(style LineJoinStyle) Component {
 	return op(func(r *Renderer) {
-		r.SetLineJoinStyle(string(style))
+		r.SetLineJoinStyle(style)
 	})
 }
 

@@ -273,8 +273,8 @@ func TestSVG_restoresGraphicsState(t *testing.T) {
 	r.SetFillColor(4, 5, 6)
 	r.SetDrawColor(7, 8, 9)
 	r.SetLineWidth(0.75)
-	r.SetLineCapStyle("round")
-	r.SetLineJoinStyle("bevel")
+	r.SetLineCapStyle(CapRound)
+	r.SetLineJoinStyle(JoinBevel)
 	r.SetXY(33, 44)
 
 	err := SVG(
@@ -315,10 +315,10 @@ func TestSVG_restoresGraphicsState(t *testing.T) {
 	if lw := r.GetLineWidth(); lw != 0.75 {
 		t.Errorf("line width = %g, want 0.75", lw)
 	}
-	if cap := r.GetLineCapStyle(); cap != "round" {
+	if cap := r.GetLineCapStyle(); cap != CapRound {
 		t.Errorf("line cap = %q, want round", cap)
 	}
-	if join := r.GetLineJoinStyle(); join != "bevel" {
+	if join := r.GetLineJoinStyle(); join != JoinBevel {
 		t.Errorf("line join = %q, want bevel", join)
 	}
 	if x, y := r.GetXY(); x != 33 || y != 44 {

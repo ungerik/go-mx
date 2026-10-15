@@ -169,7 +169,8 @@ type svgSavedState struct {
 	isCurrentUTF8         bool
 	textColor, fill, draw Color
 	lineWidth             float64
-	capStyle, joinStyle   string
+	capStyle              LineCapStyle
+	joinStyle             LineJoinStyle
 	x, y                  float64
 	alpha                 float64
 	blendMode             BlendMode
@@ -1090,8 +1091,8 @@ type svgStyle struct {
 	stroke        svgPaint
 	strokeOpacity float64
 	strokeWidth   float64
-	lineCap       string // butt, round or square
-	lineJoin      string // miter, round or bevel
+	lineCap       LineCapStyle
+	lineJoin      LineJoinStyle
 	dashArray     []float64
 	dashOffset    float64
 	opacity       float64 // accumulated group opacity (best-effort approximation)
@@ -1114,8 +1115,8 @@ func svgDefaultStyle() svgStyle {
 		stroke:        svgPaint{none: true, alpha: 1},
 		strokeOpacity: 1,
 		strokeWidth:   1,
-		lineCap:       "butt",
-		lineJoin:      "miter",
+		lineCap:       CapButt,
+		lineJoin:      JoinMiter,
 		opacity:       1,
 		fontSize:      16, // CSS "medium"
 		textAnchor:    "start",
@@ -1209,13 +1210,14 @@ func (st *svgStyle) setProperty(name, value string, vp svgViewport) error {
 		}
 		st.strokeWidth = w
 	case "stroke-linecap":
-		if value == "butt" || value == "round" || value == "square" {
-			st.lineCap = value
+		if c := LineCapStyle(value); c.Valid() {
+			st.lineCap = c
 		}
 	case "stroke-linejoin":
-		switch value {
-		case "miter", "round", "bevel":
-			st.lineJoin = value
+		// SVG's arcs and miter-clip have no PDF line join, so like any
+		// other unknown value they keep the inherited join.
+		if j := LineJoinStyle(value); j.Valid() {
+			st.lineJoin = j
 		}
 	case "stroke-dasharray":
 		return st.setDashArray(value, vp)

@@ -47,6 +47,18 @@ type Attachment struct {
 	objectNumber int // filled when content is included
 }
 
+// validateRelationship returns the Validate error of a non-empty
+// Relationship, naming the attachment it belongs to.
+func (a *Attachment) validateRelationship() error {
+	if a.Relationship == "" {
+		return nil
+	}
+	if err := a.Relationship.Validate(); err != nil {
+		return fmt.Errorf("attachment %q: %w", a.Filename, err)
+	}
+	return nil
+}
+
 // return the hex encoded checksum of `data`
 func checksum(data []byte) string {
 	sl := md5.Sum(data)
@@ -84,8 +96,8 @@ func (r *Renderer) embed(a *Attachment) {
 	if a.objectNumber != 0 { // already embedded (objectNumber start at 2)
 		return
 	}
-	if a.Relationship != "" && !a.Relationship.Valid() {
-		r.SetError(fmt.Errorf("invalid AFRelationship %q for attachment %q", a.Relationship, a.Filename))
+	if err := a.validateRelationship(); err != nil {
+		r.SetError(err)
 		return
 	}
 	oldState := r.state
