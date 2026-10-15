@@ -438,7 +438,8 @@ Set `Lang` to put a `lang` attribute on the `<html>` root
 non-English page needs. The empty string renders the bare `<html>` tag as
 before. The value must be a BCP 47 tag charset
 (`[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*`); anything else makes `Render` return an
-error instead of emitting the attribute.
+error instead of emitting the attribute. `ValidLangTag(tag)` is that check on
+its own, for validating a tag before it reaches a document.
 
 Serving:
 

@@ -81,9 +81,14 @@ mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
         http.NotFound(w, r)
         return
     }
-    // The same page as Markdown, at its .md URL or for a client asking for it.
-    if strings.HasSuffix(r.URL.Path, ".md") || web.AcceptsMarkdown(r) {
-        site.ServeMarkdown(w, r, page, revision(page), page.LastUpdated)
+    // Both answers under the page's URL depend on the Accept header, so a
+    // cache has to keep them apart: the HTML response needs Vary too.
+    w.Header().Add("Vary", "Accept")
+    // The same page as Markdown, at its .md URL or for a client asking for
+    // it — if it has a Markdown source; otherwise ServeMarkdown answers 404.
+    _, hasMarkdown := page.MarkdownSource()
+    if strings.HasSuffix(r.URL.Path, ".md") || (hasMarkdown && web.AcceptsMarkdown(r)) {
+        site.ServeMarkdown(w, r, page, revision(page), page.LastModified())
         return
     }
 
@@ -110,8 +115,13 @@ mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 `site.RenderPage` adds the canonical link and the alternates to the head;
 `PageHeaders` puts the same links on the response. `ServeMarkdown` marks its
 response with a canonical `Link` back to the HTML page, so search engines
-index the page, not its Markdown copy, and with `Vary: Accept`, so a cache
-does not hand the Markdown to a browser.
+index the page, not its Markdown copy. Because the page's own URL answers
+with HTML or Markdown depending on the `Accept` header, both responses carry
+`Vary: Accept`, so a cache neither hands the Markdown to a browser nor the
+HTML to an agent that asked for Markdown. `ServeMarkdown` adds it itself
+unless the handler already did. Not every CDN honours `Vary` for HTML; behind
+one that does not, link agents to the `.md` URL rather than relying on
+negotiation under the page's own URL.
 
 The MCP endpoint goes on the same mux; the
 [mcp README](https://github.com/ungerik/go-mx/blob/main/mcp/README.md) shows the

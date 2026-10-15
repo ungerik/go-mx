@@ -24,7 +24,7 @@ you created:
 
 | Tool                                      | Returns |
 |-------------------------------------------|---------|
-| `search_pages(query, language?, limit?)`  | Pages containing every word of the query in their title, description or Markdown source, best match first, each with a snippet. 10 results unless asked for another number, at most 25. |
+| `search_pages(query, language?, limit?)`  | Pages containing every word of the query in their title, description or Markdown source, best match first, each with a snippet. 10 results unless asked for another number, at most 25. A query is at most 16 distinct words and 256 bytes, since each word is searched in the text of every page. |
 | `list_pages(language?)`                   | Every page, without snippets. |
 | `get_page(path)`                          | The [Markdown alternate](../web/markdown.go) of one page as text, with its metadata as structured content. `path` is the page path or any URL the other tools return. Truncated at `MaxResponseBytes` (64 KiB by default) with a note pointing at the full page. |
 
@@ -39,6 +39,16 @@ the sitemap and `llms.txt`, so an agent sees exactly what a search engine may.
 `get_page` answers a page that does not exist and one that is not public with
 the same "page not found", so a client cannot probe for drafts.
 
+**Indexable is no access control.** A page for logged-in readers only that
+search engines may still index — content behind a paywall — has to be left
+out of the source you pass, or the tools give its text to anyone. And the
+Markdown source is published as it is, HTML comments included, which your HTML
+renderer may drop from the page.
+
+**The `.md` URLs have to exist.** `markdown_url` and the note on a truncated
+page point at `Site.MarkdownAlternateURL`, so serve the alternates there with
+`Site.ServeMarkdown`.
+
 **Nothing is exposed without a source.** There is no default: passing a source
 is the explicit act of publishing it, and a nil source registers nothing and
 returns an error. The source is usually the site itself, but can be any
@@ -49,17 +59,25 @@ expensive should pass a cached one.
 
 ### Language
 
-The tools report and filter by a page's language: `Page.Lang`, else the first
-path segment if it is a language tag with a two-letter ISO 639-1 language
-(`/de/…`, `/en-GB/…`, but not `/go/…`), else `Site.Lang`. A language filter matches regional variants, so `en` finds
-`en-GB` pages too. Set `Page.Lang`, or `PageToolsOptions.Language`, for
-anything the path heuristic gets wrong.
+The tools report and filter by a page's language: `Page.Lang`, else
+`Site.Lang` (`Site.PageLang`), the language the page is rendered with, so an
+agent is told the same language the HTML and the Markdown alternate declare. A
+language filter matches regional variants, so `en` finds `en-GB` pages too,
+and a filter that is no BCP 47 language tag is refused with an error. A
+site keeping its translations under `/de/…` sets `Page.Lang` on them (the
+`lang` front matter of a `GlobPageSource` page), or decides the language with
+`PageToolsOptions.Language`, which `get_page` then puts into the Markdown
+header too.
 
 ### Errors
 
 A failure on the server's side — a source that cannot be read, a page whose
-Markdown alternate cannot be built — reaches the client only as "the pages are
-unavailable". The error itself goes to `PageToolsOptions.OnError` for your log.
+Markdown alternate cannot be built, a panic in the source — reaches the client
+only as "the pages are unavailable". The error itself goes to
+`PageToolsOptions.OnError` for your log. The SDK runs tool handlers on
+goroutines of its own, outside `net/http`'s per-request recover, so the page
+tools recover their panics themselves; tools of your own on the same server
+need the same.
 A page whose URLs cannot be built is left out of the results and reported
 there, rather than taking every other page offline with it.
 
@@ -109,12 +127,29 @@ reaches the SDK:
   gets 403, as the MCP specification requires, so a web page cannot make its
   visitors' browsers call the endpoint. Requests without an `Origin` pass by
   default, because desktop clients and server-side agents do not send one; set
-  `RequireOrigin` to refuse them.
+  `RequireOrigin` to refuse them. Browsers send an `Origin` with same-origin
+  POSTs too, so list the site's own origin if its pages call the endpoint. The
+  guard only rejects and sends no CORS headers: a page on another origin needs
+  CORS set up by your own middleware as well.
+- **Host check.** With `AllowedHosts` set, a request for any other `Host` gets
+  403. That stops DNS rebinding, where a page points its own domain at an
+  address in its visitors' network: those requests are same-origin and a GET
+  carries no `Origin`, but the `Host` is still the page's domain. The SDK
+  handler already does this for a server on a loopback address; set
+  `AllowedHosts` for one on a private network.
 - **Body limit.** A request body above `MaxRequestBytes` (64 KiB by default)
   gets 413 before the handler reads any of it.
-- **No caching.** Every response is marked `Cache-Control: no-store`.
+- **No batches.** A JSON-RPC batch gets 400. MCP dropped batching in its
+  2025-06-18 revision, but the SDK still accepts one from a client that sends
+  no protocol version, and a single request with hundreds of tool calls in it
+  would bypass every per-call limit. `AllowBatches` lets them through for
+  older clients that batch.
+- **No caching.** Every response is marked `Cache-Control: no-store,
+  no-transform`, replacing the `no-cache` the SDK sets on its own responses;
+  `no-transform` keeps a proxy from holding back an event stream.
 
 Rate limiting is deliberately not part of it: put your own middleware in front,
-it knows your clients.
+it knows your clients. With `AllowBatches` set, have it count tool calls rather
+than HTTP requests.
 
 The complete wiring is in [`example_test.go`](example_test.go).

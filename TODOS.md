@@ -265,6 +265,62 @@ a handler that strips `.md` itself.
 **Priority:** P3
 **Depends on:** None
 
+### `list_pages` returns every public page at once
+
+**What:** The MCP `list_pages` tool has no limit or cursor; it returns all
+public pages in one response, which the SDK sends twice (structured content
+plus its JSON text fallback).
+
+**Why:** A site with thousands of pages answers with megabytes that overflow
+an agent's context, while `search_pages` and `get_page` are bounded. The spec
+asked for "all matching pages", so the first version keeps that.
+
+**Context:** A `limit` with a `truncated` flag like `search_pages`, or a
+`cursor`, in `mcp/pagetools.go` `listPages`. Decided in the /ship review of the
+knowledge layer (2026-10-15) to keep the spec'd behavior for now.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Page tools redo per-page work on every call
+
+**What:** `Page.MarkdownSource` copies string content into a new `[]byte` on
+every call, and `get_page` builds the full `PageInfo` (link validation, URL
+building) for every public page while looking for one.
+
+**Why:** With a cached source of 1000 pages of 16 KiB string content,
+`list_pages` and `get_page` allocate about 22 MB per call, and `get_page` costs
+about 4.6 ms where a path comparison per page would do.
+
+**Context:** Give ok-only callers (`Site.LLMsTxt`, the filter in
+`mcp.publicPages`) a check without the copy and keep string content as a
+string in `publicPage`; in `getPage`, normalize the input to a page path once
+(strip the BaseURL, map a `.md` path back) and build `PageInfo` only for the
+match, while still draining the source for errors. Measured by the performance
+specialist of the /ship review (2026-10-15).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### `GlobPageSource` drops front matter fields it does not know
+
+**What:** Since the front matter is no longer part of a Markdown page's
+`Content`, fields other than title, description, lang, date, publishDate,
+draft and tags (an `image`, `layout`, `aliases`) are lost.
+
+**Why:** A `ContentRenderer` that parsed the front matter itself for fields of
+its own has nothing to read anymore. The CHANGELOG records the loss.
+
+**Context:** Expose the parsed front matter, e.g. a `Page.FrontMatter
+map[string]any` filled by `GlobPageSource` in `web/globpagesource.go`, or an
+option keeping the raw file as content.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### No `og:locale:alternate` for translations
 
 **What:** `Site.AddPageMetadata` emits hreflang links for translations but no
@@ -277,6 +333,27 @@ hreflang, to offer a translated preview.
 one value per property, while `og:locale:alternate` repeats once per locale.
 It needs a document field that allows repeated properties, or the tags rendered
 into `HeadCustom` next to the alternate links from the same list.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### `mcp.GuardHandler` sends no CORS headers
+
+**What:** `GuardHandler` lets requests from `AllowedOrigins` through but neither
+answers a CORS preflight nor sets `Access-Control-Allow-Origin`, so a page on
+another origin cannot call the endpoint even when its origin is allowed.
+
+**Why:** Which headers, methods and credentials an endpoint allows is a policy
+of the site, and same-origin pages and non-browser clients — what a public
+page endpoint serves — need no CORS at all. The guard only rejects; the doc
+comment and the mcp README say so.
+
+**Context:** CORS for the Streamable HTTP transport means answering `OPTIONS`
+for allowed origins with `GET, POST, DELETE` and the `Content-Type`,
+`Mcp-Session-Id`, `Mcp-Protocol-Version` and `Last-Event-ID` request headers,
+and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
+`AllowedOrigins` would cover it.
 
 **Effort:** S
 **Priority:** P4

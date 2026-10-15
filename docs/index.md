@@ -164,6 +164,6 @@ documentation for four reader needs:
 | Need                         | Where                                            |
 |------------------------------|--------------------------------------------------|
 | **Learn** (tutorial)         | [Build your first page](html/tutorial.html) · [first shadcn page](shadcn/tutorial.html) |
-| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) |
+| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) · [public knowledge layer](web/knowledge-layer.html) |
 | **Look up** (reference)      | [html reference](html/#reference) · [shadcn reference](shadcn/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
 | **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [html design notes](html/#explanation) · [shadcn design notes](shadcn/#explanation) |

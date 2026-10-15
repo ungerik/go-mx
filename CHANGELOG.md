@@ -35,26 +35,37 @@ API is still free to change.
   - `Site.DefaultLang` adds the `hreflang="x-default"` link, pointing at the
     version in that language, and only when that version exists. An explicit
     `x-default` alternate (a language chooser) takes precedence.
-  - `Page.Validate` rejects what would give crawlers two answers to one
-    question: a repeated rel, type and hreflang, a translation in the page's own
-    language, or a translation pointing back at the page itself.
+  - What would give crawlers two answers to one question is an error:
+    `Page.Validate` rejects a repeated rel, type and hreflang, a translation
+    pointing back at the page itself and a `text/markdown` alternate anywhere
+    but at the page's `MarkdownPath` (or its own URL, for content
+    negotiation), which llms.txt and the MCP tools link; building the links
+    rejects a translation in the page's own language.
 - **Markdown alternates of pages.** A page with Markdown content gets a
   Markdown version for readers that have no use for layout and scripts.
   `Site.MarkdownAlternate` puts a header in front of the page's own source —
   title, description, canonical URL, language, last update and translations —
   so the document makes sense without the HTML page around it, and leaves room
-  for `MarkdownDocument.Sections` a site adds itself. `MarkdownPath` maps
-  `/en/faq` to `/en/faq.md`. `Site.ServeMarkdown` serves it with a canonical
-  `Link` header pointing at the HTML page, `Vary: Accept`, and conditional
-  requests answered by `http.ServeContent`, and `AcceptsMarkdown` decides from
-  the `Accept` header whether a client asked for Markdown over HTML — a
-  browser's `*/*` never counts as asking, while an agent's
-  `text/markdown, text/html, */*` does, because at equal quality the client's
-  order decides.
+  for `MarkdownDocument.Sections` a site adds itself. The last update is the
+  new `Page.LastModified` (`LastUpdated`, else `Published`), the date the
+  sitemap uses too. `MarkdownPath` maps `/en/faq` to `/en/faq.md`, and
+  `Site.MarkdownAlternateURL` returns the absolute URL of a page's alternate,
+  failing for a page whose alternate could not be built, so llms.txt and the
+  MCP tools never list one that is not there. `Site.ServeMarkdown` serves it
+  with a canonical `Link` header pointing at the HTML page, `Vary: Accept`, and
+  conditional requests answered by `http.ServeContent` — under a tag of the
+  caller's revision marked `-md`, which never equals the HTML page's under
+  content negotiation — and a 404 for a page without a Markdown source.
+  `AcceptsMarkdown` decides from the `Accept` header whether a client asked
+  for Markdown over HTML — a browser's `*/*` never counts as asking, while an
+  agent's `text/markdown, text/html, */*` does, because at equal quality the
+  client's order decides.
 - **`web.LLMsTxt`** renders an [llms.txt](https://llmstxt.org) index and, like
-  `web.Robots`, validates first: a line break in any field, a bracket in a link
-  title or a parenthesis in a URL would add a heading or a link nobody wrote,
-  so each is an error instead of a file. `HandleHTTP` serves it with an ETag
+  `web.Robots`, validates first: a line break in any field, a bracket,
+  backtick, `<` or trailing backslash in a link title, a parenthesis or
+  backslash in a URL or a context opening a heading, quote, code or HTML block
+  would add a heading, a link or a summary nobody wrote, or swallow the
+  sections after it, so each is an error instead of a file. `HandleHTTP` serves it with an ETag
   derived from the content. `Site.LLMsTxt` builds one from the public pages
   with a Markdown alternate, grouped by `Page.Type`.
 - **`html.JSONLD`** embeds structured data as a
@@ -62,6 +73,9 @@ API is still free to change.
   untrusted values: `encoding/json` escapes `<`, `>` and `&` inside strings, so
   no `</script` can end the element early. A value that fails to marshal, or
   marshals to `null`, is a deferred render error.
+- **`html.ValidLangTag`** exposes the BCP 47 charset check `Document.Lang` is
+  rendered with, which `web` now validates `Page.Lang`, `Site.Lang` and
+  hreflang values with instead of a copy of it.
 - **`web/schemaorg`: a typed subset of schema.org** — `Person`,
   `Organization`, `WebSite`, `WebPage` and its `AboutPage`/`ContactPage`/
   `CollectionPage`/`FAQPage` subtypes, `ItemList`, `Service`, `Offer`,
@@ -77,10 +91,18 @@ API is still free to change.
   official Go SDK that the caller owns, next to the caller's own tools.
   Nothing is exposed without the caller passing a source, `get_page` answers a
   missing page and a non-public one alike, and server-side failures reach the
-  client only as "unavailable". `GuardHandler` adds what a public endpoint
-  needs: an `Origin` allowlist, a 413 for oversized bodies, and `no-store`. It
-  is a nested module, so the SDK stays out of the core module.
-
+  client only as "unavailable" — a panic on the page path included, which the
+  SDK would otherwise let crash the whole process. A `search_pages` query is
+  limited to `MaxQueryBytes` and `MaxQueryWords`, because one call costs its
+  words times the text of every page, a `language` filter has to be a
+  language tag, and a cancelled call stops reading the source.
+  `GuardHandler` adds what a public endpoint needs: an `Origin` allowlist, an
+  optional `Host` allowlist against DNS rebinding, a 413 for oversized bodies,
+  a 400 for JSON-RPC batches (which would carry hundreds of tool calls past
+  every per-call bound; `AllowBatches` opts back in), and
+  `no-store, no-transform`, which replaces the `no-cache` the SDK sets on
+  its own responses. It is a nested module, so the SDK stays out of the core
+  module.
 - **`mx.SSEResponse`: components streamed to a client as Server-Sent Events.**
   go-mx buffers whole responses on purpose, so that a deferred computation
   failing mid-render becomes a clean 500 instead of a truncated page.
@@ -258,11 +280,22 @@ API is still free to change.
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown
   alternate, where a reader would get the YAML block as text. The front matter
-  is also read for a `lang`, the new `Page.Lang`.
+  is also read for a `lang`, the new `Page.Lang`. A locale like `en_US`, as
+  Jekyll writes it, becomes the language tag `en-US`; anything else that is
+  no language tag fails the source with the name of the file, as front matter
+  that cannot be parsed now does too. A `ContentRenderer` that parsed the
+  front matter itself for fields of its own no longer gets it: only `title`,
+  `description`, `lang`, `date`, `publishDate`, `draft` and `tags` are read.
 - `Site.AddPageMetadata` sets the html `lang` attribute from `Page.Lang` before
-  `Site.Lang`, and fails for a page that does not pass `Page.Validate` even
-  when the renderer declared the page URL itself. `Site.Validate` checks `Lang`
-  and `DefaultLang` too.
+  `Site.Lang` (the new `Site.PageLang`), and fails for a page that does not
+  pass `Page.Validate` even when the renderer declared the page URL itself, so
+  a page with a Path needs a `Site.BaseURL` in every case. A
+  renderer declaring it has to declare the canonical URL of the page, because
+  `Site.PageHeaders` sends that one: a document whose `og:url` names another
+  URL is an error rather than a response with two canonicals. `Site.Validate`
+  checks `Lang` and `DefaultLang` too, and `Site.Sitemap` fails for a public
+  page whose links cannot be built, instead of listing a URL that answers
+  with an error.
 
 - **`mx.SSEEventError` is `"mx-error"`, not `"error"`.** A browser dispatches
   its own transport failures at the `EventSource` under the name `error`, so a

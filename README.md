@@ -19,8 +19,9 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 ## Documentation
 
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
-  `html` and `shadcn` tutorials and how-to guides, and the rendered component
-  gallery. (GitHub Pages, served from [`docs/`](docs/).)
+  `html` and `shadcn` tutorials and how-to guides, the public knowledge layer
+  guide, and the rendered component gallery. (GitHub Pages, served from
+  [`docs/`](docs/).)
 - **[Component gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)** — every
   ported shadcn/ui component shown next to its Go source.
 - **[`html` package](html/README.md)** — the core HTML vocabulary: elements,
@@ -140,7 +141,8 @@ For streaming output or serving over HTTP, render a `Component` into an
   the HTML head and as `Link` headers from one list), Markdown alternates of
   pages, and an `llms.txt` index. The
   [`web/schemaorg`](web/schemaorg) subpackage is a typed schema.org subset for
-  structured data, embedded with `html.JSONLD`.
+  structured data, embedded with `html.JSONLD`. See
+  [docs/web/knowledge-layer.md](docs/web/knowledge-layer.md).
 - **`mcp`** — the public pages of a `web.Site` as read-only
   [Model Context Protocol](https://modelcontextprotocol.io) tools for AI
   agents, added to a server of the official Go SDK, plus a guard for the HTTP
