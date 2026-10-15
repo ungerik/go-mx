@@ -1,3 +1,5 @@
+//go:generate go -C ../tools tool go-enum ../web/$GOFILE
+
 package web
 
 // https://developers.google.com/search/docs/specialty/international/localized-versions
@@ -14,19 +16,62 @@ import (
 	"github.com/ungerik/go-mx/html"
 )
 
+// AlternateRel is the link relation of an [Alternate].
+type AlternateRel string //#enum
+
 const (
 	// RelAlternate is the link relation of an alternate representation of a
 	// page: a translation, or the same page in another format.
-	RelAlternate = "alternate"
+	RelAlternate AlternateRel = "alternate"
 
 	// RelDescribedBy is the link relation of a document describing the page,
 	// for example its metadata in another format.
-	RelDescribedBy = "describedby"
-
-	// HrefLangDefault is the hreflang value "x-default" marking the version of
-	// a page shown to visitors whose language has no translation of its own.
-	HrefLangDefault = "x-default"
+	RelDescribedBy AlternateRel = "describedby"
 )
+
+// Valid indicates if a is any of the valid values for AlternateRel
+func (a AlternateRel) Valid() bool {
+	switch a {
+	case
+		RelAlternate,
+		RelDescribedBy:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if a is none of the valid values for AlternateRel
+func (a AlternateRel) Validate() error {
+	if !a.Valid() {
+		return fmt.Errorf("invalid value %#v for type web.AlternateRel", a)
+	}
+	return nil
+}
+
+// Enums returns all valid values for AlternateRel
+func (AlternateRel) Enums() []AlternateRel {
+	return []AlternateRel{
+		RelAlternate,
+		RelDescribedBy,
+	}
+}
+
+// EnumStrings returns all valid values for AlternateRel as strings
+func (AlternateRel) EnumStrings() []string {
+	return []string{
+		"alternate",
+		"describedby",
+	}
+}
+
+// String implements the fmt.Stringer interface for AlternateRel
+func (a AlternateRel) String() string {
+	return string(a)
+}
+
+// HrefLangDefault is the hreflang value "x-default" marking the version of a
+// page shown to visitors whose language has no translation of its own.
+const HrefLangDefault = "x-default"
 
 // Alternate is another representation of a [Page], linked from the page as
 // <link rel="alternate"> in its HTML head and as a Link header of its
@@ -49,7 +94,7 @@ const (
 type Alternate struct {
 	// Rel is the link relation, [RelAlternate] when empty, or
 	// [RelDescribedBy].
-	Rel string
+	Rel AlternateRel
 
 	// Type is the media type of the alternate, for example "text/markdown".
 	// It is empty for a translation, which has the type of the page.
@@ -67,7 +112,7 @@ type Alternate struct {
 }
 
 // RelOrDefault returns Rel, or [RelAlternate] if it is empty.
-func (a Alternate) RelOrDefault() string {
+func (a Alternate) RelOrDefault() AlternateRel {
 	if a.Rel == "" {
 		return RelAlternate
 	}
@@ -98,10 +143,8 @@ func (a Alternate) isOwnMarkdown() bool {
 // Type nor a HrefLang, which would leave nothing to tell it apart from the
 // page.
 func (a Alternate) Validate() error {
-	switch a.RelOrDefault() {
-	case RelAlternate, RelDescribedBy:
-	default:
-		return fmt.Errorf("invalid alternate rel %q, must be %q or %q", a.Rel, RelAlternate, RelDescribedBy)
+	if err := a.RelOrDefault().Validate(); err != nil {
+		return fmt.Errorf("alternate rel: %w", err)
 	}
 	if a.Type != "" {
 		// A quote, backslash or control character would end the quoted
@@ -136,7 +179,7 @@ func (a Alternate) Validate() error {
 // same key give crawlers two URLs for one question. Media types and language
 // tags are both case-insensitive.
 func (a Alternate) key() string {
-	return a.RelOrDefault() + "\x00" + strings.ToLower(a.Type) + "\x00" + strings.ToLower(a.HrefLang)
+	return string(a.RelOrDefault()) + "\x00" + strings.ToLower(a.Type) + "\x00" + strings.ToLower(a.HrefLang)
 }
 
 // pageLink is one link of a page as [Site.AddPageMetadata] renders it into
@@ -211,7 +254,7 @@ func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
 	var defaultURL string
 	var explicitDefault bool
 	if slices.ContainsFunc(page.Alternates, Alternate.IsTranslation) {
-		links = append(links, pageLink{rel: RelAlternate, hrefLang: lang, url: canonical})
+		links = append(links, pageLink{rel: string(RelAlternate), hrefLang: lang, url: canonical})
 		if strings.EqualFold(lang, s.DefaultLang) {
 			defaultURL = canonical
 		}
@@ -229,10 +272,10 @@ func (s *Site) pageLinks(page *Page) ([]pageLink, error) {
 				defaultURL = u
 			}
 		}
-		links = append(links, pageLink{rel: alternate.RelOrDefault(), typ: alternate.Type, hrefLang: alternate.HrefLang, url: u})
+		links = append(links, pageLink{rel: string(alternate.RelOrDefault()), typ: alternate.Type, hrefLang: alternate.HrefLang, url: u})
 	}
 	if defaultURL != "" && !explicitDefault {
-		links = append(links, pageLink{rel: RelAlternate, hrefLang: HrefLangDefault, url: defaultURL})
+		links = append(links, pageLink{rel: string(RelAlternate), hrefLang: HrefLangDefault, url: defaultURL})
 	}
 	return links, nil
 }
