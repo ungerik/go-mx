@@ -5229,15 +5229,18 @@ func (r *Renderer) putOutputIntents() {
 		return
 	}
 
+	// The subtype may be any ISO 32000 extension name, so it is escaped as a
+	// name, and the strings are escaped and, in a protected document,
+	// encrypted with the catalog's object number like every other string.
 	r.out("/OutputIntents [")
 	for index, oi := range r.outputIntents {
 		infoSegment := ""
 		if oi.Info != "" {
-			infoSegment = fmt.Sprintf("/Info (%s) ", oi.Info)
+			infoSegment = "/Info " + r.textstring(oi.Info) + " "
 		}
 		r.outf(
-			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier (%s) %s/DestOutputProfile %d 0 R >>`,
-			escapeName(string(oi.SubtypeIdent)), oi.OutputConditionIdentifier, infoSegment, r.outputIntentStartN+index,
+			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier %s %s/DestOutputProfile %d 0 R >>`,
+			escapeName(string(oi.SubtypeIdent)), r.textstring(oi.OutputConditionIdentifier), infoSegment, r.outputIntentStartN+index,
 		)
 	}
 	r.out("]")
