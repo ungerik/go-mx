@@ -5230,7 +5230,7 @@ func (r *Renderer) putOutputIntents() {
 		}
 		r.outf(
 			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier (%s) %s/DestOutputProfile %d 0 R >>`,
-			oi.SubtypeIdent, oi.OutputConditionIdentifier, infoSegment, r.outputIntentStartN+index,
+			escapeName(string(oi.SubtypeIdent)), oi.OutputConditionIdentifier, infoSegment, r.outputIntentStartN+index,
 		)
 	}
 	r.out("]")

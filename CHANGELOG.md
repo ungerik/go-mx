@@ -326,6 +326,9 @@ API is still free to change.
 
 ### Fixed
 
+- PDF output intent subtypes escape spaces, delimiters, and other special
+  bytes as PDF names, preserving custom extension values without malformed markup.
+
 - `web.DefaultRenderPage` no longer panics when a page is marked `NoIndex`, and
   now marks drafts and scheduled pages `noindex, nofollow` too — previously
   only an explicit `NoIndex` was honored, so a draft served from a preview
