@@ -46,16 +46,16 @@ type protect struct {
 	padding       []byte
 	encryptionKey []byte
 	objNum        int
-	rc4cipher     *rc4.Cipher
-	rc4n          uint32 // Object number associated with rc4 cipher
 }
 
+// rc4 encrypts buf in place with the key of object n. Every string and stream
+// is encrypted on its own (ISO 32000-1 7.6.2, Algorithm 1), so each one starts
+// a new RC4 keystream: a cipher reused for the next string of the same object
+// would continue the keystream, and a reader would decrypt that string to
+// garbage.
 func (p *protect) rc4(n uint32, buf *[]byte) {
-	if p.rc4cipher == nil || p.rc4n != n {
-		p.rc4cipher, _ = rc4.NewCipher(p.objectKey(n))
-		p.rc4n = n
-	}
-	p.rc4cipher.XORKeyStream(*buf, *buf)
+	cipher, _ := rc4.NewCipher(p.objectKey(n))
+	cipher.XORKeyStream(*buf, *buf)
 }
 
 func (p *protect) objectKey(n uint32) []byte {
