@@ -40,6 +40,14 @@ func (t ToggleVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for ToggleVariant, else defaultVal
+func (t ToggleVariant) ValidOr(defaultVal ToggleVariant) ToggleVariant {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ToggleVariant
 func (ToggleVariant) Enums() []ToggleVariant {
 	return []ToggleVariant{
@@ -94,6 +102,14 @@ func (t ToggleSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns t if it is any of the valid values for ToggleSize, else defaultVal
+func (t ToggleSize) ValidOr(defaultVal ToggleSize) ToggleSize {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ToggleSize
 func (ToggleSize) Enums() []ToggleSize {
 	return []ToggleSize{
@@ -141,30 +157,13 @@ var toggleVariants = cva.New(cva.Config{
 // ToggleClasses returns the merged base + variant + size toggle class string.
 // It is the equivalent of shadcn/ui's exported toggleVariants and mirrors
 // [ButtonClasses]: use it to style a non-button element (or a [ToggleGroupItem])
-// with the toggle look. An empty variant or size resolves to the default.
+// with the toggle look. An empty or unknown variant or size resolves to the
+// default.
 func ToggleClasses(variant ToggleVariant, size ToggleSize) string {
 	return Cn(toggleVariants(map[string]string{
-		"variant": normToggleVariant(variant),
-		"size":    normToggleSize(size),
+		"variant": string(variant.ValidOr(ToggleDefault)),
+		"size":    string(size.ValidOr(ToggleSizeDefault)),
 	}))
-}
-
-// normToggleVariant maps an empty or unknown variant to the default.
-func normToggleVariant(v ToggleVariant) string {
-	if v == ToggleOutline {
-		return string(ToggleOutline)
-	}
-	return string(ToggleDefault)
-}
-
-// normToggleSize maps an empty or unknown size to the default.
-func normToggleSize(s ToggleSize) string {
-	switch s {
-	case ToggleSizeSM, ToggleSizeLG:
-		return string(s)
-	default:
-		return string(ToggleSizeDefault)
-	}
 }
 
 // toggleAriaPressedFlip is the default onclick that flips aria-pressed in
@@ -195,8 +194,8 @@ func Toggle(variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.
 		e.Attribs = append(e.Attribs, html.OnClick(toggleAriaPressedFlip))
 	}
 	e.Attribs = append(e.Attribs,
-		html.DataAttr("variant", normToggleVariant(variant)),
-		html.DataAttr("size", normToggleSize(size)),
+		html.DataAttr("variant", string(variant.ValidOr(ToggleDefault))),
+		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 	)
 	return finish(e, "toggle", ToggleClasses(variant, size))
 }

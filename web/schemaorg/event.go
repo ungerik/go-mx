@@ -108,6 +108,14 @@ func (e EventStatus) Validate() error {
 	return nil
 }
 
+// ValidOr returns e if it is any of the valid values for EventStatus, else defaultVal
+func (e EventStatus) ValidOr(defaultVal EventStatus) EventStatus {
+	if e.Valid() {
+		return e
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for EventStatus
 func (EventStatus) Enums() []EventStatus {
 	return []EventStatus{
@@ -169,6 +177,14 @@ func (e EventAttendanceMode) Validate() error {
 		return fmt.Errorf("invalid value %#v for type schemaorg.EventAttendanceMode", e)
 	}
 	return nil
+}
+
+// ValidOr returns e if it is any of the valid values for EventAttendanceMode, else defaultVal
+func (e EventAttendanceMode) ValidOr(defaultVal EventAttendanceMode) EventAttendanceMode {
+	if e.Valid() {
+		return e
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for EventAttendanceMode

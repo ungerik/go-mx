@@ -40,6 +40,14 @@ func (a AlertVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns a if it is any of the valid values for AlertVariant, else defaultVal
+func (a AlertVariant) ValidOr(defaultVal AlertVariant) AlertVariant {
+	if a.Valid() {
+		return a
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AlertVariant
 func (AlertVariant) Enums() []AlertVariant {
 	return []AlertVariant{
@@ -81,11 +89,7 @@ func Alert(variant AlertVariant, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	v := string(AlertDefault)
-	if variant == AlertDestructive {
-		v = string(AlertDestructive)
-	}
-	return finish(e, "alert", alertVariants(map[string]string{"variant": v}))
+	return finish(e, "alert", alertVariants(map[string]string{"variant": string(variant.ValidOr(AlertDefault))}))
 }
 
 // AlertTitle renders the title row of an [Alert]. shadcn/ui uses a div here

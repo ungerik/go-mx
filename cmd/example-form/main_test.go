@@ -222,3 +222,34 @@ func TestExamplePOSTCrossFieldError(t *testing.T) {
 		t.Errorf("expected cross-field message: %s", body)
 	}
 }
+
+// The generated Validate methods of the go-enum types reject a tampered POST:
+// a tier or feature that is none of the offered options never reaches Save.
+func TestExamplePOSTRejectsUnknownEnumValues(t *testing.T) {
+	for field, values := range map[string][]string{
+		"Tier":     {"platinum"},
+		"Features": {"sso", "root-shell"},
+	} {
+		srv, s := newTestServer(t)
+		before := s.p
+		form := url.Values{}
+		form.Set(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+		form[field] = values
+
+		req := httptest.NewRequest(http.MethodPost, "/admin/profile",
+			strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s: status=%d (want 200 re-render)", field, rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), `data-error="`+field+`"`) {
+			t.Errorf("%s: expected inline error: %s", field, rec.Body.String())
+		}
+		if s.p.Tier != before.Tier || len(s.p.Features) != len(before.Features) {
+			t.Errorf("%s: the invalid value was saved: %+v", field, s.p)
+		}
+	}
+}

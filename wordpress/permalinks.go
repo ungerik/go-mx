@@ -1,6 +1,9 @@
+//go:generate go -C ../tools tool go-enum ../wordpress/$GOFILE
+
 package wordpress
 
 import (
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -11,7 +14,7 @@ import (
 )
 
 // PermalinkStyle selects the URL/file layout for posts.
-type PermalinkStyle string
+type PermalinkStyle string //#enum
 
 const (
 	// PermalinkSlug lays out posts by slug, e.g. /slug/.
@@ -22,6 +25,57 @@ const (
 	// PermalinkID lays out posts by numeric ID, e.g. /p/123/.
 	PermalinkID PermalinkStyle = "id" // /p/123/
 )
+
+// Valid indicates if p is any of the valid values for PermalinkStyle
+func (p PermalinkStyle) Valid() bool {
+	switch p {
+	case
+		PermalinkSlug,
+		PermalinkDated,
+		PermalinkID:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if p is none of the valid values for PermalinkStyle
+func (p PermalinkStyle) Validate() error {
+	if !p.Valid() {
+		return fmt.Errorf("invalid value %#v for type wordpress.PermalinkStyle", p)
+	}
+	return nil
+}
+
+// ValidOr returns p if it is any of the valid values for PermalinkStyle, else defaultVal
+func (p PermalinkStyle) ValidOr(defaultVal PermalinkStyle) PermalinkStyle {
+	if p.Valid() {
+		return p
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for PermalinkStyle
+func (PermalinkStyle) Enums() []PermalinkStyle {
+	return []PermalinkStyle{
+		PermalinkSlug,
+		PermalinkDated,
+		PermalinkID,
+	}
+}
+
+// EnumStrings returns all valid values for PermalinkStyle as strings
+func (PermalinkStyle) EnumStrings() []string {
+	return []string{
+		"slug",
+		"dated",
+		"id",
+	}
+}
+
+// String implements the fmt.Stringer interface for PermalinkStyle
+func (p PermalinkStyle) String() string {
+	return string(p)
+}
 
 // reservedWindows are device names that cannot be path segments on Windows.
 var reservedWindows = map[string]bool{

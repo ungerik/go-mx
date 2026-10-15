@@ -46,6 +46,14 @@ func (o Orientation) Validate() error {
 	return nil
 }
 
+// ValidOr returns o if it is any of the valid values for Orientation, else defaultVal
+func (o Orientation) ValidOr(defaultVal Orientation) Orientation {
+	if o.Valid() {
+		return o
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Orientation
 func (Orientation) Enums() []Orientation {
 	return []Orientation{
@@ -57,8 +65,8 @@ func (Orientation) Enums() []Orientation {
 // EnumStrings returns all valid values for Orientation as strings
 func (Orientation) EnumStrings() []string {
 	return []string{
-		fpdf.OrientationPortrait,
-		fpdf.OrientationLandscape,
+		string(Portrait),
+		string(Landscape),
 	}
 }
 
@@ -105,6 +113,14 @@ func (u Unit) Validate() error {
 	return nil
 }
 
+// ValidOr returns u if it is any of the valid values for Unit, else defaultVal
+func (u Unit) ValidOr(defaultVal Unit) Unit {
+	if u.Valid() {
+		return u
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Unit
 func (Unit) Enums() []Unit {
 	return []Unit{
@@ -118,10 +134,10 @@ func (Unit) Enums() []Unit {
 // EnumStrings returns all valid values for Unit as strings
 func (Unit) EnumStrings() []string {
 	return []string{
-		fpdf.UnitPoint,
-		fpdf.UnitMillimeter,
-		fpdf.UnitCentimeter,
-		fpdf.UnitInch,
+		string(UnitPoint),
+		string(UnitMillimeter),
+		string(UnitCentimeter),
+		string(UnitInch),
 	}
 }
 
@@ -190,6 +206,14 @@ func (p PageSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns p if it is any of the valid values for PageSize, else defaultVal
+func (p PageSize) ValidOr(defaultVal PageSize) PageSize {
+	if p.Valid() {
+		return p
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for PageSize
 func (PageSize) Enums() []PageSize {
 	return []PageSize{
@@ -212,14 +236,14 @@ func (PageSize) EnumStrings() []string {
 	return []string{
 		"A1",
 		"A2",
-		fpdf.PageSizeA3,
-		fpdf.PageSizeA4,
-		fpdf.PageSizeA5,
+		string(A3),
+		string(A4),
+		string(A5),
 		"A6",
 		"A7",
 		"A8",
-		fpdf.PageSizeLetter,
-		fpdf.PageSizeLegal,
+		string(Letter),
+		string(Legal),
 		"Tabloid",
 	}
 }
@@ -321,6 +345,14 @@ func (f FontStyle) Validate() error {
 	return nil
 }
 
+// ValidOr returns f if it is any of the valid values for FontStyle, else defaultVal
+func (f FontStyle) ValidOr(defaultVal FontStyle) FontStyle {
+	if f.Valid() {
+		return f
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FontStyle
 func (FontStyle) Enums() []FontStyle {
 	return []FontStyle{
@@ -409,6 +441,14 @@ func (h HAlign) Validate() error {
 	return nil
 }
 
+// ValidOr returns h if it is any of the valid values for HAlign, else defaultVal
+func (h HAlign) ValidOr(defaultVal HAlign) HAlign {
+	if h.Valid() {
+		return h
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for HAlign
 func (HAlign) Enums() []HAlign {
 	return []HAlign{
@@ -468,6 +508,14 @@ func (v VAlign) Validate() error {
 		return fmt.Errorf("invalid value %#v for type fpdf.VAlign", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for VAlign, else defaultVal
+func (v VAlign) ValidOr(defaultVal VAlign) VAlign {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for VAlign
@@ -581,6 +629,14 @@ func (b Border) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for Border, else defaultVal
+func (b Border) ValidOr(defaultVal Border) Border {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Border
 func (Border) Enums() []Border {
 	return []Border{
@@ -667,6 +723,14 @@ func (d DrawOp) Validate() error {
 	return nil
 }
 
+// ValidOr returns d if it is any of the valid values for DrawOp, else defaultVal
+func (d DrawOp) ValidOr(defaultVal DrawOp) DrawOp {
+	if d.Valid() {
+		return d
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for DrawOp
 func (DrawOp) Enums() []DrawOp {
 	return []DrawOp{
@@ -723,6 +787,14 @@ func (l LnPos) Validate() error {
 	return nil
 }
 
+// ValidOr returns l if it is any of the valid values for LnPos, else defaultVal
+func (l LnPos) ValidOr(defaultVal LnPos) LnPos {
+	if l.Valid() {
+		return l
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for LnPos
 func (LnPos) Enums() []LnPos {
 	return []LnPos{
@@ -771,6 +843,14 @@ func (l LineCapStyle) Validate() error {
 		return fmt.Errorf("invalid value %#v for type fpdf.LineCapStyle", l)
 	}
 	return nil
+}
+
+// ValidOr returns l if it is any of the valid values for LineCapStyle, else defaultVal
+func (l LineCapStyle) ValidOr(defaultVal LineCapStyle) LineCapStyle {
+	if l.Valid() {
+		return l
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for LineCapStyle
@@ -828,6 +908,14 @@ func (l LineJoinStyle) Validate() error {
 	return nil
 }
 
+// ValidOr returns l if it is any of the valid values for LineJoinStyle, else defaultVal
+func (l LineJoinStyle) ValidOr(defaultVal LineJoinStyle) LineJoinStyle {
+	if l.Valid() {
+		return l
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for LineJoinStyle
 func (LineJoinStyle) Enums() []LineJoinStyle {
 	return []LineJoinStyle{
@@ -883,6 +971,14 @@ func (i ImageType) Validate() error {
 		return fmt.Errorf("invalid value %#v for type fpdf.ImageType", i)
 	}
 	return nil
+}
+
+// ValidOr returns i if it is any of the valid values for ImageType, else defaultVal
+func (i ImageType) ValidOr(defaultVal ImageType) ImageType {
+	if i.Valid() {
+		return i
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ImageType

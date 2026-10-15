@@ -1,6 +1,10 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/svg"
@@ -8,7 +12,7 @@ import (
 
 // ResizeDirection selects whether a [ResizablePanelGroup] lays its panels out
 // in a row (horizontal, the default for "") or a column (vertical).
-type ResizeDirection string
+type ResizeDirection string //#enum
 
 const (
 	// ResizeHorizontal lays the panels out in a row, resized along the x-axis (the default).
@@ -16,6 +20,54 @@ const (
 	// ResizeVertical lays the panels out in a column, resized along the y-axis.
 	ResizeVertical ResizeDirection = "vertical"
 )
+
+// Valid indicates if r is any of the valid values for ResizeDirection
+func (r ResizeDirection) Valid() bool {
+	switch r {
+	case
+		ResizeHorizontal,
+		ResizeVertical:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if r is none of the valid values for ResizeDirection
+func (r ResizeDirection) Validate() error {
+	if !r.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.ResizeDirection", r)
+	}
+	return nil
+}
+
+// ValidOr returns r if it is any of the valid values for ResizeDirection, else defaultVal
+func (r ResizeDirection) ValidOr(defaultVal ResizeDirection) ResizeDirection {
+	if r.Valid() {
+		return r
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for ResizeDirection
+func (ResizeDirection) Enums() []ResizeDirection {
+	return []ResizeDirection{
+		ResizeHorizontal,
+		ResizeVertical,
+	}
+}
+
+// EnumStrings returns all valid values for ResizeDirection as strings
+func (ResizeDirection) EnumStrings() []string {
+	return []string{
+		"horizontal",
+		"vertical",
+	}
+}
+
+// String implements the fmt.Stringer interface for ResizeDirection
+func (r ResizeDirection) String() string {
+	return string(r)
+}
 
 // resizeScript drags a [ResizableHandle] to resize its two adjacent panels by
 // adjusting their flex-basis. shadcn wraps react-resizable-panels; CSS has no
@@ -28,10 +80,7 @@ const resizeScript = /*js*/ `if(!window.resizeStart){window.resizeStart=function
 // [ResizableHandle]s. The shared resizeScript is appended once. direction may be
 // "" for the default (horizontal).
 func ResizablePanelGroup(direction ResizeDirection, attribsChildren ...any) *mx.Element {
-	dir := "horizontal"
-	if direction == ResizeVertical {
-		dir = "vertical"
-	}
+	dir := string(direction.ValidOr(ResizeHorizontal))
 	e := html.Div(append(attribsChildren, html.ScriptJS(resizeScript))...)
 	if e.AttribIndex("data-direction") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("direction", dir))

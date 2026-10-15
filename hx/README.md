@@ -163,6 +163,19 @@ correspondingly-named `HX-*` header:
   `hx.SetTriggerAfterSwapJSON`) take a `map[string]any` event-to-detail payload
   and return an error if it cannot be marshaled.
 
+`hx.SetReswap(w, style hx.SwapStyle, modifiers ...string) error` accepts the
+same typed style and modifiers as `hx.Swap`. An invalid style returns an error
+and leaves `HX-Reswap` unset. For a style supplied by a request, handle the
+error before writing the response:
+
+```go
+style := hx.SwapStyle(r.URL.Query().Get("swap"))
+if err := hx.SetReswap(w, style, "scroll:bottom"); err != nil {
+    http.Error(w, err.Error(), http.StatusBadRequest)
+    return
+}
+```
+
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
     if !hx.IsRequest(r) {

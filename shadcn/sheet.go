@@ -1,13 +1,17 @@
+//go:generate go -C ../tools tool go-enum ../shadcn/$GOFILE
+
 package shadcn
 
 import (
+	"fmt"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
 
 // SheetSide selects the edge a [SheetContent] slides in from. "" selects the
 // default (right).
-type SheetSide string
+type SheetSide string //#enum
 
 const (
 	// SheetTop slides the sheet in from the top edge.
@@ -19,6 +23,60 @@ const (
 	// SheetLeft slides the sheet in from the left edge.
 	SheetLeft SheetSide = "left"
 )
+
+// Valid indicates if s is any of the valid values for SheetSide
+func (s SheetSide) Valid() bool {
+	switch s {
+	case
+		SheetTop,
+		SheetRight,
+		SheetBottom,
+		SheetLeft:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if s is none of the valid values for SheetSide
+func (s SheetSide) Validate() error {
+	if !s.Valid() {
+		return fmt.Errorf("invalid value %#v for type shadcn.SheetSide", s)
+	}
+	return nil
+}
+
+// ValidOr returns s if it is any of the valid values for SheetSide, else defaultVal
+func (s SheetSide) ValidOr(defaultVal SheetSide) SheetSide {
+	if s.Valid() {
+		return s
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for SheetSide
+func (SheetSide) Enums() []SheetSide {
+	return []SheetSide{
+		SheetTop,
+		SheetRight,
+		SheetBottom,
+		SheetLeft,
+	}
+}
+
+// EnumStrings returns all valid values for SheetSide as strings
+func (SheetSide) EnumStrings() []string {
+	return []string{
+		"top",
+		"right",
+		"bottom",
+		"left",
+	}
+}
+
+// String implements the fmt.Stringer interface for SheetSide
+func (s SheetSide) String() string {
+	return string(s)
+}
 
 // Sheet is a Go port of shadcn/ui's Sheet — a Dialog variant that slides in
 // from a screen edge. Like [Dialog] it is a native modal <dialog> (top layer,
@@ -61,7 +119,7 @@ const sheetContentBaseClasses = "open:flex flex-col fixed m-0 max-h-none max-w-n
 // <dialog> with inset:0 on every side; without the override the sheet would be
 // stretched across the viewport instead of pinned.
 func sheetSideClasses(side SheetSide) string {
-	switch side {
+	switch side.ValidOr(SheetRight) {
 	case SheetTop:
 		return "inset-x-0 top-0 bottom-auto h-auto w-full border-b"
 	case SheetBottom:
@@ -76,7 +134,7 @@ func sheetSideClasses(side SheetSide) string {
 // SheetContent renders the modal <dialog id=sheetID> pinned to side. Children
 // are placed inside, followed by the built-in top-right close button. It
 // light-dismisses (a click on the backdrop closes it). side may be "" for the
-// default (right).
+// default (right); an unknown side also resolves to right.
 func SheetContent(sheetID string, side SheetSide, attribsChildren ...any) *mx.Element {
 	if err := validateID(sheetID); err != nil {
 		return mx.NewErrElement(err)

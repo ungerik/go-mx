@@ -18,7 +18,8 @@ func TestResponseHeaderSetters(t *testing.T) {
 		{"Redirect", func(w http.ResponseWriter) { SetRedirect(w, "/login") }, HeaderRedirect, "/login"},
 		{"Refresh", func(w http.ResponseWriter) { SetRefresh(w) }, HeaderRefresh, "true"},
 		{"ReplaceURL", func(w http.ResponseWriter) { SetReplaceURL(w, "false") }, HeaderReplaceURL, "false"},
-		{"Reswap", func(w http.ResponseWriter) { SetReswap(w, "beforeend") }, HeaderReswap, "beforeend"},
+		{"Reswap", func(w http.ResponseWriter) { _ = SetReswap(w, SwapBeforeEnd) }, HeaderReswap, "beforeend"},
+		{"ReswapModifiers", func(w http.ResponseWriter) { _ = SetReswap(w, SwapInnerHTML, "swap:1s", "scroll:bottom") }, HeaderReswap, "innerHTML swap:1s scroll:bottom"},
 		{"Retarget", func(w http.ResponseWriter) { SetRetarget(w, "#main") }, HeaderRetarget, "#main"},
 		{"Reselect", func(w http.ResponseWriter) { SetReselect(w, "#frag") }, HeaderReselect, "#frag"},
 		{"Trigger", func(w http.ResponseWriter) { SetTrigger(w, "a", "b") }, HeaderTrigger, "a, b"},
@@ -33,6 +34,18 @@ func TestResponseHeaderSetters(t *testing.T) {
 				t.Errorf("%s = %q, want %q", tt.header, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestSetReswapInvalidStyle checks that an invalid swap style is the
+// Validate error and never reaches the header.
+func TestSetReswapInvalidStyle(t *testing.T) {
+	w := httptest.NewRecorder()
+	if err := SetReswap(w, "sideways"); err == nil {
+		t.Error("SetReswap with an invalid style returned no error")
+	}
+	if got := w.Header().Get(HeaderReswap); got != "" {
+		t.Errorf("%s = %q, want unset", HeaderReswap, got)
 	}
 }
 

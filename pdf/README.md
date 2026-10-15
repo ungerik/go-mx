@@ -103,9 +103,10 @@ Closed-set values are **typed enums** with generated `Valid` / `Validate` /
 pinned in the `tools` module), so the compiler guides you and values can be
 validated:
 
-- `Orientation` (`Portrait`, `Landscape`)
+- `Orientation` (`OrientationPortrait`, `OrientationLandscape`)
 - `Unit` (`UnitPoint`, `UnitMillimeter`, `UnitCentimeter`, `UnitInch`)
-- `PageSize` (`A1`–`A8`, `Letter`, `Legal`, `Tabloid`)
+- `PageSize` (`PageSizeA1`–`PageSizeA8`, `PageSizeLetter`, `PageSizeLegal`,
+  `PageSizeTabloid`)
 - `FontStyle` (`StyleRegular`, `StyleBold`, `StyleItalic`, `StyleUnderline`,
   `StyleStrikeOut`, and every combination, e.g. `StyleBoldItalic`) — the named
   combos double as concatenations: `StyleBold + StyleItalic == StyleBoldItalic`
@@ -419,3 +420,11 @@ exceptions:
   component can be rendered any number of times, into any number of
   renderers (`ImageReader` buffers its source on first render); the legacy
   engine consumes a single reader.
+- **Every string of a protected document decrypts.** Each string and stream
+  is encrypted with a new RC4 keystream from its object key, as ISO 32000
+  requires; the legacy engine continued one keystream across an object, so
+  every string after the first of an object decrypted to garbage.
+- **Output intents are escaped.** The subtype is written as an escaped PDF
+  name and the `OutputConditionIdentifier` and `Info` strings as escaped (and,
+  in a protected document, encrypted) literal strings; the legacy engine wrote
+  all three verbatim.

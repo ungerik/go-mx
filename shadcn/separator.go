@@ -38,6 +38,14 @@ func (s SeparatorOrientation) Validate() error {
 	return nil
 }
 
+// ValidOr returns s if it is any of the valid values for SeparatorOrientation, else defaultVal
+func (s SeparatorOrientation) ValidOr(defaultVal SeparatorOrientation) SeparatorOrientation {
+	if s.Valid() {
+		return s
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for SeparatorOrientation
 func (SeparatorOrientation) Enums() []SeparatorOrientation {
 	return []SeparatorOrientation{
@@ -70,10 +78,7 @@ const separatorClasses = "bg-border shrink-0 data-[orientation=horizontal]:h-px 
 // aria-orientation="vertical". A caller-supplied role, data-orientation or
 // aria-orientation is left untouched.
 func Separator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Element {
-	o := SeparatorHorizontal
-	if orientation == SeparatorVertical {
-		o = SeparatorVertical
-	}
+	o := orientation.ValidOr(SeparatorHorizontal)
 	e := html.Div(attribsChildren...)
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("separator"))

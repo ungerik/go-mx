@@ -12,7 +12,7 @@ func navIcon(paths ...string) mx.Component {
 	shapes := []any{
 		svg.XMLNS, svg.Width(16), svg.Height(16),
 		svg.ViewBox(0, 0, 24, 24), svg.Fill("none"), svg.Stroke("currentColor"),
-		svg.StrokeWidth(2), svg.StrokeLineCap("round"), svg.StrokeLineJoin("round"),
+		svg.StrokeWidth(2), svg.StrokeLineCapRound, svg.StrokeLineJoinRound,
 	}
 	for _, d := range paths {
 		shapes = append(shapes, svg.Path(svg.D(d)))

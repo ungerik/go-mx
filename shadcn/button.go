@@ -52,6 +52,14 @@ func (b ButtonVariant) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for ButtonVariant, else defaultVal
+func (b ButtonVariant) ValidOr(defaultVal ButtonVariant) ButtonVariant {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ButtonVariant
 func (ButtonVariant) Enums() []ButtonVariant {
 	return []ButtonVariant{
@@ -128,6 +136,14 @@ func (b ButtonSize) Validate() error {
 	return nil
 }
 
+// ValidOr returns b if it is any of the valid values for ButtonSize, else defaultVal
+func (b ButtonSize) ValidOr(defaultVal ButtonSize) ButtonSize {
+	if b.Valid() {
+		return b
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ButtonSize
 func (ButtonSize) Enums() []ButtonSize {
 	return []ButtonSize{
@@ -193,49 +209,25 @@ var buttonVariants = cva.New(cva.Config{
 // the button look to a non-button element or to an [AlertDialogTrigger], e.g.
 // html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeSM)).
 //
-// An empty variant or size resolves to the default; an unknown value falls
-// back to the default classes.
+// An empty or unknown variant or size resolves to the default.
 func ButtonClasses(variant ButtonVariant, size ButtonSize) string {
 	return Cn(buttonVariants(map[string]string{
-		"variant": normButtonVariant(variant),
-		"size":    normButtonSize(size),
+		"variant": string(variant.ValidOr(ButtonDefault)),
+		"size":    string(size.ValidOr(SizeDefault)),
 	}))
 }
 
-// normButtonVariant maps an empty or unknown variant to the default.
-func normButtonVariant(v ButtonVariant) string {
-	switch v {
-	case ButtonDestructive, ButtonOutline, ButtonSecondary, ButtonGhost, ButtonLink:
-		return string(v)
-	default:
-		return string(ButtonDefault)
-	}
-}
-
-// normButtonSize maps an empty or unknown size to the default.
-func normButtonSize(s ButtonSize) string {
-	switch s {
-	case SizeXS, SizeSM, SizeLG, SizeIcon, SizeIconXS, SizeIconSM, SizeIconLG:
-		return string(s)
-	default:
-		return string(SizeDefault)
-	}
-}
-
 // Button renders a shadcn/ui button. variant and size may be "" to select the
-// defaults. attribsChildren are go-mx attributes and children; a caller-
-// supplied class attribute is merged with the variant classes.
+// defaults; an unknown value also resolves to the default. attribsChildren
+// are go-mx attributes and children; a caller-supplied class attribute is
+// merged with the variant classes.
 //
 // The button defaults to type="button" (a server-rendered <button> without an
 // explicit type would otherwise submit an enclosing form); pass html.Type to
 // override.
 func Button(variant ButtonVariant, size ButtonSize, attribsChildren ...any) *mx.Element {
-	if variant == "" {
-		variant = ButtonDefault
-	}
-	if size == "" {
-		size = SizeDefault
-	}
+	variant = variant.ValidOr(ButtonDefault)
+	size = size.ValidOr(SizeDefault)
 	e := html.Button(attribsChildren...)
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))

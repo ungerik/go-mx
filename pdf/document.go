@@ -134,8 +134,8 @@ func (d *Document) applySetup(ctx context.Context, r *Renderer) {
 		// Validate relationships up front so an invalid one surfaces from
 		// Render rather than only from the later Output/Close that embeds them.
 		for i := range d.Attachments {
-			if rel := d.Attachments[i].Relationship; rel != "" && !rel.Valid() {
-				r.SetError(fmt.Errorf("invalid AFRelationship %q for attachment %q", rel, d.Attachments[i].Filename))
+			if err := d.Attachments[i].validateRelationship(); err != nil {
+				r.SetError(err)
 			}
 		}
 	}

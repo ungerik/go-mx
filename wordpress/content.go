@@ -208,7 +208,7 @@ func (w *walker) attribs(n *xhtml.Node, tag string) []mx.Attrib {
 	}
 	if tag == "img" {
 		if !seen["loading"] {
-			out = append(out, html.Attrib("loading", "lazy"))
+			out = append(out, html.LoadingLazy)
 		}
 		// Graceful fallback for missing media (a literal handler, not from input).
 		out = append(out, html.Attrib("onerror", "this.style.display='none'"))

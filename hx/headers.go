@@ -88,9 +88,19 @@ func SetReplaceURL(w http.ResponseWriter, url string) {
 }
 
 // SetReswap sets the HX-Reswap response header, overriding how the response is
-// swapped in. value uses the hx-swap syntax (outerHTML, beforeend, …).
-func SetReswap(w http.ResponseWriter, value string) {
+// swapped in, with the typed [SwapStyle] and optional modifiers like [Swap]
+// (e.g. "swap:1s", "scroll:bottom"). An invalid style returns its Validate
+// error and leaves the header unset.
+func SetReswap(w http.ResponseWriter, style SwapStyle, modifiers ...string) error {
+	if err := style.Validate(); err != nil {
+		return err
+	}
+	value := string(style)
+	if len(modifiers) > 0 {
+		value += " " + strings.Join(modifiers, " ")
+	}
 	w.Header().Set(HeaderReswap, value)
+	return nil
 }
 
 // SetRetarget sets the HX-Retarget response header to a CSS selector that

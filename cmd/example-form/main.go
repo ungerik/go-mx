@@ -25,22 +25,6 @@ import (
 	"github.com/ungerik/go-mx/shadcn"
 )
 
-// Tier is a small enum used to demonstrate the enum dispatch path.
-type Tier string
-
-// EnumStrings returns the string values of all valid Tier enum constants.
-func (Tier) EnumStrings() []string {
-	return []string{"free", "team", "enterprise"}
-}
-
-// Feature is the enum used to populate the multi-select / set field.
-type Feature string
-
-// EnumStrings returns the string values of all valid Feature enum constants.
-func (Feature) EnumStrings() []string {
-	return []string{"sso", "audit-log", "advanced-analytics", "exports"}
-}
-
 // AccountingInfo groups a handful of fields into one section so the
 // example exercises the section/nested walk path.
 type AccountingInfo struct {
@@ -112,8 +96,8 @@ func (s *store) Save(_ context.Context, p *Profile) error {
 	// Cross-field invariant: "enterprise" tier requires SSO. This
 	// demonstrates the FieldErrors -> inline error routing path for a
 	// rule the framework's per-field chain can't express.
-	if p.Tier == "enterprise" {
-		if _, ok := p.Features["sso"]; !ok {
+	if p.Tier == TierEnterprise {
+		if _, ok := p.Features[FeatureSSO]; !ok {
 			return mx.FieldErrors{
 				"Features": errors.New("enterprise tier requires SSO"),
 			}
@@ -135,8 +119,8 @@ func main() {
 			Bio:      "Original computing pioneer.",
 			Age:      36,
 			Active:   true,
-			Tier:     "team",
-			Features: map[Feature]struct{}{"audit-log": {}, "sso": {}},
+			Tier:     TierTeam,
+			Features: map[Feature]struct{}{FeatureAuditLog: {}, FeatureSSO: {}},
 			Joined:   time.Date(2026, 1, 15, 9, 0, 0, 0, time.UTC),
 			Account: AccountingInfo{
 				VATNumber: "GB-12345",

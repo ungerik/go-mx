@@ -177,16 +177,17 @@ func newRenderer(orientation Orientation, unit Unit, pageSize PageSize, fontDirS
 	if err := orientation.Validate(); err != nil {
 		return &Renderer{err: err}
 	}
-	normalizedUnit, ok := NormalizeUnit(cmp.Or(unit, UnitMillimeter))
+	unit = cmp.Or(unit, UnitMillimeter)
+	normalizedUnit, ok := NormalizeUnit(unit)
 	if !ok {
-		return &Renderer{err: fmt.Errorf("invalid value %#v for type pdf.Unit", unit)}
+		return &Renderer{err: unit.Validate()}
 	}
 	unit = normalizedUnit
 	pageSize = cmp.Or(pageSize, PageSizeA4)
 	if size.Wd <= 0 || size.Ht <= 0 {
 		normalizedPageSize, ok := NormalizePageSize(pageSize)
 		if !ok {
-			return &Renderer{err: fmt.Errorf("invalid value %#v for type pdf.PageSize", pageSize)}
+			return &Renderer{err: pageSize.Validate()}
 		}
 		pageSize = normalizedPageSize
 	}
@@ -1155,30 +1156,33 @@ func (r *Renderer) GetLineWidth() float64 {
 }
 
 // GetLineCapStyle returns the current line cap style.
-func (r *Renderer) GetLineCapStyle() string {
+func (r *Renderer) GetLineCapStyle() LineCapStyle {
 	switch r.capStyle {
 	case 1:
-		return "round"
+		return CapRound
 	case 2:
-		return "square"
+		return CapSquare
 	default:
-		return "butt"
+		return CapButt
 	}
 }
 
-// SetLineCapStyle defines the line cap style. styleStr should be "butt",
-// "round" or "square". A square style projects from the end of the line. The
-// method can be called before the first page is created. The value is
-// retained from page to page.
-func (r *Renderer) SetLineCapStyle(styleStr string) {
+// SetLineCapStyle defines the line cap style, [CapButt] when empty. A square
+// style projects from the end of the line. The method can be called before
+// the first page is created. The value is retained from page to page. An
+// invalid style sets the renderer error.
+func (r *Renderer) SetLineCapStyle(style LineCapStyle) {
+	style = cmp.Or(style, CapButt)
+	if err := style.Validate(); err != nil {
+		r.err = err
+		return
+	}
 	var capStyle int
-	switch styleStr {
-	case "round":
+	switch style {
+	case CapRound:
 		capStyle = 1
-	case "square":
+	case CapSquare:
 		capStyle = 2
-	default:
-		capStyle = 0
 	}
 	r.capStyle = capStyle
 	if r.page > 0 {
@@ -1187,29 +1191,32 @@ func (r *Renderer) SetLineCapStyle(styleStr string) {
 }
 
 // GetLineJoinStyle returns the current line join style.
-func (r *Renderer) GetLineJoinStyle() string {
+func (r *Renderer) GetLineJoinStyle() LineJoinStyle {
 	switch r.joinStyle {
 	case 1:
-		return "round"
+		return JoinRound
 	case 2:
-		return "bevel"
+		return JoinBevel
 	default:
-		return "miter"
+		return JoinMiter
 	}
 }
 
-// SetLineJoinStyle defines the line cap style. styleStr should be "miter",
-// "round" or "bevel". The method can be called before the first page
-// is created. The value is retained from page to page.
-func (r *Renderer) SetLineJoinStyle(styleStr string) {
+// SetLineJoinStyle defines the line join style, [JoinMiter] when empty. The
+// method can be called before the first page is created. The value is
+// retained from page to page. An invalid style sets the renderer error.
+func (r *Renderer) SetLineJoinStyle(style LineJoinStyle) {
+	style = cmp.Or(style, JoinMiter)
+	if err := style.Validate(); err != nil {
+		r.err = err
+		return
+	}
 	var joinStyle int
-	switch styleStr {
-	case "round":
+	switch style {
+	case JoinRound:
 		joinStyle = 1
-	case "bevel":
+	case JoinBevel:
 		joinStyle = 2
-	default:
-		joinStyle = 0
 	}
 	r.joinStyle = joinStyle
 	if r.page > 0 {
@@ -1586,8 +1593,8 @@ func (r *Renderer) SetAlpha(alpha float64, mode BlendMode) {
 		return
 	}
 	mode = cmp.Or(mode, BlendModeNormal)
-	if !mode.Valid() {
-		r.err = fmt.Errorf("unrecognized blend mode %q", mode)
+	if err := mode.Validate(); err != nil {
+		r.err = err
 		return
 	}
 	if alpha < 0.0 || alpha > 1.0 {
@@ -3842,7 +3849,7 @@ func (r *Renderer) Output(w io.Writer) error {
 func (r *Renderer) standardPageSize(pageSize PageSize) Size {
 	pt, ok := pageSize.Size()
 	if !ok {
-		r.err = fmt.Errorf("unknown page size %s", pageSize)
+		r.err = pageSize.Validate()
 		return Size{}
 	}
 	return Size{pt.Wd / r.k, pt.Ht / r.k}
@@ -3865,8 +3872,8 @@ func (r *Renderer) beginpage(orientation Orientation, size Size) {
 	r.fontFamily = ""
 	// Check page size and orientation
 	orientation = cmp.Or(orientation, r.defOrientation)
-	if !orientation.Valid() {
-		r.err = fmt.Errorf("incorrect orientation: %s", orientation)
+	if err := orientation.Validate(); err != nil {
+		r.err = err
 		return
 	}
 	if orientation != r.curOrientation || size.Wd != r.curPageSize.Wd || size.Ht != r.curPageSize.Ht {
@@ -5222,15 +5229,18 @@ func (r *Renderer) putOutputIntents() {
 		return
 	}
 
+	// The subtype may be any ISO 32000 extension name, so it is escaped as a
+	// name, and the strings are escaped and, in a protected document,
+	// encrypted with the catalog's object number like every other string.
 	r.out("/OutputIntents [")
 	for index, oi := range r.outputIntents {
 		infoSegment := ""
 		if oi.Info != "" {
-			infoSegment = fmt.Sprintf("/Info (%s) ", oi.Info)
+			infoSegment = "/Info " + r.textstring(oi.Info) + " "
 		}
 		r.outf(
-			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier (%s) %s/DestOutputProfile %d 0 R >>`,
-			oi.SubtypeIdent, oi.OutputConditionIdentifier, infoSegment, r.outputIntentStartN+index,
+			`<< /Type /OutputIntent /S /%s /OutputConditionIdentifier %s %s/DestOutputProfile %d 0 R >>`,
+			escapeName(string(oi.SubtypeIdent)), r.textstring(oi.OutputConditionIdentifier), infoSegment, r.outputIntentStartN+index,
 		)
 	}
 	r.out("]")

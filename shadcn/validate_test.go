@@ -80,3 +80,32 @@ func TestValidateIDAcceptsEveryKeyedIDValue(t *testing.T) {
 		}
 	}
 }
+
+// TestComponentEnumFallbacks checks that components emit every valid value
+// and resolve unknown values to their documented default.
+func TestComponentEnumFallbacks(t *testing.T) {
+	for _, direction := range ResizeDirection("").Enums() {
+		out := render(t, ResizablePanelGroup(direction))
+		if !strings.Contains(out, `data-direction="`+string(direction)+`"`) {
+			t.Errorf("ResizablePanelGroup direction %q not emitted: %s", direction, out)
+		}
+	}
+	for _, direction := range []ResizeDirection{"", "bogus"} {
+		out := render(t, ResizablePanelGroup(direction))
+		if !strings.Contains(out, `data-direction="horizontal"`) {
+			t.Errorf("ResizablePanelGroup direction %q did not resolve to horizontal: %s", direction, out)
+		}
+	}
+	for _, size := range ButtonSize("").Enums() {
+		out := render(t, Button("", size, "x"))
+		if !strings.Contains(out, `data-size="`+string(size)+`"`) {
+			t.Errorf("Button size %q not emitted: %s", size, out)
+		}
+	}
+	for _, side := range []SheetSide{"", "bogus"} {
+		out := render(t, SheetContent("sheet", side))
+		if !strings.Contains(out, "right-0 left-auto") {
+			t.Errorf("SheetContent side %q did not resolve to right: %s", side, out)
+		}
+	}
+}

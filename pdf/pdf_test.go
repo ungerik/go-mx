@@ -92,8 +92,8 @@ func TestSaveRestoresState(t *testing.T) {
 	r.AddPage()
 	r.SetTextColor(0, 0, 0)
 	r.SetLineWidth(0.2)
-	r.SetLineCapStyle(string(CapButt))
-	r.SetLineJoinStyle(string(JoinMiter))
+	r.SetLineCapStyle(CapButt)
+	r.SetLineJoinStyle(JoinMiter)
 
 	comp := Save(
 		TextColor(Red),
@@ -113,10 +113,10 @@ func TestSaveRestoresState(t *testing.T) {
 	if w := r.GetLineWidth(); w != 0.2 {
 		t.Errorf("line width not restored: %v", w)
 	}
-	if cap := r.GetLineCapStyle(); cap != string(CapButt) {
+	if cap := r.GetLineCapStyle(); cap != CapButt {
 		t.Errorf("line cap not restored: %q", cap)
 	}
-	if join := r.GetLineJoinStyle(); join != string(JoinMiter) {
+	if join := r.GetLineJoinStyle(); join != JoinMiter {
 		t.Errorf("line join not restored: %q", join)
 	}
 	// GetFontFamily reports the family lower-cased, as fpdf stores it.

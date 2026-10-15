@@ -96,6 +96,14 @@ func (a Availability) Validate() error {
 	return nil
 }
 
+// ValidOr returns a if it is any of the valid values for Availability, else defaultVal
+func (a Availability) ValidOr(defaultVal Availability) Availability {
+	if a.Valid() {
+		return a
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Availability
 func (Availability) Enums() []Availability {
 	return []Availability{

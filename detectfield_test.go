@@ -10,6 +10,12 @@ type colorEnum string
 
 func (colorEnum) EnumStrings() []string { return []string{"red", "green", "blue"} }
 
+// paramEnums has an Enums method with a parameter, which the option
+// collector could not call, so it is not an enum.
+type paramEnums string
+
+func (paramEnums) Enums(int) []paramEnums { return nil }
+
 type hintedField string
 
 func (hintedField) FormWidget() string { return "email" }
@@ -21,6 +27,7 @@ type detectStruct struct {
 	When      time.Time
 	Pointer   *string
 	Color     colorEnum
+	NotEnum   paramEnums
 	Email     hintedField
 	Features  map[colorEnum]struct{}
 	Tags      []string
@@ -64,6 +71,7 @@ func TestDetectField_BasicKinds(t *testing.T) {
 		{"When", FieldKindDateTime},
 		{"Pointer", FieldKindString},
 		{"Color", FieldKindEnum},
+		{"NotEnum", FieldKindString},
 		{"Email", FieldKindString}, // hinted as email → still string kind
 		{"Features", FieldKindEnumSet},
 		{"Tags", FieldKindTextarea},

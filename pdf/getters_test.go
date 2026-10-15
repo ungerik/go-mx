@@ -396,23 +396,35 @@ func TestGetLang(t *testing.T) {
 
 func TestGetLineCapStyle(t *testing.T) {
 	pdf := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
-	pdf.SetLineCapStyle("round")
+	pdf.SetLineCapStyle(CapRound)
 
 	lineCapStyle := pdf.GetLineCapStyle()
 
-	if got, want := lineCapStyle, "round"; got != want {
+	if got, want := lineCapStyle, CapRound; got != want {
 		t.Errorf("invalid lineCapStyle: got=%v, want=%v", got, want)
+	}
+
+	// An invalid style is the renderer error, not a silent butt cap.
+	pdf.SetLineCapStyle("bogus")
+	if err := pdf.Error(); err == nil {
+		t.Error("SetLineCapStyle(\"bogus\") did not set the renderer error")
 	}
 }
 
 func TestGetLineJoinStyle(t *testing.T) {
 	pdf := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
-	pdf.SetLineJoinStyle("bevel")
+	pdf.SetLineJoinStyle(JoinBevel)
 
 	lineJoinStyle := pdf.GetLineJoinStyle()
 
-	if got, want := lineJoinStyle, "bevel"; got != want {
+	if got, want := lineJoinStyle, JoinBevel; got != want {
 		t.Errorf("invalid lineJoinStyle: got=%v, want=%v", got, want)
+	}
+
+	// An invalid style is the renderer error, not a silent miter join.
+	pdf.SetLineJoinStyle("bogus")
+	if err := pdf.Error(); err == nil {
+		t.Error("SetLineJoinStyle(\"bogus\") did not set the renderer error")
 	}
 }
 

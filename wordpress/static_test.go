@@ -86,3 +86,23 @@ func TestWriteStaticTraversalContained(t *testing.T) {
 		return nil
 	})
 }
+
+// TestWriteStaticRejectsUnknownPermalinks checks that a misspelled permalink
+// style, like the CLI's -permalinks=date, fails with the generated Validate
+// error before anything is written, instead of silently using slug URLs.
+func TestWriteStaticRejectsUnknownPermalinks(t *testing.T) {
+	site := &Site{WXRVersion: "1.2", Title: "Site"}
+	dir := filepath.Join(t.TempDir(), "out")
+	_, err := WriteStatic(site, dir, Options{Permalinks: "date"})
+	if err == nil || !strings.Contains(err.Error(), "wordpress.PermalinkStyle") {
+		t.Fatalf("WriteStatic error = %v, want the PermalinkStyle Validate error", err)
+	}
+	if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
+		t.Errorf("WriteStatic created %s despite the invalid options", dir)
+	}
+	for _, style := range PermalinkStyle("").Enums() {
+		if _, err := WriteStatic(site, t.TempDir(), Options{Permalinks: style}); err != nil {
+			t.Errorf("WriteStatic with %q: %v", style, err)
+		}
+	}
+}

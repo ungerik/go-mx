@@ -15,12 +15,18 @@ import (
 // the import [Report] (counts plus the content diagnostics gathered while
 // rendering). It also writes import-report.json and import-report.html next to
 // the site. Every output path is containment-checked, so a hostile slug can
-// never write outside dir.
+// never write outside dir. An unknown [Options.Permalinks] style is an error
+// rather than a silent fallback to slug permalinks.
 //
 // The output uses root-absolute links, so serve it from a web root (e.g.
 // `python3 -m http.server` inside dir); set [Options.BasePath] to host it under a
 // URL sub-path.
 func WriteStatic(site *Site, dir string, opt Options) (*Report, error) {
+	if opt.Permalinks != "" {
+		if err := opt.Permalinks.Validate(); err != nil {
+			return nil, errs.Errorf("options: %w", err)
+		}
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, errs.Errorf("creating output directory %q: %w", dir, err)
 	}

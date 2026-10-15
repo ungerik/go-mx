@@ -30,9 +30,15 @@ func main() {
 	serve := flag.String("serve", "", "after writing, serve -out on this address, e.g. :8080")
 	base := flag.String("base", "", "URL sub-path to host the site under, e.g. /blog")
 	title := flag.String("title", "", "override the site title")
-	permalinks := flag.String("permalinks", "slug", "permalink style: slug | dated | id")
+	permalinks := flag.String("permalinks", string(wordpress.PermalinkSlug),
+		"permalink style: "+strings.Join(wordpress.PermalinkSlug.EnumStrings(), " | "))
 	status := flag.String("status", "publish", "comma-separated post statuses to include")
 	flag.Parse()
+
+	permalinkStyle := wordpress.PermalinkStyle(*permalinks)
+	if err := permalinkStyle.Validate(); err != nil {
+		log.Fatalf("-permalinks: %v", err)
+	}
 
 	files := flag.Args()
 	if *in != "" {
@@ -49,7 +55,7 @@ func main() {
 
 	opt := wordpress.Options{
 		SiteTitle:  *title,
-		Permalinks: wordpress.PermalinkStyle(*permalinks),
+		Permalinks: permalinkStyle,
 		BasePath:   *base,
 		Statuses:   parseStatuses(*status),
 	}

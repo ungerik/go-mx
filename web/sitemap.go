@@ -92,6 +92,14 @@ func (c ChangeFreq) Validate() error {
 	return nil
 }
 
+// ValidOr returns c if it is any of the valid values for ChangeFreq, else defaultVal
+func (c ChangeFreq) ValidOr(defaultVal ChangeFreq) ChangeFreq {
+	if c.Valid() {
+		return c
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ChangeFreq
 func (ChangeFreq) Enums() []ChangeFreq {
 	return []ChangeFreq{

@@ -1,3 +1,5 @@
+//go:generate go -C ../tools tool go-enum ../logview/$GOFILE
+
 package logview
 
 import (
@@ -12,7 +14,7 @@ import (
 // Class is the kind of a styled span in a rendered log line. The markup a
 // [Config] produces carries only these classes, so the same markup can be
 // styled by any [Theme] that uses the same prefix.
-type Class string
+type Class string //#enum
 
 const (
 	// ClassView is the root element of a [Config.View].
@@ -68,6 +70,114 @@ const (
 	// background-color and text-decoration, so bold and italic are ignored here.
 	ClassMatch Class = "match"
 )
+
+// Valid indicates if c is any of the valid values for Class
+func (c Class) Valid() bool {
+	switch c {
+	case
+		ClassView,
+		ClassToolbar,
+		ClassFilter,
+		ClassPause,
+		ClassStatus,
+		ClassBadge,
+		ClassLines,
+		ClassError,
+		ClassLine,
+		ClassTime,
+		ClassLevel,
+		ClassLevelImage,
+		ClassMessage,
+		ClassKey,
+		ClassString,
+		ClassNumber,
+		ClassBool,
+		ClassNull,
+		ClassPunct,
+		ClassText,
+		ClassMultiline,
+		ClassMatch:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if c is none of the valid values for Class
+func (c Class) Validate() error {
+	if !c.Valid() {
+		return fmt.Errorf("invalid value %#v for type logview.Class", c)
+	}
+	return nil
+}
+
+// ValidOr returns c if it is any of the valid values for Class, else defaultVal
+func (c Class) ValidOr(defaultVal Class) Class {
+	if c.Valid() {
+		return c
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for Class
+func (Class) Enums() []Class {
+	return []Class{
+		ClassView,
+		ClassToolbar,
+		ClassFilter,
+		ClassPause,
+		ClassStatus,
+		ClassBadge,
+		ClassLines,
+		ClassError,
+		ClassLine,
+		ClassTime,
+		ClassLevel,
+		ClassLevelImage,
+		ClassMessage,
+		ClassKey,
+		ClassString,
+		ClassNumber,
+		ClassBool,
+		ClassNull,
+		ClassPunct,
+		ClassText,
+		ClassMultiline,
+		ClassMatch,
+	}
+}
+
+// EnumStrings returns all valid values for Class as strings
+func (Class) EnumStrings() []string {
+	return []string{
+		"view",
+		"toolbar",
+		"filter",
+		"pause",
+		"status",
+		"badge",
+		"lines",
+		"error",
+		"line",
+		"time",
+		"level",
+		"level-image",
+		"message",
+		"key",
+		"string",
+		"number",
+		"bool",
+		"null",
+		"punct",
+		"text",
+		"multiline",
+		"match",
+	}
+}
+
+// String implements the fmt.Stringer interface for Class
+func (c Class) String() string {
+	return string(c)
+}
 
 // LevelUndefined is the level modifier class used for every level value the
 // [Theme] does not define, so an unknown value can never reach a class
@@ -137,6 +247,8 @@ type Theme struct {
 
 	// Styles maps a [Class] to its appearance. A class missing from the map is
 	// rendered unstyled, which is why the markup never depends on the theme.
+	// A key that is none of the Class values is ignored, because no markup
+	// carries it.
 	Styles map[Class]Style
 
 	// Levels maps a lowercased log level value to its appearance. It is also
@@ -360,7 +472,7 @@ func (t Theme) CSS(prefix string) string {
 
 	classes := make([]string, 0, len(t.Styles))
 	for class := range t.Styles {
-		if Class(class) == ClassMatch {
+		if class == ClassMatch || !class.Valid() {
 			continue
 		}
 		classes = append(classes, string(class))

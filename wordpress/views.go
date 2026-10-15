@@ -181,7 +181,7 @@ func (v *Views) FeaturedImage(id int64) mx.Component {
 		alt = a.Title
 	}
 	return html.ImgSrc(a.URL, html.Alt(alt), html.Class("w-full rounded-lg"),
-		html.Attrib("loading", "lazy"), html.Attrib("onerror", "this.style.display='none'"))
+		html.LoadingLazy, html.Attrib("onerror", "this.style.display='none'"))
 }
 
 // Body renders post/page content through the safe content pipeline.

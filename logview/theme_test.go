@@ -179,6 +179,25 @@ func TestStyleDecls(t *testing.T) {
 	}
 }
 
+func TestThemeCSSSkipsUnknownClassKeys(t *testing.T) {
+	// Only a Class value can be carried by the markup, so a style keyed by
+	// anything else, a typo or a selector, never reaches the stylesheet.
+	theme := Theme{Styles: map[Class]Style{
+		ClassKey:         {Color: "#fff"},
+		"strng":          {Color: "#fff"},
+		"x { } body { y": {Color: "#fff"},
+	}}
+	css := theme.CSS("")
+	if !strings.Contains(css, ".log-key {") {
+		t.Errorf("the style of a Class value was dropped:\n%s", css)
+	}
+	for _, unwanted := range []string{"strng", "body"} {
+		if strings.Contains(css, unwanted) {
+			t.Errorf("unknown class key %q reached the stylesheet:\n%s", unwanted, css)
+		}
+	}
+}
+
 func TestThemeCSSSkipsIllegalLevelKeys(t *testing.T) {
 	// A theme key is a class token. Accepting one with a space would reopen the
 	// hole that keeping level values out of the class attribute closes.

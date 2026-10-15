@@ -57,6 +57,14 @@ func (v FillRule) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for FillRule, else defaultVal
+func (v FillRule) ValidOr(defaultVal FillRule) FillRule {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FillRule
 func (FillRule) Enums() []FillRule {
 	return []FillRule{
@@ -112,6 +120,14 @@ func (v ClipRule) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.ClipRule", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for ClipRule, else defaultVal
+func (v ClipRule) ValidOr(defaultVal ClipRule) ClipRule {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ClipRule
@@ -172,6 +188,14 @@ func (v StrokeLineCap) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.StrokeLineCap", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for StrokeLineCap, else defaultVal
+func (v StrokeLineCap) ValidOr(defaultVal StrokeLineCap) StrokeLineCap {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for StrokeLineCap
@@ -242,6 +266,14 @@ func (v StrokeLineJoin) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for StrokeLineJoin, else defaultVal
+func (v StrokeLineJoin) ValidOr(defaultVal StrokeLineJoin) StrokeLineJoin {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for StrokeLineJoin
 func (StrokeLineJoin) Enums() []StrokeLineJoin {
 	return []StrokeLineJoin{
@@ -310,6 +342,14 @@ func (v Visibility) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Visibility, else defaultVal
+func (v Visibility) ValidOr(defaultVal Visibility) Visibility {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Visibility
 func (Visibility) Enums() []Visibility {
 	return []Visibility{
@@ -373,6 +413,14 @@ func (v Overflow) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.Overflow", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Overflow, else defaultVal
+func (v Overflow) ValidOr(defaultVal Overflow) Overflow {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Overflow
@@ -460,6 +508,14 @@ func (v PointerEvents) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for PointerEvents, else defaultVal
+func (v PointerEvents) ValidOr(defaultVal PointerEvents) PointerEvents {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for PointerEvents
 func (PointerEvents) Enums() []PointerEvents {
 	return []PointerEvents{
@@ -539,6 +595,14 @@ func (v ShapeRendering) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for ShapeRendering, else defaultVal
+func (v ShapeRendering) ValidOr(defaultVal ShapeRendering) ShapeRendering {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ShapeRendering
 func (ShapeRendering) Enums() []ShapeRendering {
 	return []ShapeRendering{
@@ -609,6 +673,14 @@ func (v VectorEffect) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for VectorEffect, else defaultVal
+func (v VectorEffect) ValidOr(defaultVal VectorEffect) VectorEffect {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for VectorEffect
 func (VectorEffect) Enums() []VectorEffect {
 	return []VectorEffect{
@@ -672,6 +744,14 @@ func (v Isolation) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Isolation, else defaultVal
+func (v Isolation) ValidOr(defaultVal Isolation) Isolation {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Isolation
 func (Isolation) Enums() []Isolation {
 	return []Isolation{
@@ -730,6 +810,14 @@ func (v ColorInterpolation) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.ColorInterpolation", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for ColorInterpolation, else defaultVal
+func (v ColorInterpolation) ValidOr(defaultVal ColorInterpolation) ColorInterpolation {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ColorInterpolation
@@ -795,6 +883,14 @@ func (v ColorInterpolationFilters) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.ColorInterpolationFilters", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for ColorInterpolationFilters, else defaultVal
+func (v ColorInterpolationFilters) ValidOr(defaultVal ColorInterpolationFilters) ColorInterpolationFilters {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ColorInterpolationFilters
@@ -900,6 +996,14 @@ func (v MixBlendMode) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.MixBlendMode", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for MixBlendMode, else defaultVal
+func (v MixBlendMode) ValidOr(defaultVal MixBlendMode) MixBlendMode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for MixBlendMode
@@ -1029,6 +1133,14 @@ func (v Mode) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Mode, else defaultVal
+func (v Mode) ValidOr(defaultVal Mode) Mode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Mode
 func (Mode) Enums() []Mode {
 	return []Mode{
@@ -1119,6 +1231,14 @@ func (v FontStyle) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for FontStyle, else defaultVal
+func (v FontStyle) ValidOr(defaultVal FontStyle) FontStyle {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FontStyle
 func (FontStyle) Enums() []FontStyle {
 	return []FontStyle{
@@ -1179,6 +1299,14 @@ func (v TextAnchor) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.TextAnchor", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for TextAnchor, else defaultVal
+func (v TextAnchor) ValidOr(defaultVal TextAnchor) TextAnchor {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for TextAnchor
@@ -1259,6 +1387,14 @@ func (v DominantBaseline) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.DominantBaseline", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for DominantBaseline, else defaultVal
+func (v DominantBaseline) ValidOr(defaultVal DominantBaseline) DominantBaseline {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for DominantBaseline
@@ -1352,6 +1488,14 @@ func (v AlignmentBaseline) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for AlignmentBaseline, else defaultVal
+func (v AlignmentBaseline) ValidOr(defaultVal AlignmentBaseline) AlignmentBaseline {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AlignmentBaseline
 func (AlignmentBaseline) Enums() []AlignmentBaseline {
 	return []AlignmentBaseline{
@@ -1426,6 +1570,14 @@ func (v WritingMode) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for WritingMode, else defaultVal
+func (v WritingMode) ValidOr(defaultVal WritingMode) WritingMode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for WritingMode
 func (WritingMode) Enums() []WritingMode {
 	return []WritingMode{
@@ -1485,6 +1637,14 @@ func (v Direction) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Direction, else defaultVal
+func (v Direction) ValidOr(defaultVal Direction) Direction {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Direction
 func (Direction) Enums() []Direction {
 	return []Direction{
@@ -1540,6 +1700,14 @@ func (v LengthAdjust) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.LengthAdjust", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for LengthAdjust, else defaultVal
+func (v LengthAdjust) ValidOr(defaultVal LengthAdjust) LengthAdjust {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for LengthAdjust
@@ -1599,6 +1767,14 @@ func (v Method) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Method, else defaultVal
+func (v Method) ValidOr(defaultVal Method) Method {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Method
 func (Method) Enums() []Method {
 	return []Method{
@@ -1656,6 +1832,14 @@ func (v Spacing) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Spacing, else defaultVal
+func (v Spacing) ValidOr(defaultVal Spacing) Spacing {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Spacing
 func (Spacing) Enums() []Spacing {
 	return []Spacing{
@@ -1711,6 +1895,14 @@ func (v Side) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.Side", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Side, else defaultVal
+func (v Side) ValidOr(defaultVal Side) Side {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Side
@@ -1772,6 +1964,14 @@ func (v GradientUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for GradientUnits, else defaultVal
+func (v GradientUnits) ValidOr(defaultVal GradientUnits) GradientUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for GradientUnits
 func (GradientUnits) Enums() []GradientUnits {
 	return []GradientUnits{
@@ -1829,6 +2029,14 @@ func (v PatternUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for PatternUnits, else defaultVal
+func (v PatternUnits) ValidOr(defaultVal PatternUnits) PatternUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for PatternUnits
 func (PatternUnits) Enums() []PatternUnits {
 	return []PatternUnits{
@@ -1884,6 +2092,14 @@ func (v PatternContentUnits) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.PatternContentUnits", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for PatternContentUnits, else defaultVal
+func (v PatternContentUnits) ValidOr(defaultVal PatternContentUnits) PatternContentUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for PatternContentUnits
@@ -1945,6 +2161,14 @@ func (v ClipPathUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for ClipPathUnits, else defaultVal
+func (v ClipPathUnits) ValidOr(defaultVal ClipPathUnits) ClipPathUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ClipPathUnits
 func (ClipPathUnits) Enums() []ClipPathUnits {
 	return []ClipPathUnits{
@@ -2002,6 +2226,14 @@ func (v MaskUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for MaskUnits, else defaultVal
+func (v MaskUnits) ValidOr(defaultVal MaskUnits) MaskUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for MaskUnits
 func (MaskUnits) Enums() []MaskUnits {
 	return []MaskUnits{
@@ -2057,6 +2289,14 @@ func (v MaskContentUnits) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.MaskContentUnits", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for MaskContentUnits, else defaultVal
+func (v MaskContentUnits) ValidOr(defaultVal MaskContentUnits) MaskContentUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for MaskContentUnits
@@ -2118,6 +2358,14 @@ func (v FilterUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for FilterUnits, else defaultVal
+func (v FilterUnits) ValidOr(defaultVal FilterUnits) FilterUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FilterUnits
 func (FilterUnits) Enums() []FilterUnits {
 	return []FilterUnits{
@@ -2175,6 +2423,14 @@ func (v PrimitiveUnits) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for PrimitiveUnits, else defaultVal
+func (v PrimitiveUnits) ValidOr(defaultVal PrimitiveUnits) PrimitiveUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for PrimitiveUnits
 func (PrimitiveUnits) Enums() []PrimitiveUnits {
 	return []PrimitiveUnits{
@@ -2230,6 +2486,14 @@ func (v MarkerUnits) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.MarkerUnits", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for MarkerUnits, else defaultVal
+func (v MarkerUnits) ValidOr(defaultVal MarkerUnits) MarkerUnits {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for MarkerUnits
@@ -2294,6 +2558,14 @@ func (v SpreadMethod) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for SpreadMethod, else defaultVal
+func (v SpreadMethod) ValidOr(defaultVal SpreadMethod) SpreadMethod {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for SpreadMethod
 func (SpreadMethod) Enums() []SpreadMethod {
 	return []SpreadMethod{
@@ -2356,6 +2628,14 @@ func (v EdgeMode) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for EdgeMode, else defaultVal
+func (v EdgeMode) ValidOr(defaultVal EdgeMode) EdgeMode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for EdgeMode
 func (EdgeMode) Enums() []EdgeMode {
 	return []EdgeMode{
@@ -2413,6 +2693,14 @@ func (v StitchTiles) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.StitchTiles", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for StitchTiles, else defaultVal
+func (v StitchTiles) ValidOr(defaultVal StitchTiles) StitchTiles {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for StitchTiles
@@ -2476,6 +2764,14 @@ func (v XChannelSelector) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.XChannelSelector", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for XChannelSelector, else defaultVal
+func (v XChannelSelector) ValidOr(defaultVal XChannelSelector) XChannelSelector {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for XChannelSelector
@@ -2547,6 +2843,14 @@ func (v YChannelSelector) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for YChannelSelector, else defaultVal
+func (v YChannelSelector) ValidOr(defaultVal YChannelSelector) YChannelSelector {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for YChannelSelector
 func (YChannelSelector) Enums() []YChannelSelector {
 	return []YChannelSelector{
@@ -2615,6 +2919,14 @@ func (v AttributeType) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for AttributeType, else defaultVal
+func (v AttributeType) ValidOr(defaultVal AttributeType) AttributeType {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AttributeType
 func (AttributeType) Enums() []AttributeType {
 	return []AttributeType{
@@ -2680,6 +2992,14 @@ func (v CalcMode) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for CalcMode, else defaultVal
+func (v CalcMode) ValidOr(defaultVal CalcMode) CalcMode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for CalcMode
 func (CalcMode) Enums() []CalcMode {
 	return []CalcMode{
@@ -2741,6 +3061,14 @@ func (v Additive) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Additive, else defaultVal
+func (v Additive) ValidOr(defaultVal Additive) Additive {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Additive
 func (Additive) Enums() []Additive {
 	return []Additive{
@@ -2796,6 +3124,14 @@ func (v Accumulate) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.Accumulate", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Accumulate, else defaultVal
+func (v Accumulate) ValidOr(defaultVal Accumulate) Accumulate {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Accumulate
@@ -2856,6 +3192,14 @@ func (v Restart) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.Restart", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Restart, else defaultVal
+func (v Restart) ValidOr(defaultVal Restart) Restart {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Restart
@@ -2919,6 +3263,14 @@ func (v CrossOrigin) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for CrossOrigin, else defaultVal
+func (v CrossOrigin) ValidOr(defaultVal CrossOrigin) CrossOrigin {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for CrossOrigin
 func (CrossOrigin) Enums() []CrossOrigin {
 	return []CrossOrigin{
@@ -2974,6 +3326,14 @@ func (v ZoomAndPan) Validate() error {
 		return fmt.Errorf("invalid value %#v for type svg.ZoomAndPan", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for ZoomAndPan, else defaultVal
+func (v ZoomAndPan) ValidOr(defaultVal ZoomAndPan) ZoomAndPan {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ZoomAndPan

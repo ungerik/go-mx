@@ -67,6 +67,14 @@ func (v AutoCapitalize) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for AutoCapitalize, else defaultVal
+func (v AutoCapitalize) ValidOr(defaultVal AutoCapitalize) AutoCapitalize {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AutoCapitalize
 func (AutoCapitalize) Enums() []AutoCapitalize {
 	return []AutoCapitalize{
@@ -132,6 +140,14 @@ func (v AutoCorrect) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for AutoCorrect, else defaultVal
+func (v AutoCorrect) ValidOr(defaultVal AutoCorrect) AutoCorrect {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for AutoCorrect
 func (AutoCorrect) Enums() []AutoCorrect {
 	return []AutoCorrect{
@@ -190,6 +206,14 @@ func (v ContentEditable) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.ContentEditable", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for ContentEditable, else defaultVal
+func (v ContentEditable) ValidOr(defaultVal ContentEditable) ContentEditable {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for ContentEditable
@@ -251,6 +275,14 @@ func (v CrossOrigin) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for CrossOrigin, else defaultVal
+func (v CrossOrigin) ValidOr(defaultVal CrossOrigin) CrossOrigin {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for CrossOrigin
 func (CrossOrigin) Enums() []CrossOrigin {
 	return []CrossOrigin{
@@ -309,6 +341,14 @@ func (v Decoding) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.Decoding", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Decoding, else defaultVal
+func (v Decoding) ValidOr(defaultVal Decoding) Decoding {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Decoding
@@ -373,6 +413,14 @@ func (v Dir) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Dir, else defaultVal
+func (v Dir) ValidOr(defaultVal Dir) Dir {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Dir
 func (Dir) Enums() []Dir {
 	return []Dir{
@@ -433,6 +481,14 @@ func (v EncType) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.EncType", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for EncType, else defaultVal
+func (v EncType) ValidOr(defaultVal EncType) EncType {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for EncType
@@ -509,6 +565,14 @@ func (v EnterKeyHint) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for EnterKeyHint, else defaultVal
+func (v EnterKeyHint) ValidOr(defaultVal EnterKeyHint) EnterKeyHint {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for EnterKeyHint
 func (EnterKeyHint) Enums() []EnterKeyHint {
 	return []EnterKeyHint{
@@ -579,6 +643,14 @@ func (v FetchPriority) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for FetchPriority, else defaultVal
+func (v FetchPriority) ValidOr(defaultVal FetchPriority) FetchPriority {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FetchPriority
 func (FetchPriority) Enums() []FetchPriority {
 	return []FetchPriority{
@@ -641,6 +713,14 @@ func (v FormEncType) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for FormEncType, else defaultVal
+func (v FormEncType) ValidOr(defaultVal FormEncType) FormEncType {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for FormEncType
 func (FormEncType) Enums() []FormEncType {
 	return []FormEncType{
@@ -701,6 +781,14 @@ func (v FormMethod) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.FormMethod", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for FormMethod, else defaultVal
+func (v FormMethod) ValidOr(defaultVal FormMethod) FormMethod {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for FormMethod
@@ -769,6 +857,14 @@ func (v HTTPEquiv) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.HTTPEquiv", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for HTTPEquiv, else defaultVal
+func (v HTTPEquiv) ValidOr(defaultVal HTTPEquiv) HTTPEquiv {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for HTTPEquiv
@@ -852,6 +948,14 @@ func (v InputMode) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for InputMode, else defaultVal
+func (v InputMode) ValidOr(defaultVal InputMode) InputMode {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for InputMode
 func (InputMode) Enums() []InputMode {
 	return []InputMode{
@@ -930,6 +1034,14 @@ func (v Kind) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Kind, else defaultVal
+func (v Kind) ValidOr(defaultVal Kind) Kind {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Kind
 func (Kind) Enums() []Kind {
 	return []Kind{
@@ -993,6 +1105,14 @@ func (v Loading) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Loading, else defaultVal
+func (v Loading) ValidOr(defaultVal Loading) Loading {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Loading
 func (Loading) Enums() []Loading {
 	return []Loading{
@@ -1051,6 +1171,14 @@ func (v Method) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.Method", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Method, else defaultVal
+func (v Method) ValidOr(defaultVal Method) Method {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Method
@@ -1130,6 +1258,14 @@ func (v ReferrerPolicy) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for ReferrerPolicy, else defaultVal
+func (v ReferrerPolicy) ValidOr(defaultVal ReferrerPolicy) ReferrerPolicy {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for ReferrerPolicy
 func (ReferrerPolicy) Enums() []ReferrerPolicy {
 	return []ReferrerPolicy{
@@ -1203,6 +1339,14 @@ func (v Shape) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.Shape", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Shape, else defaultVal
+func (v Shape) ValidOr(defaultVal Shape) Shape {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Shape
@@ -1296,6 +1440,14 @@ func (v As) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for As, else defaultVal
+func (v As) ValidOr(defaultVal As) As {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for As
 func (As) Enums() []As {
 	return []As{
@@ -1373,6 +1525,14 @@ func (v Capture) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Capture, else defaultVal
+func (v Capture) ValidOr(defaultVal Capture) Capture {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Capture
 func (Capture) Enums() []Capture {
 	return []Capture{
@@ -1431,6 +1591,14 @@ func (v Preload) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.Preload", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Preload, else defaultVal
+func (v Preload) ValidOr(defaultVal Preload) Preload {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Preload
@@ -1498,6 +1666,14 @@ func (v Scope) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Scope, else defaultVal
+func (v Scope) ValidOr(defaultVal Scope) Scope {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Scope
 func (Scope) Enums() []Scope {
 	return []Scope{
@@ -1559,6 +1735,14 @@ func (v SpellCheck) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for SpellCheck, else defaultVal
+func (v SpellCheck) ValidOr(defaultVal SpellCheck) SpellCheck {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for SpellCheck
 func (SpellCheck) Enums() []SpellCheck {
 	return []SpellCheck{
@@ -1616,6 +1800,14 @@ func (v Translate) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Translate, else defaultVal
+func (v Translate) ValidOr(defaultVal Translate) Translate {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Translate
 func (Translate) Enums() []Translate {
 	return []Translate{
@@ -1671,6 +1863,14 @@ func (v Wrap) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.Wrap", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for Wrap, else defaultVal
+func (v Wrap) ValidOr(defaultVal Wrap) Wrap {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for Wrap
@@ -1733,6 +1933,14 @@ func (v Popover) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for Popover, else defaultVal
+func (v Popover) ValidOr(defaultVal Popover) Popover {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for Popover
 func (Popover) Enums() []Popover {
 	return []Popover{
@@ -1793,6 +2001,14 @@ func (v PopoverTargetAction) Validate() error {
 		return fmt.Errorf("invalid value %#v for type html.PopoverTargetAction", v)
 	}
 	return nil
+}
+
+// ValidOr returns v if it is any of the valid values for PopoverTargetAction, else defaultVal
+func (v PopoverTargetAction) ValidOr(defaultVal PopoverTargetAction) PopoverTargetAction {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
 }
 
 // Enums returns all valid values for PopoverTargetAction

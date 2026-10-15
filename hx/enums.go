@@ -80,6 +80,14 @@ func (v SwapStyle) Validate() error {
 	return nil
 }
 
+// ValidOr returns v if it is any of the valid values for SwapStyle, else defaultVal
+func (v SwapStyle) ValidOr(defaultVal SwapStyle) SwapStyle {
+	if v.Valid() {
+		return v
+	}
+	return defaultVal
+}
+
 // Enums returns all valid values for SwapStyle
 func (SwapStyle) Enums() []SwapStyle {
 	return []SwapStyle{
