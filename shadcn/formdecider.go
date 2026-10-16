@@ -499,6 +499,13 @@ func displayValue(v reflect.Value) string {
 			}
 		}
 	}
+	if x.CanAddr() {
+		if tm, ok := x.Addr().Interface().(encoding.TextMarshaler); ok {
+			if b, err := tm.MarshalText(); err == nil {
+				return string(b)
+			}
+		}
+	}
 	switch x.Kind() {
 	case reflect.String:
 		return x.String()

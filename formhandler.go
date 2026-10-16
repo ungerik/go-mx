@@ -291,6 +291,12 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 				errors.New("required"))
 			continue
 		}
+		// A blank optional enum is "no choice", not an invalid constant.
+		// go-enum Validate rejects the zero string, which would make the
+		// leading "(none)" option impossible to save.
+		if visit.Kind == FieldKindEnum && isEffectivelyEmpty(visit.Value) {
+			continue
+		}
 		// Built-in validation chain. The elements of an enum set carry
 		// the enum's Validate, not the map or slice holding them, so a
 		// set is validated element by element unless it validates itself.

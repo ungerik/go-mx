@@ -247,25 +247,30 @@ and rejects submitted values outside it as a normal field validation error,
 so a tenant-scoped dropdown cannot be bypassed by posting another tenant's
 ID directly. On render, a select whose current value is no longer in that
 list shows a generic disabled placeholder (the filtered-out value is not
-echoed). Because the placeholder is disabled, an unchanged submit sends no
+echoed). A sensitive field uses that same generic placeholder: the value
+stays out of the markup, and an unchanged submit does not fall through to
+the first listed option. Because the placeholder is disabled, an unchanged submit sends no
 value for the field: required fields fail validation until a value is picked
 from the list, while non-required fields are cleared.
 
-A select with no current value gets a leading empty option, so the browser
-does not submit the first real option. Required fields use a disabled
-"Choose…" option, which also makes the `required` attribute fire; optional
-fields use a selectable "(none)". An optional select that already has a
-listed value keeps "(none)", so the choice can be cleared. A
+When the option list has no empty value, a select with no current value
+gets a leading empty option so the browser does not submit the first real
+option. Required fields use a disabled "Choose…" option, which also makes
+the `required` attribute fire; optional fields use a selectable "(none)".
+An optional select that already has a listed value also gets "(none)"
+when the list has no empty value, so the choice can be cleared. A
 context-dependent list that comes back empty is a render error when the
 field has a current value or is required — an empty lookup would otherwise
 leave a form that cannot be submitted, or that clears the stored value on
 save. An optional field with no current value still renders.
 
 An enum-set checkbox group renders only the options in the current list.
-Members already stored but absent from that list are not shown and not
-echoed; saving the form keeps them, and unchecking a visible box still
-removes that member. A static enum list is the whole domain, so parse
-replaces the set from the submission.
+Members already stored but absent from a context-dependent list are not
+shown and not echoed; saving the form keeps them, and unchecking a visible
+box still removes that member. An empty context-dependent list is a render
+error when the set already has members or the field is required. A static
+enum list is the whole domain, so parse replaces the set from the
+submission.
 
 The rendered `<form>` carries an explicit `action` attribute. By default it
 self-submits: the action is the request URI that served the form (path+query),

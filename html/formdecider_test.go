@@ -474,8 +474,8 @@ func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
 	if strings.Contains(out, "secret-123") {
 		t.Errorf("sensitive value leaked into placeholder: %q", out)
 	}
-	if strings.Contains(out, "disabled") {
-		t.Errorf("sensitive field must not render a placeholder: %q", out)
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+		t.Errorf("sensitive out-of-list value must use the generic placeholder so the first option is not submitted: %q", out)
 	}
 }
 

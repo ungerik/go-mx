@@ -50,10 +50,11 @@ const (
 // answer from a provider is a legitimate "nothing to offer" for that case,
 // while a provider that failed returns its own error from [CollectOptions].
 //
-// A non-empty context-dependent list that does not contain the current
-// value yields [OptionPrefaceUnavailable], except on a sensitive field,
-// which renders no preface so the markup does not reveal that a value
-// exists. Static lists stay lenient: an out-of-list value selects nothing.
+// A stored value the list does not offer yields [OptionPrefaceUnavailable]
+// for a context-dependent list and for a required field, including a
+// sensitive one. The placeholder is generic and does not echo the value,
+// and it is selected so the browser does not submit the first real option.
+// An optional static list stays lenient and offers [OptionPrefaceClear].
 //
 // When the list has no empty-valued option, a select with no current value
 // yields [OptionPrefaceChoose] (required) or [OptionPrefaceEmpty]
@@ -65,7 +66,11 @@ func SelectPreface(selected string, tag FormTag, contextList bool, options []Nam
 	if contextList && len(options) == 0 && (selected != "" || tag.Required) {
 		return OptionPrefaceNone, errs.New("option list is empty")
 	}
-	if contextList && selected != "" && !inList && !tag.Sensitive {
+	// A select with no selected option submits its first option. Any stored
+	// value the list does not offer, including a sensitive one, gets the
+	// generic disabled placeholder so that submit does not invent a choice.
+	// The placeholder does not echo the value.
+	if selected != "" && !inList && (contextList || tag.Required) {
 		return OptionPrefaceUnavailable, nil
 	}
 	if hasEmpty {
