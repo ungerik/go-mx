@@ -351,6 +351,8 @@ API is still free to change.
 
 ### Fixed
 
+- **Reflected selects and enum-sets no longer invent a value when the option list and the stored value disagree.** A required select with no current value leads with a disabled "Choose…" option, and an optional one with "(none)", so the browser does not submit the first real option. A stored value the list does not offer, including a sensitive one, uses that same generic placeholder. A context-dependent list that comes back empty still renders the form. An enum-set shows a note when stored members are absent from the list and does not keep those members on save; a submitted value outside the list is still rejected. A blank optional enum saves, and a decider `Validate` on that blank value still runs. A required select rejects an empty submission even when the zero value is not "empty" to reflection (a `[4]byte` id). Enum-set membership uses the same text form as the option list — `MarshalText`, otherwise `fmt.Sprint` — so a `Stringer` stays checked and a named string whose text form adds a prefix round-trips instead of growing that prefix on every save.
+
 - PDF output intent subtypes escape spaces, delimiters, and other special
   bytes as PDF names, preserving custom extension values without malformed markup.
   The `OutputConditionIdentifier` and `Info` strings of an output intent are

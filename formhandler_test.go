@@ -728,6 +728,72 @@ func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
 	})
 }
 
+type strictEnum string
+
+func (strictEnum) EnumStrings() []string { return []string{"a", "b"} }
+
+func (s strictEnum) Validate() error {
+	if s != "a" && s != "b" {
+		return errors.New("invalid")
+	}
+	return nil
+}
+
+func TestReflectFormHandler_OptionalEnumAllowsBlank(t *testing.T) {
+	type draft struct {
+		Color strictEnum
+	}
+	var saved strictEnum
+	handler := ReflectFormHandler(nil, func(_ context.Context, d *draft) error {
+		saved = d.Color
+		return nil
+	}, newTestDecider())
+	form := url.Values{}
+	form.Set(PresentSentinelName("Color"), "1")
+	form.Set("Color", "")
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("blank optional enum must save, status %d body %s", rec.Code, rec.Body.String())
+	}
+	if saved != "" {
+		t.Fatalf("saved %q, want blank", saved)
+	}
+}
+
+func TestReflectFormHandler_OptionalEnumBlankRunsDeciderValidate(t *testing.T) {
+	type draft struct {
+		Color strictEnum
+	}
+	base := newTestDecider()
+	decider := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		b := base(path, field, value)
+		b.Validate = func(FieldPath, reflect.StructField, reflect.Value) error {
+			return errors.New("custom check")
+		}
+		return b
+	}
+	handler := ReflectFormHandler(nil, func(context.Context, *draft) error {
+		t.Fatal("decider Validate must block the save")
+		return nil
+	}, decider)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Color"), "1")
+	form.Set("Color", "")
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "custom check") {
+		t.Fatalf("decider Validate error missing: %s", rec.Body.String())
+	}
+}
+
 func TestReflectFormHandlerRedirecting_NilOnSubmitPanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

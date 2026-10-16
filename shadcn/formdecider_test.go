@@ -2,6 +2,7 @@ package shadcn
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -313,8 +314,8 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 		t.Errorf("p1 must not be selected: %q", out)
 	}
 
-	// Mirror the html layer's negative case: an empty current value
-	// must not produce a placeholder.
+	// An empty current value is a different case: an optional select offers
+	// a selectable empty option so the first real option is not submitted.
 	s2 := &draftForm{}
 	v2 := reflect.ValueOf(s2).Elem()
 	comp2 := FieldDecider(mx.FieldPath("Partner"), f, v2.Field(0)).
@@ -323,8 +324,216 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	if err := comp2.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if strings.Contains(b.String(), `disabled="disabled"`) {
-		t.Errorf("empty current value must not produce a placeholder: %q", b.String())
+	if strings.Contains(b.String(), `disabled="disabled"`) || strings.Contains(b.String(), "not available") {
+		t.Errorf("empty current value must not use the out-of-list placeholder: %q", b.String())
+	}
+	if !strings.Contains(b.String(), `<option value="" selected="selected">(none)</option>`) {
+		t.Errorf("empty optional select must submit an empty option: %q", b.String())
+	}
+}
+
+func TestShadcn_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners,required"`
+	}
+	s := &draftForm{}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		t.Errorf("required empty select must lead with Choose…: %q", out)
+	}
+	if strings.Contains(out, `value="p1" selected`) {
+		t.Errorf("first real option must not be selected: %q", out)
+	}
+}
+
+func TestShadcn_SelectEmptyOptionListRenders(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners"`
+	}
+	s := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "gone") {
+		t.Errorf("stored value must not be echoed: %q", out)
+	}
+	if !strings.Contains(out, `(current value not available)`) {
+		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
+	}
+}
+
+func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"kept", "b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	comp := FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "kept") {
+		t.Errorf("unlisted member must not be echoed: %q", out)
+	}
+	if !strings.Contains(out, "(some current values are not available)") {
+		t.Errorf("missing members must be announced: %q", out)
+	}
+	if strings.Count(out, `data-slot="checkbox"`) != 2 {
+		t.Errorf("only listed options are checkboxes: %q", out)
+	}
+}
+
+// Value: protects=a static shadcn enum select leads with Choose… when required and empty, and with an unselected (none) when an optional value is listed; fails_when=optionChildren skips the preface on lists that do not need context, so the browser submits the first option or the value cannot be cleared; why_new=shadcn preface tests use registry lists only and TestShadcn_EnumUsesShadcnSelect does not assert the leading option; seam=none; no_claim=html static selects are covered in html/formdecider_test.go
+func TestShadcn_StaticSelectRendersPreface(t *testing.T) {
+	out := renderShadcn(t, &formSample{Color: "green"}, "Color", nil)
+	if !strings.Contains(out, `<option value="">(none)</option>`) {
+		t.Errorf("optional listed value must offer an unselected (none): %q", out)
+	}
+	if strings.Contains(out, `value="" selected`) {
+		t.Errorf("clear option must not be selected: %q", out)
+	}
+	if !strings.Contains(out, `value="green" selected`) {
+		t.Errorf("listed value must stay selected: %q", out)
+	}
+
+	type requiredColor struct {
+		Color colorEnum `form:"required"`
+	}
+	out = renderShadcn(t, &requiredColor{}, "Color", nil)
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		t.Errorf("required empty enum must lead with Choose…: %q", out)
+	}
+	if strings.Contains(out, `value="red" selected`) {
+		t.Errorf("first enum value must not be selected: %q", out)
+	}
+}
+
+// Value: protects=a shadcn enum set whose context option list is empty still renders and announces hidden members without echoing them; fails_when=an empty list fails the whole render or the note is skipped; why_new=TestShadcn_SelectEmptyOptionListRenders covers selects only; seam=none; no_claim=the preface decision itself is TestEnumSetPreface
+func TestShadcn_EnumSetEmptyListWithMembersRenders(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-partners"`
+	}
+	s := &tagForm{Tags: []string{"kept"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	comp := FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "kept") {
+		t.Errorf("unlisted member must not be echoed: %q", out)
+	}
+	if strings.Contains(out, `data-slot="checkbox"`) {
+		t.Errorf("empty list must not render a checkbox: %q", out)
+	}
+	if !strings.Contains(out, "(some current values are not available)") {
+		t.Errorf("missing members must be announced: %q", out)
+	}
+}
+
+type shadeCode int
+
+const shadeRed shadeCode = 1
+
+func (c shadeCode) String() string {
+	if c == shadeRed {
+		return "red"
+	}
+	return fmt.Sprintf("%d", int(c))
+}
+
+func (shadeCode) Enums() []shadeCode { return []shadeCode{shadeRed} }
+
+func TestShadcn_EnumSetStringerMatchesEnums(t *testing.T) {
+	type form struct {
+		Colors []shadeCode
+	}
+	s := &form{Colors: []shadeCode{shadeRed}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Colors")
+	comp := FieldDecider(mx.FieldPath("Colors"), f, v.Field(0)).
+		Render(mx.FieldPath("Colors"), f, v.Field(0), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, `value="1"`) || !strings.Contains(out, `value="red"`) {
+		t.Fatalf("Stringer form must be the checkbox value: %s", out)
+	}
+	red := strings.Index(out, `value="red"`)
+	start := strings.LastIndex(out[:red], "<input")
+	end := strings.Index(out[red:], ">")
+	if !strings.Contains(out[start:red+end], "checked") {
+		t.Fatalf("stored red must be checked: %s", out[start:red+end])
+	}
+}
+
+// marshaledID's text form is hex, not fmt's "[222 173 190 239]".
+type marshaledID [4]byte
+
+func (id marshaledID) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%02x%02x%02x%02x", id[0], id[1], id[2], id[3]), nil
+}
+
+// Value: protects=a shadcn enum-set checkbox is checked when the stored key's MarshalText equals the option value; fails_when=setMembers uses fmt.Sprint, so that checkbox renders unchecked and a later save drops the member; why_new=the html round-trip does not render shadcn checkboxes and shadcn enum-set tests use plain strings; seam=none; no_claim=parse and preserve stay in the html FieldDecider
+func TestShadcn_EnumSetChecksMarshaledMember(t *testing.T) {
+	type idForm struct {
+		IDs map[marshaledID]struct{} `form:"options=test-shadcn-partners"`
+	}
+	listed := marshaledID{0xde, 0xad, 0xbe, 0xef}
+	hidden := marshaledID{0x01, 0x02, 0x03, 0x04}
+	s := &idForm{IDs: map[marshaledID]struct{}{listed: {}, hidden: {}}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("IDs")
+	comp := FieldDecider(mx.FieldPath("IDs"), f, v.Field(0)).
+		Render(mx.FieldPath("IDs"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{
+		{Name: "Dead Beef", Value: "deadbeef"},
+		{Name: "Other", Value: "11111111"},
+	})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	i := strings.Index(out, `value="deadbeef"`)
+	if i < 0 {
+		t.Fatalf("missing deadbeef option: %s", out)
+	}
+	start := strings.LastIndex(out[:i], "<")
+	end := strings.Index(out[i:], ">")
+	tag := out[start : i+end]
+	if !strings.Contains(tag, `checked="checked"`) {
+		t.Fatalf("marshaled member must be checked: %s", tag)
+	}
+	if strings.Contains(out, "01020304") || strings.Contains(out, "[222 173 190 239]") {
+		t.Fatalf("hidden or sprint form leaked: %s", out)
 	}
 }
 
@@ -351,5 +560,8 @@ func TestShadcn_EnumSetWithRegistryOptions(t *testing.T) {
 	}
 	if !strings.Contains(out, "checked") {
 		t.Errorf("expected current member b checked: %q", out)
+	}
+	if strings.Contains(out, "not available") {
+		t.Errorf("listed members must not show the hidden-member note: %q", out)
 	}
 }
