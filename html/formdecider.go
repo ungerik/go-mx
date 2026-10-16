@@ -492,6 +492,13 @@ func setScalar(value reflect.Value, raw string) error {
 		}
 		return setScalar(value.Elem(), raw)
 	}
+	// An empty submission is "no choice", including the optional select's
+	// "(none)" option. A non-string TextUnmarshaler must not see "" — that
+	// is not a value it can parse, and the zero value is the clear.
+	if raw == "" {
+		value.SetZero()
+		return nil
+	}
 	if value.Kind() == reflect.String {
 		value.SetString(raw)
 		return nil

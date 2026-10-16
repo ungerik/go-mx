@@ -947,6 +947,32 @@ func (id *marshaledID) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func TestFieldDecider_ParseEmptyClearsMarshaledID(t *testing.T) {
+	type draft struct {
+		Partner marshaledID `form:"options=test-html-partners"`
+	}
+	f := &draft{Partner: marshaledID{0xde, 0xad, 0xbe, 0xef}}
+	values := url.Values{}
+	values.Set("Partner", "")
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r = r.WithContext(context.WithValue(r.Context(), partnersCtxKey{}, []mx.NamedOption{
+		{Name: "Dead Beef", Value: "deadbeef"},
+	}))
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	v := reflect.ValueOf(f).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	beh := FieldDecider("Partner", field, v.Field(0))
+	if err := beh.Parse("Partner", field, v.Field(0), r); err != nil {
+		t.Fatalf("empty optional id must clear, not fail UnmarshalText: %v", err)
+	}
+	if f.Partner != (marshaledID{}) {
+		t.Fatalf("got %v, want zero", f.Partner)
+	}
+}
+
 // Value: protects=a text-marshaled enum-set member matches its option and stays removable, and a hidden member is dropped on save; fails_when=members are formatted with fmt.Sprint so the stored ID is neither checked nor removable, or a hidden member is written back; why_new=the ID select test is a single value and enum-set tests use plain strings; seam=none; no_claim=shadcn checkbox state is covered by TestShadcn_EnumSetChecksMarshaledMember
 func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
 	listed := marshaledID{0xde, 0xad, 0xbe, 0xef} // deadbeef
