@@ -611,11 +611,11 @@ func setMembers(v reflect.Value) map[string]struct{} {
 	case reflect.Map:
 		iter := v.MapRange()
 		for iter.Next() {
-			out[displayValue(iter.Key())] = struct{}{}
+			out[mx.FormatOptionValue(iter.Key())] = struct{}{}
 		}
 	case reflect.Slice:
 		for i := range v.Len() {
-			out[displayValue(v.Index(i))] = struct{}{}
+			out[mx.FormatOptionValue(v.Index(i))] = struct{}{}
 		}
 	}
 	return out

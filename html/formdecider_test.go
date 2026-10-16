@@ -973,6 +973,190 @@ func TestFieldDecider_ParseEmptyClearsMarshaledID(t *testing.T) {
 	}
 }
 
+type colorCode int
+
+const (
+	colorRed  colorCode = 1
+	colorBlue colorCode = 2
+)
+
+func (c colorCode) String() string {
+	switch c {
+	case colorRed:
+		return "red"
+	case colorBlue:
+		return "blue"
+	default:
+		return fmt.Sprintf("%d", int(c))
+	}
+}
+
+func (colorCode) Enums() []colorCode { return []colorCode{colorRed, colorBlue} }
+
+func (c *colorCode) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "red":
+		*c = colorRed
+	case "blue":
+		*c = colorBlue
+	default:
+		return fmt.Errorf("bad color %q", text)
+	}
+	return nil
+}
+
+func TestFieldDecider_EnumSetStringerMatchesEnums(t *testing.T) {
+	type form struct {
+		Colors []colorCode
+	}
+	f := &form{Colors: []colorCode{colorRed}}
+	out := renderFieldHTML(t, f, "Colors")
+	if strings.Contains(out, `value="1"`) {
+		t.Fatalf("numeric form must not be the option value: %s", out)
+	}
+	red := strings.Index(out, `value="red"`)
+	if red < 0 {
+		t.Fatalf("Stringer form must be the option value: %s", out)
+	}
+	start := strings.LastIndex(out[:red], "<input")
+	end := strings.Index(out[red:], ">")
+	tag := out[start : red+end]
+	if !strings.Contains(tag, "checked") {
+		t.Fatalf("stored red must be checked: %s", tag)
+	}
+
+	values := url.Values{"Colors": {"red"}}
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	v := reflect.ValueOf(f).Elem()
+	field, _ := v.Type().FieldByName("Colors")
+	beh := FieldDecider("Colors", field, v.Field(0))
+	if err := beh.Parse("Colors", field, v.Field(0), r); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Colors) != 1 || f.Colors[0] != colorRed {
+		t.Fatalf("got %v, want [red]", f.Colors)
+	}
+}
+
+type prefixedID string
+
+func (id prefixedID) MarshalText() ([]byte, error) {
+	return []byte("id:" + string(id)), nil
+}
+
+func (id *prefixedID) UnmarshalText(text []byte) error {
+	s := string(text)
+	rest, ok := strings.CutPrefix(s, "id:")
+	if !ok || rest == "" {
+		return fmt.Errorf("bad id %q", text)
+	}
+	*id = prefixedID(rest)
+	return nil
+}
+
+func TestFieldDecider_EnumSetNamedStringRoundTrip(t *testing.T) {
+	opts := []mx.NamedOption{{Name: "Listed", Value: "id:listed"}}
+	ctx := context.WithValue(context.Background(), partnersCtxKey{}, opts)
+
+	check := func(t *testing.T, target any, parse func(submitted ...string) error, got func() []prefixedID) {
+		t.Helper()
+		v := reflect.ValueOf(target).Elem()
+		field := v.Type().Field(0)
+		beh := FieldDecider(mx.FieldPath(field.Name), field, v.Field(0))
+		comp := beh.Render(mx.FieldPath(field.Name), field, v.Field(0), nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(b.String(), `value="id:listed"`) {
+			t.Fatalf("text form must be the checkbox value: %s", b.String())
+		}
+		if err := parse("id:listed"); err != nil {
+			t.Fatal(err)
+		}
+		ids := got()
+		if len(ids) != 1 || ids[0] != "listed" {
+			t.Fatalf("got %q, want [listed]", ids)
+		}
+	}
+
+	t.Run("slice", func(t *testing.T) {
+		type form struct {
+			IDs []prefixedID `form:"options=test-html-partners"`
+		}
+		f := &form{IDs: []prefixedID{"listed"}}
+		check(t, f, func(submitted ...string) error {
+			values := url.Values{"IDs": submitted}
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r = r.WithContext(ctx)
+			if err := r.ParseForm(); err != nil {
+				return err
+			}
+			v := reflect.ValueOf(f).Elem()
+			field, _ := v.Type().FieldByName("IDs")
+			beh := FieldDecider("IDs", field, v.Field(0))
+			return beh.Parse("IDs", field, v.Field(0), r)
+		}, func() []prefixedID { return f.IDs })
+	})
+
+	t.Run("map", func(t *testing.T) {
+		type form struct {
+			IDs map[prefixedID]struct{} `form:"options=test-html-partners"`
+		}
+		f := &form{IDs: map[prefixedID]struct{}{"listed": {}}}
+		check(t, f, func(submitted ...string) error {
+			values := url.Values{"IDs": submitted}
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r = r.WithContext(ctx)
+			if err := r.ParseForm(); err != nil {
+				return err
+			}
+			v := reflect.ValueOf(f).Elem()
+			field, _ := v.Type().FieldByName("IDs")
+			beh := FieldDecider("IDs", field, v.Field(0))
+			return beh.Parse("IDs", field, v.Field(0), r)
+		}, func() []prefixedID {
+			out := make([]prefixedID, 0, len(f.IDs))
+			for id := range f.IDs {
+				out = append(out, id)
+			}
+			return out
+		})
+	})
+}
+
+func TestReflectFormHandler_RequiredMarshaledIDRejectsBlank(t *testing.T) {
+	type draft struct {
+		Partner marshaledID `form:"options=test-html-partners,required"`
+	}
+	handler := mx.ReflectFormHandler(nil, func(context.Context, *draft) error {
+		t.Fatal("blank required id must not save")
+		return nil
+	}, FieldDecider)
+	form := url.Values{}
+	form.Set(mx.PresentSentinelName("Partner"), "1")
+	form.Set("Partner", "")
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), partnersCtxKey{}, []mx.NamedOption{
+		{Name: "Dead Beef", Value: "deadbeef"},
+	}))
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "required") {
+		t.Fatalf("required error missing: %s", rec.Body.String())
+	}
+}
+
 // Value: protects=a text-marshaled enum-set member matches its option and stays removable, and a hidden member is dropped on save; fails_when=members are formatted with fmt.Sprint so the stored ID is neither checked nor removable, or a hidden member is written back; why_new=the ID select test is a single value and enum-set tests use plain strings; seam=none; no_claim=shadcn checkbox state is covered by TestShadcn_EnumSetChecksMarshaledMember
 func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
 	listed := marshaledID{0xde, 0xad, 0xbe, 0xef} // deadbeef

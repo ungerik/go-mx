@@ -382,6 +382,12 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setTime(value, raw, tag.Widget)
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
+		// A required select's empty option must not become a zero non-string
+		// value. isEffectivelyEmpty treats an array as full, so the handler's
+		// required check would accept a zero ID.
+		if raw == "" && tag.Required {
+			return fmt.Errorf("required")
+		}
 		if raw != "" {
 			if err := validateOptionMembership(r.Context(), value, tag, field.Type, raw); err != nil {
 				return err
@@ -685,14 +691,17 @@ func setKeyType(t reflect.Type) reflect.Type {
 
 func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 	dst := reflect.New(t).Elem()
-	if t.Kind() == reflect.String {
-		dst.SetString(s)
-		return dst, nil
-	}
+	// TextUnmarshaler before the string-kind assignment. A named string
+	// whose MarshalText is "id:listed" must store "listed", not the prefixed
+	// form, or the next render no longer matches the option.
 	if u, ok := dst.Addr().Interface().(encoding.TextUnmarshaler); ok {
 		if err := u.UnmarshalText([]byte(s)); err != nil {
 			return reflect.Value{}, err
 		}
+		return dst, nil
+	}
+	if t.Kind() == reflect.String {
+		dst.SetString(s)
 		return dst, nil
 	}
 	switch t.Kind() {
@@ -723,10 +732,9 @@ func setSelectedValues(value reflect.Value) map[string]struct{} {
 	return out
 }
 
-// setMemberValues returns each set member in the same string form a select
-// uses for its current value ([displayValue]): text-marshaled when the type
-// supports it, so a registry option's Value matches a stored member. Map
-// keys are sorted so the order is stable; slice order is kept.
+// setMemberValues returns each set member in [mx.FormatOptionValue], the
+// same form Enums() options use. Map keys are sorted so the order is
+// stable; slice order is kept.
 func setMemberValues(value reflect.Value) []string {
 	for value.Kind() == reflect.Pointer {
 		if !value.IsValid() || value.IsNil() {
@@ -742,14 +750,14 @@ func setMemberValues(value reflect.Value) []string {
 		out := make([]string, 0, value.Len())
 		iter := value.MapRange()
 		for iter.Next() {
-			out = append(out, displayValue(iter.Key(), mx.FormTag{}))
+			out = append(out, mx.FormatOptionValue(iter.Key()))
 		}
 		sort.Strings(out)
 		return out
 	case reflect.Slice:
 		out := make([]string, 0, value.Len())
 		for i := range value.Len() {
-			out = append(out, displayValue(value.Index(i), mx.FormTag{}))
+			out = append(out, mx.FormatOptionValue(value.Index(i)))
 		}
 		return out
 	default:

@@ -2,6 +2,7 @@ package mx
 
 import (
 	"context"
+	"encoding"
 	"fmt"
 	"reflect"
 	"sync"
@@ -257,8 +258,43 @@ func stringsFromValue(v reflect.Value) []string {
 func enumsToNamed(v reflect.Value) []NamedOption {
 	out := make([]NamedOption, v.Len())
 	for i := range v.Len() {
-		s := fmt.Sprint(v.Index(i).Interface())
+		s := FormatOptionValue(v.Index(i))
 		out[i] = NamedOption{Name: s, Value: s}
 	}
 	return out
+}
+
+// FormatOptionValue is the string form of one enum option or set member.
+// [encoding.TextMarshaler] wins, so a registry option's Value can match
+// MarshalText. Otherwise it is [fmt.Sprint], which honors [fmt.Stringer]
+// and is what [Enums] options have always used. Scalar form controls keep
+// their own formatting; this is only for option lists and set membership.
+func FormatOptionValue(v reflect.Value) string {
+	if !v.IsValid() {
+		return ""
+	}
+	for v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return ""
+		}
+		v = v.Elem()
+	}
+	if v.CanInterface() {
+		if tm, ok := v.Interface().(encoding.TextMarshaler); ok {
+			if b, err := tm.MarshalText(); err == nil {
+				return string(b)
+			}
+		}
+	}
+	if v.CanAddr() {
+		if tm, ok := v.Addr().Interface().(encoding.TextMarshaler); ok {
+			if b, err := tm.MarshalText(); err == nil {
+				return string(b)
+			}
+		}
+	}
+	if v.CanInterface() {
+		return fmt.Sprint(v.Interface())
+	}
+	return ""
 }

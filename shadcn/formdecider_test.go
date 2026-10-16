@@ -456,6 +456,44 @@ func TestShadcn_EnumSetEmptyListWithMembersRenders(t *testing.T) {
 	}
 }
 
+type shadeCode int
+
+const shadeRed shadeCode = 1
+
+func (c shadeCode) String() string {
+	if c == shadeRed {
+		return "red"
+	}
+	return fmt.Sprintf("%d", int(c))
+}
+
+func (shadeCode) Enums() []shadeCode { return []shadeCode{shadeRed} }
+
+func TestShadcn_EnumSetStringerMatchesEnums(t *testing.T) {
+	type form struct {
+		Colors []shadeCode
+	}
+	s := &form{Colors: []shadeCode{shadeRed}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Colors")
+	comp := FieldDecider(mx.FieldPath("Colors"), f, v.Field(0)).
+		Render(mx.FieldPath("Colors"), f, v.Field(0), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, `value="1"`) || !strings.Contains(out, `value="red"`) {
+		t.Fatalf("Stringer form must be the checkbox value: %s", out)
+	}
+	red := strings.Index(out, `value="red"`)
+	start := strings.LastIndex(out[:red], "<input")
+	end := strings.Index(out[red:], ">")
+	if !strings.Contains(out[start:red+end], "checked") {
+		t.Fatalf("stored red must be checked: %s", out[start:red+end])
+	}
+}
+
 // marshaledID's text form is hex, not fmt's "[222 173 190 239]".
 type marshaledID [4]byte
 
