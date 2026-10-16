@@ -25,7 +25,8 @@
 .env
 .DS_Store
 **/.DS_Store
-.gstack/
+.gstack/*
+!.gstack/pregate.json
 
 # Coding-agent scratch space: task attachments, handoff notes, cross-agent
 # collaboration files. Local to a checkout and never part of the library.

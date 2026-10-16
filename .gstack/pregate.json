@@ -1,0 +1,23 @@
+{
+  "$schema": "https://github.com/garrytan/gstack/docs/pregate.md#pregate-v1",
+  "runner": "bash -c 'go test ./...' _ {files}",
+  "dependencies": {
+    "**/*.md": [],
+    ".gitignore": [],
+    "*.go": ["formoptions_test.go"],
+    "cmd/**/*.go": ["formoptions_test.go"],
+    "doc/**/*.go": ["formoptions_test.go"],
+    "highlight/**/*.go": ["formoptions_test.go"],
+    "html/**/*.go": ["formoptions_test.go"],
+    "hx/**/*.go": ["formoptions_test.go"],
+    "logview/**/*.go": ["formoptions_test.go"],
+    "pdf/**/*.go": ["formoptions_test.go"],
+    "shadcn/**/*.go": ["formoptions_test.go"],
+    "svg/**/*.go": ["formoptions_test.go"],
+    "web/**/*.go": ["formoptions_test.go"],
+    "xml/**/*.go": ["formoptions_test.go"]
+  },
+  "strays": {
+    "allow": [".gstack", "formoptions.go", "formoptions_test.go"]
+  }
+}
