@@ -25,6 +25,8 @@ func TestSelectPreface(t *testing.T) {
 		{name: "optional listed value", selected: "a", context: true, options: opts, want: OptionPrefaceClear},
 		{name: "required listed value", selected: "a", tag: FormTag{Required: true}, context: true, options: opts, want: OptionPrefaceNone},
 		{name: "context out of list", selected: "z", context: true, options: opts, want: OptionPrefaceUnavailable},
+		{name: "context out of list even when list has empty", selected: "z", context: true, options: withEmpty, want: OptionPrefaceUnavailable},
+		{name: "listed value and list has empty", selected: "a", context: true, options: withEmpty, want: OptionPrefaceNone},
 		{name: "sensitive out of list", selected: "z", tag: FormTag{Sensitive: true}, context: true, options: opts, want: OptionPrefaceNone},
 		{name: "static out of list", selected: "z", options: opts, want: OptionPrefaceClear},
 		{name: "required static out of list", selected: "z", tag: FormTag{Required: true}, options: opts, want: OptionPrefaceNone},

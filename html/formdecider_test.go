@@ -2,6 +2,7 @@ package html
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -577,8 +578,10 @@ func TestFieldDecider_SelectStaticListNoPlaceholder(t *testing.T) {
 	if strings.Contains(out, "selected") {
 		t.Errorf("out-of-list value on a static list must not select anything: %q", out)
 	}
-	if !strings.Contains(out, "(none)") {
-		t.Errorf("optional select must still offer an empty option: %q", out)
+	noneAt := strings.Index(out, `value=""`)
+	redAt := strings.Index(out, `value="red"`)
+	if noneAt < 0 || redAt < 0 || noneAt > redAt {
+		t.Errorf("empty option must come before the first enum value: %q", out)
 	}
 }
 
@@ -638,6 +641,9 @@ func TestFieldDecider_EnumSetWithRegistryOptions(t *testing.T) {
 	}
 	if !strings.Contains(out, "checked") {
 		t.Errorf("expected current member b to be checked: %q", out)
+	}
+	if strings.Contains(out, "not available") {
+		t.Errorf("listed members must not show the hidden-member note: %q", out)
 	}
 }
 
@@ -904,6 +910,158 @@ func TestFieldDecider_StaticEnumSetReplacesFromSubmission(t *testing.T) {
 	}
 	if len(f.Colors) != 1 || f.Colors[0] != "blue" {
 		t.Fatalf("static list replaces the set from the submission, got %v", f.Colors)
+	}
+}
+
+// marshaledID is a registry key whose text form is not fmt's default.
+// Sprint of the array is "[222 173 190 239]"; MarshalText is "deadbeef".
+type marshaledID [4]byte
+
+func (id marshaledID) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(id[:])), nil
+}
+
+func (id *marshaledID) UnmarshalText(text []byte) error {
+	raw, err := hex.DecodeString(string(text))
+	if err != nil || len(raw) != len(id) {
+		return fmt.Errorf("bad id %q", text)
+	}
+	copy(id[:], raw)
+	return nil
+}
+
+// Value: protects=a text-marshaled enum-set member matches its option, stays removable, and a hidden member is kept; fails_when=members are formatted with fmt.Sprint so the stored ID is neither checked nor removable; why_new=the ID select test is a single value and enum-set tests use plain strings; seam=none; no_claim=shadcn checkbox state is covered by TestShadcn_EnumSetChecksMarshaledMember
+func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
+	listed := marshaledID{0xde, 0xad, 0xbe, 0xef} // deadbeef
+	hidden := marshaledID{0x01, 0x02, 0x03, 0x04} // 01020304
+	opts := []mx.NamedOption{
+		{Name: "Dead Beef", Value: "deadbeef"},
+		{Name: "Other", Value: "11111111"},
+	}
+	ctx := context.WithValue(context.Background(), partnersCtxKey{}, opts)
+
+	render := func(t *testing.T, target any) string {
+		t.Helper()
+		v := reflect.ValueOf(target).Elem()
+		field := v.Type().Field(0)
+		comp := FieldDecider("IDs", field, v.Field(0)).Render("IDs", field, v.Field(0), nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return b.String()
+	}
+	checked := func(out, value string) bool {
+		i := strings.Index(out, `value="`+value+`"`)
+		if i < 0 {
+			return false
+		}
+		start := strings.LastIndex(out[:i], "<")
+		end := strings.Index(out[i:], ">")
+		if start < 0 || end < 0 {
+			return false
+		}
+		return strings.Contains(out[start:i+end], `checked="checked"`)
+	}
+	parse := func(t *testing.T, target any, submitted ...string) error {
+		t.Helper()
+		values := url.Values{"IDs": submitted}
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r = r.WithContext(ctx)
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(target).Elem()
+		field := v.Type().Field(0)
+		return FieldDecider("IDs", field, v.Field(0)).Parse("IDs", field, v.Field(0), r)
+	}
+
+	t.Run("slice", func(t *testing.T) {
+		type form struct {
+			IDs []marshaledID `form:"options=test-html-partners"`
+		}
+		out := render(t, &form{IDs: []marshaledID{listed, hidden}})
+		if !checked(out, "deadbeef") {
+			t.Fatalf("marshaled member must be checked: %s", out)
+		}
+		if strings.Contains(out, "01020304") || strings.Contains(out, "[222 173 190 239]") {
+			t.Fatalf("hidden or sprint form leaked: %s", out)
+		}
+		if !strings.Contains(out, "(some current values are not available)") {
+			t.Fatalf("hidden member must be announced: %s", out)
+		}
+
+		f := &form{IDs: []marshaledID{listed, hidden}}
+		if err := parse(t, f, "deadbeef"); err != nil {
+			t.Fatal(err)
+		}
+		if len(f.IDs) != 2 || f.IDs[0] != listed || f.IDs[1] != hidden {
+			t.Fatalf("got %x, want listed then hidden", f.IDs)
+		}
+
+		f = &form{IDs: []marshaledID{listed, hidden}}
+		if err := parse(t, f); err != nil {
+			t.Fatal(err)
+		}
+		if len(f.IDs) != 1 || f.IDs[0] != hidden {
+			t.Fatalf("unchecked listed member must drop, got %x", f.IDs)
+		}
+
+		f = &form{IDs: []marshaledID{hidden}}
+		if err := parse(t, f, "99999999"); err == nil {
+			t.Fatal("expected a new unlisted member to be rejected")
+		}
+		if len(f.IDs) != 1 || f.IDs[0] != hidden {
+			t.Fatalf("rejected submit must not change the set: %x", f.IDs)
+		}
+	})
+
+	t.Run("map", func(t *testing.T) {
+		type form struct {
+			IDs map[marshaledID]struct{} `form:"options=test-html-partners"`
+		}
+		out := render(t, &form{IDs: map[marshaledID]struct{}{listed: {}, hidden: {}}})
+		if !checked(out, "deadbeef") {
+			t.Fatalf("marshaled map key must be checked: %s", out)
+		}
+		if strings.Contains(out, "01020304") {
+			t.Fatalf("hidden member leaked: %s", out)
+		}
+
+		f := &form{IDs: map[marshaledID]struct{}{listed: {}, hidden: {}}}
+		if err := parse(t, f); err != nil {
+			t.Fatal(err)
+		}
+		if len(f.IDs) != 1 {
+			t.Fatalf("got %d members, want only the hidden key", len(f.IDs))
+		}
+		if _, ok := f.IDs[hidden]; !ok {
+			t.Fatalf("hidden key was dropped: %v", f.IDs)
+		}
+	})
+}
+
+// Value: protects=enum-set parse returns the options-provider error and leaves the stored set unchanged; fails_when=a CollectOptions failure is dropped and the submission is applied or rejected as a membership miss; why_new=membership tests use a healthy registry and render tests only cover provider failure on GET; seam=none; no_claim=an empty list with no provider error is the render-error tests
+func TestFieldDecider_EnumSetParseReturnsProviderError(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-html-partners"`
+	}
+	f := &tagForm{Tags: []string{"kept"}}
+	values := url.Values{"Tags": {"p1"}}
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	v := reflect.ValueOf(f).Elem()
+	field, _ := v.Type().FieldByName("Tags")
+	err := FieldDecider("Tags", field, v.Field(0)).Parse("Tags", field, v.Field(0), r)
+	if err == nil || !strings.Contains(err.Error(), "no partners in context") {
+		t.Fatalf("provider error = %v", err)
+	}
+	if len(f.Tags) != 1 || f.Tags[0] != "kept" {
+		t.Fatalf("failed parse changed the set: %v", f.Tags)
 	}
 }
 
