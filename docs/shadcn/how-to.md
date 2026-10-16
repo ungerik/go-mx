@@ -218,8 +218,10 @@ A few components render text the caller never passes: the close button inside
 captions, the breadcrumb and pagination ellipsis screen-reader text, and the
 default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`,
 `CarouselPrevious`, `CarouselNext`, `SidebarTrigger` and `Spinner`. Reflected
-forms add two more: the clear checkbox on a nullable field and the disabled
-placeholder a select shows when the current value is not in its option list.
+forms add the clear checkbox on a nullable field, the disabled placeholder a
+select shows when the current value is not in its option list, the "Choose…"
+and "(none)" options on a select with no empty choice, and the note an
+enum-set shows when stored members are hidden by the current list.
 
 Those strings live in `shadcn.Labels` and are read **from the render context**,
 so the language is chosen per request — not per call site.
@@ -246,6 +248,9 @@ so the language is chosen per request — not per call site.
        Spinner:                "Lädt",
        FormClear:              "leeren",
        FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
+       FormChooseOption:       "Auswählen…",
+       FormNoSelection:        "(keine)",
+       FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
    }
    ```
 

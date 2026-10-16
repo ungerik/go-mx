@@ -241,16 +241,31 @@ type InvoiceDraft struct {
 }
 ```
 
-The per-request option list is a trust boundary, not just UI: on POST the
-handler re-resolves the list with the request context and rejects submitted
-values outside it as a normal field validation error, so a tenant-scoped
-dropdown cannot be bypassed by posting another tenant's ID directly. On
-render, a select whose current value is no longer in the per-request list
-shows a generic disabled placeholder option (the filtered-out value itself
-is not echoed) instead of silently displaying the first option. Because the
-placeholder is disabled, an unchanged submit sends no value for the field:
-required fields fail validation until a value is picked from the list, while
-non-required fields are cleared.
+The per-request option list is a trust boundary for values the browser
+submits: on POST the handler re-resolves the list with the request context
+and rejects submitted values outside it as a normal field validation error,
+so a tenant-scoped dropdown cannot be bypassed by posting another tenant's
+ID directly. On render, a select whose current value is no longer in that
+list shows a generic disabled placeholder (the filtered-out value is not
+echoed). Because the placeholder is disabled, an unchanged submit sends no
+value for the field: required fields fail validation until a value is picked
+from the list, while non-required fields are cleared.
+
+A select with no current value gets a leading empty option, so the browser
+does not submit the first real option. Required fields use a disabled
+"Choose…" option, which also makes the `required` attribute fire; optional
+fields use a selectable "(none)". An optional select that already has a
+listed value keeps "(none)", so the choice can be cleared. A
+context-dependent list that comes back empty is a render error when the
+field has a current value or is required — an empty lookup would otherwise
+leave a form that cannot be submitted, or that clears the stored value on
+save. An optional field with no current value still renders.
+
+An enum-set checkbox group renders only the options in the current list.
+Members already stored but absent from that list are not shown and not
+echoed; saving the form keeps them, and unchecking a visible box still
+removes that member. A static enum list is the whole domain, so parse
+replaces the set from the submission.
 
 The rendered `<form>` carries an explicit `action` attribute. By default it
 self-submits: the action is the request URI that served the form (path+query),

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -281,6 +282,7 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
+	contextList := mx.OptionsNeedContext(tag, field.Type)
 	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{Value(opt.Value)}
 		if opt.Value == selected {
@@ -289,21 +291,30 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
 		return Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		// The label is deliberately generic: the option list is a
-		// per-request trust boundary, so a value the provider
-		// filtered out must not be echoed into the markup. For
-		// sensitive fields even the placeholder itself is skipped.
-		if selected == "" || tag.Sensitive {
-			return nil
+		preface, err := mx.SelectPreface(selected, tag, contextList, options)
+		if err != nil {
+			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
 		}
-		for _, opt := range options {
-			if opt.Value == selected {
-				return nil
-			}
-		}
-		return Option(Value(""), Disabled, Selected, mx.Text("(current value not available)"))
+		return selectPrefaceOption(preface)
 	})
 	return Select(append(attribs, options)...)
+}
+
+// selectPrefaceOption renders the leading option [mx.SelectPreface] chose.
+// Captions are generic on purpose: a filtered-out value is not echoed.
+func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
+	switch preface {
+	case mx.OptionPrefaceUnavailable:
+		return Option(Value(""), Disabled, Selected, mx.Text("(current value not available)"))
+	case mx.OptionPrefaceChoose:
+		return Option(Value(""), Disabled, Selected, mx.Text("Choose…"))
+	case mx.OptionPrefaceEmpty:
+		return Option(Value(""), Selected, mx.Text("(none)"))
+	case mx.OptionPrefaceClear:
+		return Option(Value(""), mx.Text("(none)"))
+	default:
+		return nil
+	}
 }
 
 func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
@@ -312,6 +323,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 		return mx.Text("[enum-set: cannot infer key type for " + string(path) + "]")
 	}
 	selectedSet := setSelectedValues(value)
+	contextList := mx.OptionsNeedContext(tag, keyType)
 	items := optionChildren(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
 		inputAttribs := []mx.Attrib{
 			Type("checkbox"),
@@ -325,7 +337,19 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 			inputAttribs = append(inputAttribs, Disabled)
 		}
 		return Label(Input(inputAttribs...), " "+displayLabel(opt))
-	}, nil)
+	}, func(options []mx.NamedOption) mx.Component {
+		preface, err := mx.EnumSetPreface(setMemberValues(value), tag, contextList, options)
+		if err != nil {
+			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
+		}
+		if preface != mx.OptionPrefaceValuesUnavailable {
+			return nil
+		}
+		return mx.NewElement("p",
+			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Text("(some current values are not available)"),
+		)
+	})
 	if len(errs) > 0 {
 		return mx.Components{
 			mx.NewElement("div",
@@ -373,10 +397,18 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setScalar(value, raw)
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
-		if keyType := setKeyType(field.Type); keyType != nil {
-			if err := validateOptionMembership(r.Context(), reflect.Value{}, tag, keyType, vals...); err != nil {
+		if keyType := setKeyType(field.Type); keyType != nil && mx.OptionsNeedContext(tag, keyType) {
+			// Same list the checkboxes were rendered from. Submitted values
+			// outside it are rejected; stored members the list did not show
+			// are kept, because the user could not uncheck them.
+			options, err := mx.CollectOptions(r.Context(), reflect.Value{}, tag, keyType)
+			if err != nil {
 				return err
 			}
+			if err := rejectUnlistedOptions(options, vals); err != nil {
+				return err
+			}
+			vals = mx.PreserveUnlistedSetMembers(setMemberValues(value), vals, options)
 		}
 		return setEnumSet(value, field.Type, vals)
 	case mx.FieldKindFile:
@@ -430,6 +462,16 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 	options, err := mx.CollectOptions(ctx, value, tag, t)
 	if err != nil {
 		return err
+	}
+	return rejectUnlistedOptions(options, vals)
+}
+
+// rejectUnlistedOptions is the membership check itself, split out so an
+// enum set can collect the list once and both reject new values and keep
+// stored ones that were not rendered.
+func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
+	if len(vals) == 0 {
+		return nil
 	}
 	allowed := make(map[string]struct{}, len(options))
 	for _, opt := range options {
@@ -672,25 +714,46 @@ func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 }
 
 func setSelectedValues(value reflect.Value) map[string]struct{} {
-	out := map[string]struct{}{}
+	members := setMemberValues(value)
+	out := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		out[member] = struct{}{}
+	}
+	return out
+}
+
+// setMemberValues returns each set member in the same string form a select
+// uses for its current value ([displayValue]): text-marshaled when the type
+// supports it, so a registry option's Value matches a stored member. Map
+// keys are sorted so the order is stable; slice order is kept.
+func setMemberValues(value reflect.Value) []string {
 	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return out
+		if !value.IsValid() || value.IsNil() {
+			return nil
 		}
 		value = value.Elem()
 	}
+	if !value.IsValid() {
+		return nil
+	}
 	switch value.Kind() {
 	case reflect.Map:
+		out := make([]string, 0, value.Len())
 		iter := value.MapRange()
 		for iter.Next() {
-			out[fmt.Sprint(iter.Key().Interface())] = struct{}{}
+			out = append(out, displayValue(iter.Key(), mx.FormTag{}))
 		}
+		sort.Strings(out)
+		return out
 	case reflect.Slice:
+		out := make([]string, 0, value.Len())
 		for i := range value.Len() {
-			out[fmt.Sprint(value.Index(i).Interface())] = struct{}{}
+			out = append(out, displayValue(value.Index(i), mx.FormTag{}))
 		}
+		return out
+	default:
+		return nil
 	}
-	return out
 }
 
 // optionChildren resolves the field's option list via
@@ -703,42 +766,36 @@ func setSelectedValues(value reflect.Value) map[string]struct{} {
 // real request context. A collection error surfaces at render time
 // (deferred-error pattern).
 //
-// prepend, when non-nil, is called with the per-request option list
-// and its result (if non-nil) is rendered before the options. Selects
-// use it to show a disabled placeholder when the current value is not
-// in the list. It only applies to context-dependent lists — the same
-// scope as POST membership validation; static enum lists keep their
-// lenient behavior.
+// prepend, when non-nil, is called with the resolved option list and its
+// result (if non-nil) is rendered before the options. Selects use it for
+// the leading empty option ([mx.SelectPreface]); enum sets use it for the
+// hidden-members note and for the empty-list render error.
 func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
+	assemble := func(options []mx.NamedOption) mx.Components {
+		children := make(mx.Components, 0, len(options)+1)
+		if prepend != nil {
+			if first := prepend(options); first != nil {
+				children = append(children, first)
+			}
+		}
+		for _, opt := range options {
+			children = append(children, render(opt))
+		}
+		return children
+	}
 	if !mx.OptionsNeedContext(tag, t) {
 		options, err := mx.CollectOptions(context.Background(), value, tag, t)
 		if err != nil {
 			return mx.NewErrElement(err)
 		}
-		children := make(mx.Components, len(options))
-		for i, opt := range options {
-			children[i] = render(opt)
-		}
-		return children
+		return assemble(options)
 	}
 	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
 		options, err := mx.CollectOptions(ctx, value, tag, t)
 		if err != nil {
 			return err
 		}
-		if prepend != nil {
-			if first := prepend(options); first != nil {
-				if err := first.Render(ctx, w); err != nil {
-					return err
-				}
-			}
-		}
-		for _, opt := range options {
-			if err := render(opt).Render(ctx, w); err != nil {
-				return err
-			}
-		}
-		return nil
+		return assemble(options).Render(ctx, w)
 	})
 }
 
@@ -913,4 +970,3 @@ func clearSentinelInput(path mx.FieldPath) mx.Component {
 		mx.Text(" clear"),
 	)
 }
-

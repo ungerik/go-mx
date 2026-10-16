@@ -112,7 +112,7 @@ shadcn.InputID("email", html.Type("email")),
 A handful of components render a user-visible string the caller never passes:
 the screen-reader text of the built-in dialog/sheet close button, the
 pagination captions, the ellipsis "more" texts, the reflected-form clear
-checkbox and out-of-list placeholder, and the default `aria-label`s of the
+checkbox, select placeholders, and the default `aria-label`s of the
 landmark `<nav>`s and the icon-only buttons. Those strings live in the
 `Labels` struct and are resolved **from the render context**, not baked into
 the element at construction time, so one process can serve several languages
@@ -161,6 +161,9 @@ package variable read by every render, like `mx.AsComponent`.
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
+| `FormChooseOption`                              | required select with no current value  |
+| `FormNoSelection`                               | optional select empty option           |
+| `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
 
 A caller-supplied `aria-label` still wins over the context label for a single
 call site — the components only fall back to `Labels` when the caller passed

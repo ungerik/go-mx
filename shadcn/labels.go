@@ -77,6 +77,18 @@ type Labels struct {
 	// value must not be echoed into the markup — so it carries no data and is
 	// safe to translate.
 	FormValueNotAvailable string
+	// FormChooseOption is the caption of the disabled placeholder a required
+	// reflected select renders when the field has no current value, so the
+	// browser does not submit the first real option.
+	FormChooseOption string
+	// FormNoSelection is the caption of the empty option an optional
+	// reflected select renders so a blank field stays blank and a chosen
+	// value can be cleared.
+	FormNoSelection string
+	// FormValuesNotAvailable is the note a reflected enum-set renders when
+	// stored members are absent from the per-request option list. Those
+	// members are kept on save and are not echoed into the note.
+	FormValuesNotAvailable string
 }
 
 // DefaultLabels holds the strings used when the render context carries no
@@ -112,6 +124,9 @@ var englishLabels = Labels{
 	Spinner:                "Loading",
 	FormClear:              "clear",
 	FormValueNotAvailable:  "(current value not available)",
+	FormChooseOption:       "Choose…",
+	FormNoSelection:        "(none)",
+	FormValuesNotAvailable: "(some current values are not available)",
 }
 
 // ctxKeyLabels is the unexported render-context key under which
@@ -168,6 +183,9 @@ func (l Labels) orDefaults() Labels {
 		Spinner:                cmp.Or(l.Spinner, DefaultLabels.Spinner, englishLabels.Spinner),
 		FormClear:              cmp.Or(l.FormClear, DefaultLabels.FormClear, englishLabels.FormClear),
 		FormValueNotAvailable:  cmp.Or(l.FormValueNotAvailable, DefaultLabels.FormValueNotAvailable, englishLabels.FormValueNotAvailable),
+		FormChooseOption:       cmp.Or(l.FormChooseOption, DefaultLabels.FormChooseOption, englishLabels.FormChooseOption),
+		FormNoSelection:        cmp.Or(l.FormNoSelection, DefaultLabels.FormNoSelection, englishLabels.FormNoSelection),
+		FormValuesNotAvailable: cmp.Or(l.FormValuesNotAvailable, DefaultLabels.FormValuesNotAvailable, englishLabels.FormValuesNotAvailable),
 	}
 }
 

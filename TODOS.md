@@ -7,77 +7,6 @@ in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
-## mx reflected forms
-
-All three were surfaced by the adversarial review of the out-of-list placeholder
-(2026-07-06, landed as #23). They share one root: a per-request option list
-(`mx.CollectOptions`, `options.go`) and a stored field value can disagree, and
-the render path currently resolves that disagreement in a way that loses data or
-produces an unsubmittable form.
-
-### Enum-set checkboxes drop members missing from the option list
-
-**What:** An enum-set field silently loses the checked members that are absent
-from the per-request option list.
-
-**Why:** Missing members are not rendered at all, and an unchecked box submits
-nothing — so the next save removes them from the set. This is silent data loss
-on an ordinary round-trip: the user never sees the values, never touches them,
-and loses them by pressing Save.
-
-**Context:** Render is `mx.FieldKindEnumSet` in `html/formdecider.go:106` (and
-the shadcn mirror in `shadcn/formdecider.go`); parse is `setEnumSet`
-(`html/formdecider.go:581`), which rebuilds the set from submitted values only.
-A fix has to carry the unrendered members through the round-trip — a hidden
-input per missing member, or a parse that merges into the stored set instead of
-replacing it. The two paths must agree, so decide the semantics first: is an
-option list authoritative over stored members, or only a display filter?
-
-**Effort:** M
-**Priority:** P1
-**Depends on:** None
-
-### An empty provider list makes a select unsubmittable or clears it
-
-**What:** An authoritative context provider that returns an empty list, combined
-with a non-empty stored value, renders a select containing nothing but the
-disabled placeholder.
-
-**Why:** A required field can then never be submitted — the form is a dead end
-the user cannot escape. A non-required field silently clears on save instead.
-Either way the failure is invisible until someone tries to submit.
-
-**Context:** The placeholder comes from the out-of-list branch in
-`html/formdecider.go` (~line 295) and `shadcn/formdecider.go`, which returns a
-disabled, selected, empty-valued option when the stored value is not in the
-list. That branch is correct for a *filtered* list but wrong for an *empty* one.
-An empty list from a provider is more likely a failed lookup than a legitimately
-empty domain, so the fix is probably to surface it as a render error rather than
-emit a form that cannot be used.
-
-**Effort:** M
-**Priority:** P1
-**Depends on:** None
-
-### A required select with an empty value submits its first option
-
-**What:** A select whose current value is empty and whose option list has no
-empty-valued option still lets the browser display and submit the first option.
-
-**Why:** This is the new-record case, so it is the common one. The user submits
-a value they never chose, and `required` is inert client-side because the
-control is never actually empty — the browser has nothing to complain about.
-
-**Context:** Same failure class the out-of-list placeholder (#23) fixed, from
-the other direction: that one handles a value missing from the list, this one
-handles a list missing an empty value. The suggested fix is to always prepend an
-empty placeholder option for required selects, which also restores client-side
-`required` validation. Decide whether it applies to non-required selects too.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
 ## shadcn/cva
 
 Follow-ons from the initial `cva` port (class-variance-authority v0.7.1). The
@@ -389,6 +318,70 @@ idea. For `Path`, either implement it with the existing `JoinAbsPath` and
 **Depends on:** None
 
 ## Completed
+
+### Enum-set checkboxes drop members missing from the option list
+
+**What:** An enum-set field silently loses the checked members that are absent
+from the per-request option list.
+
+**Why:** Missing members are not rendered at all, and an unchecked box submits
+nothing — so the next save removes them from the set. This is silent data loss
+on an ordinary round-trip: the user never sees the values, never touches them,
+and loses them by pressing Save.
+
+**Context:** The per-request list stays authoritative for values the browser
+submits: anything outside it is rejected. Members already stored but absent
+from the list are not rendered and not echoed, and parse keeps them when it
+rebuilds the set (`mx.PreserveUnlistedSetMembers`). A static enum list is the
+whole domain and still replaces the set from the submission.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+**Completed:** 2026-10-16
+
+### An empty provider list makes a select unsubmittable or clears it
+
+**What:** An authoritative context provider that returns an empty list, combined
+with a non-empty stored value, renders a select containing nothing but the
+disabled placeholder.
+
+**Why:** A required field can then never be submitted — the form is a dead end
+the user cannot escape. A non-required field silently clears on save instead.
+Either way the failure is invisible until someone tries to submit.
+
+**Context:** A context-dependent list that comes back empty is a render error
+when the field has a current value or is required, for both selects and
+enum-sets (`mx.SelectPreface`, `mx.EnumSetPreface`). An optional field with no
+current value still renders. A provider that failed returns its own error, as
+before.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+**Completed:** 2026-10-16
+
+### A required select with an empty value submits its first option
+
+**What:** A select whose current value is empty and whose option list has no
+empty-valued option still lets the browser display and submit the first option.
+
+**Why:** This is the new-record case, so it is the common one. The user submits
+a value they never chose, and `required` is inert client-side because the
+control is never actually empty — the browser has nothing to complain about.
+
+**Context:** A select whose list has no empty option gets a leading empty
+option: disabled and selected "Choose…" when the field is required and empty,
+selected "(none)" when it is optional and empty, and an unselected "(none)"
+when it is optional and already has a listed value so it can be cleared.
+Required fields that already have a listed value get no extra option. The
+out-of-list placeholder is unchanged. The same leading option applies to
+static enum lists.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+**Completed:** 2026-10-16
 
 ### `GlobPageSource.Dir` does not scope the glob
 

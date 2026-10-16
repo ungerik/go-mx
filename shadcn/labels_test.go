@@ -43,6 +43,9 @@ var germanLabels = Labels{
 	Spinner:                "Lädt",
 	FormClear:              "leeren",
 	FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
+	FormChooseOption:       "Auswählen…",
+	FormNoSelection:        "(keine)",
+	FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -148,6 +151,30 @@ var labelCases = []labelCase{
 			return context.WithValue(ctx, shadcnPartnersKey{},
 				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
 		},
+	}, {
+		name: "FormChooseOption", comp: requiredEmptySelect,
+		fields:  []string{"FormChooseOption"},
+		english: []string{`selected="selected">Choose…<`},
+		german:  []string{`selected="selected">Auswählen…<`},
+		wrapCtx: func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, shadcnPartnersKey{},
+				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+		},
+	}, {
+		name: "FormNoSelection", comp: optionalEmptySelect,
+		fields:  []string{"FormNoSelection"},
+		english: []string{`selected="selected">(none)<`},
+		german:  []string{`selected="selected">(keine)<`},
+		wrapCtx: func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, shadcnPartnersKey{},
+				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+		},
+	}, {
+		name:    "FormValuesNotAvailable",
+		comp:    enumSetWithHiddenMember,
+		fields:  []string{"FormValuesNotAvailable"},
+		english: []string{">(some current values are not available)<"},
+		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
 	},
 }
 
@@ -163,6 +190,39 @@ func outOfListSelect() mx.Component {
 	f, _ := v.Type().FieldByName("Partner")
 	beh := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0))
 	return beh.Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+}
+
+func requiredEmptySelect() mx.Component {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners,required"`
+	}
+	s := &draftForm{}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	return FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+}
+
+func optionalEmptySelect() mx.Component {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners"`
+	}
+	s := &draftForm{}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	return FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+}
+
+func enumSetWithHiddenMember() mx.Component {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"kept", "b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	return FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
 }
 
 // TestLabelsLocalize is the point of the whole mechanism: a component built

@@ -313,8 +313,8 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 		t.Errorf("p1 must not be selected: %q", out)
 	}
 
-	// Mirror the html layer's negative case: an empty current value
-	// must not produce a placeholder.
+	// An empty current value is a different case: an optional select offers
+	// a selectable empty option so the first real option is not submitted.
 	s2 := &draftForm{}
 	v2 := reflect.ValueOf(s2).Elem()
 	comp2 := FieldDecider(mx.FieldPath("Partner"), f, v2.Field(0)).
@@ -323,8 +323,77 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	if err := comp2.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if strings.Contains(b.String(), `disabled="disabled"`) {
-		t.Errorf("empty current value must not produce a placeholder: %q", b.String())
+	if strings.Contains(b.String(), `disabled="disabled"`) || strings.Contains(b.String(), "not available") {
+		t.Errorf("empty current value must not use the out-of-list placeholder: %q", b.String())
+	}
+	if !strings.Contains(b.String(), `<option value="" selected="selected">(none)</option>`) {
+		t.Errorf("empty optional select must submit an empty option: %q", b.String())
+	}
+}
+
+func TestShadcn_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners,required"`
+	}
+	s := &draftForm{}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		t.Errorf("required empty select must lead with Choose…: %q", out)
+	}
+	if strings.Contains(out, `value="p1" selected`) {
+		t.Errorf("first real option must not be selected: %q", out)
+	}
+}
+
+func TestShadcn_SelectEmptyOptionListErrors(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners"`
+	}
+	s := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{})
+	var b strings.Builder
+	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
+	if err == nil || !strings.Contains(err.Error(), "returned no options") {
+		t.Fatalf("empty list with a stored value must fail the render: %v", err)
+	}
+}
+
+func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"kept", "b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	comp := FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "kept") {
+		t.Errorf("unlisted member must not be echoed: %q", out)
+	}
+	if !strings.Contains(out, "(some current values are not available)") {
+		t.Errorf("missing members must be announced: %q", out)
+	}
+	if strings.Count(out, `data-slot="checkbox"`) != 2 {
+		t.Errorf("only listed options are checkboxes: %q", out)
 	}
 }
 
