@@ -259,18 +259,21 @@ option. Required fields use a disabled "Choose…" option, which also makes
 the `required` attribute fire; optional fields use a selectable "(none)".
 An optional select that already has a listed value also gets "(none)"
 when the list has no empty value, so the choice can be cleared. A
-context-dependent list that comes back empty is a render error when the
-field has a current value or is required — an empty lookup would otherwise
-leave a form that cannot be submitted, or that clears the stored value on
-save. An optional field with no current value still renders.
+context-dependent list that comes back empty still renders: a stored value
+shows the same generic placeholder, and a blank required field shows
+"Choose…". An empty answer is a real "nothing to offer", so it does not
+fail the rest of the form. A provider that returns an error still does.
 
 An enum-set checkbox group renders only the options in the current list.
 Members already stored but absent from a context-dependent list are not
-shown and not echoed; saving the form keeps them, and unchecking a visible
-box still removes that member. An empty context-dependent list is a render
-error when the set already has members or the field is required. A static
-enum list is the whole domain, so parse replaces the set from the
-submission.
+shown and not echoed, and a save does not keep them: the checked boxes are
+the whole set that is stored, so a value the list stopped offering cannot
+be written back, and unchecking a box that was on the page removes it even
+if the list changes before the POST. The group says that some current
+values are not available, without naming them. A static enum list is the
+whole domain, so parse replaces the set from the submission. A blank
+optional enum is no choice: the type's `Validate` does not reject it, and
+a decider `Validate` still runs.
 
 The rendered `<form>` carries an explicit `action` attribute. By default it
 self-submits: the action is the request URI that served the form (path+query),

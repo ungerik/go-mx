@@ -356,7 +356,7 @@ func TestShadcn_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
 	}
 }
 
-func TestShadcn_SelectEmptyOptionListErrors(t *testing.T) {
+func TestShadcn_SelectEmptyOptionListRenders(t *testing.T) {
 	type draftForm struct {
 		Partner string `form:"options=test-shadcn-partners"`
 	}
@@ -367,9 +367,15 @@ func TestShadcn_SelectEmptyOptionListErrors(t *testing.T) {
 		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
 	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{})
 	var b strings.Builder
-	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), "returned no options") {
-		t.Fatalf("empty list with a stored value must fail the render: %v", err)
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "gone") {
+		t.Errorf("stored value must not be echoed: %q", out)
+	}
+	if !strings.Contains(out, `(current value not available)`) {
+		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
 
@@ -423,8 +429,8 @@ func TestShadcn_StaticSelectRendersPreface(t *testing.T) {
 	}
 }
 
-// Value: protects=a shadcn enum set whose context option list is empty fails the render when members are stored; fails_when=the EnumSetPreface error is ignored and an empty checkbox group is rendered; why_new=TestShadcn_SelectEmptyOptionListErrors covers selects only; seam=none; no_claim=the empty-list decision itself is TestEnumSetPreface
-func TestShadcn_EnumSetEmptyListWithMembersErrors(t *testing.T) {
+// Value: protects=a shadcn enum set whose context option list is empty still renders and announces hidden members without echoing them; fails_when=an empty list fails the whole render or the note is skipped; why_new=TestShadcn_SelectEmptyOptionListRenders covers selects only; seam=none; no_claim=the preface decision itself is TestEnumSetPreface
+func TestShadcn_EnumSetEmptyListWithMembersRenders(t *testing.T) {
 	type tagForm struct {
 		Tags []string `form:"options=test-shadcn-partners"`
 	}
@@ -435,9 +441,18 @@ func TestShadcn_EnumSetEmptyListWithMembersErrors(t *testing.T) {
 		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
 	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{})
 	var b strings.Builder
-	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), `options provider "test-shadcn-partners" returned no options`) {
-		t.Fatalf("empty list with stored members must fail the render: %v", err)
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "kept") {
+		t.Errorf("unlisted member must not be echoed: %q", out)
+	}
+	if strings.Contains(out, `data-slot="checkbox"`) {
+		t.Errorf("empty list must not render a checkbox: %q", out)
+	}
+	if !strings.Contains(out, "(some current values are not available)") {
+		t.Errorf("missing members must be announced: %q", out)
 	}
 }
 

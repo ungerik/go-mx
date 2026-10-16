@@ -329,11 +329,12 @@ nothing — so the next save removes them from the set. This is silent data loss
 on an ordinary round-trip: the user never sees the values, never touches them,
 and loses them by pressing Save.
 
-**Context:** The per-request list stays authoritative for values the browser
-submits: anything outside it is rejected. Members already stored but absent
-from the list are not rendered and not echoed, and parse keeps them when it
-rebuilds the set (`mx.PreserveUnlistedSetMembers`). A static enum list is the
-whole domain and still replaces the set from the submission.
+**Context:** The per-request list is the trust boundary for the set. Members
+it does not offer are not rendered and not echoed, and a save does not keep
+them: the submitted checkboxes replace the set, so a filtered-out id cannot
+be written back and an uncheck cannot be undone by the list changing before
+POST. A value outside the list is still rejected. A static enum list is the
+whole domain and replaces the set the same way.
 
 **Effort:** M
 **Priority:** P1
@@ -350,11 +351,11 @@ disabled placeholder.
 the user cannot escape. A non-required field silently clears on save instead.
 Either way the failure is invisible until someone tries to submit.
 
-**Context:** A context-dependent list that comes back empty is a render error
-when the field has a current value or is required, for both selects and
-enum-sets (`mx.SelectPreface`, `mx.EnumSetPreface`). An optional field with no
-current value still renders. A provider that failed returns its own error, as
-before.
+**Context:** An empty context-dependent list still renders. A stored select
+value shows the generic disabled placeholder, a blank required select shows
+"Choose…", and an enum set with members the list does not offer shows the
+note and no checkboxes. A provider that failed returns its own error, as
+before. The page stays usable; the field does not invent a value.
 
 **Effort:** M
 **Priority:** P1

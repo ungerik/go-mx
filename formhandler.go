@@ -293,19 +293,19 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 		}
 		// A blank optional enum is "no choice", not an invalid constant.
 		// go-enum Validate rejects the zero string, which would make the
-		// leading "(none)" option impossible to save.
-		if visit.Kind == FieldKindEnum && isEffectivelyEmpty(visit.Value) {
-			continue
-		}
-		// Built-in validation chain. The elements of an enum set carry
-		// the enum's Validate, not the map or slice holding them, so a
-		// set is validated element by element unless it validates itself.
-		chainErrs := RunValidationChain(visit.Value)
-		if len(chainErrs) == 0 && visit.Kind == FieldKindEnumSet {
-			chainErrs = validateSetElements(visit.Value)
-		}
-		if len(chainErrs) > 0 {
-			out[visit.Path] = append(out[visit.Path], chainErrs...)
+		// leading "(none)" option impossible to save. A decider Validate
+		// still runs: that hook is the caller's, not the type's enum check.
+		if !(visit.Kind == FieldKindEnum && isEffectivelyEmpty(visit.Value)) {
+			// The elements of an enum set carry the enum's Validate, not
+			// the map or slice holding them, so a set is validated element
+			// by element unless it validates itself.
+			chainErrs := RunValidationChain(visit.Value)
+			if len(chainErrs) == 0 && visit.Kind == FieldKindEnumSet {
+				chainErrs = validateSetElements(visit.Value)
+			}
+			if len(chainErrs) > 0 {
+				out[visit.Path] = append(out[visit.Path], chainErrs...)
+			}
 		}
 		// Decider-supplied Validate runs after the chain (additive).
 		if beh.Validate != nil {

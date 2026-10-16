@@ -213,11 +213,7 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
 		return html.Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		preface, err := mx.SelectPreface(selected, tag, contextList, options)
-		if err != nil {
-			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
-		}
-		return selectPrefaceOption(preface)
+		return selectPrefaceOption(mx.SelectPreface(selected, tag, contextList, options))
 	})
 	return Select(append(attribs, options)...)
 }
@@ -274,10 +270,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		for member := range selected {
 			members = append(members, member)
 		}
-		preface, err := mx.EnumSetPreface(members, tag, contextList, options)
-		if err != nil {
-			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
-		}
+		preface := mx.EnumSetPreface(members, tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return nil
 		}
@@ -640,7 +633,7 @@ func setMembers(v reflect.Value) map[string]struct{} {
 // prepend, when non-nil, is called with the resolved option list and its
 // result (if non-nil) is rendered before the options. Selects use it for
 // the leading empty option ([mx.SelectPreface]); enum sets use it for the
-// hidden-members note and for the empty-list render error.
+// hidden-members note.
 func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
 	assemble := func(options []mx.NamedOption) mx.Components {
 		children := make(mx.Components, 0, len(options)+1)

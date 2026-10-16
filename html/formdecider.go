@@ -291,11 +291,7 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
 		return Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		preface, err := mx.SelectPreface(selected, tag, contextList, options)
-		if err != nil {
-			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
-		}
-		return selectPrefaceOption(preface)
+		return selectPrefaceOption(mx.SelectPreface(selected, tag, contextList, options))
 	})
 	return Select(append(attribs, options)...)
 }
@@ -338,10 +334,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 		}
 		return Label(Input(inputAttribs...), " "+displayLabel(opt))
 	}, func(options []mx.NamedOption) mx.Component {
-		preface, err := mx.EnumSetPreface(setMemberValues(value), tag, contextList, options)
-		if err != nil {
-			return mx.NewErrElement(mx.EmptyOptionListError(path, tag.Options))
-		}
+		preface := mx.EnumSetPreface(setMemberValues(value), tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return nil
 		}
@@ -398,9 +391,11 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
 		if keyType := setKeyType(field.Type); keyType != nil && mx.OptionsNeedContext(tag, keyType) {
-			// Same list the checkboxes were rendered from. Submitted values
-			// outside it are rejected; stored members the list did not show
-			// are kept, because the user could not uncheck them.
+			// The list is the trust boundary for the set, same as a select.
+			// Submitted values outside it are rejected. Members the list
+			// does not offer are not kept: the checkboxes the user saw are
+			// the whole set that a save stores, so an uncheck cannot be
+			// undone by the list changing before POST.
 			options, err := mx.CollectOptions(r.Context(), reflect.Value{}, tag, keyType)
 			if err != nil {
 				return err
@@ -408,7 +403,6 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			if err := rejectUnlistedOptions(options, vals); err != nil {
 				return err
 			}
-			vals = mx.PreserveUnlistedSetMembers(setMemberValues(value), vals, options)
 		}
 		return setEnumSet(value, field.Type, vals)
 	case mx.FieldKindFile:
@@ -769,7 +763,7 @@ func setMemberValues(value reflect.Value) []string {
 // prepend, when non-nil, is called with the resolved option list and its
 // result (if non-nil) is rendered before the options. Selects use it for
 // the leading empty option ([mx.SelectPreface]); enum sets use it for the
-// hidden-members note and for the empty-list render error.
+// hidden-members note.
 func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
 	assemble := func(options []mx.NamedOption) mx.Components {
 		children := make(mx.Components, 0, len(options)+1)

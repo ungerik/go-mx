@@ -351,7 +351,7 @@ API is still free to change.
 
 ### Fixed
 
-- **Reflected selects and enum-sets no longer lose or invent a value when the option list and the stored value disagree.** A required select with no current value leads with a disabled "Choose…" option, and an optional one with "(none)", so the browser does not submit the first real option. A context-dependent list that comes back empty fails the render when the field has a value or is required, instead of showing a placeholder that cannot be submitted or that clears the field on save. An enum-set keeps stored members the current list does not show — they are not rendered and not echoed, a save does not drop them, and a submitted value outside the list is still rejected.
+- **Reflected selects and enum-sets no longer invent a value when the option list and the stored value disagree.** A required select with no current value leads with a disabled "Choose…" option, and an optional one with "(none)", so the browser does not submit the first real option. A stored value the list does not offer, including a sensitive one, uses that same generic placeholder. A context-dependent list that comes back empty still renders the form. An enum-set shows a note when stored members are absent from the list and does not keep those members on save; a submitted value outside the list is still rejected. A blank optional enum saves, and a decider `Validate` on that blank value still runs.
 
 - PDF output intent subtypes escape spaces, delimiters, and other special
   bytes as PDF names, preserving custom extension values without malformed markup.

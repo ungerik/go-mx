@@ -763,6 +763,37 @@ func TestReflectFormHandler_OptionalEnumAllowsBlank(t *testing.T) {
 	}
 }
 
+func TestReflectFormHandler_OptionalEnumBlankRunsDeciderValidate(t *testing.T) {
+	type draft struct {
+		Color strictEnum
+	}
+	base := newTestDecider()
+	decider := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		b := base(path, field, value)
+		b.Validate = func(FieldPath, reflect.StructField, reflect.Value) error {
+			return errors.New("custom check")
+		}
+		return b
+	}
+	handler := ReflectFormHandler(nil, func(context.Context, *draft) error {
+		t.Fatal("decider Validate must block the save")
+		return nil
+	}, decider)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Color"), "1")
+	form.Set("Color", "")
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "custom check") {
+		t.Fatalf("decider Validate error missing: %s", rec.Body.String())
+	}
+}
+
 func TestReflectFormHandlerRedirecting_NilOnSubmitPanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

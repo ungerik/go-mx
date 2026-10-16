@@ -479,11 +479,10 @@ func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
 	}
 }
 
-// TestFieldDecider_SelectEmptyOptionListErrors: an empty context list
-// plus a stored value is a failed lookup, not a select whose only option
-// is a disabled placeholder. Rendering that would make a required field
-// unsubmittable and clear an optional one on save.
-func TestFieldDecider_SelectEmptyOptionListErrors(t *testing.T) {
+// TestFieldDecider_SelectEmptyOptionListRenders: an empty context list is
+// a legitimate "no options" answer. The page still renders, and a stored
+// value shows the generic placeholder so the first option cannot be invented.
+func TestFieldDecider_SelectEmptyOptionListRenders(t *testing.T) {
 	type draftForm struct {
 		Partner string `form:"options=test-html-partners"`
 	}
@@ -494,9 +493,15 @@ func TestFieldDecider_SelectEmptyOptionListErrors(t *testing.T) {
 	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
 	ctx := context.WithValue(context.Background(), partnersCtxKey{}, []mx.NamedOption{})
 	var b strings.Builder
-	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), `options provider "test-html-partners" returned no options`) {
-		t.Fatalf("empty list with a stored value must fail the render: %v", err)
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "gone") {
+		t.Errorf("stored value must not be echoed: %q", out)
+	}
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
 
@@ -549,7 +554,7 @@ func TestFieldDecider_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
 	}
 }
 
-func TestFieldDecider_RequiredSelectEmptyListErrors(t *testing.T) {
+func TestFieldDecider_RequiredSelectEmptyListRendersChoose(t *testing.T) {
 	type draftForm struct {
 		Partner string `form:"options=test-html-partners,required"`
 	}
@@ -560,9 +565,11 @@ func TestFieldDecider_RequiredSelectEmptyListErrors(t *testing.T) {
 	comp := beh.Render(mx.FieldPath("Partner"), field, v.Field(0), nil)
 	ctx := context.WithValue(context.Background(), partnersCtxKey{}, []mx.NamedOption{})
 	var b strings.Builder
-	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), "returned no options") {
-		t.Fatalf("required select with an empty list must fail the render: %v", err)
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("required empty list must still render: %v", err)
+	}
+	if !strings.Contains(b.String(), `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		t.Errorf("required empty list must lead with Choose…: %q", b.String())
 	}
 }
 
@@ -803,12 +810,13 @@ func TestFieldDecider_ParseRejectsOutOfListEnumSet(t *testing.T) {
 	}
 }
 
-// TestFieldDecider_EnumSetKeepsMembersMissingFromOptionList: checkboxes
-// only render the current list, so a stored member that is absent from it
-// is not submitted. Parse must keep that member. A listed member the user
-// left unchecked is removed. A value that was never stored and is not in
-// the list is still rejected.
-func TestFieldDecider_EnumSetKeepsMembersMissingFromOptionList(t *testing.T) {
+// TestFieldDecider_EnumSetDropsMembersMissingFromOptionList: checkboxes
+// only render the current list. A stored member that is absent from it is
+// announced and not echoed, and a save does not keep it. The list is the
+// trust boundary, so an uncheck of a listed member sticks even if that
+// option disappears before POST. A value that was never stored and is not
+// in the list is still rejected, and a rejected submit leaves the set as it was.
+func TestFieldDecider_EnumSetDropsMembersMissingFromOptionList(t *testing.T) {
 	type tagForm struct {
 		Tags []string `form:"options=test-html-tags"` // registry offers a, b
 	}
@@ -851,16 +859,16 @@ func TestFieldDecider_EnumSetKeepsMembersMissingFromOptionList(t *testing.T) {
 	if err := parse(f, "a"); err != nil {
 		t.Fatalf("listed submission must bind: %v", err)
 	}
-	if len(f.Tags) != 2 || f.Tags[0] != "a" || f.Tags[1] != "kept" {
-		t.Fatalf("got %v, want [a kept]", f.Tags)
+	if len(f.Tags) != 1 || f.Tags[0] != "a" {
+		t.Fatalf("got %v, want [a]", f.Tags)
 	}
 
 	f = &tagForm{Tags: []string{"kept", "a"}}
 	if err := parse(f); err != nil {
-		t.Fatalf("empty submission must keep unlisted members: %v", err)
+		t.Fatalf("empty submission must bind: %v", err)
 	}
-	if len(f.Tags) != 1 || f.Tags[0] != "kept" {
-		t.Fatalf("got %v, want [kept]", f.Tags)
+	if len(f.Tags) != 0 {
+		t.Fatalf("got %v, want no members", f.Tags)
 	}
 
 	f = &tagForm{Tags: []string{"kept"}}
@@ -872,7 +880,7 @@ func TestFieldDecider_EnumSetKeepsMembersMissingFromOptionList(t *testing.T) {
 	}
 }
 
-func TestFieldDecider_EnumSetEmptyListWithMembersErrors(t *testing.T) {
+func TestFieldDecider_EnumSetEmptyListWithMembersRenders(t *testing.T) {
 	// test-html-partners reads the option list from the request context,
 	// so the test can hand it an empty slice.
 	type ctxForm struct {
@@ -885,9 +893,18 @@ func TestFieldDecider_EnumSetEmptyListWithMembersErrors(t *testing.T) {
 	comp := beh.Render(mx.FieldPath("Tags"), field, v.Field(0), nil)
 	ctx := context.WithValue(context.Background(), partnersCtxKey{}, []mx.NamedOption{})
 	var b strings.Builder
-	err := comp.Render(ctx, mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), "returned no options") {
-		t.Fatalf("empty list with stored members must fail the render: %v", err)
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("empty list must still render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "kept") {
+		t.Errorf("unlisted member must not be echoed: %q", out)
+	}
+	if strings.Contains(out, `type="checkbox"`) {
+		t.Errorf("empty list must not render a checkbox: %q", out)
+	}
+	if !strings.Contains(out, "(some current values are not available)") {
+		t.Errorf("missing members must be announced: %q", out)
 	}
 }
 
@@ -930,7 +947,7 @@ func (id *marshaledID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Value: protects=a text-marshaled enum-set member matches its option, stays removable, and a hidden member is kept; fails_when=members are formatted with fmt.Sprint so the stored ID is neither checked nor removable; why_new=the ID select test is a single value and enum-set tests use plain strings; seam=none; no_claim=shadcn checkbox state is covered by TestShadcn_EnumSetChecksMarshaledMember
+// Value: protects=a text-marshaled enum-set member matches its option and stays removable, and a hidden member is dropped on save; fails_when=members are formatted with fmt.Sprint so the stored ID is neither checked nor removable, or a hidden member is written back; why_new=the ID select test is a single value and enum-set tests use plain strings; seam=none; no_claim=shadcn checkbox state is covered by TestShadcn_EnumSetChecksMarshaledMember
 func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
 	listed := marshaledID{0xde, 0xad, 0xbe, 0xef} // deadbeef
 	hidden := marshaledID{0x01, 0x02, 0x03, 0x04} // 01020304
@@ -996,16 +1013,16 @@ func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
 		if err := parse(t, f, "deadbeef"); err != nil {
 			t.Fatal(err)
 		}
-		if len(f.IDs) != 2 || f.IDs[0] != listed || f.IDs[1] != hidden {
-			t.Fatalf("got %x, want listed then hidden", f.IDs)
+		if len(f.IDs) != 1 || f.IDs[0] != listed {
+			t.Fatalf("got %x, want only the listed id", f.IDs)
 		}
 
 		f = &form{IDs: []marshaledID{listed, hidden}}
 		if err := parse(t, f); err != nil {
 			t.Fatal(err)
 		}
-		if len(f.IDs) != 1 || f.IDs[0] != hidden {
-			t.Fatalf("unchecked listed member must drop, got %x", f.IDs)
+		if len(f.IDs) != 0 {
+			t.Fatalf("unchecked submission must drop every member, got %x", f.IDs)
 		}
 
 		f = &form{IDs: []marshaledID{hidden}}
@@ -1033,11 +1050,11 @@ func TestFieldDecider_EnumSetMarshaledMemberRoundTrip(t *testing.T) {
 		if err := parse(t, f); err != nil {
 			t.Fatal(err)
 		}
-		if len(f.IDs) != 1 {
-			t.Fatalf("got %d members, want only the hidden key", len(f.IDs))
+		if len(f.IDs) != 0 {
+			t.Fatalf("got %d members, want none", len(f.IDs))
 		}
-		if _, ok := f.IDs[hidden]; !ok {
-			t.Fatalf("hidden key was dropped: %v", f.IDs)
+		if _, ok := f.IDs[hidden]; ok {
+			t.Fatalf("hidden key must not be kept: %v", f.IDs)
 		}
 	})
 }
@@ -1065,7 +1082,7 @@ func TestFieldDecider_EnumSetParseReturnsProviderError(t *testing.T) {
 	}
 }
 
-func TestReflectFormHandler_EnumSetPreservesUnlistedMembers(t *testing.T) {
+func TestReflectFormHandler_EnumSetDropsUnlistedMembers(t *testing.T) {
 	type draft struct {
 		Tags []string `form:"options=test-html-tags"`
 	}
@@ -1106,12 +1123,53 @@ func TestReflectFormHandler_EnumSetPreservesUnlistedMembers(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("POST status = %d, body: %s", rec.Code, rec.Body.String())
 	}
-	if saved == nil || len(saved.Tags) != 2 || saved.Tags[0] != "a" || saved.Tags[1] != "kept" {
-		t.Fatalf("saved Tags = %v, want [a kept]", saved)
+	if saved == nil || len(saved.Tags) != 1 || saved.Tags[0] != "a" {
+		t.Fatalf("saved Tags = %v, want [a]", saved)
 	}
 }
 
-func TestReflectFormHandler_EmptyOptionListIsInternalServerError(t *testing.T) {
+type checkedEnum string
+
+func (checkedEnum) EnumStrings() []string { return []string{"a", "b"} }
+
+func (e checkedEnum) Validate() error {
+	if e != "a" && e != "b" {
+		return errors.New("invalid enum")
+	}
+	return nil
+}
+
+func TestReflectFormHandler_EnumSetDropsInvalidUnlistedMember(t *testing.T) {
+	type draft struct {
+		Tags []checkedEnum `form:"options=test-html-tags"`
+	}
+	var saved []checkedEnum
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*draft, error) {
+			return &draft{Tags: []checkedEnum{"nope", "b"}}, nil
+		},
+		func(_ context.Context, d *draft) error {
+			saved = append([]checkedEnum{}, d.Tags...)
+			return nil
+		},
+		FieldDecider,
+	)
+	form := url.Values{}
+	form.Set(mx.PresentSentinelName("Tags"), "1")
+	form.Add("Tags", "a")
+	post := httptest.NewRequest(http.MethodPost, "/tags", strings.NewReader(form.Encode()))
+	post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, post)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("stale member must not block the save, status %d body %s", rec.Code, rec.Body.String())
+	}
+	if len(saved) != 1 || saved[0] != "a" {
+		t.Fatalf("saved %v, want [a]", saved)
+	}
+}
+
+func TestReflectFormHandler_EmptyOptionListStillRenders(t *testing.T) {
 	type draft struct {
 		Partner string `form:"options=test-html-handler-partners"`
 	}
@@ -1126,11 +1184,18 @@ func TestReflectFormHandler_EmptyOptionListIsInternalServerError(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), partnersCtxKey{}, []mx.NamedOption{}))
 	rec := httptest.NewRecorder()
 	handler(rec, req)
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want 500", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body %s", rec.Code, rec.Body.String())
 	}
-	if strings.Contains(rec.Body.String(), "<form") {
-		t.Errorf("partial form HTML must not leak: %q", rec.Body.String())
+	body := rec.Body.String()
+	if !strings.Contains(body, "<form") {
+		t.Fatalf("empty option list must still render the form: %q", body)
+	}
+	if strings.Contains(body, "gone") {
+		t.Errorf("stored value must not be echoed: %q", body)
+	}
+	if !strings.Contains(body, "(current value not available)") {
+		t.Errorf("stored value must show the generic placeholder: %q", body)
 	}
 }
 
