@@ -2,8 +2,7 @@ package dbdoc
 
 import (
 	"time"
-
-	"github.com/domonda/go-types/uu"
+	"uuid"
 )
 
 // Color is a stored text color value.
@@ -12,7 +11,7 @@ type Color int32 // TODO
 // Font is a stored font definition holding the typographic properties
 // applied to document text, mirroring the corresponding CSS font properties.
 type Font struct {
-	ID          uu.ID     `db:"id,pk"`
+	ID          uuid.UUID `db:"id,pk"`
 	FontFamily  string    `db:"font_family"`
 	FontSize    string    `db:"font_size"`
 	FontStyle   string    `db:"font_style"`
@@ -24,6 +23,6 @@ type Font struct {
 
 // DocumentFont is the join record linking a Font to a Document.
 type DocumentFont struct {
-	DocumentID uu.ID `db:"document_id,pk"`
-	FontID     uu.ID `db:"font_id,pk"`
+	DocumentID uuid.UUID `db:"document_id,pk"`
+	FontID     uuid.UUID `db:"font_id,pk"`
 }

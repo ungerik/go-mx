@@ -1,6 +1,6 @@
 module github.com/ungerik/go-mx/wordpress
 
-go 1.26.0
+go 1.27.0
 
 // go-mx is the parent module, co-developed in this repo. The workspace (go.work)
 // resolves it locally; this replace makes non-workspace builds resolve it too.

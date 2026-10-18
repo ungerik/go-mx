@@ -482,6 +482,11 @@ func displayValue(v reflect.Value) string {
 		}
 		x = x.Elem()
 	}
+	// The zero value of a fixed-size ID is what an empty submission stores,
+	// so it is no value, not 00000000-0000-0000-0000-000000000000.
+	if x.Kind() == reflect.Array && x.IsZero() {
+		return ""
+	}
 	if t, ok := x.Interface().(time.Time); ok {
 		return t.Format("2006-01-02T15:04:05")
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/ungerik/go-mx"
 )
@@ -564,4 +565,53 @@ func TestShadcn_EnumSetWithRegistryOptions(t *testing.T) {
 	if strings.Contains(out, "not available") {
 		t.Errorf("listed members must not show the hidden-member note: %q", out)
 	}
+}
+
+// The shadcn renderer keeps its own displayValue, so the zero uuid.UUID and
+// the zero time.Time must render as no value here too: the select leads with
+// Choose… and the inputs stay empty.
+func TestShadcn_ZeroValueRendersAsNoValue(t *testing.T) {
+	partner := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: partner.String()}})
+	render := func(t *testing.T, target any) string {
+		t.Helper()
+		v := reflect.ValueOf(target).Elem()
+		field := v.Type().Field(0)
+		path := mx.FieldPath(field.Name)
+		comp := FieldDecider(path, field, v.Field(0)).Render(path, field, v.Field(0), nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return b.String()
+	}
+
+	t.Run("required select", func(t *testing.T) {
+		out := render(t, &struct {
+			Partner uuid.UUID `form:"options=test-shadcn-partners,required"`
+		}{})
+		if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+			t.Errorf("a required select without a value must lead with Choose…: %q", out)
+		}
+		if strings.Contains(out, "not available") {
+			t.Errorf("the zero id is no value, not an unlisted one: %q", out)
+		}
+	})
+	t.Run("text uuid", func(t *testing.T) {
+		out := render(t, &struct {
+			Code uuid.UUID
+		}{})
+		if strings.Contains(out, "00000000-0000") {
+			t.Errorf("the zero id must render as an empty value: %q", out)
+		}
+	})
+	t.Run("datetime", func(t *testing.T) {
+		out := render(t, &struct {
+			Due time.Time
+		}{})
+		if strings.Contains(out, "0001-01-01") {
+			t.Errorf("the zero time must render as an empty value: %q", out)
+		}
+	})
 }

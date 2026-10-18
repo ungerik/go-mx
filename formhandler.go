@@ -383,6 +383,11 @@ func setFieldNull(value reflect.Value) error {
 // isEffectivelyEmpty reports whether value should be treated as
 // "empty" for purposes of a Required check. Numeric and bool fields
 // are never empty (a value is always submitted via __present).
+//
+// An array or struct is empty when it is its zero value: an empty
+// submission stores the zero value of a fixed-size ID such as uuid.UUID
+// or of a time.Time, so a length check alone would accept a blank ID as
+// uuid.Nil(). A [Zeroable] type decides that itself, as time.Time does.
 func isEffectivelyEmpty(value reflect.Value) bool {
 	if !value.IsValid() {
 		return true
@@ -393,8 +398,13 @@ func isEffectivelyEmpty(value reflect.Value) bool {
 	switch value.Kind() {
 	case reflect.String:
 		return value.Len() == 0
-	case reflect.Slice, reflect.Map, reflect.Array:
+	case reflect.Slice, reflect.Map:
 		return value.Len() == 0
+	case reflect.Array, reflect.Struct:
+		if z, ok := safeInterface(value).(Zeroable); ok {
+			return z.IsZero()
+		}
+		return value.IsZero()
 	case reflect.Pointer, reflect.Interface:
 		return value.IsNil()
 	}

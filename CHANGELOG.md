@@ -276,6 +276,18 @@ API is still free to change.
 
 ### Changed
 
+- **go-mx requires Go 1.27 and no longer depends on
+  `github.com/domonda/go-types`.** The `doc/dbdoc` record types use the
+  standard library `uuid.UUID` for their ids and `*uuid.UUID` for the nullable
+  `Text.FontID`. Unlike the go-types ids, `uuid.UUID` has no `Scan` and `Value`
+  methods: the default converter of `database/sql` stores it as its string form
+  and scans it from a string or 16 bytes, but a driver that converts arguments
+  itself has to support the type.
+  `Document.Name` is a `string`, and the nullable `DocVersion.Description` and
+  `DocVersion.CreatedBy` are `*string`, so they are no longer trimmed the way
+  the go-types string types trimmed them. Only a nil pointer is NULL now: an
+  empty string or the Nil UUID is stored as such, where the go-types nullable
+  types stored it as NULL.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown
@@ -351,6 +363,7 @@ API is still free to change.
 
 ### Fixed
 
+- **A required reflected-form field no longer accepts a blank ID or date.** An empty submission stores the zero value of a `uuid.UUID`, any other fixed-size array ID, or a `time.Time`, and the required check now reads that zero value as missing. A hidden or text ID field tagged `form:"required"` rejects a blank instead of saving `uuid.Nil()`, and a required date rejects a blank instead of saving 0001-01-01. A zero ID also renders as no value, in both the `html` and the `shadcn` renderer: a select leads with "Choose…" or "(none)" instead of the "(current value not available)" placeholder, and an input stays empty instead of showing `00000000-0000-0000-0000-000000000000`.
 - **Reflected selects and enum-sets no longer invent a value when the option list and the stored value disagree.** A required select with no current value leads with a disabled "Choose…" option, and an optional one with "(none)", so the browser does not submit the first real option. A stored value the list does not offer, including a sensitive one, uses that same generic placeholder. A context-dependent list that comes back empty still renders the form. An enum-set shows a note when stored members are absent from the list and does not keep those members on save; a submitted value outside the list is still rejected. A blank optional enum saves, and a decider `Validate` on that blank value still runs. A required select rejects an empty submission even when the zero value is not "empty" to reflection (a `[4]byte` id). Enum-set membership uses the same text form as the option list — `MarshalText`, otherwise `fmt.Sprint` — so a `Stringer` stays checked and a named string whose text form adds a prefix round-trips instead of growing that prefix on every save.
 
 - PDF output intent subtypes escape spaces, delimiters, and other special
