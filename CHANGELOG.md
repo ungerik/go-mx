@@ -278,8 +278,11 @@ API is still free to change.
 
 - **go-mx requires Go 1.27 and no longer depends on
   `github.com/domonda/go-types`.** The `doc/dbdoc` record types use the
-  standard library `uuid.UUID` for their ids, which `database/sql` scans and
-  stores natively, and `*uuid.UUID` for the nullable `Text.FontID`.
+  standard library `uuid.UUID` for their ids and `*uuid.UUID` for the nullable
+  `Text.FontID`. Unlike the go-types ids, `uuid.UUID` has no `Scan` and `Value`
+  methods: the default converter of `database/sql` stores it as its string form
+  and scans it from a string or 16 bytes, but a driver that converts arguments
+  itself has to support the type.
   `Document.Name` is a `string`, and the nullable `DocVersion.Description` and
   `DocVersion.CreatedBy` are `*string`, so they are no longer trimmed the way
   the go-types string types trimmed them. Only a nil pointer is NULL now: an
