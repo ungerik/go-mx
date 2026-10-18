@@ -260,21 +260,11 @@ func (s *Site) MarkdownAlternateURL(page *Page) (string, error) {
 }
 
 // ServeMarkdown writes the Markdown alternate of the page (see
-// [Site.MarkdownAlternate]) as a text/markdown response.
-//
-// The response carries a canonical Link header pointing at the HTML page, so
-// search engines index that one rather than the alternate, and "Vary: Accept",
-// because a site serving the alternate under the page's own URL to a client
-// that asks for Markdown (see [AcceptsMarkdown]) has to keep caches from
-// handing it to everyone else. A page that is not [Page.Indexable] is marked
-// "X-Robots-Tag: noindex, nofollow", the header form of its robots meta tag.
-//
-// The etag and lastMod are the caller's revision of the page, or empty and
-// zero for none. The etag is quoted if it is not yet and marked "-md" inside
-// the quotes: under content negotiation the alternate shares its URL with the
-// HTML page, and a cache revalidating both with one tag could answer a
-// Markdown client with the HTML. Conditional and range requests are answered
-// by [http.ServeContent], so a client presenting the current tag gets a 304.
+// [Site.MarkdownAlternate]) as a text/markdown response, with the headers and
+// the conditional-request handling of [Site.ServeMarkdownDocument]. It serves
+// a page as it is; to add Sections to the alternate, or change its other
+// fields, build it with [Site.MarkdownAlternate] and serve the result with
+// [Site.ServeMarkdownDocument] instead.
 //
 // A page without a Markdown source has no alternate to serve and gets a 404;
 // any other failure of [Site.MarkdownAlternate] is a 500.
@@ -288,9 +278,47 @@ func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request
 		mx.RespondNonContextError(response, err)
 		return
 	}
+	s.ServeMarkdownDocument(response, request, page, doc, etag, lastMod)
+}
+
+// ServeMarkdownDocument writes doc, the Markdown alternate of the page, as a
+// text/markdown response. It is [Site.ServeMarkdown] for a document the caller
+// built with [Site.MarkdownAlternate] and then changed, typically by adding
+// Sections; a page served as it is goes through [Site.ServeMarkdown].
+//
+// The response carries a canonical Link header pointing at doc.URL, the HTML
+// page, so search engines index that one rather than the alternate (none for
+// an empty doc.URL, which the body leaves out too), and "Vary: Accept",
+// because a site serving the alternate under the page's own URL to a client
+// that asks for Markdown (see [AcceptsMarkdown]) has to keep caches from
+// handing it to everyone else. A page that is not [Page.Indexable] is marked
+// "X-Robots-Tag: noindex, nofollow", the header form of its robots meta tag.
+// That is all the page is used for: everything else comes from doc.
+//
+// The etag and lastMod are the caller's revision of the document, or empty and
+// zero for none; for a document with Sections of its own they have to change
+// when those do. The etag is quoted if it is not yet and marked "-md" inside
+// the quotes: under content negotiation the alternate shares its URL with the
+// HTML page, and a cache revalidating both with one tag could answer a
+// Markdown client with the HTML. Conditional and range requests are answered
+// by [http.ServeContent], so a client presenting the current tag gets a 304.
+// Headers set before the call, like Cache-Control, are left as they are, and
+// the request is used as given, so a caller that wants only the etag to
+// answer a conditional request passes a clone without If-Modified-Since.
+//
+// A nil doc is a bug in the caller and gets a 500, like a failure of
+// [Site.MarkdownAlternate] in [Site.ServeMarkdown].
+func (s *Site) ServeMarkdownDocument(response http.ResponseWriter, request *http.Request, page *Page, doc *MarkdownDocument, etag string, lastMod time.Time) {
+	if doc == nil {
+		mx.RespondNonContextError(response, errs.Errorf("page %q: no Markdown document to serve", page.Path))
+		return
+	}
 	header := response.Header()
 	header.Set("Content-Type", mx.ContentTypeMarkdown)
-	header.Add("Link", pageLink{rel: "canonical", url: doc.URL}.headerValue())
+	// "<>" would name the alternate itself as canonical.
+	if doc.URL != "" {
+		header.Add("Link", pageLink{rel: "canonical", url: doc.URL}.headerValue())
+	}
 	// The caller may have set it already, for the HTML response it would
 	// have answered with instead (see AcceptsMarkdown).
 	if !headerListContains(header.Values("Vary"), "Accept") {

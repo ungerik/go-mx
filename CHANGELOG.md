@@ -60,6 +60,14 @@ API is still free to change.
   for Markdown over HTML — a browser's `*/*` never counts as asking, while an
   agent's `text/markdown, text/html, */*` does, because at equal quality the
   client's order decides.
+- **`web.Site.ServeMarkdownDocument`** serves a `MarkdownDocument` the caller
+  built with `Site.MarkdownAlternate` and then extended, typically with
+  `Sections` of facts only the site knows. Without it a site adding sections
+  could not use `ServeMarkdown` and had to copy its response headers, a copy
+  that drifts: a second `Vary: Accept` after a content-negotiating handler set
+  one, or a `-md` tag that mishandles weak entity tags. `ServeMarkdown` now
+  builds the document and calls it, so both write the same headers. A nil
+  document is a caller bug and gets a 500.
 - **`web.LLMsTxt`** renders an [llms.txt](https://llmstxt.org) index and, like
   `web.Robots`, validates first: a line break in any field, a bracket,
   backtick, `<` or trailing backslash in a link title, a parenthesis or

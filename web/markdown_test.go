@@ -353,6 +353,133 @@ func TestSiteServeMarkdown(t *testing.T) {
 	})
 }
 
+func TestSiteServeMarkdownDocument(t *testing.T) {
+	site := markdownSite()
+	page := markdownPage()
+	request := func() *http.Request { return httptest.NewRequest(http.MethodGet, "/en/faq.md", nil) }
+	// extended is the alternate with the Sections only the caller knows.
+	extended := func(t *testing.T) *web.MarkdownDocument {
+		t.Helper()
+		doc, err := site.MarkdownAlternate(page)
+		require.NoError(t, err)
+		doc.Sections = append(doc.Sections,
+			web.MarkdownSection{Title: "Facts", Body: "- Founded: 2026\n- Employees: 3\n"},
+			web.MarkdownSection{Body: "A section without a heading."},
+		)
+		return doc
+	}
+
+	response := httptest.NewRecorder()
+	site.ServeMarkdownDocument(response, request(), page, extended(t), "rev-42", updated)
+	require.Equal(t, http.StatusOK, response.Code)
+	// The Sections come after the metadata header, before the page source.
+	requireGolden(t, "markdown_alternate_sections.md", response.Body.Bytes())
+
+	t.Run("same response as ServeMarkdown", func(t *testing.T) {
+		doc, err := site.MarkdownAlternate(page)
+		require.NoError(t, err)
+		served := httptest.NewRecorder()
+		site.ServeMarkdown(served, request(), page, "rev-42", updated)
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, doc, "rev-42", updated)
+		require.Equal(t, served.Code, response.Code)
+		require.Equal(t, served.Header(), response.Header())
+		require.Equal(t, served.Body.String(), response.Body.String())
+	})
+
+	t.Run("canonical link from the document", func(t *testing.T) {
+		// Nothing doc holds is derived from the page again.
+		doc := extended(t)
+		doc.URL = "https://example.com/en/questions"
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, doc, "", updated)
+		require.Equal(t, mx.ContentTypeMarkdown, response.Header().Get("Content-Type"))
+		require.Equal(t, []string{`<https://example.com/en/questions>; rel="canonical"`}, response.Header().Values("Link"))
+	})
+
+	t.Run("without canonical URL", func(t *testing.T) {
+		doc := extended(t)
+		doc.URL = ""
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, doc, "", updated)
+		require.Equal(t, http.StatusOK, response.Code)
+		require.Empty(t, response.Header().Values("Link"))
+	})
+
+	t.Run("vary", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, extended(t), "", updated)
+		require.Equal(t, []string{"Accept"}, response.Header().Values("Vary"))
+
+		// A handler negotiating HTML and Markdown sets it before it knows
+		// which one it answers with.
+		response = httptest.NewRecorder()
+		response.Header().Set("Vary", "Accept")
+		site.ServeMarkdownDocument(response, request(), page, extended(t), "", updated)
+		require.Equal(t, []string{"Accept"}, response.Header().Values("Vary"))
+	})
+
+	t.Run("etag", func(t *testing.T) {
+		for _, tt := range []struct {
+			etag string
+			want string
+		}{
+			{etag: "rev-42", want: `"rev-42-md"`},
+			{etag: `"rev-42"`, want: `"rev-42-md"`},
+			{etag: `W/"rev-42"`, want: `W/"rev-42-md"`},
+		} {
+			response := httptest.NewRecorder()
+			site.ServeMarkdownDocument(response, request(), page, extended(t), tt.etag, updated)
+			require.Equal(t, tt.want, response.Header().Get("ETag"), "etag %s", tt.etag)
+		}
+
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, extended(t), "", updated)
+		require.Equal(t, http.StatusOK, response.Code)
+		require.Empty(t, response.Header().Values("ETag"))
+	})
+
+	t.Run("if-none-match", func(t *testing.T) {
+		request := request()
+		request.Header.Set("If-None-Match", `"rev-42-md"`)
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request, page, extended(t), "rev-42", updated)
+		require.Equal(t, http.StatusNotModified, response.Code)
+		require.Empty(t, response.Body.String())
+	})
+
+	t.Run("indexable", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, extended(t), "", updated)
+		require.Empty(t, response.Header().Values("X-Robots-Tag"))
+
+		// The document was built from a published page; the noindex comes
+		// from the page passed with it.
+		draft := markdownPage()
+		draft.Published = scheduled
+		response = httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), draft, extended(t), "", updated)
+		require.Equal(t, http.StatusOK, response.Code)
+		require.Equal(t, "noindex, nofollow", response.Header().Get("X-Robots-Tag"))
+	})
+
+	t.Run("caller's headers", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		response.Header().Set("Cache-Control", "public, max-age=300")
+		site.ServeMarkdownDocument(response, request(), page, extended(t), "", updated)
+		require.Equal(t, "public, max-age=300", response.Header().Get("Cache-Control"))
+	})
+
+	t.Run("nil document", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		site.ServeMarkdownDocument(response, request(), page, nil, "rev-42", updated)
+		require.Equal(t, http.StatusInternalServerError, response.Code)
+		require.NotEqual(t, mx.ContentTypeMarkdown, response.Header().Get("Content-Type"))
+		require.Empty(t, response.Header().Values("Link"))
+		require.Empty(t, response.Header().Values("ETag"))
+	})
+}
+
 func TestAcceptsMarkdown(t *testing.T) {
 	tests := []struct {
 		name   string
