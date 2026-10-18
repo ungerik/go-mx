@@ -383,8 +383,8 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
 		// A required select's empty option must not become a zero non-string
-		// value. isEffectivelyEmpty treats an array as full, so the handler's
-		// required check would accept a zero ID.
+		// value. isEffectivelyEmpty never treats a number as empty, so the
+		// handler's required check would accept the zero of an int enum.
 		if raw == "" && tag.Required {
 			return fmt.Errorf("required")
 		}
@@ -831,6 +831,11 @@ func displayValue(value reflect.Value, tag mx.FormTag) string {
 			return ""
 		}
 		v = v.Elem()
+	}
+	// The zero value of a fixed-size ID is what an empty submission stores
+	// (setScalar), so it is no value, not 00000000-0000-0000-0000-000000000000.
+	if v.Kind() == reflect.Array && v.IsZero() {
+		return ""
 	}
 	if t, ok := v.Interface().(time.Time); ok {
 		return t.Format("2006-01-02T15:04:05")
