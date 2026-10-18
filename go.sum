@@ -12,8 +12,8 @@ github.com/domonda/go-errs v1.0.4 h1:oX7WWrAFbRTd5D+vSQyKvvv97mR7SKNfLK8CEoLInxA
 github.com/domonda/go-errs v1.0.4/go.mod h1:zt5V57wkHr3YNuCGemVABL/OUa0zFbixzr5CXiKYp6w=
 github.com/domonda/go-pretty v1.0.0 h1:58OcAmEgcYEOuMQRXtC0jAndPKqHfV3TVZUttWKnRc4=
 github.com/domonda/go-pretty v1.0.0/go.mod h1:O05JaeEezfZ2ian+t10+JrAZFKadSIsqWdukNtOPEzI=
-github.com/domonda/go-types v0.0.0-20260910130506-4071f66d73ea h1:7f3M6/guUdIaxSWHcDXzvJgdNk+Pd2j/dLizC2cXy84=
-github.com/domonda/go-types v0.0.0-20260910130506-4071f66d73ea/go.mod h1:tr0N7f5vUWyADZR4DzPBNGoT4N5LTjl3EJ53Pqrj91Q=
+github.com/domonda/go-types v1.0.0-beta.2 h1:Gnmxymnm656li37uqPyClsCrW6x08AaKveupNJ48OhM=
+github.com/domonda/go-types v1.0.0-beta.2/go.mod h1:jAST90xBQWqZVFa+UKBpEl6vZW8YLqResQntdL/TNpM=
 github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=
 github.com/fsnotify/fsnotify v1.10.1/go.mod h1:TLheqan6HD6GBK6PrDWyDPBaEV8LspOxvPSjC+bVfgo=
 github.com/invopop/jsonschema v0.14.0 h1:MHQqLhvpNUZfw+hM3AZDYK7jxO8FZoQeQM77g8iyZjg=
