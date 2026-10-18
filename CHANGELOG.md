@@ -282,7 +282,9 @@ API is still free to change.
   stores natively, and `*uuid.UUID` for the nullable `Text.FontID`.
   `Document.Name` is a `string`, and the nullable `DocVersion.Description` and
   `DocVersion.CreatedBy` are `*string`, so they are no longer trimmed the way
-  the go-types string types trimmed them.
+  the go-types string types trimmed them. Only a nil pointer is NULL now: an
+  empty string or the Nil UUID is stored as such, where the go-types nullable
+  types stored it as NULL.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown

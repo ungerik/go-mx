@@ -160,7 +160,7 @@ mx.ForEach(slice, func(v T) Component { ... })
 
 - Use `any` instead of `interface{}`
 - Use `github.com/domonda/go-errs` for errors (`errs.New`, `errs.Errorf`)
-- Use the standard library `uuid` package for UUIDs (`uuid.UUID`, `uuid.New`, `uuid.Nil`)
+- Use the standard library `uuid` package for UUIDs (`uuid.UUID`, `uuid.New()`, `uuid.Nil()`; `Nil` is a function, not a variable)
 - Closed sets of typed constants are go-enum types: `type X string //#enum` plus the `//go:generate` line of e.g. `html/enums.go`. Check and list values with the generated `Valid`/`Validate`/`Enums`/`EnumStrings` methods; use `ValidOr(default)` to resolve an empty or unknown value to its default where that is the desired behavior.
 - Enum options in a JSON Schema come from `//#enum,jsonschema`. Its `JSONSchema()` returns an invopop schema, which the MCP SDK's `google/jsonschema-go` ignores, so an `mcp/` tool parameter needs `jsonschema.ForOptions.TypeSchemas` filled from `EnumStrings()`.
 - SQL strings: prefix with `/*sql*/` and use backticks and start on a new line when following an argument
