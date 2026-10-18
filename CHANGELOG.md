@@ -276,6 +276,13 @@ API is still free to change.
 
 ### Changed
 
+- **go-mx requires Go 1.27 and no longer depends on
+  `github.com/domonda/go-types`.** The `doc/dbdoc` record types use the
+  standard library `uuid.UUID` for their ids, which `database/sql` scans and
+  stores natively, and `*uuid.UUID` for the nullable `Text.FontID`.
+  `Document.Name` is a `string`, and the nullable `DocVersion.Description` and
+  `DocVersion.CreatedBy` are `*string`, so they are no longer trimmed the way
+  the go-types string types trimmed them.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown

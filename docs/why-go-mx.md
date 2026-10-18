@@ -116,7 +116,7 @@ some distinctive choices:
 - **Go-only, smaller ecosystem.** No Figma-to-React handoff, far fewer
   off-the-shelf components than the React world, and your team has to be a Go
   team.
-- **Requires Go 1.26** (very recent), which can be a non-starter for some
+- **Requires Go 1.27** (very recent), which can be a non-starter for some
   shops.
 
 ## Optimal use cases

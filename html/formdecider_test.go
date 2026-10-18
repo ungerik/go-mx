@@ -679,7 +679,7 @@ func TestReflectFormHandler_RegistryOptionsGetRequestContext(t *testing.T) {
 	}
 }
 
-// fakeID is a stand-in for uu.ID-shaped foreign key types: a [16]byte
+// fakeID is a stand-in for uuid.UUID-shaped foreign key types: a [16]byte
 // array with TextMarshaler/TextUnmarshaler — the motivating use case
 // for form:"options=…" on fields whose type cannot implement a
 // provider interface.

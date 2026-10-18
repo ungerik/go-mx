@@ -16,7 +16,7 @@ func TestKeyedIDValue(t *testing.T) {
 		{"mixed types formatted plainly", []any{"row", 42, true}, "_row-42-true"},
 		// The '_' prefix is what keeps a numeric first part a valid HTML id.
 		{"numeric first part", []any{7}, "_7"},
-		// A uu.ID-shaped part must survive intact: its hyphens are meaningful.
+		// A UUID-shaped part must survive intact: its hyphens are meaningful.
 		{"uuid part kept whole", []any{"msg", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
 			"_msg-6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
 		// Characters that would break a CSS selector or an htmx target reduce to

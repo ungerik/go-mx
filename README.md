@@ -40,7 +40,7 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 go get github.com/ungerik/go-mx
 ```
 
-Requires Go 1.26 or newer.
+Requires Go 1.27 or newer.
 
 ## Example
 
@@ -237,7 +237,7 @@ mx.RegisterNamedOptions("partners", func(ctx context.Context) ([]mx.NamedOption,
 })
 
 type InvoiceDraft struct {
-    PartnerID uu.ID `form:"options=partners,label=Partner,required"`
+    PartnerID uuid.UUID `form:"options=partners,label=Partner,required"`
 }
 ```
 

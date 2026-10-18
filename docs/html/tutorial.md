@@ -12,7 +12,7 @@ how elements, attributes, iteration, and documents fit together.
 
 ## What you'll need
 
-- **Go 1.26 or newer** (`go version` to check).
+- **Go 1.27 or newer** (`go version` to check).
 - A terminal and a browser.
 - No prior go-mx knowledge.
 

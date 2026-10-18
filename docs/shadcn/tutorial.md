@@ -12,7 +12,7 @@ styled HTML, no client framework.
 
 ## What you'll need
 
-- Go 1.26 or newer (`go version`)
+- Go 1.27 or newer (`go version`)
 - A web browser
 - An internet connection (Tailwind is loaded from a CDN in this tutorial)
 

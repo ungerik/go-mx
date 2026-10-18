@@ -41,7 +41,7 @@ html.Div(html.Class("card"),
 go get github.com/ungerik/go-mx
 ```
 
-Requires Go 1.26 or newer.
+Requires Go 1.27 or newer.
 
 ## Hello, go-mx
 

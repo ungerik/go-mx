@@ -19,7 +19,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.26'
+        go-version: '1.27'
 
     # go test ./... only covers the current module even in workspace mode, so
     # each nested module needs its own step. The fpdf module carries the
@@ -62,7 +62,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.26'
+        go-version: '1.27'
 
     # Regenerate the committed docs/shadcn/gallery and fail if it drifts from the Go
     # source. Must match the command in docs/_config.yml byte for byte.
