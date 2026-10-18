@@ -22,7 +22,7 @@ site's own code, added through the extension points below.
 | Piece | What it gives a page or a site |
 |-------|--------------------------------|
 | `Page.Alternates` | Translations and other formats of a page. `Site.AddPageMetadata` renders them as `<link>` elements, `Site.PageHeaders` as `Link` headers — from one list, so the two cannot disagree. A page with translations names its own language too (`Page.Lang`, else `Site.Lang`), and `Site.DefaultLang` adds the `x-default` link. |
-| Markdown alternates | `Site.MarkdownAlternate` turns a page with Markdown content into a standalone Markdown document: a header with title, description, canonical URL, language, last update and translations, your own `Sections`, then the page's source. `MarkdownPath` gives its URL (`/en/faq` → `/en/faq.md`), `Site.ServeMarkdown` serves it, and `AcceptsMarkdown` tells a client that asked for Markdown from a browser. |
+| Markdown alternates | `Site.MarkdownAlternate` turns a page with Markdown content into a standalone Markdown document: a header with title, description, canonical URL, language, last update and translations, your own `Sections`, then the page's source. `MarkdownPath` gives its URL (`/en/faq` → `/en/faq.md`), `Site.ServeMarkdown` serves it — or `Site.ServeMarkdownDocument`, once you have added `Sections` — and `AcceptsMarkdown` tells a client that asked for Markdown from a browser. |
 | `web.LLMsTxt` | An [llms.txt](https://llmstxt.org) index, validated before it is written. `Site.LLMsTxt` builds one listing the Markdown alternates of all public pages, grouped by `Page.Type`. |
 | `html.JSONLD` | A `<script type="application/ld+json">` that is safe for untrusted values. |
 | `web/schemaorg` | Typed schema.org values for it: `Organization`, `Person`, `WebPage`, `FAQPage`, `Event`, `Offer`, … Prices are built from integer cents with `schemaorg.Price`. |
@@ -122,6 +122,38 @@ HTML to an agent that asked for Markdown. `ServeMarkdown` adds it itself
 unless the handler already did. Not every CDN honours `Vary` for HTML; behind
 one that does not, link agents to the `.md` URL rather than relying on
 negotiation under the page's own URL.
+
+`ServeMarkdown` serves the alternate as the page has it. Facts only the site
+knows, like the dates and prices of an offering or its opening hours, go into
+the alternate as `Sections`: build it with `MarkdownAlternate`, append them,
+and serve the result with `ServeMarkdownDocument`, which writes the same
+headers as `ServeMarkdown`. In the handler above:
+
+```go
+if strings.HasSuffix(r.URL.Path, ".md") || (hasMarkdown && web.AcceptsMarkdown(r)) {
+    if !hasMarkdown {
+        http.NotFound(w, r) // what ServeMarkdown would have answered
+        return
+    }
+    doc, err := site.MarkdownAlternate(page)
+    if err != nil {
+        http.Error(w, "page unavailable", http.StatusInternalServerError)
+        return
+    }
+    doc.Sections = append(doc.Sections, web.MarkdownSection{
+        Title: "Opening hours",
+        Body:  openingHours(page), // the site's own data, as Markdown
+    })
+    // The sections change without the page, so the tag is a hash of the
+    // whole document, and the zero time leaves out Last-Modified, which
+    // would let a client keep outdated opening hours.
+    sum := sha256.Sum256(doc.Bytes())
+    site.ServeMarkdownDocument(w, r, page, doc, hex.EncodeToString(sum[:16]), time.Time{})
+    return
+}
+```
+
+Headers the handler set before, like `Cache-Control`, are left as they are.
 
 The MCP endpoint goes on the same mux; the
 [mcp README](https://github.com/ungerik/go-mx/blob/main/mcp/README.md) shows the
