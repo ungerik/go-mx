@@ -39,7 +39,7 @@ import (
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
-// 18. struct field, no tag, not single-value, has TextMarshaler/
+// 18. struct field, no tag, has TextMarshaler/
 //     TextUnmarshaler → FieldKindCatchAll (renderer falls back to a
 //     text input)
 // 19. fallthrough → FieldKindCatchAll

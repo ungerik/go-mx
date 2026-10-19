@@ -614,10 +614,17 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 			value.SetZero()
 			return nil
 		}
-		if value.IsNil() {
-			value.Set(reflect.New(value.Type().Elem()))
+		// Bind into a new pointee that starts as a copy of the old one: a
+		// value bound but rejected must not reach a record that shares the
+		// old pointee, such as one in a store a shallow-copying load left
+		// the field pointing into.
+		pointee := reflect.New(value.Type().Elem())
+		if !value.IsNil() {
+			pointee.Elem().Set(value.Elem())
 		}
-		return setTime(value.Elem(), raw, tag)
+		err := setTime(pointee.Elem(), raw, tag)
+		value.Set(pointee)
+		return err
 	}
 	if raw == "" {
 		value.SetZero()
@@ -645,11 +652,15 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 			break
 		}
 	}
+	// The range applies on the server too, not only in the browser. A value
+	// outside it is still bound, as rejected text is (see [setTimeText]): a
+	// repeatable row is bound from the submission alone and an add-row click
+	// discards its errors, so an unbound value would blank the row and the
+	// next save would store the zero value. The form handler never calls
+	// onSubmit while a field has an error, so the value is not saved.
+	var rangeErr error
 	if parseErr == nil {
-		// The range applies on the server too, not only in the browser.
-		if err := mx.CheckDateTimeRange(tag, raw, t); err != nil {
-			return err
-		}
+		rangeErr = mx.CheckDateTimeRange(tag, raw, t)
 	} else if tag.Sensitive {
 		// A sensitive value is not echoed through the parse error.
 		parseErr = mx.DateTimeFormatError(tag, raw)
@@ -661,15 +672,40 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 		}
 		// A type defined as time.Time takes the time converted.
 		value.Set(reflect.ValueOf(t).Convert(value.Type()))
-		return nil
+		return rangeErr
 	}
-	if value.Kind() == reflect.Struct && reflect.PointerTo(value.Type()).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
-		return unmarshalTime(value, raw, t, parseErr, tag)
+	if reflect.PointerTo(value.Type()).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
+		if err := unmarshalTime(value, raw, t, parseErr, tag); err != nil {
+			return err
+		}
+		if parseErr != nil && (tag.Min != "" || tag.Max != "") {
+			return checkOwnTextRange(value, raw, tag)
+		}
+		return rangeErr
 	}
 	if parseErr != nil {
 		return parseErr
 	}
-	return errs.New("cannot assign time to " + value.Type().String())
+	return fmt.Errorf("cannot assign time to %s", value.Type())
+}
+
+// checkOwnTextRange checks form:"min=…,max=…" for a value that
+// [unmarshalTime] bound from raw in the type's own spelling, which no input
+// layout reads. The range is checked on the value as [mx.DateTimeInput]
+// shows it. A value it can only show as text cannot be checked, so it is
+// rejected with the error that names the format to enter.
+func checkOwnTextRange(value reflect.Value, raw string, tag mx.FormTag) error {
+	shown := tag
+	shown.Sensitive = false
+	in := mx.DateTimeInput(value, shown)
+	if in.TextFallback() {
+		return mx.DateTimeFormatError(tag, raw)
+	}
+	if in.Value == "" {
+		return nil
+	}
+	_, err := mx.ParseDateTimeInput(tag, in.Value)
+	return err
 }
 
 // unmarshalTime binds the submitted raw text into a type with UnmarshalText,
@@ -683,8 +719,8 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 //     layout with seconds, which a time-of-day type may need where the
 //     input left zero seconds out;
 //  3. t in RFC 3339, the only text an embedded time.Time reads, but only
-//     when that time is the type's only field, so a type holding more
-//     state, such as a validity flag, is never half set.
+//     when that time (or a pointer to it) is the type's only field, so a
+//     type holding more state, such as a validity flag, is never half set.
 //
 // A method that panics, as the promoted method of a nil embedded pointer
 // does, is an error. A form:"sensitive" field's error does not echo raw.
@@ -700,10 +736,20 @@ func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error,
 	}()
 	// Unmarshal into a copy: a failing UnmarshalText may still change its
 	// value, as time.Time's zeroes it, and the field must keep the stored
-	// value when the submission is rejected.
+	// value when the submission is rejected. A *time.Time field gets a copy
+	// of its time, so a promoted UnmarshalText never writes the time the
+	// stored value points to.
 	try := func(text string) error {
 		dst := reflect.New(typ)
 		dst.Elem().Set(value)
+		if typ.Kind() == reflect.Struct {
+			for i := range typ.NumField() {
+				f := dst.Elem().Field(i)
+				if f.Type() == reflect.TypeFor[*time.Time]() && f.CanSet() && !f.IsNil() {
+					f.Set(reflect.ValueOf(new(*f.Interface().(*time.Time))))
+				}
+			}
+		}
 		if err := dst.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text)); err != nil {
 			return err
 		}
@@ -717,11 +763,20 @@ func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error,
 	if try(t.Format(mx.DateTimeInputLayout(tag))) == nil {
 		return nil
 	}
-	if typ.NumField() == 1 && typ.Field(0).Anonymous && typ.Field(0).Type == reflect.TypeFor[time.Time]() &&
-		try(t.Format(time.RFC3339Nano)) == nil {
+	if embedsOnlyTime(typ) && try(t.Format(time.RFC3339Nano)) == nil {
 		return nil
 	}
 	return err
+}
+
+// embedsOnlyTime reports whether t is a struct whose only field is an
+// embedded time.Time or *time.Time.
+func embedsOnlyTime(t reflect.Type) bool {
+	if t.Kind() != reflect.Struct || t.NumField() != 1 || !t.Field(0).Anonymous {
+		return false
+	}
+	ft := t.Field(0).Type
+	return ft == reflect.TypeFor[time.Time]() || ft == reflect.TypeFor[*time.Time]()
 }
 
 // setTimeText binds a submitted date or time into a string-kind field
@@ -737,11 +792,12 @@ func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error,
 // row is bound from the submission alone, so an add-row click would
 // otherwise blank the stored text and the next save would store "". The
 // form handler never calls onSubmit while a field has an error, so the
-// rejected text is not saved.
+// rejected text is not saved. Through pointers, the text goes into new
+// pointees, so it never reaches a record that shares the old ones.
 func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
-		derefAlloc(value).SetString(raw)
+		derefNew(value).SetString(raw)
 		return err
 	}
 	if text == "" {
@@ -751,7 +807,7 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	parsed := reflect.New(derefType(value.Type()))
 	if u, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
 		if err := u.UnmarshalText([]byte(text)); err != nil {
-			derefAlloc(value).SetString(raw)
+			derefNew(value).SetString(raw)
 			if tag.Sensitive {
 				return mx.DateTimeFormatError(tag, raw)
 			}
@@ -760,17 +816,15 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	} else {
 		parsed.Elem().SetString(text)
 	}
-	derefAlloc(value).Set(parsed.Elem())
+	derefNew(value).Set(parsed.Elem())
 	return nil
 }
 
-// derefAlloc follows the pointers of value, allocating nil ones, and returns
-// the value they lead to.
-func derefAlloc(value reflect.Value) reflect.Value {
+// derefNew follows the pointers of value, giving each a new pointee, and
+// returns the zero value they lead to.
+func derefNew(value reflect.Value) reflect.Value {
 	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			value.Set(reflect.New(value.Type().Elem()))
-		}
+		value.Set(reflect.New(value.Type().Elem()))
 		value = value.Elem()
 	}
 	return value

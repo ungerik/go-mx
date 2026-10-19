@@ -220,8 +220,8 @@ The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
 `*string`, or a named string type such as a date type. A date struct with
 `MarshalText`/`UnmarshalText` works too, and so does a type that wraps
-`time.Time` (defined as it, or a struct embedding it), which renders and binds
-like a `time.Time`. A type can declare its widget once
+`time.Time` (defined as it, or a struct embedding it as its only field), which
+renders and binds like a `time.Time`. A type can declare its widget once
 with `FormWidget() string` (`mx.FormWidgetHint`) instead of every field
 carrying `form:"widget=date"`. The input shows the stored value: a
 `Format(string) string` method is asked for it, and otherwise text in the

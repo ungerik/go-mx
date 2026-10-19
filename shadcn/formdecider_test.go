@@ -1020,12 +1020,51 @@ type definedTime time.Time
 // shadcn renders the wrapper kinds and the readonly text input like the
 // html renderer: a defined time in the picker, a readonly fallback without
 // the invalid look or the format hint.
+// looseDay writes 2026-7-6, a spelling the date input cannot show, and
+// reads it back.
+type looseDay struct {
+	Year, Month, Day int
+}
+
+func (d looseDay) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d-%d-%d", d.Year, d.Month, d.Day), nil
+}
+
+func (d *looseDay) UnmarshalText(text []byte) error {
+	t, err := time.Parse("2006-1-2", string(text))
+	if err != nil {
+		return err
+	}
+	*d = looseDay{t.Year(), int(t.Month()), t.Day()}
+	return nil
+}
+
 func TestShadcn_DateKindsRender(t *testing.T) {
 	type form struct {
-		At  definedTime `form:"widget=datetime"`
-		Old string      `form:"widget=date,readonly"`
+		At      definedTime `form:"widget=datetime"`
+		Old     string      `form:"widget=date,readonly"`
+		Loose   looseDay    `form:"widget=date"`
+		Bounded looseDay    `form:"widget=date,min=2026-01-01"`
+		Seconds string      `form:"widget=datetime,min=2026-01-01T00:00"`
 	}
-	f := &form{At: definedTime(time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)), Old: "06.07.2026"}
+	f := &form{
+		At: definedTime(time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)), Old: "06.07.2026",
+		Loose: looseDay{2026, 7, 6}, Bounded: looseDay{2026, 7, 6}, Seconds: "2026-07-06T09:05:07",
+	}
+	// A date struct reads its own text back, so its text input is not
+	// marked invalid, unless a bound it cannot be checked against is set.
+	if got, want := inputStartTag(renderShadcn(t, f, "Loose", nil)),
+		`<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
+		t.Errorf("Loose renders\n%s\nwant\n%s", got, want)
+	}
+	if got := inputStartTag(renderShadcn(t, f, "Bounded", nil)); !strings.Contains(got, `aria-invalid="true"`) || strings.Contains(got, "min=") {
+		t.Errorf("Bounded renders %s, want an invalid text input without min", got)
+	}
+	// With a min, a value with seconds gets step 1.
+	if got, want := inputStartTag(renderShadcn(t, f, "Seconds", nil)),
+		`<input data-slot="input" type="datetime-local" name="Seconds" id="Seconds" hx-trigger="change" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1" class="`; got != want {
+		t.Errorf("Seconds renders\n%s\nwant\n%s", got, want)
+	}
 	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
 		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05:07" class="`; got != want {
 		t.Errorf("At renders\n%s\nwant\n%s", got, want)

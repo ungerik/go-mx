@@ -678,9 +678,10 @@ examples, not functions in this package.
   `data-selected` for its look, every day button an ISO 8601 `aria-label`,
   and the month buttons their `aria-label`s from
   `Labels.CalendarPrevious`/`CalendarNext`; days of the adjacent months are
-  muted, and only disabled days are faded. In select mode (below) the table
-  is, like react-day-picker's, a `role="grid"` named by its month whose
-  selected gridcell carries `aria-selected`.
+  muted, and only disabled days are faded. A static calendar's selected day
+  button is `aria-pressed`; in select mode (below) the table is instead, like
+  react-day-picker's, a `role="grid"` named by its month whose selected
+  gridcell carries `aria-selected`.
   Previous/Next are plain buttons with no default behavior — month navigation
   is a server round-trip, so wire them with `html.HRef("?month=…")` or an
   `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
@@ -688,7 +689,7 @@ examples, not functions in this package.
   `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
   for the ISO/European week), `WeekdayName`, `MonthLabel`, `DayLabel`, and
   `Disabled` (grey out unavailable/past dates — a disabled day is never
-  `aria-selected`). `Today` marks a day with the accent background and
+  marked selected). `Today` marks a day with the accent background and
   `aria-current="date"` (an option, not `time.Now()`, so the caller picks the
   zone and the output stays deterministic), and `StartMonth`/`EndMonth`
   disable Previous/Next at the limits. `Name` turns on select mode, which is

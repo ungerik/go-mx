@@ -33,9 +33,15 @@ func TestCalendar(t *testing.T) {
 }
 
 func TestCalendarNoSelection(t *testing.T) {
-	out := render(t, Calendar(time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{}))
-	if strings.Contains(out, `aria-selected="true"`) {
-		t.Errorf("zero selected time should mark no day: %s", out)
+	for _, out := range []string{
+		render(t, Calendar(time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{})),
+		render(t, CalendarWith(CalendarOptions{Name: "due"}, time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{})),
+	} {
+		for _, mark := range []string{`data-selected="true"`, `aria-selected="true"`, `aria-pressed="true"`} {
+			if strings.Contains(out, mark) {
+				t.Errorf("zero selected time should mark no day with %s: %s", mark, out)
+			}
+		}
 	}
 }
 
@@ -361,11 +367,22 @@ func TestCalendarGridSemantics(t *testing.T) {
 		t.Errorf("the selected day's button lacks its selected look: %s", button)
 	}
 
+	if strings.Contains(out, "aria-pressed") {
+		t.Errorf("select mode marks the selection on the gridcell, not with aria-pressed: %s", out)
+	}
+
 	static := render(t, Calendar(month, selected))
 	for _, unwanted := range []string{`role="grid"`, `role="gridcell"`, `aria-selected`} {
 		if strings.Contains(static, unwanted) {
 			t.Errorf("the static calendar must not carry %s: %s", unwanted, static)
 		}
+	}
+	// Without the grid, the selected day's button carries the state itself.
+	if b := dayButton(t, static, "2026-06-14"); !strings.Contains(b, `aria-pressed="true"`) {
+		t.Errorf("the static calendar's selected day must be aria-pressed: %s", b)
+	}
+	if c := strings.Count(static, "aria-pressed"); c != 1 {
+		t.Errorf("only the selected day is aria-pressed, got %d", c)
 	}
 	for _, label := range []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`} {
 		if !strings.Contains(static, label) || !strings.Contains(out, label) {
@@ -385,8 +402,8 @@ func TestCalendarOutsideDays(t *testing.T) {
 	if b := dayButton(t, out, "2026-07-01"); !strings.Contains(b, "text-muted-foreground") || strings.Contains(b, "opacity-50") {
 		t.Errorf("an outside day is muted, not faded: %s", b)
 	}
-	if b := dayButton(t, out, "2026-06-09"); !strings.Contains(b, "opacity-50") {
-		t.Errorf("a disabled day is faded: %s", b)
+	if b := dayButton(t, out, "2026-06-09"); !strings.Contains(b, "opacity-50") || !strings.Contains(b, "text-muted-foreground") {
+		t.Errorf("a disabled day of the month is muted and faded: %s", b)
 	}
 }
 

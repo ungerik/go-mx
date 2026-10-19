@@ -330,6 +330,16 @@ type heldTime struct {
 	Valid bool
 }
 
+// namedTime holds its time in a named field; timePtr embeds a pointer to a
+// time. Neither renders nor binds like a time.Time without a widget tag.
+type namedTime struct {
+	T time.Time
+}
+
+type timePtr struct {
+	*time.Time
+}
+
 // Rule 14 makes a date/time field only of time-like structs: time.Time, a
 // type defined as it, or a struct whose only field is an embedded time. A
 // registered single-value struct that holds more is a catch-all text input.
@@ -337,11 +347,15 @@ func TestDetectField_TimeLikeStructs(t *testing.T) {
 	SingleValueTypes.Register(reflect.TypeFor[registeredMoney]())
 	SingleValueTypes.Register(reflect.TypeFor[soleTime]())
 	SingleValueTypes.Register(reflect.TypeFor[heldTime]())
+	SingleValueTypes.Register(reflect.TypeFor[namedTime]())
+	SingleValueTypes.Register(reflect.TypeFor[timePtr]())
 	type form struct {
 		When  time.Time
 		Stamp definedStamp
 		Sole  soleTime
 		Held  heldTime
+		Named namedTime
+		Ptr   timePtr
 		Money registeredMoney
 	}
 	for _, tt := range []struct {
@@ -352,6 +366,8 @@ func TestDetectField_TimeLikeStructs(t *testing.T) {
 		{"Stamp", FieldKindDateTime},
 		{"Sole", FieldKindDateTime},
 		{"Held", FieldKindCatchAll},
+		{"Named", FieldKindCatchAll},
+		{"Ptr", FieldKindCatchAll},
 		{"Money", FieldKindCatchAll},
 	} {
 		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {

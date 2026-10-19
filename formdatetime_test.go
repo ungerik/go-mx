@@ -145,6 +145,12 @@ func (c clockTime) Format(layout string) string {
 	return t.Format(layout)
 }
 
+// zonedText stores a date but writes it with a time and zone, text no
+// date input reads.
+type zonedText string
+
+func (d zonedText) MarshalText() ([]byte, error) { return []byte(d + "T00:00:00Z"), nil }
+
 func TestDateTimeInput(t *testing.T) {
 	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
 	date := FormTag{Widget: "date"}
@@ -209,6 +215,8 @@ func TestDateTimeInput(t *testing.T) {
 		{"MarshalText through pointer", reflect.ValueOf(&textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
 		{"MarshalText zero value", reflect.ValueOf(textDate{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
 		{"MarshalText other form", reflect.ValueOf(textDate{2026, 7, 6}), datetime, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", false}},
+		// A bound cannot be checked on text the input cannot show.
+		{"MarshalText other form with min", reflect.ValueOf(textDate{2026, 7, 6}), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", true}},
 		{"no MarshalText", reflect.ValueOf(struct{ N int }{1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
 		{"MarshalText on the pointer receiver", reflect.ValueOf(&ptrTextDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
 		// The type's own IsZero decides, not the struct's reflect zero.
@@ -232,6 +240,9 @@ func TestDateTimeInput(t *testing.T) {
 
 		// Without Format, a string type's MarshalText gives the text.
 		{"string MarshalText", reflect.ValueOf(compactDate("20260706")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
+		// Stored text that is a valid value shows even when MarshalText's
+		// text is not one, since saving it unchanged works.
+		{"string MarshalText unreadable, stored valid", reflect.ValueOf(zonedText("2024-01-02")), date, DateTimeInputSpec{"date", "2024-01-02", "YYYY-MM-DD", "", false}},
 		// A Format that answers "" still lets a valid stored text show, such
 		// as posted text kept after a rejection; a zero date stays empty.
 		{"Format answers kept text with empty", reflect.ValueOf(dottedDate("2026-08-05")), date, DateTimeInputSpec{"date", "2026-08-05", "YYYY-MM-DD", "", false}},
@@ -243,12 +254,22 @@ func TestDateTimeInput(t *testing.T) {
 		{"sensitive defined time", reflect.ValueOf(definedTime(when)), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
 		{"sensitive embedded time", reflect.ValueOf(wrappedTime{when}), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
 
-		// With a min, a value with seconds needs step 1; the tag's step wins.
+		// The browser counts the default 60-second step from min: a value
+		// that is not whole minutes after it needs step 1. The tag's step
+		// wins.
 		{"seconds with min", reflect.ValueOf("2026-07-06T09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "1", false}},
 		{"time with seconds and min", reflect.ValueOf(when), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "1", false}},
 		{"whole minutes with min", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false}},
+		// A time.Time always shows its seconds, zero ones too.
+		{"time zero seconds with min", reflect.ValueOf(when.Truncate(time.Minute)), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:00", "HH:MM", "", false}},
+		{"whole minutes off a min with seconds", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "1", false}},
+		{"seconds on a min with seconds", reflect.ValueOf("09:05:30"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05:30", "HH:MM", "", false}},
+		// Without a valid min the browser counts from the value itself.
 		{"seconds without min", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
+		{"seconds with invalid min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "soon"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
+		{"text fallback with min", reflect.ValueOf("2026-07-06 09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06 09:05:07", "YYYY-MM-DDTHH:MM", "", true}},
 		{"tag step", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Step: "7"}, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "7", false}},
+		{"tag step over seconds and min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "08:00", Step: "30"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "30", false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -298,6 +319,16 @@ func TestParseDateTimeInput(t *testing.T) {
 			wantErr: `"2026-07-06T09:05:01" is later than 2026-07-06T09:05`},
 		{name: "time before min", tag: FormTag{Widget: "time", Min: "08:00"}, raw: "07:59", wantErr: `"07:59" is earlier than 08:00`},
 		{name: "invalid bound ignored", tag: FormTag{Widget: "date", Min: "soon"}, raw: "1900-01-01", want: "1900-01-01"},
+		{name: "invalid max ignored", tag: FormTag{Widget: "date", Max: "later"}, raw: "2999-01-01", want: "2999-01-01"},
+
+		// A time range may wrap past midnight; a date range may not.
+		{name: "overnight after min", tag: FormTag{Widget: "time", Min: "22:00", Max: "06:00"}, raw: "23:30", want: "23:30"},
+		{name: "overnight before max", tag: FormTag{Widget: "time", Min: "22:00", Max: "06:00"}, raw: "01:00", want: "01:00"},
+		{name: "overnight on the bounds", tag: FormTag{Widget: "time", Min: "22:00", Max: "06:00"}, raw: "06:00", want: "06:00"},
+		{name: "overnight midday", tag: FormTag{Widget: "time", Min: "22:00", Max: "06:00"}, raw: "12:00",
+			wantErr: `"12:00" is later than 06:00 and earlier than 22:00`},
+		{name: "reversed date range", tag: FormTag{Widget: "date", Min: "2026-12-31", Max: "2026-01-01"}, raw: "2026-07-06",
+			wantErr: `"2026-07-06" is earlier than 2026-12-31`},
 
 		// A sensitive field's errors leave the posted value out.
 		{name: "sensitive format", tag: FormTag{Widget: "date", Sensitive: true}, raw: "02.01.1980",
@@ -318,6 +349,24 @@ func TestParseDateTimeInput(t *testing.T) {
 				t.Errorf("ParseDateTimeInput(%q) = %q, want %q", tt.raw, got, tt.want)
 			}
 		})
+	}
+}
+
+// The bounds have no zone, so a zoned time is compared by its wall clock.
+func TestCheckDateTimeRangeWallClock(t *testing.T) {
+	tag := FormTag{Min: "2024-01-01T00:00", Max: "2024-12-31T23:59"}
+	for _, tt := range []struct {
+		t       time.Time
+		wantErr string
+	}{
+		{time.Date(2023, 12, 31, 13, 0, 0, 0, time.FixedZone("", -12*60*60)), `"x" is earlier than 2024-01-01T00:00`},
+		{time.Date(2025, 1, 1, 9, 0, 0, 0, time.FixedZone("", 14*60*60)), `"x" is later than 2024-12-31T23:59`},
+		{time.Date(2024, 1, 1, 0, 30, 0, 0, time.FixedZone("", 2*60*60)), ""},
+	} {
+		err := CheckDateTimeRange(tag, "x", tt.t)
+		if got := fmt.Sprint(err); (tt.wantErr == "" && err != nil) || (tt.wantErr != "" && got != tt.wantErr) {
+			t.Errorf("CheckDateTimeRange(%v): error %v, want %q", tt.t, err, tt.wantErr)
+		}
 	}
 }
 

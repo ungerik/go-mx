@@ -4,7 +4,6 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -24,14 +23,17 @@ type DateTimeInputSpec struct {
 	Format string
 
 	// Step is the step attribute; "" renders none. It is the tag's step, or
-	// "1" when a min is set and the value carries seconds: the default step
-	// of 60 seconds, counted from min, would reject such a value.
+	// "1" when the value is not a whole number of minutes after the min: the
+	// default step of 60 seconds, counted from min, would reject it.
 	Step string
 
 	// Invalid reports that the text input holds stored text the parser
 	// rejects, so saving it unchanged fails. Renderers mark the input
-	// invalid. It is false for a type with MarshalText, whose UnmarshalText
-	// reads its own text back.
+	// invalid. A string-kind value's text is always checked by
+	// [ParseDateTimeInput]. A non-string type with MarshalText, such as a
+	// date struct, has its UnmarshalText read its own text back, so it is
+	// invalid only when the tag sets a min or max, which cannot be checked
+	// on text the input type cannot show.
 	Invalid bool
 }
 
@@ -86,8 +88,15 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 	spec := dateTimeInput(value, tag)
 	if tag.Step != "" {
 		spec.Step = tag.Step
-	} else if tag.Min != "" && !spec.TextFallback() && strings.Count(spec.Value, ":") == 2 {
-		spec.Step = "1"
+	} else if !spec.TextFallback() {
+		// The browser counts the default step of 60 seconds from min, or
+		// from the value attribute when there is no valid min.
+		tt := timeTexts[spec.Type]
+		t, hasValue := tt.parse(spec.Value)
+		lowest, hasMin := tt.parse(tag.Min)
+		if hasValue && hasMin && t.Sub(lowest)%time.Minute != 0 {
+			spec.Step = "1"
+		}
 	}
 	return spec
 }
@@ -125,6 +134,7 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 			return spec
 		}
 		spec.Type, spec.Value = tt.input(inputType, text, text)
+		spec.Invalid = spec.TextFallback() && (tag.Min != "" || tag.Max != "")
 	}
 	return spec
 }
@@ -187,18 +197,30 @@ func DateTimeFormatError(tag FormTag, raw string) error {
 // submitted raw text, lies outside the tag's form:"min=…,max=…". The bounds
 // are read in the layouts of the tag's input type, as a browser reads the
 // input's min and max, and a bound that is no value of that type is
-// ignored, as a browser ignores it. A form:"sensitive" field's error leaves
-// raw out.
+// ignored, as a browser ignores it. The bounds have no zone, so t's wall
+// clock is compared, whatever its zone. A time input's range may wrap past
+// midnight, such as min=22:00,max=06:00: then a time from min on or up to
+// max is in range. A form:"sensitive" field's error leaves raw out.
 func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
-	tt := timeTexts[dateTimeInputType(tag)]
+	inputType := dateTimeInputType(tag)
+	tt := timeTexts[inputType]
 	subject := fmt.Sprintf("%q is ", raw)
 	if tag.Sensitive {
 		subject = ""
 	}
-	if lowest, ok := tt.parse(tag.Min); ok && t.Before(lowest) {
+	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	lowest, hasMin := tt.parse(tag.Min)
+	highest, hasMax := tt.parse(tag.Max)
+	if inputType == "time" && hasMin && hasMax && highest.Before(lowest) {
+		if t.Before(lowest) && t.After(highest) {
+			return fmt.Errorf("%slater than %s and earlier than %s", subject, tag.Max, tag.Min)
+		}
+		return nil
+	}
+	if hasMin && t.Before(lowest) {
 		return fmt.Errorf("%searlier than %s", subject, tag.Min)
 	}
-	if highest, ok := tt.parse(tag.Max); ok && t.After(highest) {
+	if hasMax && t.After(highest) {
 		return fmt.Errorf("%slater than %s", subject, tag.Max)
 	}
 	return nil
@@ -253,7 +275,8 @@ func (tt timeText) shortest(t time.Time) string {
 }
 
 // input decides the input for formatted, the text in this type's layout
-// that stands for the stored text.
+// that stands for the stored text. Stored text that is itself a value of
+// the type shows even when formatted is not.
 func (tt timeText) input(inputType, formatted, stored string) (typ, val string) {
 	if formatted == "" {
 		// Format answers "" for no value. Stored text that is no value
@@ -270,6 +293,9 @@ func (tt timeText) input(inputType, formatted, stored string) (typ, val string) 
 		return inputType, tt.shortest(t)
 	}
 	if t, ok := tt.parse(formatted); ok {
+		return inputType, tt.shortest(t)
+	}
+	if t, ok := tt.parse(stored); ok {
 		return inputType, tt.shortest(t)
 	}
 	return "text", stored

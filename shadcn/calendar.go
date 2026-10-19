@@ -61,8 +61,9 @@ type CalendarOptions struct {
 
 	// Disabled reports whether a day cannot be selected. nil disables
 	// nothing. A disabled day renders a disabled button, aria-disabled="true"
-	// and a muted class, and is never marked aria-selected even when it
-	// equals selected. This is what makes the component usable as a booking
+	// and the muted, faded look, and is never marked selected (data-selected,
+	// plus aria-selected in select mode or aria-pressed in a static
+	// calendar) even when it equals selected. This is what makes the component usable as a booking
 	// calendar: grey out dates with no availability, dates in the past, or
 	// dates outside a window.
 	Disabled func(time.Time) bool
@@ -241,8 +242,9 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 				html.Attrib("aria-label", dayLabel(day)),
 				strconv.Itoa(day.Day()))
 			// In select mode the grid cell carries aria-selected, which a
-			// button may not; the button's data-selected carries the selected
-			// look in either mode.
+			// button may not; a static calendar has no grid, so its button
+			// carries aria-pressed. The button's data-selected carries the
+			// selected look in either mode.
 			cell := html.Element("td", html.Class("p-0 text-center"))
 			if selectable {
 				cell.Attribs = append(cell.Attribs, html.Role("gridcell"))
@@ -256,6 +258,8 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 				btn.Attribs = append(btn.Attribs, html.DataAttr("selected", "true"))
 				if selectable {
 					cell.Attribs = append(cell.Attribs, html.Attrib("aria-selected", "true"))
+				} else {
+					btn.Attribs = append(btn.Attribs, html.Attrib("aria-pressed", "true"))
 				}
 			}
 			if isToday {

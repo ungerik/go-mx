@@ -73,8 +73,11 @@ const (
 	FieldKindBool
 
 	// FieldKindDateTime covers time.Time (and pointer/Nullable
-	// variants of it) as well as types registered via the
-	// single-value registry with form:"widget=date|datetime|time".
+	// variants of it), a type defined as time.Time and a struct
+	// embedding it as its only field ([DetectField] rule 14, no
+	// registration needed), plus any field tagged
+	// form:"widget=date|datetime|time" or hinted so by
+	// [FormWidgetHint].
 	// A string-kind field with one of these widgets holds its value
 	// as text; [DateTimeInput] decides how it renders and
 	// [ParseDateTimeInput] reads it back.
@@ -262,8 +265,9 @@ func (e FieldErrors) Unwrap() []error {
 // walked into a five-field "section." Callers add their own
 // single-value struct types here (currency, address, money amount,
 // etc.) so the decider knows to look up a widget instead of recursing.
-// A registered type that holds a time ([DetectField] rule 14) is a date
-// and time field; any other is a text input through its MarshalText and
+// Registration only stops the recursion: whether a type is a date and
+// time field is decided by its shape ([DetectField] rule 14), and any
+// other registered type is a text input through its MarshalText and
 // UnmarshalText.
 //
 // Types implementing [FormWidgetHint] are treated as single-value
