@@ -290,24 +290,24 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 
 ## mx reflected forms
 
-### Server-side `min`/`max` for `time.Time` date fields
+### Date and time inputs drop the stored time zone
 
-**What:** Check `form:"min=…,max=…"` on the server when binding a `time.Time`
-(or other non-text) date, datetime or time field, as `mx.ParseDateTimeInput`
-already does for fields that hold the value as text.
+**What:** Bind a submitted date or time into a `time.Time` (or a type that
+wraps it) in the location of the value it replaces, instead of UTC.
 
-**Why:** For a `time.Time` field the range only reaches the browser as the
-input's `min`/`max`, so a tampered or scripted POST stores a date outside it.
+**Why:** A `time.Time` stored as 2026-07-06T09:00+02:00 shows 09:00 in the
+input, which has no zone, and an unchanged save stores 09:00 UTC: the time
+moves by the offset on every save. Types that wrap `time.Time` behave the same
+way since they render and bind like it.
 
-**Context:** `ParseDateTimeInput` (`formdatetime.go`) parses the bounds with the
-input type's layouts and compares times; `setTime` in `html/formdecider.go`
-parses `time.Time` with its own layout list. Reusing the same bound check there
-keeps both paths consistent. Left out of the string-kind date work because the
-text path needed it (its fallback cannot enforce the range in the browser) and
-the `time.Time` path was to stay unchanged.
+**Context:** `setTime` in `html/formdecider.go` parses with `time.Parse`, which
+gives UTC; `time.ParseInLocation` with the loaded value's `Location()` keeps the
+wall clock in its zone. It changes what existing `time.Time` fields store, so it
+was left out of the string-kind date work. Fields holding text are not
+affected: their text has no zone, and text with one falls back to a text input.
 
 **Effort:** S
-**Priority:** P3
+**Priority:** P2
 **Depends on:** None
 
 ## mx dead code
@@ -340,6 +340,30 @@ idea. For `Path`, either implement it with the existing `JoinAbsPath` and
 **Depends on:** None
 
 ## Completed
+
+### Server-side `min`/`max` for `time.Time` date fields
+
+**What:** Check `form:"min=…,max=…"` on the server when binding a `time.Time`
+(or other non-text) date, datetime or time field, as `mx.ParseDateTimeInput`
+already does for fields that hold the value as text.
+
+**Why:** For a `time.Time` field the range only reaches the browser as the
+input's `min`/`max`, so a tampered or scripted POST stores a date outside it.
+
+**Context:** `ParseDateTimeInput` (`formdatetime.go`) parses the bounds with the
+input type's layouts and compares times; `setTime` in `html/formdecider.go`
+parses `time.Time` with its own layout list. Reusing the same bound check there
+keeps both paths consistent. Left out of the string-kind date work because the
+text path needed it (its fallback cannot enforce the range in the browser) and
+the `time.Time` path was to stay unchanged.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19 — `setTime` checks the bounds with
+`mx.CheckDateTimeRange` for `time.Time`, types defined as it, wrappers and date
+structs.
+
 
 ### `datetime` and `time` widgets on string-kind fields
 

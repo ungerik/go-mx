@@ -98,7 +98,8 @@ type CalendarOptions struct {
 	//   - Arrow keys move the focus by a day or a week, Home and End to the
 	//     start or end of the week row, skipping disabled days and following
 	//     the text direction. Only one day is a Tab stop: the selected day,
-	//     else Today, else the first enabled day of the month.
+	//     else Today, else the first enabled day of the month, else the first
+	//     enabled day of the grid.
 	//   - Every [CalendarText] for this name in the same form shows the
 	//     picked day's DayLabel.
 	//   - A calendar inside an open popover closes it, returning the focus
@@ -222,8 +223,14 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 			day := days[week*7+d]
 			disabled := disabledDays[week*7+d]
 			cls := "inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary"
+			// Days of the adjacent months are muted, as upstream's outside
+			// days; only a disabled day is faded too, so a pickable outside
+			// day does not look disabled.
 			if day.Month() != first.Month() || disabled {
-				cls += " text-muted-foreground opacity-50"
+				cls += " text-muted-foreground"
+			}
+			if disabled {
+				cls += " opacity-50"
 			}
 			isToday := !opts.Today.IsZero() && sameDay(day, opts.Today)
 			if isToday {
@@ -233,17 +240,23 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 			btn := html.ButtonButton(html.Class(cls),
 				html.Attrib("aria-label", dayLabel(day)),
 				strconv.Itoa(day.Day()))
-			// The grid cell carries aria-selected, which a button may not; the
-			// button's data-selected carries the selected look.
-			cell := html.Element("td", html.Role("gridcell"), html.Class("p-0 text-center"))
+			// In select mode the grid cell carries aria-selected, which a
+			// button may not; the button's data-selected carries the selected
+			// look in either mode.
+			cell := html.Element("td", html.Class("p-0 text-center"))
+			if selectable {
+				cell.Attribs = append(cell.Attribs, html.Role("gridcell"))
+			}
 			switch {
 			case disabled:
 				// A disabled day is never selectable, so it is never marked
-				// aria-selected even when it equals selected.
+				// selected even when it equals selected.
 				btn.Attribs = append(btn.Attribs, html.Disabled, html.Attrib("aria-disabled", "true"))
 			case isSelected(day):
 				btn.Attribs = append(btn.Attribs, html.DataAttr("selected", "true"))
-				cell.Attribs = append(cell.Attribs, html.Attrib("aria-selected", "true"))
+				if selectable {
+					cell.Attribs = append(cell.Attribs, html.Attrib("aria-selected", "true"))
+				}
 			}
 			if isToday {
 				btn.Attribs = append(btn.Attribs, html.Attrib("aria-current", "date"))
@@ -285,16 +298,20 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 		html.DivClass("text-sm font-medium", monthLabel(month)),
 		finish(next, "calendar-next", ""),
 	)
-	// A grid named by its month, like react-day-picker's, so a screen reader
-	// announces the picked day and passes the arrow keys to select mode.
-	table := html.Element("table", html.Role("grid"), html.Attrib("aria-label", monthLabel(month)),
-		html.Class("w-full border-collapse"),
+	table := html.Element("table", html.Class("w-full border-collapse"),
 		html.Element("thead", head),
 		body,
 	)
 	structure := []any{nav, table}
 	if selectable {
-		table.Attribs = append(table.Attribs, html.OnKeyDown("calendarKey(event)"))
+		// A grid named by its month, like react-day-picker's, so a screen
+		// reader announces the picked day and passes on the arrow keys. The
+		// static grid has no keyboard handling, so it stays a plain table.
+		table.Attribs = append(table.Attribs,
+			html.Role("grid"),
+			html.Attrib("aria-label", monthLabel(month)),
+			html.OnKeyDown("calendarKey(event)"),
+		)
 		value := ""
 		if hasSel {
 			value = selected.Format(time.DateOnly)

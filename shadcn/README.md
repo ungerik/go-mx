@@ -172,8 +172,9 @@ call site — the components only fall back to `Labels` when the caller passed
 none. The text labels (the close button, the pagination captions, the ellipsis
 texts) come from `Labels` only.
 
-`Calendar` is the exception: its weekday and month names need locale data that
-Go's `time` package does not have, so they stay on the explicit
+`Calendar`'s weekday and month names are the exception (its month buttons do
+take their `aria-label`s from `Labels`): they need locale data that Go's `time`
+package does not have, so they stay on the explicit
 `CalendarWith(CalendarOptions{…}, …)` hooks rather than on `Labels` — the same
 "ship the hooks, not the translations" rule, just with a per-instance carrier
 because a calendar's week start is a rendering decision, not an ambient string.
@@ -673,11 +674,13 @@ examples, not functions in this package.
   cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
-  server-side with Go's `time` package. Like react-day-picker's it is a
-  `role="grid"` table named by its month: the selected day's gridcell carries
-  `aria-selected` (its button `data-selected` for the look), every day button
-  an ISO 8601 `aria-label`, and the month buttons their `aria-label`s from
-  `Labels.CalendarPrevious`/`CalendarNext`.
+  server-side with Go's `time` package. The selected day's button carries
+  `data-selected` for its look, every day button an ISO 8601 `aria-label`,
+  and the month buttons their `aria-label`s from
+  `Labels.CalendarPrevious`/`CalendarNext`; days of the adjacent months are
+  muted, and only disabled days are faded. In select mode (below) the table
+  is, like react-day-picker's, a `role="grid"` named by its month whose
+  selected gridcell carries `aria-selected`.
   Previous/Next are plain buttons with no default behavior — month navigation
   is a server round-trip, so wire them with `html.HRef("?month=…")` or an
   `hx.Get`. `CalendarOptions` supplies the localization and booking hooks

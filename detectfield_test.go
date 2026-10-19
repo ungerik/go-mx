@@ -310,3 +310,52 @@ func TestDetectField_PointerReceiverHint(t *testing.T) {
 		t.Errorf("not addressable: %s with widget %q, want datetime with widget \"date\"", kind, tag.Widget)
 	}
 }
+
+// registeredMoney is a registered single-value struct that is no time.
+type registeredMoney struct {
+	Cents    int
+	Currency string
+}
+
+// definedStamp is defined as time.Time, without a widget tag.
+type definedStamp time.Time
+
+// soleTime embeds a time.Time as its only field; heldTime holds more.
+type soleTime struct {
+	time.Time
+}
+
+type heldTime struct {
+	time.Time
+	Valid bool
+}
+
+// Rule 14 makes a date/time field only of time-like structs: time.Time, a
+// type defined as it, or a struct whose only field is an embedded time. A
+// registered single-value struct that holds more is a catch-all text input.
+func TestDetectField_TimeLikeStructs(t *testing.T) {
+	SingleValueTypes.Register(reflect.TypeFor[registeredMoney]())
+	SingleValueTypes.Register(reflect.TypeFor[soleTime]())
+	SingleValueTypes.Register(reflect.TypeFor[heldTime]())
+	type form struct {
+		When  time.Time
+		Stamp definedStamp
+		Sole  soleTime
+		Held  heldTime
+		Money registeredMoney
+	}
+	for _, tt := range []struct {
+		field string
+		want  FieldKind
+	}{
+		{"When", FieldKindDateTime},
+		{"Stamp", FieldKindDateTime},
+		{"Sole", FieldKindDateTime},
+		{"Held", FieldKindCatchAll},
+		{"Money", FieldKindCatchAll},
+	} {
+		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {
+			t.Errorf("DetectField(%s) = %s, want %s", tt.field, kind, tt.want)
+		}
+	}
+}

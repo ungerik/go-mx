@@ -2316,3 +2316,383 @@ func TestReflectFormHandler_DateOutOfRangeRejected(t *testing.T) {
 		}
 	}
 }
+
+// civTime is a time-of-day struct shaped like civil.Time: its text always
+// carries seconds.
+type civTime struct {
+	H, M, S int
+}
+
+func (c civTime) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%02d:%02d:%02d", c.H, c.M, c.S), nil
+}
+
+func (c *civTime) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.TimeOnly, string(text))
+	if err != nil {
+		return err
+	}
+	*c = civTime{t.Hour(), t.Minute(), t.Second()}
+	return nil
+}
+
+// civDateTime is a date-and-time struct shaped like civil.DateTime.
+type civDateTime struct {
+	T time.Time
+}
+
+func (c civDateTime) MarshalText() ([]byte, error) {
+	return []byte(c.T.Format("2006-01-02T15:04:05")), nil
+}
+
+func (c *civDateTime) UnmarshalText(text []byte) error {
+	t, err := time.Parse("2006-01-02T15:04:05", string(text))
+	if err != nil {
+		return err
+	}
+	c.T = t
+	return nil
+}
+
+// A time-of-day or date-and-time struct whose text needs seconds survives a
+// GET and an unchanged POST: the inputs leave zero seconds out, so the
+// parser hands UnmarshalText the value with seconds too.
+func TestReflectFormHandler_TimeStructRoundTrip(t *testing.T) {
+	type record struct {
+		Start civTime     `form:"widget=time"`
+		At    civDateTime `form:"widget=datetime"`
+	}
+	stored := record{Start: civTime{9, 5, 0}, At: civDateTime{time.Date(2026, 7, 6, 9, 5, 0, 0, time.UTC)}}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/record", nil))
+	shown := submittedValues(rec.Body.String())
+	if shown.Get("Start") != "09:05" || shown.Get("At") != "2026-07-06T09:05" {
+		t.Fatalf("GET shows Start %q and At %q, want 09:05 and 2026-07-06T09:05", shown.Get("Start"), shown.Get("At"))
+	}
+	req := httptest.NewRequest(http.MethodPost, "/record", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	if saved == nil || *saved != stored {
+		t.Errorf("saved %+v, want %+v", saved, stored)
+	}
+}
+
+// nullTime embeds a time next to its own validity flag, with no
+// UnmarshalText of its own.
+type nullTime struct {
+	time.Time
+	Valid bool
+}
+
+// ptrWrappedTime embeds a pointer to a time; its promoted methods panic on
+// a nil one.
+type ptrWrappedTime struct {
+	*time.Time
+}
+
+// compactDate stores 20260706 but writes and reads ISO text.
+type compactDate string
+
+func (d compactDate) MarshalText() ([]byte, error) {
+	t, err := time.Parse("20060102", string(d))
+	if err != nil {
+		return []byte(d), nil
+	}
+	return []byte(t.Format(time.DateOnly)), nil
+}
+
+func (d *compactDate) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.DateOnly, string(text))
+	if err != nil {
+		return err
+	}
+	*d = compactDate(t.Format("20060102"))
+	return nil
+}
+
+// sqlTime stores SQL-style text with a space, the README's recipe for such
+// a column: Format writes the input's layout, UnmarshalText its own.
+type sqlTime string
+
+func (s sqlTime) Format(layout string) string {
+	t, err := time.Parse(time.DateTime, string(s))
+	if err != nil {
+		return string(s)
+	}
+	return t.Format(layout)
+}
+
+func (s *sqlTime) UnmarshalText(text []byte) error {
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.Parse(layout, string(text)); err == nil {
+			*s = sqlTime(t.Format(time.DateTime))
+			return nil
+		}
+	}
+	return fmt.Errorf("bad time %q", text)
+}
+
+// The struct and wrapper kinds bind like a time.Time: an empty submission
+// stores the zero value, an invalid one is an error that keeps the value,
+// a struct holding more than a time is never half set, and a nil embedded
+// pointer is an error, not a panic.
+func TestFieldDecider_DateStructBinds(t *testing.T) {
+	type form struct {
+		Date    civilDate      `form:"widget=date"`
+		DateAt  civilDate      `form:"widget=datetime"`
+		Defined definedTime    `form:"widget=date"`
+		Wrapped wrappedTime    `form:"widget=date"`
+		Null    nullTime       `form:"widget=date"`
+		Ptr     ptrWrappedTime `form:"widget=date"`
+		WrapPtr *wrappedTime   `form:"widget=date"`
+		Compact compactDate    `form:"widget=date"`
+		SQL     sqlTime        `form:"widget=datetime"`
+	}
+	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
+	fresh := func() *form {
+		return &form{
+			Date: civilDate{2026, 7, 6}, DateAt: civilDate{2026, 7, 6}, Defined: definedTime(july),
+			Wrapped: wrappedTime{july}, WrapPtr: &wrappedTime{july},
+		}
+	}
+	tests := []struct {
+		name    string
+		field   string
+		raw     string
+		wantErr bool
+		check   func(f *form) bool
+	}{
+		{"struct empty clears", "Date", "", false, func(f *form) bool { return f.Date == civilDate{} }},
+		{"struct invalid keeps", "Date", "06.07.2026", true, func(f *form) bool { return f.Date == civilDate{2026, 7, 6} }},
+		{"struct in another form", "DateAt", "2026-08-05T10:30", true, func(f *form) bool { return f.DateAt == civilDate{2026, 7, 6} }},
+		{"defined empty clears", "Defined", "", false, func(f *form) bool { return time.Time(f.Defined).IsZero() }},
+		{"defined invalid keeps", "Defined", "06.07.2026", true, func(f *form) bool { return time.Time(f.Defined).Equal(july) }},
+		{"wrapped invalid keeps", "Wrapped", "06.07.2026", true, func(f *form) bool { return f.Wrapped.Equal(july) }},
+		{"wrapped pointer empty clears", "WrapPtr", "", false, func(f *form) bool { return f.WrapPtr == nil }},
+		{"time with a flag is not half set", "Null", "2026-08-05", true, func(f *form) bool { return !f.Null.Valid && f.Null.IsZero() }},
+		{"nil embedded pointer", "Ptr", "2026-08-05", true, func(f *form) bool { return f.Ptr.Time == nil }},
+		{"string type with UnmarshalText", "Compact", "2026-08-01", false, func(f *form) bool { return f.Compact == "20260801" }},
+		{"SQL-style text", "SQL", "2026-08-05T10:30", false, func(f *form) bool { return f.SQL == "2026-08-05 10:30:00" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := fresh()
+			err := parseFieldValue(t, f, tt.field, tt.raw)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("bind %s %q: error %v, want error %t", tt.field, tt.raw, err, tt.wantErr)
+			}
+			if !tt.check(f) {
+				t.Errorf("bind %s %q: stored %+v", tt.field, tt.raw, f)
+			}
+		})
+	}
+}
+
+// A nil embedded time pointer renders an empty input instead of panicking,
+// and the SQL-style recipe shows its text in the input's form.
+func TestFieldDecider_DateStructRenders(t *testing.T) {
+	type form struct {
+		Ptr ptrWrappedTime `form:"widget=date"`
+		SQL sqlTime        `form:"widget=datetime"`
+		At  string         `form:"widget=datetime,min=2026-01-01T00:00"`
+		Old string         `form:"widget=date,readonly"`
+	}
+	f := &form{SQL: "2026-07-06 09:05:00", At: "2026-07-06T09:05:07", Old: "06.07.2026"}
+	for _, r := range []struct{ field, want string }{
+		{"Ptr", `<input type="date" name="Ptr" id="Ptr"/>`},
+		{"SQL", `<input type="datetime-local" name="SQL" id="SQL" value="2026-07-06T09:05"/>`},
+		// With a min, a value with seconds gets step 1 so the browser
+		// accepts it unchanged.
+		{"At", `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1"/>`},
+		// A readonly field is never saved: its text input asks for nothing.
+		{"Old", `<input type="text" name="Old" id="Old" value="06.07.2026" readonly="readonly"/>`},
+	} {
+		out := renderFieldHTML(t, f, r.field)
+		if !strings.Contains(out, r.want) {
+			t.Errorf("%s renders\n%s\nwant\n%s", r.field, out, r.want)
+		}
+		if r.field == "Old" && strings.Contains(out, "Expected format") {
+			t.Errorf("a readonly text input needs no format hint: %s", out)
+		}
+	}
+}
+
+// looseDate writes 2026-7-6, a spelling the date input cannot show, and
+// reads both that and 2026-07-06.
+type looseDate struct {
+	Year, Month, Day int
+}
+
+func (d looseDate) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d-%d-%d", d.Year, d.Month, d.Day), nil
+}
+
+func (d *looseDate) UnmarshalText(text []byte) error {
+	for _, layout := range []string{"2006-1-2", time.DateOnly} {
+		if t, err := time.Parse(layout, string(text)); err == nil {
+			*d = looseDate{t.Year(), int(t.Month()), t.Day()}
+			return nil
+		}
+	}
+	return fmt.Errorf("bad date %q", text)
+}
+
+func (looseDate) FormWidget() string { return "date" }
+
+// A date struct whose own text the picker cannot show reads that text back
+// itself, so its text input is not marked invalid, and an unchanged save
+// keeps the value: at the top level and in a repeatable row after an
+// add-row click, where the row is bound from the submission alone.
+func TestReflectFormHandler_DateStructOwnText(t *testing.T) {
+	type line struct {
+		Due looseDate
+	}
+	type order struct {
+		Due   looseDate
+		Lines []line `form:"repeatable"`
+	}
+	stored := order{Due: looseDate{2026, 7, 6}, Lines: []line{{Due: looseDate{2026, 8, 5}}}}
+	var saved *order
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*order, error) {
+			r := stored
+			r.Lines = append([]line(nil), stored.Lines...)
+			return &r, nil
+		},
+		func(_ context.Context, r *order) error { saved = r; return nil },
+		FieldDecider,
+	)
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/order", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/order", nil))
+	body := rec.Body.String()
+	if want := `<input type="text" name="Due" id="Due" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Due-format"/>`; !strings.Contains(body, want) {
+		t.Fatalf("GET lacks %s: %s", want, body)
+	}
+	shown := submittedValues(body)
+	shown.Set("__cmd__", mx.AddRowCommand("Lines"))
+	added := post(shown)
+	if want := `value="2026-8-5"`; !strings.Contains(added.Body.String(), want) {
+		t.Fatalf("after add-row the row must keep its text %s: %s", want, added.Body.String())
+	}
+	resubmit := submittedValues(added.Body.String())
+	resubmit.Del("__cmd__")
+	rec = post(resubmit)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged Save: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	if saved == nil || saved.Due != stored.Due || len(saved.Lines) != 2 || saved.Lines[0].Due != stored.Lines[0].Due {
+		t.Errorf("saved %+v, want Due %v and row 0 %v kept", saved, stored.Due, stored.Lines[0].Due)
+	}
+}
+
+// The range is checked on the server for every kind, not only for text: a
+// time.Time, a type defined as it, a wrapper and a date struct reject a
+// posted date outside min/max and keep their value.
+func TestFieldDecider_DateRangeOnServer(t *testing.T) {
+	type form struct {
+		Time    time.Time   `form:"widget=date,min=2026-01-01,max=2026-12-31"`
+		Defined definedTime `form:"widget=date,min=2026-01-01"`
+		Wrapped wrappedTime `form:"widget=date,max=2026-12-31"`
+		Struct  civilDate   `form:"widget=date,min=2026-01-01"`
+	}
+	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
+	f := &form{Time: july, Defined: definedTime(july), Wrapped: wrappedTime{july}, Struct: civilDate{2026, 7, 6}}
+	for _, b := range []struct{ field, raw, wantErr string }{
+		{"Time", "1900-01-01", `"1900-01-01" is earlier than 2026-01-01`},
+		{"Time", "2027-01-01", `"2027-01-01" is later than 2026-12-31`},
+		{"Defined", "1900-01-01", `"1900-01-01" is earlier than 2026-01-01`},
+		{"Wrapped", "2027-01-01", `"2027-01-01" is later than 2026-12-31`},
+		{"Struct", "1900-01-01", `"1900-01-01" is earlier than 2026-01-01`},
+	} {
+		if err := parseFieldValue(t, f, b.field, b.raw); err == nil || err.Error() != b.wantErr {
+			t.Errorf("bind %s %q: error %v, want %s", b.field, b.raw, err, b.wantErr)
+		}
+	}
+	if !f.Time.Equal(july) || !time.Time(f.Defined).Equal(july) || !f.Wrapped.Equal(july) || f.Struct != (civilDate{2026, 7, 6}) {
+		t.Errorf("a rejected date must keep the stored values: %+v", f)
+	}
+}
+
+// A sensitive field's errors name the format and the bound but never echo
+// the posted value into the page.
+func TestFieldDecider_SensitiveDateErrors(t *testing.T) {
+	type form struct {
+		Text string    `form:"widget=date,sensitive,max=2010-12-31"`
+		Time time.Time `form:"widget=date,sensitive"`
+	}
+	f := &form{}
+	for _, b := range []struct{ field, raw, wantErr string }{
+		{"Text", "02.01.1980", "not a date in the format YYYY-MM-DD"},
+		{"Text", "2015-03-04", "later than 2010-12-31"},
+		{"Time", "02.01.1980", "not a date in the format YYYY-MM-DD"},
+	} {
+		err := parseFieldValue(t, f, b.field, b.raw)
+		if err == nil || err.Error() != b.wantErr {
+			t.Errorf("bind %s %q: error %v, want %s", b.field, b.raw, err, b.wantErr)
+		}
+	}
+}
+
+// money is a registered single-value struct that is no time: it is a text
+// input through MarshalText and UnmarshalText, not a date or time field.
+type money struct {
+	Cents    int
+	Currency string
+}
+
+func (m money) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d.%02d %s", m.Cents/100, m.Cents%100, m.Currency), nil
+}
+
+func (m *money) UnmarshalText(text []byte) error {
+	var units, cents int
+	var currency string
+	if _, err := fmt.Sscanf(string(text), "%d.%d %s", &units, &cents, &currency); err != nil {
+		return err
+	}
+	*m = money{units*100 + cents, currency}
+	return nil
+}
+
+func TestReflectFormHandler_RegisteredMoneyIsText(t *testing.T) {
+	mx.SingleValueTypes.Register(reflect.TypeFor[money]())
+	type invoice struct {
+		Total money
+	}
+	var saved *invoice
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*invoice, error) { return &invoice{Total: money{1250, "EUR"}}, nil },
+		func(_ context.Context, r *invoice) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/invoice", nil))
+	body := rec.Body.String()
+	if want := `<input type="text" name="Total" id="Total" value="12.50 EUR"/>`; !strings.Contains(body, want) {
+		t.Fatalf("GET lacks %s: %s", want, body)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/invoice", strings.NewReader(submittedValues(body).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Total != (money{1250, "EUR"}) {
+		t.Errorf("unchanged POST: status %d, saved %+v; want 303 and 12.50 EUR kept", rec.Code, saved)
+	}
+}

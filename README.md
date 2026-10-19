@@ -229,8 +229,8 @@ input's own form is shown. That form has no zone and carries seconds only when
 they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
 POST the submitted value is stored in that same form, through `UnmarshalText`
 when the type has it, and an empty value stores the zero value, which
-`required` rejects. `form:"min=…,max=…"` is checked on the server for these
-text values. An input cannot show stored text in another spelling
+`required` rejects. `form:"min=…,max=…"` is checked on the server for every
+date and time field. An input cannot show stored text in another spelling
 (`06.07.2026`), an invalid value or a time with a zone, and a blank one would
 clear it on the next save, so such text renders in a text input instead,
 marked invalid, with the format to enter as placeholder and hint. Saving it
@@ -239,8 +239,12 @@ corrected, and the form keeps showing the posted text, also in repeatable rows
 after an add-row or remove-row click. SQL-style text such as
 `2026-07-06 09:05:00` (a space instead of the `T`) is such another spelling: a
 named string type whose `Format` writes the input's layout and whose
-`UnmarshalText` stores its own spelling keeps such a column editable. A
-`form:"sensitive"` date never shows its value, like a sensitive text input.
+`UnmarshalText` stores its own spelling keeps such a column editable. A date
+struct reads its own text back, so text of its own that the picker cannot show
+renders in a text input that saves unchanged. A `form:"sensitive"` date never
+shows its value, like a sensitive text input. A registered single-value struct
+that holds no time, such as a money type, is a plain text input through its
+`MarshalText`/`UnmarshalText`.
 
 Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free

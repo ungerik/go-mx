@@ -1013,3 +1013,29 @@ func TestShadcn_HintedInputType(t *testing.T) {
 		t.Errorf("widget=text must win over the email hint: %s", got)
 	}
 }
+
+// definedTime is defined as time.Time, without its methods.
+type definedTime time.Time
+
+// shadcn renders the wrapper kinds and the readonly text input like the
+// html renderer: a defined time in the picker, a readonly fallback without
+// the invalid look or the format hint.
+func TestShadcn_DateKindsRender(t *testing.T) {
+	type form struct {
+		At  definedTime `form:"widget=datetime"`
+		Old string      `form:"widget=date,readonly"`
+	}
+	f := &form{At: definedTime(time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)), Old: "06.07.2026"}
+	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
+		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05:07" class="`; got != want {
+		t.Errorf("At renders\n%s\nwant\n%s", got, want)
+	}
+	out := renderShadcn(t, f, "Old", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Old" id="Old" hx-trigger="change" value="06.07.2026" readonly="readonly" class="`; got != want {
+		t.Errorf("Old renders\n%s\nwant\n%s", got, want)
+	}
+	if strings.Contains(out, "Expected format") {
+		t.Errorf("a readonly text input needs no format hint: %s", out)
+	}
+}

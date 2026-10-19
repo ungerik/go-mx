@@ -239,6 +239,26 @@ it.
 **Priority:** P3
 **Depends on:** None
 
+### Class merging per calendar day
+
+**What:** Merge each distinct day class once instead of passing every one of
+the 42 day buttons' class strings through `finish` → `Cn` → `twmerge` on each
+render.
+
+**Why:** Building one calendar spends about 0.3 ms merging the same few class
+strings (base, muted, faded, today) 42 times; every request that renders a
+month or a date picker pays it.
+
+**Context:** The per-day merge predates the select mode, which made the class
+string longer (focus ring, inert disabled days, `data-[selected=true]`
+variants), measured at +12% construction time. The day class takes only a
+handful of values, so they can be merged once (`sync.OnceValue` per variant)
+and set without another `Cn` pass.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### The remaining DatePicker recipes
 
 **What:** Gallery examples for upstream's Basic (in a `Field` with a
@@ -398,28 +418,6 @@ classes they expand to.
 ---
 
 ## Completed
-
-### Grid semantics for screen readers
-
-**What:** Render the select-mode grid as react-day-picker does:
-`role="grid"` on the table with the month as its label, and `aria-selected`
-on a `role="gridcell"` instead of on the `<button>`.
-
-**Why:** `aria-selected` is not an allowed attribute of a button, so a
-screen reader may not announce the picked day, and the grid pattern tells it
-that the arrow keys work.
-
-**Context:** The static grid predates select mode and uses the same
-markup. Moving `aria-selected` changes the `aria-selected:` class
-selectors on the day button too.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-**Completed:** 2026-10-19 — every calendar is a `role="grid"` table named by
-its month; `aria-selected` moved to the gridcell, the button keeps
-`data-selected` for the look.
-
 
 Ported components, grouped by the phase they landed in. The phase order is
 the topological build order — every dependency lands before its dependents
@@ -723,3 +721,25 @@ on 2026-07-07 with the guide above; the four that remain unported moved to
   preserved on each FieldError. Reflected and hand-written forms now render
   the same Field markup. (Surfaced by the /ship cross-model adversarial
   review.)
+
+### Grid semantics for screen readers
+
+**What:** Render the select-mode grid as react-day-picker does:
+`role="grid"` on the table with the month as its label, and `aria-selected`
+on a `role="gridcell"` instead of on the `<button>`.
+
+**Why:** `aria-selected` is not an allowed attribute of a button, so a
+screen reader may not announce the picked day, and the grid pattern tells it
+that the arrow keys work.
+
+**Context:** The static grid predates select mode and uses the same
+markup. Moving `aria-selected` changes the `aria-selected:` class
+selectors on the day button too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19 — in select mode the calendar is a `role="grid"`
+table named by its month with `aria-selected` on the gridcell; the button
+keeps `data-selected` for the look in both modes, and the static calendar,
+which has no keyboard handling, stays a plain table.

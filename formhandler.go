@@ -71,6 +71,10 @@ type ReflectFormConfig struct {
 // form-level message. On success the handler responds with
 // 303 See Other to cfg.Redirect or r.URL.Path when nil.
 //
+// load must return a record the handler may change: it binds the
+// submission into it, including text a field rejected, which stays there for
+// the re-render. Return a copy, never a pointer into a cache or store.
+//
 // load may be nil for submit-only forms (registration, contact, new
 // record) where there is no existing state to load: the handler then
 // seeds every GET and every POST with a fresh new(T) instead.

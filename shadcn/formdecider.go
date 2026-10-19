@@ -366,18 +366,24 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	if in.Value != "" {
 		a = append(a, html.Value(in.Value))
 	}
+	// A readonly field is never saved, so its text input asks for nothing.
 	textFallback := in.TextFallback()
-	if textFallback {
+	askFormat := textFallback && !tag.Readonly
+	if askFormat {
 		a = append(a,
 			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
 			mx.NewAttrib("aria-describedby", formatHintID(path)),
 		)
-	} else {
+	}
+	if !textFallback {
 		if tag.Min != "" {
 			a = append(a, html.Min(tag.Min))
 		}
 		if tag.Max != "" {
 			a = append(a, html.Max(tag.Max))
+		}
+		if in.Step != "" {
+			a = append(a, html.Step(in.Step))
 		}
 	}
 	if tag.Required {
@@ -386,11 +392,12 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	if tag.Readonly {
 		a = append(a, html.Readonly)
 	}
-	// The text input is invalid from the start: saving it unchanged fails.
-	if len(errs) > 0 || textFallback {
+	// Text the parser rejects is invalid from the start: saving it
+	// unchanged fails.
+	if len(errs) > 0 || (in.Invalid && !tag.Readonly) {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
-	if !textFallback {
+	if !askFormat {
 		return Input(a...)
 	}
 	return mx.Components{

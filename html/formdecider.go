@@ -229,20 +229,26 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		attribs = append(attribs, Value(in.Value))
 	}
 	// A text input shows stored text the picker cannot hold: it has no
-	// date range, it says which format to enter instead, and it is invalid
-	// from the start, because saving that text unchanged fails.
+	// date range and it says which format to enter. Text the parser rejects
+	// is invalid from the start, because saving it unchanged fails. A
+	// readonly field is never saved, so it asks for nothing.
 	textFallback := in.TextFallback()
-	if textFallback {
+	askFormat := textFallback && !tag.Readonly
+	if askFormat {
 		attribs = append(attribs,
 			Placeholder(cmp.Or(tag.Placeholder, in.Format)),
 			mx.NewAttrib("aria-describedby", formatHintID(path)),
 		)
-	} else {
+	}
+	if !textFallback {
 		if tag.Min != "" {
 			attribs = append(attribs, Min(tag.Min))
 		}
 		if tag.Max != "" {
 			attribs = append(attribs, Max(tag.Max))
+		}
+		if in.Step != "" {
+			attribs = append(attribs, Step(in.Step))
 		}
 	}
 	if tag.Required {
@@ -251,10 +257,10 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	if tag.Readonly {
 		attribs = append(attribs, Readonly)
 	}
-	if len(errs) > 0 || textFallback {
+	if len(errs) > 0 || (in.Invalid && !tag.Readonly) {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
-	if !textFallback {
+	if !askFormat {
 		return Input(attribs...)
 	}
 	return mx.Components{
@@ -632,37 +638,90 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	case "time":
 		layouts = []string{"15:04:05", "15:04"}
 	}
-	var lastErr error
+	var t time.Time
+	var parseErr error
 	for _, layout := range layouts {
-		t, err := time.Parse(layout, raw)
-		if err == nil {
-			timeType := reflect.TypeFor[time.Time]()
-			if value.Type() == timeType {
-				value.Set(reflect.ValueOf(t))
-				return nil
-			}
-			// A type defined as time.Time takes the time converted.
-			if value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType) {
-				value.Set(reflect.ValueOf(t).Convert(value.Type()))
-				return nil
-			}
-			// Any other type unmarshals the submitted text in its own form,
-			// such as a date struct's 2006-01-02, or else RFC 3339, the only
-			// text an embedded time.Time reads.
-			if value.Kind() == reflect.Struct && value.CanAddr() {
-				if u, ok := value.Addr().Interface().(encoding.TextUnmarshaler); ok {
-					err := u.UnmarshalText([]byte(raw))
-					if err != nil && u.UnmarshalText([]byte(t.Format(time.RFC3339Nano))) == nil {
-						return nil
-					}
-					return err
-				}
-			}
-			return errs.New("cannot assign time to " + value.Type().String())
+		if t, parseErr = time.Parse(layout, raw); parseErr == nil {
+			break
 		}
-		lastErr = err
 	}
-	return lastErr
+	if parseErr == nil {
+		// The range applies on the server too, not only in the browser.
+		if err := mx.CheckDateTimeRange(tag, raw, t); err != nil {
+			return err
+		}
+	} else if tag.Sensitive {
+		// A sensitive value is not echoed through the parse error.
+		parseErr = mx.DateTimeFormatError(tag, raw)
+	}
+	timeType := reflect.TypeFor[time.Time]()
+	if value.Type() == timeType || (value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType)) {
+		if parseErr != nil {
+			return parseErr
+		}
+		// A type defined as time.Time takes the time converted.
+		value.Set(reflect.ValueOf(t).Convert(value.Type()))
+		return nil
+	}
+	if value.Kind() == reflect.Struct && reflect.PointerTo(value.Type()).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
+		return unmarshalTime(value, raw, t, parseErr, tag)
+	}
+	if parseErr != nil {
+		return parseErr
+	}
+	return errs.New("cannot assign time to " + value.Type().String())
+}
+
+// unmarshalTime binds the submitted raw text into a type with UnmarshalText,
+// trying in turn:
+//
+//  1. raw in the type's own form, such as a date struct's 2006-01-02 or the
+//     text a text input showed because the picker could not, so an
+//     unchanged submit binds back to the stored value, also in a
+//     repeatable row, which is bound from the submission alone;
+//  2. t, the time raw was parsed into (parseErr nil), in the input type's
+//     layout with seconds, which a time-of-day type may need where the
+//     input left zero seconds out;
+//  3. t in RFC 3339, the only text an embedded time.Time reads, but only
+//     when that time is the type's only field, so a type holding more
+//     state, such as a validity flag, is never half set.
+//
+// A method that panics, as the promoted method of a nil embedded pointer
+// does, is an error. A form:"sensitive" field's error does not echo raw.
+func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error, tag mx.FormTag) (err error) {
+	typ := value.Type()
+	defer func() {
+		if recover() != nil {
+			err = fmt.Errorf("%q cannot be stored as %s", raw, typ)
+		}
+		if err != nil && tag.Sensitive {
+			err = mx.DateTimeFormatError(tag, raw)
+		}
+	}()
+	// Unmarshal into a copy: a failing UnmarshalText may still change its
+	// value, as time.Time's zeroes it, and the field must keep the stored
+	// value when the submission is rejected.
+	try := func(text string) error {
+		dst := reflect.New(typ)
+		dst.Elem().Set(value)
+		if err := dst.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text)); err != nil {
+			return err
+		}
+		value.Set(dst.Elem())
+		return nil
+	}
+	err = try(raw)
+	if err == nil || parseErr != nil {
+		return err
+	}
+	if try(t.Format(mx.DateTimeInputLayout(tag))) == nil {
+		return nil
+	}
+	if typ.NumField() == 1 && typ.Field(0).Anonymous && typ.Field(0).Type == reflect.TypeFor[time.Time]() &&
+		try(t.Format(time.RFC3339Nano)) == nil {
+		return nil
+	}
+	return err
 }
 
 // setTimeText binds a submitted date or time into a string-kind field
@@ -682,7 +741,7 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
-		setDerefString(value, raw)
+		derefAlloc(value).SetString(raw)
 		return err
 	}
 	if text == "" {
@@ -692,32 +751,29 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	parsed := reflect.New(derefType(value.Type()))
 	if u, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
 		if err := u.UnmarshalText([]byte(text)); err != nil {
-			setDerefString(value, raw)
+			derefAlloc(value).SetString(raw)
+			if tag.Sensitive {
+				return mx.DateTimeFormatError(tag, raw)
+			}
 			return err
 		}
 	} else {
 		parsed.Elem().SetString(text)
 	}
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			value.Set(reflect.New(value.Type().Elem()))
-		}
-		value = value.Elem()
-	}
-	value.Set(parsed.Elem())
+	derefAlloc(value).Set(parsed.Elem())
 	return nil
 }
 
-// setDerefString sets the string-kind value behind any pointers to s,
-// allocating nil pointers.
-func setDerefString(value reflect.Value, s string) {
+// derefAlloc follows the pointers of value, allocating nil ones, and returns
+// the value they lead to.
+func derefAlloc(value reflect.Value) reflect.Value {
 	for value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			value.Set(reflect.New(value.Type().Elem()))
 		}
 		value = value.Elem()
 	}
-	value.SetString(s)
+	return value
 }
 
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {

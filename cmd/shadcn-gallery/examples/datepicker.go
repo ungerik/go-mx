@@ -17,7 +17,7 @@ import (
 func DatePickerDemo() mx.Component {
 	return shadcn.Popover(
 		shadcn.PopoverTrigger("demo-datepicker",
-			html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)+" w-[280px] justify-start text-left font-normal"),
+			html.Class(shadcn.ButtonClasses(shadcn.ButtonOutline, shadcn.SizeDefault)+" w-[280px] justify-start text-left font-normal has-[[data-empty=true]]:text-muted-foreground"),
 			// lucide calendar
 			navIcon("M8 2v4", "M16 2v4", "M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", "M3 10h18"),
 			shadcn.CalendarText("demo-date", html.DataAttr("empty", "true"), "Pick a date"),

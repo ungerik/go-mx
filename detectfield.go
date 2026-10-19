@@ -3,6 +3,7 @@ package mx
 import (
 	"encoding"
 	"reflect"
+	"time"
 )
 
 // DetectField inspects field and value and returns the [FieldKind]
@@ -33,8 +34,8 @@ import (
 // 11. []T where T satisfies the enum convention → FieldKindEnumSet
 // 12. bool / *bool → FieldKindBool
 // 13. int*/uint*/float* and pointer variants → FieldKindNumber
-// 14. time.Time (and any single-value-registered struct type) →
-//     FieldKindDateTime
+// 14. time.Time, a type defined as it, or a struct embedding it as its only
+//     field → FieldKindDateTime (other single-value structs → catch-all)
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
@@ -218,8 +219,11 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		return FieldKindNumber, tag
 	}
 
-	// 14. single-value struct types (time.Time, FormWidgetHint impls)
-	if ft.Kind() == reflect.Struct && SingleValueTypes.Has(ft) {
+	// 14. time-like struct types: time.Time, a type defined as it, or a
+	// struct embedding a time.Time as its only field. Another single-value
+	// struct, such as a registered money type, is a text input through its
+	// MarshalText and UnmarshalText (the catch-all below).
+	if ft.Kind() == reflect.Struct && isTimeLike(ft) {
 		return FieldKindDateTime, tag
 	}
 
@@ -242,6 +246,17 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// TextUnmarshaler → catch-all (parse-aware), otherwise still
 	// catch-all (renderer must surface the registration error).
 	return FieldKindCatchAll, tag
+}
+
+// isTimeLike reports whether the struct type t holds a time the way a
+// time.Time does: it is time.Time, a type defined as time.Time, or a struct
+// whose only field is an embedded time.Time.
+func isTimeLike(t reflect.Type) bool {
+	timeType := reflect.TypeFor[time.Time]()
+	if t.ConvertibleTo(timeType) {
+		return true
+	}
+	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == timeType
 }
 
 // derefType returns the element type of a pointer chain, stopping at

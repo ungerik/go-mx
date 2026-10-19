@@ -18,7 +18,7 @@ func TestCalendar(t *testing.T) {
 		">Su<",
 		">Sa<",
 		`data-slot="calendar-day"`,
-		`aria-selected="true"`, // the selected 15th
+		`data-selected="true"`, // the selected 15th
 		`data-slot="calendar-prev"`,
 		`data-slot="calendar-next"`,
 		"lucide-chevron-left",
@@ -123,14 +123,14 @@ func TestCalendarDisabled(t *testing.T) {
 	if !strings.Contains(out, `disabled="disabled"`) {
 		t.Errorf("disabled day should carry the disabled attribute: %s", out)
 	}
-	if strings.Contains(out, `aria-selected="true"`) {
-		t.Errorf("disabled day matching selected must not be aria-selected: %s", out)
+	if strings.Contains(out, `data-selected="true"`) {
+		t.Errorf("disabled day matching selected must not be marked selected: %s", out)
 	}
-	// Control: with nothing disabled the same selected day IS aria-selected
+	// Control: with nothing disabled the same selected day IS marked selected
 	// and no day is disabled.
 	ok := render(t, CalendarWith(CalendarOptions{}, month, selected))
-	if !strings.Contains(ok, `aria-selected="true"`) {
-		t.Errorf("non-disabled selected day should be aria-selected: %s", ok)
+	if !strings.Contains(ok, `data-selected="true"`) {
+		t.Errorf("non-disabled selected day should be marked selected: %s", ok)
 	}
 	if strings.Contains(ok, `aria-disabled="true"`) {
 		t.Errorf("nil Disabled must disable nothing: %s", ok)
@@ -177,9 +177,9 @@ func TestCalendarSelectMode(t *testing.T) {
 	out := render(t, CalendarWith(CalendarOptions{Name: "due"}, month, selected))
 	for _, want := range []string{
 		`<input type="hidden" name="due" value="2026-06-14" data-slot="calendar-input"/>`,
-		`<table role="grid" aria-label="June 2026" class="w-full border-collapse" onkeydown="calendarKey(event)">`,
+		`<table class="w-full border-collapse" role="grid" aria-label="June 2026" onkeydown="calendarKey(event)">`,
 		// The grid cell carries aria-selected; the button only its look.
-		`<td role="gridcell" class="p-0 text-center" aria-selected="true"><button data-slot="calendar-day" type="button" aria-label="2026-06-14" data-selected="true"`,
+		`<td class="p-0 text-center" role="gridcell" aria-selected="true"><button data-slot="calendar-day" type="button" aria-label="2026-06-14" data-selected="true"`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %s in %s", want, out)
@@ -337,30 +337,56 @@ func TestCalendarText(t *testing.T) {
 	}
 }
 
-// Every calendar is a grid named by its month, with one gridcell per day,
-// and a button never carries aria-selected, which ARIA does not allow on a
-// button. The month buttons are named.
+// A calendar in select mode is a grid named by its month, with one
+// gridcell per day, and a button never carries aria-selected, which ARIA
+// does not allow on a button. The static calendar has no keyboard handling,
+// so it is a plain table that marks the selected day only by its look. The
+// month buttons are named in both.
 func TestCalendarGridSemantics(t *testing.T) {
 	month := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
-	out := render(t, Calendar(month, time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC)))
-	if !strings.Contains(out, `<table role="grid" aria-label="June 2026"`) {
-		t.Errorf("the table must be a grid named by its month: %s", out)
+	selected := time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC)
+	out := render(t, CalendarWith(CalendarOptions{Name: "due"}, month, selected))
+	if !strings.Contains(out, `role="grid" aria-label="June 2026"`) {
+		t.Errorf("the select-mode table must be a grid named by its month: %s", out)
 	}
-	if c := strings.Count(out, `<td role="gridcell"`); c != 42 {
+	if c := strings.Count(out, `role="gridcell"`); c != 42 {
 		t.Errorf("want 42 gridcells, got %d", c)
 	}
-	selected := dayButton(t, out, "2026-06-14")
-	if strings.Contains(selected, `aria-selected="true"`) {
-		t.Errorf("the selected day's button must not carry aria-selected: %s", selected)
+	button := dayButton(t, out, "2026-06-14")
+	if strings.Contains(button, `aria-selected="true"`) {
+		t.Errorf("the selected day's button must not carry aria-selected: %s", button)
 	}
 	// The button keeps the selected look through data-selected.
-	if !strings.Contains(selected, `data-selected="true"`) || !strings.Contains(selected, "data-[selected=true]:bg-primary") {
-		t.Errorf("the selected day's button lacks its selected look: %s", selected)
+	if !strings.Contains(button, `data-selected="true"`) || !strings.Contains(button, "data-[selected=true]:bg-primary") {
+		t.Errorf("the selected day's button lacks its selected look: %s", button)
+	}
+
+	static := render(t, Calendar(month, selected))
+	for _, unwanted := range []string{`role="grid"`, `role="gridcell"`, `aria-selected`} {
+		if strings.Contains(static, unwanted) {
+			t.Errorf("the static calendar must not carry %s: %s", unwanted, static)
+		}
 	}
 	for _, label := range []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`} {
-		if !strings.Contains(out, label) {
+		if !strings.Contains(static, label) || !strings.Contains(out, label) {
 			t.Errorf("missing %s", label)
 		}
+	}
+}
+
+// Days of the adjacent months are muted like upstream's outside days, but
+// only disabled days are faded, so a pickable outside day does not look
+// disabled.
+func TestCalendarOutsideDays(t *testing.T) {
+	month := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	out := render(t, CalendarWith(CalendarOptions{
+		Disabled: func(d time.Time) bool { return d.Equal(time.Date(2026, time.June, 9, 0, 0, 0, 0, time.UTC)) },
+	}, month, time.Time{}))
+	if b := dayButton(t, out, "2026-07-01"); !strings.Contains(b, "text-muted-foreground") || strings.Contains(b, "opacity-50") {
+		t.Errorf("an outside day is muted, not faded: %s", b)
+	}
+	if b := dayButton(t, out, "2026-06-09"); !strings.Contains(b, "opacity-50") {
+		t.Errorf("a disabled day is faded: %s", b)
 	}
 }
 
@@ -379,5 +405,26 @@ func TestCalendarAsksDisabledOncePerDay(t *testing.T) {
 		if n != 1 {
 			t.Errorf("Disabled asked %d times for %s, want once", n, day.Format(time.DateOnly))
 		}
+	}
+}
+
+// The selection marks follow the selected day wherever it is: a spillover
+// cell is marked like any other, a day outside the grid marks nothing, and
+// the hidden input keeps the stored day either way. With every day
+// disabled no day is a Tab stop.
+func TestCalendarSelectModeEdges(t *testing.T) {
+	month := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	spill := render(t, CalendarWith(CalendarOptions{Name: "due"}, month, time.Date(2026, time.July, 2, 0, 0, 0, 0, time.UTC)))
+	if !strings.Contains(spill, `aria-selected="true"><button data-slot="calendar-day" type="button" aria-label="2026-07-02" data-selected="true"`) ||
+		!strings.Contains(spill, `name="due" value="2026-07-02"`) {
+		t.Errorf("a spillover selection must be marked and submitted: %s", spill)
+	}
+	outside := render(t, CalendarWith(CalendarOptions{Name: "due"}, month, time.Date(2026, time.August, 20, 0, 0, 0, 0, time.UTC)))
+	if strings.Contains(outside, `aria-selected="true"`) || !strings.Contains(outside, `name="due" value="2026-08-20"`) {
+		t.Errorf("a selection outside the grid marks nothing and stays in the hidden input: %s", outside)
+	}
+	blocked := render(t, CalendarWith(CalendarOptions{Name: "due", Disabled: func(time.Time) bool { return true }}, month, time.Time{}))
+	if strings.Contains(blocked, `tabindex="0"`) {
+		t.Errorf("with every day disabled no day may be a Tab stop: %s", blocked)
 	}
 }

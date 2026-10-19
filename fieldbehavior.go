@@ -262,6 +262,9 @@ func (e FieldErrors) Unwrap() []error {
 // walked into a five-field "section." Callers add their own
 // single-value struct types here (currency, address, money amount,
 // etc.) so the decider knows to look up a widget instead of recursing.
+// A registered type that holds a time ([DetectField] rule 14) is a date
+// and time field; any other is a text input through its MarshalText and
+// UnmarshalText.
 //
 // Types implementing [FormWidgetHint] are treated as single-value
 // automatically and do not need to be registered.
