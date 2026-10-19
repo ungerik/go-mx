@@ -89,6 +89,10 @@ type Labels struct {
 	// stored members are absent from the per-request option list. Those
 	// members are kept on save and are not echoed into the note.
 	FormValuesNotAvailable string
+	// FormExpectedFormat introduces the format, such as YYYY-MM-DD, under a
+	// reflected date or time field whose stored text the date picker cannot
+	// show, so it renders as a text input instead.
+	FormExpectedFormat string
 }
 
 // DefaultLabels holds the strings used when the render context carries no
@@ -127,6 +131,7 @@ var englishLabels = Labels{
 	FormChooseOption:       "Choose…",
 	FormNoSelection:        "(none)",
 	FormValuesNotAvailable: "(some current values are not available)",
+	FormExpectedFormat:     "Expected format:",
 }
 
 // ctxKeyLabels is the unexported render-context key under which
@@ -186,6 +191,7 @@ func (l Labels) orDefaults() Labels {
 		FormChooseOption:       cmp.Or(l.FormChooseOption, DefaultLabels.FormChooseOption, englishLabels.FormChooseOption),
 		FormNoSelection:        cmp.Or(l.FormNoSelection, DefaultLabels.FormNoSelection, englishLabels.FormNoSelection),
 		FormValuesNotAvailable: cmp.Or(l.FormValuesNotAvailable, DefaultLabels.FormValuesNotAvailable, englishLabels.FormValuesNotAvailable),
+		FormExpectedFormat:     cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
 	}
 }
 

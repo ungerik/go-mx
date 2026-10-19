@@ -46,6 +46,7 @@ var germanLabels = Labels{
 	FormChooseOption:       "Auswählen…",
 	FormNoSelection:        "(keine)",
 	FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
+	FormExpectedFormat:     "Erwartetes Format:",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -175,7 +176,27 @@ var labelCases = []labelCase{
 		fields:  []string{"FormValuesNotAvailable"},
 		english: []string{">(some current values are not available)<"},
 		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
+	}, {
+		name:    "FormExpectedFormat",
+		comp:    dateWithStoredText,
+		fields:  []string{"FormExpectedFormat"},
+		english: []string{">Expected format: YYYY-MM-DD<"},
+		german:  []string{">Erwartetes Format: YYYY-MM-DD<"},
 	},
+}
+
+// dateWithStoredText builds a reflected date field whose stored text a date
+// input cannot show, which is the only way to reach the FormExpectedFormat
+// hint.
+func dateWithStoredText() mx.Component {
+	type draftForm struct {
+		Due string `form:"widget=date"`
+	}
+	s := &draftForm{Due: "06.07.2026"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Due")
+	beh := FieldDecider(mx.FieldPath("Due"), f, v.Field(0))
+	return beh.Render(mx.FieldPath("Due"), f, v.Field(0), nil)
 }
 
 // outOfListSelect builds the reflected select whose current value is missing

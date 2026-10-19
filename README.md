@@ -216,6 +216,24 @@ Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
 `(redirect string, err error)`; the returned URL wins, and an empty
 string falls back to `cfg.Redirect` then the request path.
 
+The `date`, `datetime` and `time` widgets render the matching input for a
+`time.Time` and also for a field that holds its value as text: a `string`, a
+`*string`, or a named string type such as a date type. A type can declare its
+widget once with `FormWidget() string` (`mx.FormWidgetHint`) instead of every
+field carrying `form:"widget=date"`. The input shows the stored value: a
+`Format(string) string` method is asked for it, and otherwise text in the
+input's own form is shown. That form has no zone and carries seconds only when
+they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
+POST the submitted value is stored in that same form, through `UnmarshalText`
+when the type has it, and an empty value stores the zero value, which
+`required` rejects. An input cannot show stored text in another spelling
+(`06.07.2026`), an invalid value or a time with a zone, and a blank one would
+clear it on the next save, so such text renders in a text input instead, with
+the format to enter as placeholder and hint. Saving it unchanged then fails
+with a field error until it is corrected, and the stored value stays as it
+was. A type that keeps its own spelling implements `Format` and
+`UnmarshalText` to convert.
+
 Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the

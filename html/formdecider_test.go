@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1544,4 +1546,555 @@ func TestFieldDecider_ZeroValueRendersAsNoValue(t *testing.T) {
 			t.Errorf("the zero time must render as an empty value: %q", out)
 		}
 	})
+}
+
+// time.Time fields render and bind exactly as they did before
+// form:"widget=date" learned string-kind fields.
+func TestFieldDecider_TimeWidgetsUnchanged(t *testing.T) {
+	type form struct {
+		Date     time.Time `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+		DateTime time.Time `form:"widget=datetime"`
+		Time     time.Time `form:"widget=time,readonly"`
+		Default  time.Time
+		Nil      *time.Time `form:"widget=date"`
+		Zero     time.Time  `form:"widget=date"`
+	}
+	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
+	f := &form{Date: when, DateTime: when, Time: when, Default: when}
+	renders := []struct{ field, want string }{
+		{"Date", `<label for="Date">Date:</label><input type="date" name="Date" id="Date" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
+		{"DateTime", `<label for="DateTime">DateTime:</label><input type="datetime-local" name="DateTime" id="DateTime" value="2026-07-06T09:05:07"/>`},
+		{"Time", `<label for="Time">Time:</label><input type="time" name="Time" id="Time" value="09:05:07" readonly="readonly"/>`},
+		{"Default", `<label for="Default">Default:</label><input type="datetime-local" name="Default" id="Default" value="2026-07-06T09:05:07"/>`},
+		{"Nil", `<label for="Nil">Nil:</label><input type="date" name="Nil" id="Nil"/>`},
+		{"Zero", `<label for="Zero">Zero:</label><input type="date" name="Zero" id="Zero"/>`},
+	}
+	for _, r := range renders {
+		if got := renderFieldHTML(t, f, r.field); got != r.want {
+			t.Errorf("%s renders\n%s\nwant\n%s", r.field, got, r.want)
+		}
+	}
+
+	if err := parseFieldValue(t, f, "Nil", "2026-08-05"); err != nil {
+		t.Fatalf("bind a date into *time.Time: %v", err)
+	}
+	if want := time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC); f.Nil == nil || !f.Nil.Equal(want) {
+		t.Errorf("Nil = %v, want %v", f.Nil, want)
+	}
+	err := parseFieldValue(t, f, "Zero", "06.07.2026")
+	if want := `parsing time "06.07.2026" as "2006-01-02": cannot parse "06.07.2026" as "2006"`; err == nil || err.Error() != want {
+		t.Errorf("bind 06.07.2026 into time.Time: error %v, want %s", err, want)
+	}
+}
+
+// testDate mimics a date type with an underlying string, like the
+// date.Date of github.com/domonda/go-types, without depending on it.
+// Format(time.DateOnly) returns a valid date normalized, "" for an empty
+// or zero date, and an invalid value unchanged. Like date.Date it has no
+// UnmarshalText, so binding sets the string itself.
+type testDate string
+
+func (d testDate) Format(layout string) string {
+	for _, l := range []string{time.DateOnly, "02.01.2006"} {
+		if t, err := time.Parse(l, string(d)); err == nil {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format(layout)
+		}
+	}
+	return string(d)
+}
+
+// unmarshaledDate binds through UnmarshalText, which marks what it stores
+// so a test can tell it ran.
+type unmarshaledDate string
+
+func (d *unmarshaledDate) UnmarshalText(text []byte) error {
+	*d = unmarshaledDate("unmarshaled " + string(text))
+	return nil
+}
+
+// dateStrings holds a date as text in each string-kind shape a
+// form:"widget=date" field accepts.
+type dateStrings struct {
+	Str       string          `form:"widget=date"`
+	Ptr       *string         `form:"widget=date"`
+	Date      testDate        `form:"widget=date"`
+	DatePtr   *testDate       `form:"widget=date"`
+	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+	Unmarshal unmarshaledDate `form:"widget=date"`
+}
+
+// A form:"widget=date" field that holds its date as text prefills the date
+// input with the stored date. Stored text that a date input cannot show
+// renders as a text input with that text, because a blank date input would
+// clear the stored value on the next save.
+func TestFieldDecider_DateWidgetPrefillsStringKinds(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  dateStrings
+		field string
+		want  string
+	}{
+		// A Format method gives the date as yyyy-mm-dd.
+		{"Format normalizes", dateStrings{Date: "06.07.2026"}, "Date",
+			`<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
+		{"Format keeps canonical", dateStrings{Date: "2026-07-06"}, "Date",
+			`<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
+		{"Format through pointer", dateStrings{DatePtr: new(testDate("06.07.2026"))}, "DatePtr",
+			`<input type="date" name="DatePtr" id="DatePtr" value="2026-07-06"/>`},
+		// Without Format, a yyyy-mm-dd string is shown as stored.
+		{"string", dateStrings{Str: "2026-07-06"}, "Str",
+			`<input type="date" name="Str" id="Str" value="2026-07-06"/>`},
+		{"string pointer", dateStrings{Ptr: new("2026-07-06")}, "Ptr",
+			`<input type="date" name="Ptr" id="Ptr" value="2026-07-06"/>`},
+		// No date, no value attribute.
+		{"empty string", dateStrings{}, "Str",
+			`<input type="date" name="Str" id="Str"/>`},
+		{"nil pointer", dateStrings{}, "Ptr",
+			`<input type="date" name="Ptr" id="Ptr"/>`},
+		{"pointer to empty", dateStrings{Ptr: new("")}, "Ptr",
+			`<input type="date" name="Ptr" id="Ptr"/>`},
+		{"empty date", dateStrings{}, "Date",
+			`<input type="date" name="Date" id="Date"/>`},
+		{"Format zero date", dateStrings{Date: "0001-01-01"}, "Date",
+			`<input type="date" name="Date" id="Date"/>`},
+		// Anything else renders as a text input showing the stored text,
+		// with the format to enter as placeholder and hint.
+		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
+			`<input type="text" name="Str" id="Str" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format"/>` +
+				`<small class="form-help" id="Str-format">Expected format: YYYY-MM-DD</small>`},
+		{"impossible date", dateStrings{Str: "2026-02-30"}, "Str",
+			`<input type="text" name="Str" id="Str" value="2026-02-30" placeholder="YYYY-MM-DD" aria-describedby="Str-format"/>`},
+		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
+			`<input type="text" name="Ptr" id="Ptr" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format"/>`},
+		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
+			`<input type="text" name="Date" id="Date" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format"/>`},
+		// The text input keeps required and drops the date range, which
+		// does not apply to text.
+		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
+			`<input type="date" name="Bounded" id="Bounded" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
+		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
+			`<input type="text" name="Bounded" id="Bounded" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required"/>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := renderFieldHTML(t, &tt.form, tt.field)
+			if !strings.Contains(out, tt.want) {
+				t.Errorf("rendered\n%s\nwant the input\n%s", out, tt.want)
+			}
+		})
+	}
+}
+
+// A submitted yyyy-mm-dd date binds into a string-kind field, through
+// UnmarshalText when the type has one. An empty submission clears the
+// field. Any other text is a field error, and the stored value stays as
+// it was.
+func TestFieldDecider_DateWidgetBindsStringKinds(t *testing.T) {
+	tests := []struct {
+		name    string
+		stored  dateStrings
+		field   string
+		raw     string
+		want    dateStrings
+		wantErr string
+	}{
+		// An empty submission stores the zero value.
+		{name: "empty clears string", stored: dateStrings{Str: "2026-07-06"}, field: "Str", raw: "",
+			want: dateStrings{}},
+		{name: "empty clears pointer", stored: dateStrings{Ptr: new("2026-07-06")}, field: "Ptr", raw: "",
+			want: dateStrings{}},
+		{name: "empty clears date", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "",
+			want: dateStrings{}},
+		// A yyyy-mm-dd date is stored as submitted.
+		{name: "string", field: "Str", raw: "2026-07-06",
+			want: dateStrings{Str: "2026-07-06"}},
+		{name: "allocates pointer", field: "Ptr", raw: "2026-07-06",
+			want: dateStrings{Ptr: new("2026-07-06")}},
+		{name: "replaces non-canonical date", stored: dateStrings{Date: "06.07.2026"}, field: "Date", raw: "2026-07-06",
+			want: dateStrings{Date: "2026-07-06"}},
+		{name: "date pointer", field: "DatePtr", raw: "2026-07-06",
+			want: dateStrings{DatePtr: new(testDate("2026-07-06"))}},
+		{name: "UnmarshalText", field: "Unmarshal", raw: "2026-07-06",
+			want: dateStrings{Unmarshal: "unmarshaled 2026-07-06"}},
+		// Any other text is an error and leaves the field alone.
+		{name: "non-canonical text", stored: dateStrings{Str: "2026-07-06"}, field: "Str", raw: "06.07.2026",
+			want:    dateStrings{Str: "2026-07-06"},
+			wantErr: `"06.07.2026" is not a date in the format YYYY-MM-DD`},
+		{name: "impossible date", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "2026-02-30",
+			want:    dateStrings{Date: "2026-07-06"},
+			wantErr: `"2026-02-30" is not a date in the format YYYY-MM-DD`},
+		{name: "nil pointer stays nil", field: "Ptr", raw: "next week",
+			want:    dateStrings{},
+			wantErr: `"next week" is not a date in the format YYYY-MM-DD`},
+		{name: "pointer keeps its date", stored: dateStrings{Ptr: new("2026-07-06")}, field: "Ptr", raw: "next week",
+			want:    dateStrings{Ptr: new("2026-07-06")},
+			wantErr: `"next week" is not a date in the format YYYY-MM-DD`},
+		{name: "UnmarshalText not called", field: "Unmarshal", raw: "06.07.2026",
+			want:    dateStrings{},
+			wantErr: `"06.07.2026" is not a date in the format YYYY-MM-DD`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.stored
+			err := parseFieldValue(t, &got, tt.field, tt.raw)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("bind %q: stored %s, want %s", tt.raw, dumpDates(got), dumpDates(tt.want))
+			}
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("bind %q: %v", tt.raw, err)
+			case tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr):
+				t.Errorf("bind %q: error %v, want %s", tt.raw, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// A required date held as text rejects an empty submission like a
+// required time.Time does.
+func TestReflectFormHandler_RequiredDateStringRejectsBlank(t *testing.T) {
+	t.Run("string", func(t *testing.T) {
+		type draft struct {
+			Due string `form:"widget=date,required"`
+		}
+		postBlankRequired(t, "Due", &draft{Due: "2026-07-06"})
+	})
+	t.Run("date type", func(t *testing.T) {
+		type draft struct {
+			Due testDate `form:"widget=date,required"`
+		}
+		postBlankRequired(t, "Due", &draft{Due: "2026-07-06"})
+	})
+}
+
+// A stored text that is not a date reaches the user as a text input, and
+// posting it back unchanged shows the bind error at the field instead of
+// saving, with the stored text still in the input.
+func TestReflectFormHandler_DateStringErrorKeepsStoredText(t *testing.T) {
+	type draft struct {
+		Due string `form:"widget=date"`
+	}
+	saved := false
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*draft, error) { return &draft{Due: "06.07.2026"}, nil },
+		func(context.Context, *draft) error { saved = true; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/draft", nil))
+	shown := submittedValues(rec.Body.String())
+	if got := shown.Get("Due"); got != "06.07.2026" {
+		t.Fatalf("GET shows Due %q, want the stored text: %s", got, rec.Body.String())
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	body := rec.Body.String()
+	if saved || rec.Code != http.StatusOK {
+		t.Fatalf("POST of a stored non-date: status %d, saved %t; want the form re-rendered with 200", rec.Code, saved)
+	}
+	if want := `<p class="form-error" data-error="Due">&quot;06.07.2026&quot; is not a date in the format YYYY-MM-DD</p>`; !strings.Contains(body, want) {
+		t.Errorf("want the bind error at the field %s, got %s", want, body)
+	}
+	if want := `<input type="text" name="Due" id="Due" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Due-format" aria-invalid="true"/>`; !strings.Contains(body, want) {
+		t.Errorf("want the stored text re-rendered %s, got %s", want, body)
+	}
+}
+
+// A GET followed by a POST without edits stores exactly the dates the GET
+// showed: a valid but non-canonical date comes back canonical, and a
+// missing one stays missing.
+func TestReflectFormHandler_DateStringRoundTrip(t *testing.T) {
+	type record struct {
+		Start  testDate  `form:"widget=date"`
+		End    string    `form:"widget=date"`
+		Review *testDate `form:"widget=date"`
+		Signed *string   `form:"widget=date"`
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Start: "06.07.2026", End: "2026-08-05", Signed: new("2026-07-20")}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/record", nil))
+	body := rec.Body.String()
+	shown := submittedValues(body)
+	for _, f := range []struct{ name, value string }{
+		{"Start", "2026-07-06"},
+		{"End", "2026-08-05"},
+		{"Review", ""},
+		{"Signed", "2026-07-20"},
+	} {
+		if !strings.Contains(body, `type="date" name="`+f.name+`"`) {
+			t.Errorf("GET renders %s without a date input: %s", f.name, body)
+		}
+		if got := shown.Get(f.name); got != f.value {
+			t.Errorf("GET shows %s %q, want %q", f.name, got, f.value)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/record", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	want := &record{Start: "2026-07-06", End: "2026-08-05", Signed: new("2026-07-20")}
+	if !reflect.DeepEqual(saved, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// parseFieldValue submits raw for fieldName and binds it into that field
+// of target, a pointer to a struct, through FieldDecider's Parse.
+func parseFieldValue(t *testing.T, target any, fieldName, raw string) error {
+	t.Helper()
+	values := url.Values{}
+	values.Set(fieldName, raw)
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	v := reflect.ValueOf(target).Elem()
+	field, ok := v.Type().FieldByName(fieldName)
+	if !ok {
+		t.Fatalf("no field %q", fieldName)
+	}
+	path := mx.FieldPath(fieldName)
+	value := v.FieldByIndex(field.Index)
+	return FieldDecider(path, field, value).Parse(path, field, value, r)
+}
+
+// dumpDates prints d with its pointers followed, for test failures.
+func dumpDates(d dateStrings) string {
+	deref := func(s *string) string {
+		if s == nil {
+			return "nil"
+		}
+		return fmt.Sprintf("&%q", *s)
+	}
+	datePtr := "nil"
+	if d.DatePtr != nil {
+		datePtr = fmt.Sprintf("&%q", string(*d.DatePtr))
+	}
+	return fmt.Sprintf("{Str:%q Ptr:%s Date:%q DatePtr:%s Bounded:%q Unmarshal:%q}",
+		d.Str, deref(d.Ptr), d.Date, datePtr, d.Bounded, d.Unmarshal)
+}
+
+var (
+	inputTagRe  = regexp.MustCompile(`<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
+	attributeRe = regexp.MustCompile(`([^\s=]+)="([^"]*)"`)
+)
+
+// submittedValues returns what a browser submits for the <input> elements
+// of body: the value of each named input, "" when it has none. An
+// unchecked checkbox or radio button submits nothing.
+func submittedValues(body string) url.Values {
+	values := url.Values{}
+	for _, input := range inputTagRe.FindAllStringSubmatch(body, -1) {
+		attrs := map[string]string{}
+		for _, a := range attributeRe.FindAllStringSubmatch(input[1], -1) {
+			attrs[a[1]] = stdhtml.UnescapeString(a[2])
+		}
+		name, ok := attrs["name"]
+		if !ok {
+			continue
+		}
+		if typ := attrs["type"]; typ == "checkbox" || typ == "radio" {
+			if _, checked := attrs["checked"]; !checked {
+				continue
+			}
+		}
+		values.Add(name, attrs["value"])
+	}
+	return values
+}
+
+// timeStrings holds a date with time, and a time of day, as text.
+type timeStrings struct {
+	At    string  `form:"widget=datetime"`
+	AtPtr *string `form:"widget=datetime"`
+	Clock string  `form:"widget=time"`
+}
+
+// The datetime and time widgets read and write text like the date widget.
+// The text has no zone and carries seconds only when they are not zero,
+// the form these inputs use themselves.
+func TestFieldDecider_TimeWidgetsPrefillStringKinds(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  timeStrings
+		field string
+		want  string
+	}{
+		{"datetime minutes", timeStrings{At: "2026-07-06T09:05"}, "At",
+			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
+		{"datetime drops zero seconds", timeStrings{At: "2026-07-06T09:05:00"}, "At",
+			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
+		{"datetime seconds", timeStrings{At: "2026-07-06T09:05:07"}, "At",
+			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07"/>`},
+		{"datetime nil pointer", timeStrings{}, "AtPtr",
+			`<input type="datetime-local" name="AtPtr" id="AtPtr"/>`},
+		{"datetime with zone", timeStrings{At: "2026-07-06T09:05:07Z"}, "At",
+			`<input type="text" name="At" id="At" value="2026-07-06T09:05:07Z" placeholder="YYYY-MM-DDTHH:MM" aria-describedby="At-format"/>` +
+				`<small class="form-help" id="At-format">Expected format: YYYY-MM-DDTHH:MM</small>`},
+		{"time minutes", timeStrings{Clock: "09:05"}, "Clock",
+			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
+		{"time drops zero seconds", timeStrings{Clock: "09:05:00"}, "Clock",
+			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
+		{"time other spelling", timeStrings{Clock: "9.05"}, "Clock",
+			`<input type="text" name="Clock" id="Clock" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format"/>` +
+				`<small class="form-help" id="Clock-format">Expected format: HH:MM</small>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := renderFieldHTML(t, &tt.form, tt.field)
+			if !strings.Contains(out, tt.want) {
+				t.Errorf("rendered\n%s\nwant\n%s", out, tt.want)
+			}
+		})
+	}
+}
+
+// A submitted datetime or time binds as text with zero seconds dropped.
+// Text in another form is a field error that leaves the field alone.
+func TestFieldDecider_TimeWidgetsBindStringKinds(t *testing.T) {
+	tests := []struct {
+		name    string
+		stored  timeStrings
+		field   string
+		raw     string
+		want    timeStrings
+		wantErr string
+	}{
+		{name: "datetime minutes", field: "At", raw: "2026-07-06T09:05",
+			want: timeStrings{At: "2026-07-06T09:05"}},
+		{name: "datetime zero seconds", field: "At", raw: "2026-07-06T09:05:00",
+			want: timeStrings{At: "2026-07-06T09:05"}},
+		{name: "datetime seconds", field: "At", raw: "2026-07-06T09:05:07",
+			want: timeStrings{At: "2026-07-06T09:05:07"}},
+		{name: "datetime allocates pointer", field: "AtPtr", raw: "2026-07-06T09:05",
+			want: timeStrings{AtPtr: new("2026-07-06T09:05")}},
+		{name: "datetime empty clears", stored: timeStrings{At: "2026-07-06T09:05"}, field: "At", raw: "",
+			want: timeStrings{}},
+		{name: "datetime with space", stored: timeStrings{At: "2026-07-06T09:05"}, field: "At", raw: "2026-07-06 09:05",
+			want:    timeStrings{At: "2026-07-06T09:05"},
+			wantErr: `"2026-07-06 09:05" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		{name: "datetime nil pointer stays nil", field: "AtPtr", raw: "2026-07-06T09:05Z",
+			want:    timeStrings{},
+			wantErr: `"2026-07-06T09:05Z" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		{name: "time zero seconds", field: "Clock", raw: "09:05:00",
+			want: timeStrings{Clock: "09:05"}},
+		{name: "time one-digit hour", stored: timeStrings{Clock: "09:05"}, field: "Clock", raw: "9:05",
+			want:    timeStrings{Clock: "09:05"},
+			wantErr: `"9:05" is not a time in the format HH:MM`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.stored
+			err := parseFieldValue(t, &got, tt.field, tt.raw)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("bind %q: stored %+v, want %+v", tt.raw, got, tt.want)
+			}
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("bind %q: %v", tt.raw, err)
+			case tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr):
+				t.Errorf("bind %q: error %v, want %s", tt.raw, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// A GET followed by an unchanged POST stores the datetime and time the GET
+// showed, so zero seconds go and other seconds stay.
+func TestReflectFormHandler_TimeStringRoundTrip(t *testing.T) {
+	var saved *timeStrings
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*timeStrings, error) {
+			return &timeStrings{At: "2026-07-06T09:05:00", AtPtr: new("2026-07-06T18:30"), Clock: "09:05:07"}, nil
+		},
+		func(_ context.Context, r *timeStrings) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/times", nil))
+	shown := submittedValues(rec.Body.String())
+	req := httptest.NewRequest(http.MethodPost, "/times", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	want := &timeStrings{At: "2026-07-06T09:05", AtPtr: new("2026-07-06T18:30"), Clock: "09:05:07"}
+	if !reflect.DeepEqual(saved, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// hintedDate declares itself a date, so its fields need no widget tag.
+type hintedDate string
+
+func (hintedDate) FormWidget() string { return "date" }
+
+// A type whose FormWidget declares "date" renders and binds like a field
+// tagged form:"widget=date", also behind a nil pointer.
+func TestFieldDecider_HintedDateWidget(t *testing.T) {
+	type form struct {
+		Due     hintedDate
+		DuePtr  *hintedDate
+		Created hintedDate `form:"widget=text"`
+	}
+	f := &form{Due: "2026-07-06", Created: "2026-07-06"}
+	for _, r := range []struct{ field, want string }{
+		{"Due", `<input type="date" name="Due" id="Due" value="2026-07-06"/>`},
+		{"DuePtr", `<input type="date" name="DuePtr" id="DuePtr"/>`},
+		{"Created", `<input type="text" name="Created" id="Created" value="2026-07-06"/>`},
+	} {
+		if out := renderFieldHTML(t, f, r.field); !strings.Contains(out, r.want) {
+			t.Errorf("%s renders\n%s\nwant\n%s", r.field, out, r.want)
+		}
+	}
+	if err := parseFieldValue(t, f, "DuePtr", "2026-08-05"); err != nil {
+		t.Fatalf("bind DuePtr: %v", err)
+	}
+	if f.DuePtr == nil || *f.DuePtr != "2026-08-05" {
+		t.Errorf("DuePtr = %v, want 2026-08-05", f.DuePtr)
+	}
+	err := parseFieldValue(t, f, "Due", "06.07.2026")
+	if want := `"06.07.2026" is not a date in the format YYYY-MM-DD`; err == nil || err.Error() != want {
+		t.Errorf("bind 06.07.2026: error %v, want %s", err, want)
+	}
+}
+
+// emailAddress declares the email widget.
+type emailAddress string
+
+func (emailAddress) FormWidget() string { return "email" }
+
+// An explicit widget tag wins over the type's FormWidgetHint.
+func TestFieldDecider_TagWidgetBeatsHint(t *testing.T) {
+	type form struct {
+		Contact emailAddress
+		Code    emailAddress `form:"widget=text"`
+	}
+	f := &form{Contact: "a@example.com", Code: "x"}
+	if out := renderFieldHTML(t, f, "Contact"); !strings.Contains(out, `type="email"`) {
+		t.Errorf("the hint must render an email input: %s", out)
+	}
+	if out := renderFieldHTML(t, f, "Code"); !strings.Contains(out, `type="text"`) {
+		t.Errorf("widget=text must win over the email hint: %s", out)
+	}
 }

@@ -161,6 +161,120 @@ naturally alongside them (port on demand).
 
 ---
 
+## Calendar and DatePicker follow-ups
+
+`CalendarOptions.Name` (select mode), `Today`, `StartMonth`/`EndMonth` and
+`CalendarText` made the DatePicker recipe pick a day. What react-day-picker
+does beyond that is listed here, most useful first.
+
+### A month navigation contract
+
+**What:** Give Previous/Next (and PageUp/PageDown, and later a dropdown
+caption) a built-in way to show another month, for example a
+`CalendarOptions.MonthURL func(time.Time) string` that renders `hx-get` on
+the buttons, swaps the calendar and includes its hidden input.
+
+**Why:** Previous/Next are inert until the caller wires them, so the
+gallery DatePicker can only pick a day of its first month, and a date
+picker inside a form needs a server endpoint for the adjacent month that
+every caller writes again. react-day-picker navigates in the browser.
+
+**Context:** Client-side rendering of other months is not an option: the
+label and Disabled hooks are Go functions the browser cannot call. The
+round-trip needs a URL per month and must carry the picked day
+(`hx-include` of the `calendar-input`) and the focus (the day under focus
+in the new month, for PageUp/PageDown). The arrow keys stop at the edge of
+the six-week grid until then.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** None
+
+### Month and year dropdown caption
+
+**What:** Port `captionLayout="dropdown"`: native `<select>`s for month and
+year in the caption, bounded by StartMonth/EndMonth.
+
+**Why:** The Date of Birth recipe needs it; stepping back decades one month
+at a time is unusable.
+
+**Context:** The selects can render today, but changing one must load that
+month, which is the navigation contract above.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** A month navigation contract
+
+### A date picker widget for reflected forms
+
+**What:** A `form:"widget=datepicker"` that renders a date field as the
+Popover + select-mode Calendar recipe instead of `<input type="date">`.
+
+**Why:** The native date input looks different in every browser and cannot
+use the Disabled or localization hooks.
+
+**Context:** The bind side exists: the hidden input submits `2006-01-02`,
+which `mx.ParseDateTimeInput` already reads for string kinds and `setTime`
+for `time.Time`. The renderer needs the navigation contract to be usable
+past the first month.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** A month navigation contract
+
+### Range and multiple selection
+
+**What:** react-day-picker's `mode="range"` (start, middle and end day
+styling, two hidden inputs) and `mode="multiple"`.
+
+**Why:** The Range Picker recipe and booking flows (check-in/check-out)
+need it.
+
+**Context:** An extension of the select-mode script: a second click ends
+the range, the classes come from upstream's `range_start`/`range_middle`/
+`range_end`. Two months side by side (`numberOfMonths`) usually comes with
+it.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### Grid semantics for screen readers
+
+**What:** Render the select-mode grid as react-day-picker does:
+`role="grid"` on the table with the month as its label, and `aria-selected`
+on a `role="gridcell"` instead of on the `<button>`.
+
+**Why:** `aria-selected` is not an allowed attribute of a button, so a
+screen reader may not announce the picked day, and the grid pattern tells it
+that the arrow keys work.
+
+**Context:** The static grid predates select mode and uses the same
+markup. Moving `aria-selected` changes the `aria-selected:` class
+selectors on the day button too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The remaining DatePicker recipes
+
+**What:** Gallery examples for upstream's Basic (in a `Field` with a
+label), Time Picker (next to `Input type="time"`), RTL, Input (an
+`InputGroup` text input with a calendar button) and the old With Presets
+(a `Select` of Today, Tomorrow, In a week).
+
+**Why:** Upstream's date picker page shows eight recipes; the gallery has
+one.
+
+**Context:** Basic, Time Picker and RTL need nothing new. Input needs
+typed text parsed into the calendar, which is a client-side parser or a
+round-trip; Natural Language (chrono-node) is out of scope.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## Hard dependency edges (must respect)
 
 ```

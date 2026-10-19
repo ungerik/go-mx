@@ -245,3 +245,39 @@ func TestDetectField_OptionsTagShapeEdges(t *testing.T) {
 		})
 	}
 }
+
+// hintedDate declares itself a date, so its fields need no widget tag.
+type hintedDate string
+
+func (hintedDate) FormWidget() string { return "date" }
+
+// A FormWidgetHint that decides a field's kind is returned as the tag's
+// Widget, so renderers and parsers read one widget. An explicit widget or
+// options tag still takes precedence, and the hint does not overwrite it.
+func TestDetectField_HintBecomesTagWidget(t *testing.T) {
+	type form struct {
+		Date      hintedDate
+		DatePtr   *hintedDate
+		Email     hintedField
+		AsText    hintedField `form:"widget=text"`
+		AsOptions hintedDate  `form:"options=partners"`
+	}
+	tests := []struct {
+		field      string
+		wantKind   FieldKind
+		wantWidget string
+	}{
+		{"Date", FieldKindDateTime, "date"},
+		{"DatePtr", FieldKindDateTime, "date"},
+		{"Email", FieldKindString, "email"},
+		{"AsText", FieldKindString, "text"},
+		{"AsOptions", FieldKindEnum, ""},
+	}
+	for _, tt := range tests {
+		kind, tag := detectKind(t, &form{}, tt.field)
+		if kind != tt.wantKind || tag.Widget != tt.wantWidget {
+			t.Errorf("DetectField(%s) = %s with widget %q, want %s with widget %q",
+				tt.field, kind, tag.Widget, tt.wantKind, tt.wantWidget)
+		}
+	}
+}

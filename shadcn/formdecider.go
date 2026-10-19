@@ -1,6 +1,7 @@
 package shadcn
 
 import (
+	"cmp"
 	"context"
 	"encoding"
 	"fmt"
@@ -60,7 +61,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 	switch kind {
 	case mx.FieldKindString:
 		return shadcnField(path, field, tag, errs,
-			Input(stringAttribs(path, value, field.Type, tag, errs)...),
+			Input(stringAttribs(path, value, tag, errs)...),
 		)
 	case mx.FieldKindNumber:
 		return shadcnField(path, field, tag, errs,
@@ -70,7 +71,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		return shadcnBoolField(path, field, value, tag, errs)
 	case mx.FieldKindDateTime:
 		return shadcnField(path, field, tag, errs,
-			Input(datetimeAttribs(path, value, tag, errs)...),
+			shadcnDateTime(path, value, tag, errs),
 		)
 	case mx.FieldKindTextarea:
 		return shadcnField(path, field, tag, errs,
@@ -293,8 +294,8 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 // enough that calling private html helpers across packages would be
 // uglier than this short duplication.
 
-func stringAttribs(path mx.FieldPath, value reflect.Value, t reflect.Type, tag mx.FormTag, errs []error) []mx.Attrib {
-	inputType := stringWidget(tag, t)
+func stringAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
+	inputType := stringWidget(tag)
 	a := []mx.Attrib{
 		html.Type(inputType),
 		html.Name(string(path)),
@@ -351,22 +352,33 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	return a
 }
 
-func datetimeAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
-	t := "datetime-local"
-	switch tag.Widget {
-	case "date":
-		t = "date"
-	case "time":
-		t = "time"
-	}
+// shadcnDateTime renders the input [mx.DateTimeInput] decides. When the
+// stored text is no value the picker can hold, the input is a text input
+// followed by a [FieldDescription] naming the format to enter.
+func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
+	in := mx.DateTimeInput(value, tag)
 	a := []mx.Attrib{
-		html.Type(t),
+		html.Type(in.Type),
 		html.Name(string(path)),
 		html.ID(string(path)),
 		hx.Trigger("change"),
 	}
-	if val := timeDisplay(value, t); val != "" {
-		a = append(a, html.Value(val))
+	if in.Value != "" {
+		a = append(a, html.Value(in.Value))
+	}
+	textFallback := in.Type == "text"
+	if textFallback {
+		a = append(a,
+			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
+			mx.NewAttrib("aria-describedby", formatHintID(path)),
+		)
+	} else {
+		if tag.Min != "" {
+			a = append(a, html.Min(tag.Min))
+		}
+		if tag.Max != "" {
+			a = append(a, html.Max(tag.Max))
+		}
 	}
 	if tag.Required {
 		a = append(a, html.Required)
@@ -377,7 +389,23 @@ func datetimeAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 	if len(errs) > 0 {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
-	return a
+	if !textFallback {
+		return Input(a...)
+	}
+	return mx.Components{
+		Input(a...),
+		FieldDescription(html.ID(formatHintID(path)),
+			labelText(func(l Labels) string { return l.FormExpectedFormat }),
+			mx.Text(" "+in.Format),
+		),
+	}
+}
+
+// formatHintID is the id of the format hint under a date or time field
+// that fell back to a text input. The lowercase suffix cannot collide with
+// a field path, whose segments are exported Go field names.
+func formatHintID(path mx.FieldPath) string {
+	return string(path) + "-format"
 }
 
 func textareaAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []any {
@@ -434,38 +462,15 @@ func clearControl(path mx.FieldPath) mx.Component {
 
 // --- shared local helpers (duplicated from html.formdecider, narrow on purpose) ---
 
-func stringWidget(tag mx.FormTag, t reflect.Type) string {
+// stringWidget returns the input type of a string-kind field. [mx.DetectField]
+// has already put a [mx.FormWidgetHint]'s widget into tag, so the tag is
+// the only place to look.
+func stringWidget(tag mx.FormTag) string {
 	switch tag.Widget {
 	case "email", "url", "tel", "password":
 		return tag.Widget
 	}
-	if hint, ok := callFormWidgetHint(t); ok {
-		switch hint {
-		case "email", "url", "tel", "password":
-			return hint
-		}
-	}
 	return "text"
-}
-
-func callFormWidgetHint(t reflect.Type) (string, bool) {
-	if t == nil {
-		return "", false
-	}
-	hintType := reflect.TypeFor[mx.FormWidgetHint]()
-	if t.Implements(hintType) {
-		v := reflect.New(t).Elem()
-		if h, ok := v.Interface().(mx.FormWidgetHint); ok {
-			return h.FormWidget(), true
-		}
-	}
-	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(hintType) {
-		v := reflect.New(t)
-		if h, ok := v.Interface().(mx.FormWidgetHint); ok {
-			return h.FormWidget(), true
-		}
-	}
-	return "", false
 }
 
 func displayValue(v reflect.Value) string {
@@ -528,30 +533,6 @@ func displayValue(v reflect.Value) string {
 		}
 	}
 	return fmt.Sprint(x.Interface())
-}
-
-func timeDisplay(v reflect.Value, inputType string) string {
-	if !v.IsValid() {
-		return ""
-	}
-	x := v
-	for x.Kind() == reflect.Pointer {
-		if x.IsNil() {
-			return ""
-		}
-		x = x.Elem()
-	}
-	t, ok := x.Interface().(time.Time)
-	if !ok || t.IsZero() {
-		return ""
-	}
-	switch inputType {
-	case "date":
-		return t.Format("2006-01-02")
-	case "time":
-		return t.Format("15:04:05")
-	}
-	return t.Format("2006-01-02T15:04:05")
 }
 
 func stringifyValue(v reflect.Value) string {

@@ -319,6 +319,53 @@ idea. For `Path`, either implement it with the existing `JoinAbsPath` and
 
 ## Completed
 
+### `datetime` and `time` widgets on string-kind fields
+
+**What:** Make `form:"widget=datetime"` and `form:"widget=time"` prefill and
+bind a field that holds its value as text (`string`, `*string`, a named string
+type), the way `form:"widget=date"` does.
+
+**Why:** A string field tagged `widget=datetime` or `widget=time` rendered an
+empty input, and every non-empty submit failed with
+`cannot assign time to <type>`, so such a field could not be edited at all.
+
+**Context:** Settled formats: no zone, because these inputs are local times
+and attaching or dropping a zone would change what the stored text means; and
+seconds only when they are not zero, the form a `datetime-local` input uses
+itself (`2006-01-02T15:04[:05]`, `15:04[:05]`). `mx.ParseDateTimeInput`
+normalizes on bind, so a round trip does not depend on whether the browser
+submits zero seconds. A type with its own spelling converts with `Format` and
+`UnmarshalText`. Text the input cannot show, a time with a zone included,
+falls back to a text input with the format as placeholder and hint.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19
+
+### A tag-free opt-in for date types
+
+**What:** Let a string-kind date type declare itself a date once, so its
+fields render a date input without a `form:"widget=date"` tag on each of
+them.
+
+**Why:** A date type is a date wherever it appears, and a field that forgets
+the tag renders as a plain text input, which accepts any spelling.
+
+**Context:** `mx.FormWidgetHint` was the opt-in already but did not work for
+dates: both renderers and the parser read only `FormTag.Widget`, so a type
+returning `"date"` rendered `type="datetime-local"` and failed to bind.
+`mx.DetectField` now returns the hint's widget as the tag's `Widget` when the
+hint decides the kind, so every renderer and the parser read one value. That
+also fixed a `"checkbox"` hint rendering a shadcn switch, an explicit
+`widget=text` tag being overridden by an `"email"` hint, and a panic on a nil
+pointer to a type with a value-receiver `FormWidget`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19
+
 ### Enum-set checkboxes drop members missing from the option list
 
 **What:** An enum-set field silently loses the checked members that are absent

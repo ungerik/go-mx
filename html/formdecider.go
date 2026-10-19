@@ -1,6 +1,7 @@
 package html
 
 import (
+	"cmp"
 	"context"
 	"encoding"
 	"fmt"
@@ -90,7 +91,7 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 func renderInput(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
 	switch kind {
 	case mx.FieldKindString:
-		t := stringWidgetType(tag, field.Type)
+		t := stringWidgetType(tag)
 		return inputElement(path, t, displayValue(value, tag), field, tag, errs)
 	case mx.FieldKindTextarea:
 		return textareaElement(path, displayValue(value, tag), field, tag, errs)
@@ -218,27 +219,30 @@ func checkboxInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 }
 
 func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	t := "datetime-local"
-	switch tag.Widget {
-	case "date":
-		t = "date"
-	case "time":
-		t = "time"
-	}
-	val := timeDisplayValue(value, t)
+	in := mx.DateTimeInput(value, tag)
 	attribs := []mx.Attrib{
-		Type(t),
+		Type(in.Type),
 		Name(string(path)),
 		ID(string(path)),
 	}
-	if val != "" {
-		attribs = append(attribs, Value(val))
+	if in.Value != "" {
+		attribs = append(attribs, Value(in.Value))
 	}
-	if tag.Min != "" {
-		attribs = append(attribs, Min(tag.Min))
-	}
-	if tag.Max != "" {
-		attribs = append(attribs, Max(tag.Max))
+	// A text input shows stored text the picker cannot hold: it has no
+	// date range, and it says which format to enter instead.
+	textFallback := in.Type == "text"
+	if textFallback {
+		attribs = append(attribs,
+			Placeholder(cmp.Or(tag.Placeholder, in.Format)),
+			mx.NewAttrib("aria-describedby", formatHintID(path)),
+		)
+	} else {
+		if tag.Min != "" {
+			attribs = append(attribs, Min(tag.Min))
+		}
+		if tag.Max != "" {
+			attribs = append(attribs, Max(tag.Max))
+		}
 	}
 	if tag.Required {
 		attribs = append(attribs, Required)
@@ -249,7 +253,24 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
-	return Input(attribs...)
+	if !textFallback {
+		return Input(attribs...)
+	}
+	return mx.Components{
+		Input(attribs...),
+		mx.NewElement("small",
+			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Attribute{Name: "id", Value: formatHintID(path)},
+			mx.Text("Expected format: "+in.Format),
+		),
+	}
+}
+
+// formatHintID is the id of the format hint under a date or time field
+// that fell back to a text input. The lowercase suffix cannot collide with
+// a field path, whose segments are exported Go field names.
+func formatHintID(path mx.FieldPath) string {
+	return string(path) + "-format"
 }
 
 func fileInput(path mx.FieldPath, tag mx.FormTag, errs []error) mx.Component {
@@ -379,7 +400,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setBool(value, raw)
 	case mx.FieldKindDateTime:
 		raw := form.Get(string(path))
-		return setTime(value, raw, tag.Widget)
+		return setTime(value, raw, tag)
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
 		// A required select's empty option must not become a zero non-string
@@ -577,7 +598,10 @@ func setBool(value reflect.Value, raw string) error {
 	return nil
 }
 
-func setTime(value reflect.Value, raw, widget string) error {
+func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
+	if derefType(value.Type()).Kind() == reflect.String {
+		return setTimeText(value, raw, tag)
+	}
 	if value.Kind() == reflect.Pointer {
 		if raw == "" {
 			value.SetZero()
@@ -586,7 +610,7 @@ func setTime(value reflect.Value, raw, widget string) error {
 		if value.IsNil() {
 			value.Set(reflect.New(value.Type().Elem()))
 		}
-		return setTime(value.Elem(), raw, widget)
+		return setTime(value.Elem(), raw, tag)
 	}
 	if raw == "" {
 		value.SetZero()
@@ -601,7 +625,7 @@ func setTime(value reflect.Value, raw, widget string) error {
 		"15:04",
 		time.RFC3339,
 	}
-	switch widget {
+	switch tag.Widget {
 	case "date":
 		layouts = []string{"2006-01-02"}
 	case "time":
@@ -626,6 +650,41 @@ func setTime(value reflect.Value, raw, widget string) error {
 		lastErr = err
 	}
 	return lastErr
+}
+
+// setTimeText binds a submitted date or time into a string-kind field
+// (through any pointers) that holds it as text, the counterpart of the
+// text values [mx.DateTimeInput] prefills. [mx.ParseDateTimeInput] checks
+// the submission and gives the text to store. An empty submission stores
+// the zero value, which a required field rejects. A valid value goes
+// through UnmarshalText when the type has it and is set as the string
+// otherwise. Anything else is a validation error that leaves value
+// untouched, so a nil pointer stays nil.
+func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
+	text, err := mx.ParseDateTimeInput(tag, raw)
+	if err != nil {
+		return err
+	}
+	if text == "" {
+		value.SetZero()
+		return nil
+	}
+	parsed := reflect.New(derefType(value.Type()))
+	if u, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
+		if err := u.UnmarshalText([]byte(text)); err != nil {
+			return err
+		}
+	} else {
+		parsed.Elem().SetString(text)
+	}
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			value.Set(reflect.New(value.Type().Elem()))
+		}
+		value = value.Elem()
+	}
+	value.Set(parsed.Elem())
+	return nil
 }
 
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {
@@ -664,6 +723,14 @@ func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) erro
 		return errs.Errorf("setEnumSet: unsupported kind %s", value.Kind())
 	}
 	return nil
+}
+
+// derefType returns t with any pointers removed.
+func derefType(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t
 }
 
 // setKeyType returns the element type of a set-shaped field:
@@ -882,62 +949,15 @@ func displayValue(value reflect.Value, tag mx.FormTag) string {
 	return fmt.Sprint(v.Interface())
 }
 
-func timeDisplayValue(value reflect.Value, inputType string) string {
-	if !value.IsValid() {
-		return ""
-	}
-	v := value
-	for v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return ""
-		}
-		v = v.Elem()
-	}
-	t, ok := v.Interface().(time.Time)
-	if !ok || t.IsZero() {
-		return ""
-	}
-	switch inputType {
-	case "date":
-		return t.Format("2006-01-02")
-	case "time":
-		return t.Format("15:04:05")
-	}
-	return t.Format("2006-01-02T15:04:05")
-}
-
-func stringWidgetType(tag mx.FormTag, t reflect.Type) string {
+// stringWidgetType returns the input type of a string-kind field. [mx.DetectField]
+// has already put a [mx.FormWidgetHint]'s widget into tag, so the tag is
+// the only place to look.
+func stringWidgetType(tag mx.FormTag) string {
 	switch tag.Widget {
 	case "email", "url", "tel", "password":
 		return tag.Widget
 	}
-	if hint, ok := callFormWidgetHint(t); ok {
-		switch hint {
-		case "email", "url", "tel", "password":
-			return hint
-		}
-	}
 	return "text"
-}
-
-func callFormWidgetHint(t reflect.Type) (string, bool) {
-	if t == nil {
-		return "", false
-	}
-	hintType := reflect.TypeFor[mx.FormWidgetHint]()
-	if t.Implements(hintType) {
-		v := reflect.New(t).Elem()
-		if h, ok := v.Interface().(mx.FormWidgetHint); ok {
-			return h.FormWidget(), true
-		}
-	}
-	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(hintType) {
-		v := reflect.New(t)
-		if h, ok := v.Interface().(mx.FormWidgetHint); ok {
-			return h.FormWidget(), true
-		}
-	}
-	return "", false
 }
 
 func fieldLabel(field reflect.StructField, tag mx.FormTag) string {

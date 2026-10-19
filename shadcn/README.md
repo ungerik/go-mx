@@ -680,9 +680,19 @@ examples, not functions in this package.
   `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
   for the ISO/European week), `WeekdayName`, `MonthLabel`, `DayLabel`, and
   `Disabled` (grey out unavailable/past dates — a disabled day is never
-  `aria-selected`). The zero-value `CalendarOptions` renders exactly what
-  `Calendar` renders. react-day-picker's range/multiple selection is not
-  reproduced.
+  `aria-selected`). `Today` marks a day with the accent background and
+  `aria-current="date"` (an option, not `time.Now()`, so the caller picks the
+  zone and the output stays deterministic), and `StartMonth`/`EndMonth`
+  disable Previous/Next at the limits. `Name` turns on select mode, which is
+  react-day-picker's single mode re-expressed with one small shared script:
+  a hidden input of that name carries the picked day as `2006-01-02`, a click
+  or Enter picks a day and fires `input`/`change` on that input, the arrow
+  keys and Home/End move the focus between enabled days with a single Tab
+  stop, a surrounding popover closes, and `CalendarText(name, …)` shows the
+  picked day's `DayLabel` — the label of a date picker's trigger. The
+  zero-value `CalendarOptions` renders exactly what `Calendar` renders.
+  react-day-picker's range/multiple selection, dropdown caption and
+  client-side month navigation are not reproduced (see `TODOS.md`).
 - **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /
   `CarouselPrevious` / `CarouselNext`. A native CSS `scroll-snap` track —
   drag, swipe and keyboard scrolling are free; the Previous/Next buttons

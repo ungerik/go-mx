@@ -75,6 +75,9 @@ const (
 	// FieldKindDateTime covers time.Time (and pointer/Nullable
 	// variants of it) as well as types registered via the
 	// single-value registry with form:"widget=date|datetime|time".
+	// A string-kind field with one of these widgets holds its value
+	// as text; [DateTimeInput] decides how it renders and
+	// [ParseDateTimeInput] reads it back.
 	FieldKindDateTime
 
 	// FieldKindFile covers form:"widget=file" overrides.
@@ -157,7 +160,10 @@ func (k FieldKind) String() string {
 // (text, email, url, tel, date, datetime, time, password, textarea,
 // select, radio, switch, checkbox, file, hidden, skip). The
 // [FieldDecider] consults this AFTER an explicit form:"widget=…" tag
-// but BEFORE structural type detection.
+// but BEFORE structural type detection. When the hint decides the
+// field's kind, [DetectField] returns its name as the [FormTag].Widget,
+// so a type declaring "date" renders and binds exactly like a field
+// tagged form:"widget=date".
 type FormWidgetHint interface {
 	FormWidget() string
 }

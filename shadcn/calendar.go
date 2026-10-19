@@ -1,6 +1,7 @@
 package shadcn
 
 import (
+	"cmp"
 	"strconv"
 	"time"
 
@@ -69,7 +70,66 @@ type CalendarOptions struct {
 	// DayLabel returns the accessible name (aria-label) for a day button. nil
 	// uses the ISO 8601 date (2006-01-02), so a screen reader announces the
 	// full date instead of a bare day number with no month or year context.
+	// A [CalendarText] shows the picked day's DayLabel.
 	DayLabel func(time.Time) string
+
+	// Today marks that day with the accent background and
+	// aria-current="date", as react-day-picker marks today. The zero time
+	// marks no day. It is an option rather than time.Now() so the caller
+	// decides the time zone of "today" and the output stays deterministic.
+	Today time.Time
+
+	// StartMonth and EndMonth bound month navigation: the previous-month
+	// button is disabled while the displayed month is StartMonth's month or
+	// earlier, the next-month button while it is EndMonth's month or later.
+	// A zero time leaves that side open. Like react-day-picker's startMonth
+	// and endMonth they only limit navigation; Disabled makes days
+	// unselectable.
+	StartMonth, EndMonth time.Time
+
+	// Name makes the calendar a form control, the date picker's job in
+	// react-day-picker's single mode. A hidden input with this name carries
+	// the selected day as 2006-01-02 ("" for none), and one shared inline
+	// script, emitted once per calendar, lets the user pick a day:
+	//
+	//   - A click (or Enter or Space on a focused day) selects the day,
+	//     writes it to the hidden input and fires bubbling input and change
+	//     events there, so htmx triggers and form listeners react.
+	//   - Arrow keys move the focus by a day or a week, Home and End to the
+	//     start or end of the week row, skipping disabled days and following
+	//     the text direction. Only one day is a Tab stop: the selected day,
+	//     else Today, else the first enabled day of the month.
+	//   - Every [CalendarText] for this name in the same form shows the
+	//     picked day's DayLabel.
+	//   - A calendar inside an open popover closes it, returning the focus
+	//     to the trigger.
+	//
+	// Month navigation stays a server round-trip, as without Name: the
+	// arrow keys stop at the edge of the six-week grid. A request that
+	// re-renders the calendar for another month should include the hidden
+	// input (hx-include) to keep the picked day. "" renders the static grid.
+	Name string
+}
+
+// calendarScript is the once-emitted client code of a calendar with
+// [CalendarOptions].Name: calendarSelect picks a day button, calendarKey
+// moves the focus between day buttons.
+const calendarScript = /*js*/ `if(!window.calendarSelect){window.calendarSelect=function(b){var r=b.closest('[data-slot=calendar]');if(!r||b.disabled)return;r.querySelectorAll('[data-date]').forEach(function(d){d.removeAttribute('aria-selected');d.tabIndex=-1;});b.setAttribute('aria-selected','true');b.tabIndex=0;var i=r.querySelector('[data-slot=calendar-input]');if(!i)return;i.value=b.getAttribute('data-date');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));(i.form||document).querySelectorAll('[data-calendar-text]').forEach(function(t){if(t.getAttribute('data-calendar-text')===i.name){t.textContent=b.getAttribute('aria-label');t.removeAttribute('data-empty');}});var p=r.closest('[popover]');if(p&&p.matches(':popover-open'))p.hidePopover();};window.calendarKey=function(e){var b=e.target.closest('[data-date]');if(!b)return;var r=b.closest('[data-slot=calendar]');var days=Array.prototype.slice.call(r.querySelectorAll('[data-date]'));var i=days.indexOf(b),col=i%7,j,step;var rtl=getComputedStyle(r).direction==='rtl';switch(e.key){case'ArrowLeft':step=rtl?1:-1;j=i+step;break;case'ArrowRight':step=rtl?-1:1;j=i+step;break;case'ArrowUp':step=-7;j=i-7;break;case'ArrowDown':step=7;j=i+7;break;case'Home':step=1;j=i-col;break;case'End':step=-1;j=i-col+6;break;default:return;}e.preventDefault();while(j>=0&&j<days.length&&days[j].disabled&&j!==i){j+=step;}if(j<0||j>=days.length||days[j].disabled)return;days.forEach(function(d){d.tabIndex=-1;});days[j].tabIndex=0;days[j].focus();};}`
+
+// CalendarText renders the text of a control that shows the day picked in
+// a [Calendar] whose [CalendarOptions].Name is name, such as the label of a
+// date picker's [PopoverTrigger]. Pass the label of the current day as
+// children, or a placeholder together with html.DataAttr("empty", "true"),
+// which renders muted like upstream's empty date picker. When the user
+// picks a day, the calendar script replaces the text with that day's
+// DayLabel and removes data-empty. The script only looks in the form that
+// holds the calendar, or in the whole document when there is none.
+func CalendarText(name string, attribsChildren ...any) *mx.Element {
+	e := html.Span(attribsChildren...)
+	if e.AttribIndex("data-calendar-text") < 0 {
+		e.Attribs = append(e.Attribs, html.DataAttr("calendar-text", name))
+	}
+	return finish(e, "calendar-text", "data-[empty=true]:text-muted-foreground")
 }
 
 // CalendarWith is the configurable variant of [Calendar]. A zero-value
@@ -99,6 +159,36 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	gridStart := first.AddDate(0, 0, -startOffset)
 	hasSel := !selected.IsZero()
 	selY, selM, selD := selected.Date()
+	sameDay := func(a, b time.Time) bool {
+		ay, am, ad := a.Date()
+		by, bm, bd := b.Date()
+		return ay == by && am == bm && ad == bd
+	}
+	isSelected := func(day time.Time) bool {
+		return hasSel && day.Year() == selY && day.Month() == selM && day.Day() == selD
+	}
+	isDisabled := func(day time.Time) bool { return opts.Disabled != nil && opts.Disabled(day) }
+	selectable := opts.Name != ""
+	// In select mode one day is the grid's Tab stop: the selected day, else
+	// today, else the first enabled day of the month.
+	var tabStop time.Time
+	if selectable {
+		var selectedDay, today, firstEnabled time.Time
+		for i := range 42 {
+			day := gridStart.AddDate(0, 0, i)
+			inMonth := day.Month() == first.Month()
+			switch {
+			case isDisabled(day):
+			case isSelected(day):
+				selectedDay = day
+			case inMonth && !opts.Today.IsZero() && sameDay(day, opts.Today):
+				today = day
+			case inMonth && firstEnabled.IsZero():
+				firstEnabled = day
+			}
+		}
+		tabStop = cmp.Or(selectedDay, today, firstEnabled)
+	}
 
 	head := html.Element("tr")
 	for col := range 7 {
@@ -112,10 +202,15 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 		row := html.Element("tr")
 		for d := range 7 {
 			day := gridStart.AddDate(0, 0, week*7+d)
-			disabled := opts.Disabled != nil && opts.Disabled(day)
+			disabled := isDisabled(day)
 			cls := "inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary"
 			if day.Month() != first.Month() || disabled {
 				cls += " text-muted-foreground opacity-50"
+			}
+			isToday := !opts.Today.IsZero() && sameDay(day, opts.Today)
+			if isToday {
+				// finish merges the classes, so these replace a muted color.
+				cls += " bg-accent text-accent-foreground"
 			}
 			btn := html.ButtonButton(html.Class(cls),
 				html.Attrib("aria-label", dayLabel(day)),
@@ -125,8 +220,22 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 				// A disabled day is never selectable, so it is never marked
 				// aria-selected even when it equals selected.
 				btn.Attribs = append(btn.Attribs, html.Disabled, html.Attrib("aria-disabled", "true"))
-			case hasSel && day.Year() == selY && day.Month() == selM && day.Day() == selD:
+			case isSelected(day):
 				btn.Attribs = append(btn.Attribs, html.Attrib("aria-selected", "true"))
+			}
+			if isToday {
+				btn.Attribs = append(btn.Attribs, html.Attrib("aria-current", "date"))
+			}
+			if selectable {
+				tabIndex := -1
+				if !tabStop.IsZero() && sameDay(day, tabStop) {
+					tabIndex = 0
+				}
+				btn.Attribs = append(btn.Attribs,
+					html.DataAttr("date", day.Format(time.DateOnly)),
+					html.TabIndex(tabIndex),
+					html.OnClick("calendarSelect(this)"),
+				)
 			}
 			row.Children = append(row.Children, html.Element("td",
 				html.Class("p-0 text-center"),
@@ -135,21 +244,43 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 		body.Children = append(body.Children, row)
 	}
 
+	monthIndex := func(t time.Time) int { return t.Year()*12 + int(t.Month()) }
+	prev := html.ButtonButton(
+		html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
+		iconChevronLeft())
+	if !opts.StartMonth.IsZero() && monthIndex(first) <= monthIndex(opts.StartMonth) {
+		prev.Attribs = append(prev.Attribs, html.Disabled)
+	}
+	next := html.ButtonButton(
+		html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
+		iconChevronRight())
+	if !opts.EndMonth.IsZero() && monthIndex(first) >= monthIndex(opts.EndMonth) {
+		next.Attribs = append(next.Attribs, html.Disabled)
+	}
 	nav := html.DivClass("flex items-center justify-between pb-2",
-		finish(html.ButtonButton(
-			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
-			iconChevronLeft()), "calendar-prev", ""),
+		finish(prev, "calendar-prev", ""),
 		html.DivClass("text-sm font-medium", monthLabel(month)),
-		finish(html.ButtonButton(
-			html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
-			iconChevronRight()), "calendar-next", ""),
+		finish(next, "calendar-next", ""),
 	)
 	table := html.Element("table", html.Class("w-full border-collapse"),
 		html.Element("thead", head),
 		body,
 	)
+	structure := []any{nav, table}
+	if selectable {
+		table.Attribs = append(table.Attribs, html.OnKeyDown("calendarKey(event)"))
+		value := ""
+		if hasSel {
+			value = selected.Format(time.DateOnly)
+		}
+		structure = append(structure,
+			html.Input(html.Type("hidden"), html.Name(opts.Name), html.Value(value),
+				mx.NewAttrib("data-slot", "calendar-input")),
+			html.ScriptJS(calendarScript),
+		)
+	}
 	// Structural children first, then any caller attribs/children; finish
 	// merges a caller class into the base.
-	root := html.Div(append([]any{nav, table}, attribsChildren...)...)
+	root := html.Div(append(structure, attribsChildren...)...)
 	return finish(root, "calendar", "bg-background w-fit rounded-md border p-3")
 }

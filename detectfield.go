@@ -24,7 +24,8 @@ import (
 //  7. form:"widget=<other>" tag (text/email/url/tel/date/datetime/
 //     time/password/select/radio/switch/checkbox) → FieldKindString,
 //     FieldKindDateTime, or FieldKindBool depending on the widget name
-//  8. Type implementing [FormWidgetHint] → kind from the hint's name
+//  8. Type implementing [FormWidgetHint] → kind from the hint's name,
+//     which is also returned as the tag's Widget
 //  9. Type implementing the Enums()/EnumStrings() convention →
 //     FieldKindEnum
 // 10. map[T]struct{} where T satisfies the enum convention →
@@ -156,10 +157,11 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 
 	// 8. self-declared widget hint
 	if t := field.Type; implementsFormWidgetHint(t) {
-		// We don't call the hint here (would require an addressable
-		// value), but its presence flips us into the appropriate kind.
-		// Renderers re-query the hint to get the actual widget name.
-		switch hintWidget(value, t) {
+		// The hint's widget goes into the returned tag, so renderers and
+		// parsers read the widget from one place, whether a tag or the
+		// type declared it.
+		tag.Widget = hintWidget(value, t)
+		switch tag.Widget {
 		case "textarea":
 			return FieldKindTextarea, tag
 		case "file":
@@ -328,8 +330,14 @@ func hintWidget(v reflect.Value, t reflect.Type) string {
 			}
 		}
 		// Fallback: use a zero value to call the method (works for
-		// value receivers).
-		if h, ok := reflect.New(t).Elem().Interface().(FormWidgetHint); ok {
+		// value receivers). A pointer type gets a pointer to a zero
+		// element instead of a nil pointer, which would panic in a
+		// value-receiver method.
+		zero := reflect.New(t).Elem()
+		if t.Kind() == reflect.Pointer {
+			zero = reflect.New(t.Elem())
+		}
+		if h, ok := zero.Interface().(FormWidgetHint); ok {
 			return h.FormWidget()
 		}
 	}

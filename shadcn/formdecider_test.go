@@ -3,7 +3,12 @@ package shadcn
 import (
 	"context"
 	"fmt"
+	"html"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -614,4 +619,323 @@ func TestShadcn_ZeroValueRendersAsNoValue(t *testing.T) {
 			t.Errorf("the zero time must render as an empty value: %q", out)
 		}
 	})
+}
+
+// time.Time fields render as they did before form:"widget=date" learned
+// string-kind fields, except that min and max now reach the date input as
+// they do in the html renderer. Only the <input> start tag up to its class
+// is compared; the class string is the shadcn Input's own.
+func TestShadcn_TimeWidgets(t *testing.T) {
+	type form struct {
+		Date     time.Time `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+		DateTime time.Time `form:"widget=datetime"`
+		Time     time.Time `form:"widget=time,readonly"`
+		Default  time.Time
+		Nil      *time.Time `form:"widget=date"`
+		Zero     time.Time  `form:"widget=date"`
+	}
+	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
+	f := &form{Date: when, DateTime: when, Time: when, Default: when}
+	renders := []struct{ field, want string }{
+		{"Date", `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+		{"DateTime", `<input data-slot="input" type="datetime-local" name="DateTime" id="DateTime" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Time", `<input data-slot="input" type="time" name="Time" id="Time" hx-trigger="change" value="09:05:07" readonly="readonly" class="`},
+		{"Default", `<input data-slot="input" type="datetime-local" name="Default" id="Default" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Nil", `<input data-slot="input" type="date" name="Nil" id="Nil" hx-trigger="change" class="`},
+		{"Zero", `<input data-slot="input" type="date" name="Zero" id="Zero" hx-trigger="change" class="`},
+	}
+	for _, r := range renders {
+		if got := inputStartTag(renderShadcn(t, f, r.field, nil)); got != r.want {
+			t.Errorf("%s renders\n%s\nwant\n%s", r.field, got, r.want)
+		}
+	}
+}
+
+// testDate mimics a date type with an underlying string, like the
+// date.Date of github.com/domonda/go-types, without depending on it.
+// Format(time.DateOnly) returns a valid date normalized, "" for an empty
+// or zero date, and an invalid value unchanged. Like date.Date it has no
+// UnmarshalText, so binding sets the string itself.
+type testDate string
+
+func (d testDate) Format(layout string) string {
+	for _, l := range []string{time.DateOnly, "02.01.2006"} {
+		if t, err := time.Parse(l, string(d)); err == nil {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format(layout)
+		}
+	}
+	return string(d)
+}
+
+// unmarshaledDate binds through UnmarshalText, which marks what it stores
+// so a test can tell it ran.
+type unmarshaledDate string
+
+func (d *unmarshaledDate) UnmarshalText(text []byte) error {
+	*d = unmarshaledDate("unmarshaled " + string(text))
+	return nil
+}
+
+// dateStrings holds a date as text in each string-kind shape a
+// form:"widget=date" field accepts.
+type dateStrings struct {
+	Str       string          `form:"widget=date"`
+	Ptr       *string         `form:"widget=date"`
+	Date      testDate        `form:"widget=date"`
+	DatePtr   *testDate       `form:"widget=date"`
+	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+	Unmarshal unmarshaledDate `form:"widget=date"`
+}
+
+// The shadcn renderer prefills a date held as text like the html one: the
+// stored date in a date input, or the stored text in a text input when a
+// date input cannot show it.
+func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  dateStrings
+		field string
+		want  string
+	}{
+		// A Format method gives the date as yyyy-mm-dd.
+		{"Format normalizes", dateStrings{Date: "06.07.2026"}, "Date",
+			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" class="`},
+		{"Format through pointer", dateStrings{DatePtr: new(testDate("06.07.2026"))}, "DatePtr",
+			`<input data-slot="input" type="date" name="DatePtr" id="DatePtr" hx-trigger="change" value="2026-07-06" class="`},
+		// Without Format, a yyyy-mm-dd string is shown as stored.
+		{"string", dateStrings{Str: "2026-07-06"}, "Str",
+			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" value="2026-07-06" class="`},
+		{"string pointer", dateStrings{Ptr: new("2026-07-06")}, "Ptr",
+			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" value="2026-07-06" class="`},
+		// No date, no value attribute.
+		{"empty string", dateStrings{}, "Str",
+			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" class="`},
+		{"nil pointer", dateStrings{}, "Ptr",
+			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" class="`},
+		{"Format zero date", dateStrings{Date: "0001-01-01"}, "Date",
+			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" class="`},
+		// Anything else renders as a text input showing the stored text.
+		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
+			`<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" class="`},
+		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
+			`<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" class="`},
+		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
+			`<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" class="`},
+		// The date input carries the range, the text input only required.
+		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
+			`<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
+			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" class="`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := renderShadcn(t, &tt.form, tt.field, nil)
+			if got := inputStartTag(out); got != tt.want {
+				t.Errorf("rendered\n%s\nwant\n%s", got, tt.want)
+			}
+			// A text input is followed by the format to enter.
+			hint := `id="` + tt.field + `-format"`
+			if strings.Contains(tt.want, `type="text"`) {
+				if !strings.Contains(out, hint) || !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") {
+					t.Errorf("the text input lacks the format hint: %s", out)
+				}
+			} else if strings.Contains(out, hint) {
+				t.Errorf("a date input needs no format hint: %s", out)
+			}
+		})
+	}
+}
+
+// shadcn binds through the html parser, so a date held as text binds the
+// same way: an empty submission clears, a yyyy-mm-dd date is stored (via
+// UnmarshalText when the type has one), and any other text is an error
+// that leaves the stored value alone.
+func TestShadcn_DateWidgetBindsStringKinds(t *testing.T) {
+	tests := []struct {
+		name    string
+		stored  dateStrings
+		field   string
+		raw     string
+		want    dateStrings
+		wantErr string
+	}{
+		{name: "empty clears pointer", stored: dateStrings{Ptr: new("2026-07-06")}, field: "Ptr", raw: "",
+			want: dateStrings{}},
+		{name: "string", field: "Str", raw: "2026-07-06",
+			want: dateStrings{Str: "2026-07-06"}},
+		{name: "replaces non-canonical date", stored: dateStrings{Date: "06.07.2026"}, field: "Date", raw: "2026-07-06",
+			want: dateStrings{Date: "2026-07-06"}},
+		{name: "UnmarshalText", field: "Unmarshal", raw: "2026-07-06",
+			want: dateStrings{Unmarshal: "unmarshaled 2026-07-06"}},
+		{name: "nil pointer stays nil", field: "Ptr", raw: "06.07.2026",
+			want:    dateStrings{},
+			wantErr: `"06.07.2026" is not a date in the format YYYY-MM-DD`},
+		{name: "date stays", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "next week",
+			want:    dateStrings{Date: "2026-07-06"},
+			wantErr: `"next week" is not a date in the format YYYY-MM-DD`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.stored
+			values := url.Values{}
+			values.Set(tt.field, tt.raw)
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if err := r.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			v := reflect.ValueOf(&got).Elem()
+			field, _ := v.Type().FieldByName(tt.field)
+			path := mx.FieldPath(tt.field)
+			value := v.FieldByIndex(field.Index)
+			err := FieldDecider(path, field, value).Parse(path, field, value, r)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("bind %q: stored %+v, want %+v", tt.raw, got, tt.want)
+			}
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("bind %q: %v", tt.raw, err)
+			case tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr):
+				t.Errorf("bind %q: error %v, want %s", tt.raw, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// A GET followed by a POST without edits stores exactly the dates the GET
+// showed: a valid but non-canonical date comes back canonical, and a
+// missing one stays missing.
+func TestShadcn_DateStringRoundTrip(t *testing.T) {
+	type record struct {
+		Start  testDate  `form:"widget=date"`
+		End    string    `form:"widget=date"`
+		Review *testDate `form:"widget=date"`
+		Signed *string   `form:"widget=date"`
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Start: "06.07.2026", End: "2026-08-05", Signed: new("2026-07-20")}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/record", nil))
+	body := rec.Body.String()
+	shown := submittedValues(body)
+	for _, f := range []struct{ name, value string }{
+		{"Start", "2026-07-06"},
+		{"End", "2026-08-05"},
+		{"Review", ""},
+		{"Signed", "2026-07-20"},
+	} {
+		if !strings.Contains(body, `type="date" name="`+f.name+`"`) {
+			t.Errorf("GET renders %s without a date input: %s", f.name, body)
+		}
+		if got := shown.Get(f.name); got != f.value {
+			t.Errorf("GET shows %s %q, want %q", f.name, got, f.value)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/record", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	want := &record{Start: "2026-07-06", End: "2026-08-05", Signed: new("2026-07-20")}
+	if !reflect.DeepEqual(saved, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// inputStartTag returns the first <input> start tag of out up to and
+// including ` class="`, or all of it when it has no class.
+func inputStartTag(out string) string {
+	start := strings.Index(out, "<input")
+	if start < 0 {
+		return ""
+	}
+	tag := out[start:]
+	if end := strings.Index(tag, ` class="`); end >= 0 {
+		return tag[:end+len(` class="`)]
+	}
+	if end := strings.Index(tag, ">"); end >= 0 {
+		return tag[:end+1]
+	}
+	return tag
+}
+
+var (
+	inputTagRe  = regexp.MustCompile(`<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
+	attributeRe = regexp.MustCompile(`([^\s=]+)="([^"]*)"`)
+)
+
+// submittedValues returns what a browser submits for the <input> elements
+// of body: the value of each named input, "" when it has none. An
+// unchecked checkbox or radio button submits nothing.
+func submittedValues(body string) url.Values {
+	values := url.Values{}
+	for _, input := range inputTagRe.FindAllStringSubmatch(body, -1) {
+		attrs := map[string]string{}
+		for _, a := range attributeRe.FindAllStringSubmatch(input[1], -1) {
+			attrs[a[1]] = html.UnescapeString(a[2])
+		}
+		name, ok := attrs["name"]
+		if !ok {
+			continue
+		}
+		if typ := attrs["type"]; typ == "checkbox" || typ == "radio" {
+			if _, checked := attrs["checked"]; !checked {
+				continue
+			}
+		}
+		values.Add(name, attrs["value"])
+	}
+	return values
+}
+
+// The shadcn renderer shows datetime and time text like the html one: the
+// input's own form with zero seconds dropped, or a text input plus the
+// format to enter.
+func TestShadcn_TimeWidgetsPrefillStringKinds(t *testing.T) {
+	type form struct {
+		At    string `form:"widget=datetime"`
+		Clock string `form:"widget=time"`
+	}
+	f := &form{At: "2026-07-06T09:05:00", Clock: "9.05"}
+	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
+		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05" class="`; got != want {
+		t.Errorf("At renders\n%s\nwant\n%s", got, want)
+	}
+	out := renderShadcn(t, f, "Clock", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" class="`; got != want {
+		t.Errorf("Clock renders\n%s\nwant\n%s", got, want)
+	}
+	if !strings.Contains(out, ">Expected format: HH:MM</p>") {
+		t.Errorf("Clock lacks the format hint: %s", out)
+	}
+}
+
+// consent declares the checkbox widget.
+type consent bool
+
+func (consent) FormWidget() string { return "checkbox" }
+
+// A FormWidgetHint picks the bool control like a tag does: "checkbox"
+// renders a Checkbox, not the default Switch.
+func TestShadcn_HintedCheckbox(t *testing.T) {
+	type form struct {
+		Agree consent
+	}
+	out := renderShadcn(t, &form{}, "Agree", nil)
+	if !strings.Contains(out, `data-slot="checkbox"`) || strings.Contains(out, `data-slot="switch"`) {
+		t.Errorf("a checkbox hint must render a Checkbox: %s", out)
+	}
 }
