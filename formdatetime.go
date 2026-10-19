@@ -39,7 +39,9 @@ func (s DateTimeInputSpec) TextFallback() bool {
 // form:"widget=date" renders type="date", form:"widget=time" type="time",
 // and any other widget type="datetime-local". A [FormWidgetHint] counts
 // as the widget, because [DetectField] puts it into the tag. A time.Time
-// is formatted for that type, and the zero time renders no value. A
+// is formatted for that type, and the zero time renders no value. So is a
+// type that wraps time.Time: a type defined as time.Time, or one whose
+// MarshalText is RFC 3339, such as a struct embedding time.Time. A
 // form:"sensitive" field never shows its value, like a sensitive text
 // input, so an unchanged save clears it.
 //
@@ -84,16 +86,34 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		spec.Type, spec.Value = timeTextInput(v, inputType)
 		return spec
 	}
-	if t, ok := safeInterface(v).(time.Time); ok {
+	if t, ok := timeOf(v); ok {
 		if !t.IsZero() {
 			spec.Value = t.Format(tt.layouts[0])
 		}
 		return spec
 	}
 	if text, ok := marshaledText(v); ok {
+		// RFC 3339 is the text of an embedded time.Time.
+		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
+			spec.Value = t.Format(tt.layouts[0])
+			return spec
+		}
 		spec.Type, spec.Value = tt.input(inputType, text, text)
 	}
 	return spec
+}
+
+// timeOf returns the time a dereferenced value holds when it is a time.Time
+// or of a type defined as time.Time.
+func timeOf(v reflect.Value) (time.Time, bool) {
+	if t, ok := safeInterface(v).(time.Time); ok {
+		return t, true
+	}
+	timeType := reflect.TypeFor[time.Time]()
+	if v.Kind() == reflect.Struct && v.Type().ConvertibleTo(timeType) {
+		return v.Convert(timeType).Interface().(time.Time), true
+	}
+	return time.Time{}, false
 }
 
 // ParseDateTimeInput reads what a date, datetime-local or time input

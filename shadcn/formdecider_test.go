@@ -984,6 +984,13 @@ func TestShadcn_DateWidgetMarksErrors(t *testing.T) {
 	if !strings.Contains(out, `data-invalid="true"`) {
 		t.Errorf("the Field lacks data-invalid: %s", out)
 	}
+	// A date the picker shows, such as one outside the range, is marked
+	// invalid by the error alone.
+	picker := inputStartTag(renderShadcn(t, &dateStrings{Bounded: "1900-01-01"}, "Bounded",
+		[]error{stringErr(`"1900-01-01" is earlier than 2026-01-01`)}))
+	if !strings.Contains(picker, `type="date"`) || !strings.Contains(picker, `aria-invalid="true"`) {
+		t.Errorf("the date input lacks aria-invalid after an error: %s", picker)
+	}
 }
 
 // emailAddress declares the email widget.

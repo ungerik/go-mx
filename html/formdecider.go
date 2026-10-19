@@ -636,14 +636,26 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	for _, layout := range layouts {
 		t, err := time.Parse(layout, raw)
 		if err == nil {
-			if value.Type() == reflect.TypeFor[time.Time]() {
+			timeType := reflect.TypeFor[time.Time]()
+			if value.Type() == timeType {
 				value.Set(reflect.ValueOf(t))
 				return nil
 			}
-			// time.Time wrapped in a named type — best effort
+			// A type defined as time.Time takes the time converted.
+			if value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType) {
+				value.Set(reflect.ValueOf(t).Convert(value.Type()))
+				return nil
+			}
+			// Any other type unmarshals the submitted text in its own form,
+			// such as a date struct's 2006-01-02, or else RFC 3339, the only
+			// text an embedded time.Time reads.
 			if value.Kind() == reflect.Struct && value.CanAddr() {
 				if u, ok := value.Addr().Interface().(encoding.TextUnmarshaler); ok {
-					return u.UnmarshalText([]byte(raw))
+					err := u.UnmarshalText([]byte(raw))
+					if err != nil && u.UnmarshalText([]byte(t.Format(time.RFC3339Nano))) == nil {
+						return nil
+					}
+					return err
 				}
 			}
 			return errs.New("cannot assign time to " + value.Type().String())

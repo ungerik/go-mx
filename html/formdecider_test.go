@@ -2240,3 +2240,79 @@ func TestReflectFormHandler_DateStructRoundTrip(t *testing.T) {
 		t.Errorf("saved %+v, want %+v", saved, want)
 	}
 }
+
+// wrappedTime embeds time.Time, the shape of a null-time type.
+type wrappedTime struct {
+	time.Time
+}
+
+// definedTime is defined as time.Time, without its methods.
+type definedTime time.Time
+
+// Types that wrap time.Time render and bind like a time.Time: the embedded
+// time takes the submitted value through its RFC 3339 UnmarshalText, a type
+// defined as time.Time the converted value.
+func TestFieldDecider_WrappedTimeWidgets(t *testing.T) {
+	type form struct {
+		Day     wrappedTime  `form:"widget=date"`
+		At      wrappedTime  `form:"widget=datetime"`
+		Clock   *wrappedTime `form:"widget=time"`
+		Defined definedTime  `form:"widget=date"`
+	}
+	f := &form{Day: wrappedTime{time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)}}
+	if out, want := renderFieldHTML(t, f, "Day"), `<input type="date" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(out, want) {
+		t.Errorf("Day renders\n%s\nwant\n%s", out, want)
+	}
+	binds := []struct {
+		field, raw string
+		got        func() time.Time
+		want       time.Time
+	}{
+		{"Day", "2026-08-05", func() time.Time { return f.Day.Time }, time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)},
+		{"At", "2026-08-05T10:30", func() time.Time { return f.At.Time }, time.Date(2026, 8, 5, 10, 30, 0, 0, time.UTC)},
+		{"Clock", "09:05", func() time.Time { return f.Clock.Time }, time.Date(0, 1, 1, 9, 5, 0, 0, time.UTC)},
+		{"Defined", "2026-08-05", func() time.Time { return time.Time(f.Defined) }, time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)},
+	}
+	for _, b := range binds {
+		if err := parseFieldValue(t, f, b.field, b.raw); err != nil {
+			t.Errorf("bind %s %q: %v", b.field, b.raw, err)
+			continue
+		}
+		if got := b.got(); !got.Equal(b.want) {
+			t.Errorf("bind %s %q: stored %v, want %v", b.field, b.raw, got, b.want)
+		}
+	}
+}
+
+// A field with min and max rejects a posted date outside the range on the
+// server, shows the error, and marks the re-rendered date input invalid.
+func TestReflectFormHandler_DateOutOfRangeRejected(t *testing.T) {
+	type draft struct {
+		Day string `form:"widget=date,min=2026-01-01,max=2026-12-31"`
+	}
+	saved := false
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*draft, error) { return &draft{Day: "2026-07-06"}, nil },
+		func(context.Context, *draft) error { saved = true; return nil },
+		FieldDecider,
+	)
+	form := url.Values{}
+	form.Set(mx.PresentSentinelName("Day"), "1")
+	form.Set("Day", "1900-01-01")
+	req := httptest.NewRequest(http.MethodPost, "/draft", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	body := rec.Body.String()
+	if saved || rec.Code != http.StatusOK {
+		t.Fatalf("out-of-range POST: status %d, saved %t; want the form re-rendered with 200", rec.Code, saved)
+	}
+	for _, want := range []string{
+		`&quot;1900-01-01&quot; is earlier than 2026-01-01`,
+		`<input type="date" name="Day" id="Day" value="1900-01-01" min="2026-01-01" max="2026-12-31" aria-invalid="true"/>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("want %s in %s", want, body)
+		}
+	}
+}

@@ -61,6 +61,35 @@ func (d textDate) MarshalText() ([]byte, error) {
 	return fmt.Appendf(nil, "%04d-%02d-%02d", d.Year, d.Month, d.Day), nil
 }
 
+// ptrTextDate is a date struct with MarshalText on the pointer receiver.
+type ptrTextDate struct {
+	Year, Month, Day int
+}
+
+func (d *ptrTextDate) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%04d-%02d-%02d", d.Year, d.Month, d.Day), nil
+}
+
+// zeroableDate decides its zero value itself: 0001-01-01, like time.Time,
+// not the struct's reflect zero.
+type zeroableDate struct {
+	Year, Month, Day int
+}
+
+func (d zeroableDate) IsZero() bool { return d == zeroableDate{1, 1, 1} }
+
+func (d zeroableDate) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%04d-%02d-%02d", d.Year, d.Month, d.Day), nil
+}
+
+// wrappedTime embeds time.Time and so has its RFC 3339 MarshalText.
+type wrappedTime struct {
+	time.Time
+}
+
+// definedTime is defined as time.Time, without its methods.
+type definedTime time.Time
+
 // sentinelDate is null when it holds the text "NULL".
 type sentinelDate string
 
@@ -143,6 +172,18 @@ func TestDateTimeInput(t *testing.T) {
 		{"MarshalText zero value", reflect.ValueOf(textDate{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
 		{"MarshalText other form", reflect.ValueOf(textDate{2026, 7, 6}), datetime, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM"}},
 		{"no MarshalText", reflect.ValueOf(struct{ N int }{1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"MarshalText on the pointer receiver", reflect.ValueOf(&ptrTextDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+		// The type's own IsZero decides, not the struct's reflect zero.
+		{"IsZero date", reflect.ValueOf(zeroableDate{1, 1, 1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"non-zero IsZero date", reflect.ValueOf(zeroableDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+
+		// Types that wrap time.Time render like it.
+		{"embedded time date", reflect.ValueOf(wrappedTime{when}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+		{"embedded time datetime", reflect.ValueOf(wrappedTime{when}), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM"}},
+		{"embedded time time", reflect.ValueOf(&wrappedTime{when}), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM"}},
+		{"embedded zero time", reflect.ValueOf(wrappedTime{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"defined time", reflect.ValueOf(definedTime(when)), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+		{"defined zero time", reflect.ValueOf(definedTime{}), datetime, DateTimeInputSpec{"datetime-local", "", "YYYY-MM-DDTHH:MM"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -349,12 +349,35 @@ func TestCalendarGridSemantics(t *testing.T) {
 	if c := strings.Count(out, `<td role="gridcell"`); c != 42 {
 		t.Errorf("want 42 gridcells, got %d", c)
 	}
-	if strings.Contains(dayButton(t, out, "2026-06-14"), "aria-selected") {
-		t.Errorf("the selected day's button must not carry aria-selected")
+	selected := dayButton(t, out, "2026-06-14")
+	if strings.Contains(selected, `aria-selected="true"`) {
+		t.Errorf("the selected day's button must not carry aria-selected: %s", selected)
+	}
+	// The button keeps the selected look through data-selected.
+	if !strings.Contains(selected, `data-selected="true"`) || !strings.Contains(selected, "data-[selected=true]:bg-primary") {
+		t.Errorf("the selected day's button lacks its selected look: %s", selected)
 	}
 	for _, label := range []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`} {
 		if !strings.Contains(out, label) {
 			t.Errorf("missing %s", label)
+		}
+	}
+}
+
+// Disabled is asked once per day of the grid: a booking calendar's predicate
+// may look up availability, and select mode must not double that.
+func TestCalendarAsksDisabledOncePerDay(t *testing.T) {
+	calls := map[time.Time]int{}
+	render(t, CalendarWith(CalendarOptions{
+		Name:     "due",
+		Disabled: func(d time.Time) bool { calls[d]++; return false },
+	}, time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{}))
+	if len(calls) != 42 {
+		t.Errorf("Disabled asked for %d days, want 42", len(calls))
+	}
+	for day, n := range calls {
+		if n != 1 {
+			t.Errorf("Disabled asked %d times for %s, want once", n, day.Format(time.DateOnly))
 		}
 	}
 }
