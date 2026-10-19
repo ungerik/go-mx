@@ -251,6 +251,11 @@ type hintedDate string
 
 func (hintedDate) FormWidget() string { return "date" }
 
+// internalNote declares the skip widget, so its fields are never rendered.
+type internalNote string
+
+func (internalNote) FormWidget() string { return "skip" }
+
 // A FormWidgetHint that decides a field's kind is returned as the tag's
 // Widget, so renderers and parsers read one widget. An explicit widget or
 // options tag still takes precedence, and the hint does not overwrite it.
@@ -261,6 +266,7 @@ func TestDetectField_HintBecomesTagWidget(t *testing.T) {
 		Email     hintedField
 		AsText    hintedField `form:"widget=text"`
 		AsOptions hintedDate  `form:"options=partners"`
+		Note      internalNote
 	}
 	tests := []struct {
 		field      string
@@ -272,6 +278,8 @@ func TestDetectField_HintBecomesTagWidget(t *testing.T) {
 		{"Email", FieldKindString, "email"},
 		{"AsText", FieldKindString, "text"},
 		{"AsOptions", FieldKindEnum, ""},
+		// A skip hint skips the field like form:"widget=skip".
+		{"Note", FieldKindSkip, "skip"},
 	}
 	for _, tt := range tests {
 		kind, tag := detectKind(t, &form{}, tt.field)
@@ -279,5 +287,26 @@ func TestDetectField_HintBecomesTagWidget(t *testing.T) {
 			t.Errorf("DetectField(%s) = %s with widget %q, want %s with widget %q",
 				tt.field, kind, tag.Widget, tt.wantKind, tt.wantWidget)
 		}
+	}
+}
+
+// ptrHintedDate declares its widget on the pointer receiver.
+type ptrHintedDate string
+
+func (*ptrHintedDate) FormWidget() string { return "date" }
+
+// A pointer-receiver FormWidgetHint reaches the tag like a value-receiver
+// one, whether or not the field value is addressable.
+func TestDetectField_PointerReceiverHint(t *testing.T) {
+	type form struct {
+		Due ptrHintedDate
+	}
+	if kind, tag := detectKind(t, &form{}, "Due"); kind != FieldKindDateTime || tag.Widget != "date" {
+		t.Errorf("addressable: %s with widget %q, want datetime with widget \"date\"", kind, tag.Widget)
+	}
+	v := reflect.ValueOf(form{})
+	field, _ := v.Type().FieldByName("Due")
+	if kind, tag := DetectField("Due", field, v.Field(0)); kind != FieldKindDateTime || tag.Widget != "date" {
+		t.Errorf("not addressable: %s with widget %q, want datetime with widget \"date\"", kind, tag.Widget)
 	}
 }

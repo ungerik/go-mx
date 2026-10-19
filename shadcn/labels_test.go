@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ungerik/go-mx"
 )
@@ -29,6 +30,8 @@ func renderWith(t *testing.T, ctx context.Context, c mx.Component) string {
 var germanLabels = Labels{
 	BreadcrumbNav:          "Brotkrümelnavigation",
 	BreadcrumbEllipsis:     "Mehr Einträge",
+	CalendarPrevious:       "Zum vorherigen Monat",
+	CalendarNext:           "Zum nächsten Monat",
 	CarouselPrevious:       "Vorheriges Bild",
 	CarouselNext:           "Nächstes Bild",
 	DialogClose:            "Schließen",
@@ -80,6 +83,11 @@ var labelCases = []labelCase{
 		fields:  []string{"BreadcrumbEllipsis"},
 		english: []string{`class="sr-only">More<`},
 		german:  []string{`class="sr-only">Mehr Einträge<`},
+	}, {
+		name: "Calendar", comp: func() mx.Component { return Calendar(time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{}) },
+		fields:  []string{"CalendarPrevious", "CalendarNext"},
+		english: []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`},
+		german:  []string{`aria-label="Zum vorherigen Monat"`, `aria-label="Zum nächsten Monat"`},
 	}, {
 		name: "CarouselPrevious", comp: func() mx.Component { return CarouselPrevious() },
 		fields:  []string{"CarouselPrevious"},

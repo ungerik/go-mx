@@ -33,6 +33,11 @@ type Labels struct {
 	// BreadcrumbEllipsis is the screen-reader text inside [BreadcrumbEllipsis].
 	BreadcrumbEllipsis string
 
+	// CalendarPrevious and CalendarNext are the aria-labels of the
+	// icon-only previous- and next-month buttons of a [Calendar].
+	CalendarPrevious string
+	CalendarNext     string
+
 	// CarouselPrevious and CarouselNext are the aria-labels of the
 	// icon-only [CarouselPrevious] and [CarouselNext] buttons.
 	CarouselPrevious string
@@ -114,6 +119,8 @@ var DefaultLabels = englishLabels
 var englishLabels = Labels{
 	BreadcrumbNav:          "breadcrumb",
 	BreadcrumbEllipsis:     "More",
+	CalendarPrevious:       "Go to the previous month",
+	CalendarNext:           "Go to the next month",
 	CarouselPrevious:       "Previous slide",
 	CarouselNext:           "Next slide",
 	DialogClose:            "Close",
@@ -174,6 +181,8 @@ func (l Labels) orDefaults() Labels {
 	return Labels{
 		BreadcrumbNav:          cmp.Or(l.BreadcrumbNav, DefaultLabels.BreadcrumbNav, englishLabels.BreadcrumbNav),
 		BreadcrumbEllipsis:     cmp.Or(l.BreadcrumbEllipsis, DefaultLabels.BreadcrumbEllipsis, englishLabels.BreadcrumbEllipsis),
+		CalendarPrevious:       cmp.Or(l.CalendarPrevious, DefaultLabels.CalendarPrevious, englishLabels.CalendarPrevious),
+		CalendarNext:           cmp.Or(l.CalendarNext, DefaultLabels.CalendarNext, englishLabels.CalendarNext),
 		CarouselPrevious:       cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
 		CarouselNext:           cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
 		DialogClose:            cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),

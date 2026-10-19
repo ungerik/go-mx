@@ -366,7 +366,7 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	if in.Value != "" {
 		a = append(a, html.Value(in.Value))
 	}
-	textFallback := in.Type == "text"
+	textFallback := in.TextFallback()
 	if textFallback {
 		a = append(a,
 			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
@@ -386,7 +386,8 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	if tag.Readonly {
 		a = append(a, html.Readonly)
 	}
-	if len(errs) > 0 {
+	// The text input is invalid from the start: saving it unchanged fails.
+	if len(errs) > 0 || textFallback {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
 	if !textFallback {

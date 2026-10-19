@@ -239,24 +239,6 @@ it.
 **Priority:** P3
 **Depends on:** None
 
-### Grid semantics for screen readers
-
-**What:** Render the select-mode grid as react-day-picker does:
-`role="grid"` on the table with the month as its label, and `aria-selected`
-on a `role="gridcell"` instead of on the `<button>`.
-
-**Why:** `aria-selected` is not an allowed attribute of a button, so a
-screen reader may not announce the picked day, and the grid pattern tells it
-that the arrow keys work.
-
-**Context:** The static grid predates select mode and uses the same
-markup. Moving `aria-selected` changes the `aria-selected:` class
-selectors on the day button too.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
 ### The remaining DatePicker recipes
 
 **What:** Gallery examples for upstream's Basic (in a `Field` with a
@@ -416,6 +398,28 @@ classes they expand to.
 ---
 
 ## Completed
+
+### Grid semantics for screen readers
+
+**What:** Render the select-mode grid as react-day-picker does:
+`role="grid"` on the table with the month as its label, and `aria-selected`
+on a `role="gridcell"` instead of on the `<button>`.
+
+**Why:** `aria-selected` is not an allowed attribute of a button, so a
+screen reader may not announce the picked day, and the grid pattern tells it
+that the arrow keys work.
+
+**Context:** The static grid predates select mode and uses the same
+markup. Moving `aria-selected` changes the `aria-selected:` class
+selectors on the day button too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19 — every calendar is a `role="grid"` table named by
+its month; `aria-selected` moved to the gridcell, the button keeps
+`data-selected` for the look.
+
 
 Ported components, grouped by the phase they landed in. The phase order is
 the topological build order — every dependency lands before its dependents

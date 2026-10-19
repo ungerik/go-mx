@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"time"
@@ -22,6 +23,14 @@ type DateTimeInputSpec struct {
 	Format string
 }
 
+// TextFallback reports whether the spec is the text input for stored text
+// that the widget's input type cannot show. Renderers name the format to
+// enter there, mark the input invalid and leave out the date range, which a
+// text input cannot enforce ([ParseDateTimeInput] checks it instead).
+func (s DateTimeInputSpec) TextFallback() bool {
+	return s.Type == "text"
+}
+
 // DateTimeInput decides the <input> that a reflected [FieldKindDateTime]
 // field renders. The html and shadcn renderers both call it, so a stored
 // value shows the same in either, and [ParseDateTimeInput] reads back
@@ -30,7 +39,9 @@ type DateTimeInputSpec struct {
 // form:"widget=date" renders type="date", form:"widget=time" type="time",
 // and any other widget type="datetime-local". A [FormWidgetHint] counts
 // as the widget, because [DetectField] puts it into the tag. A time.Time
-// is formatted for that type, and the zero time renders no value.
+// is formatted for that type, and the zero time renders no value. A
+// form:"sensitive" field never shows its value, like a sensitive text
+// input, so an unchanged save clears it.
 //
 // A string-kind value holds the date or time as text. That covers string,
 // *string and named types with an underlying string, such as a date type.
@@ -43,18 +54,23 @@ type DateTimeInputSpec struct {
 //     shown. The forms have no zone and carry seconds only when they are
 //     not zero: 2006-01-02, 2006-01-02T15:04[:05] and 15:04[:05]. Zero
 //     seconds are dropped, as a browser does.
-//  3. Empty text or a null value renders no value.
+//  3. Empty text or a null value renders no value, and so does a Format
+//     answer of "" for stored text that is a valid value, such as a zero
+//     date.
 //  4. Any other text, such as an invalid value, another spelling of a
 //     valid one or a time with a zone, cannot be shown by the input, and
 //     a blank input would clear the stored value on the next save. It
 //     renders as type="text" with the stored text, so the user sees it
 //     and the parser reports it.
 //
+// Any other type with a MarshalText method, such as a date struct, is shown
+// by its text under the same rules; its zero or null value renders no value.
 // Every other value renders no value.
 func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 	inputType := dateTimeInputType(tag)
-	spec := DateTimeInputSpec{Type: inputType, Format: timeTexts[inputType].format}
-	if !value.IsValid() {
+	tt := timeTexts[inputType]
+	spec := DateTimeInputSpec{Type: inputType, Format: tt.format}
+	if tag.Sensitive || !value.IsValid() {
 		return spec
 	}
 	v := value
@@ -68,17 +84,14 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		spec.Type, spec.Value = timeTextInput(v, inputType)
 		return spec
 	}
-	t, ok := v.Interface().(time.Time)
-	if !ok || t.IsZero() {
+	if t, ok := safeInterface(v).(time.Time); ok {
+		if !t.IsZero() {
+			spec.Value = t.Format(tt.layouts[0])
+		}
 		return spec
 	}
-	switch inputType {
-	case "date":
-		spec.Value = t.Format("2006-01-02")
-	case "time":
-		spec.Value = t.Format("15:04:05")
-	default:
-		spec.Value = t.Format("2006-01-02T15:04:05")
+	if text, ok := marshaledText(v); ok {
+		spec.Type, spec.Value = tt.input(inputType, text, text)
 	}
 	return spec
 }
@@ -87,16 +100,26 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 // submitted for a field that holds its value as text, and returns the
 // text to store: the input type's own form that [DateTimeInput] shows,
 // with zero seconds dropped. Empty input returns "". Anything else is a
-// validation error naming the expected format.
+// validation error naming the expected format, and so is a value outside
+// form:"min=…,max=…", because the text fallback cannot enforce the range in
+// the browser. A bound that is no value of the input type is ignored, as a
+// browser ignores it.
 func ParseDateTimeInput(tag FormTag, raw string) (string, error) {
 	if raw == "" {
 		return "", nil
 	}
 	tt := timeTexts[dateTimeInputType(tag)]
-	if text, ok := tt.normalize(raw); ok {
-		return text, nil
+	t, ok := tt.parse(raw)
+	if !ok {
+		return "", fmt.Errorf("%q is not %s in the format %s", raw, tt.noun, tt.format)
 	}
-	return "", fmt.Errorf("%q is not %s in the format %s", raw, tt.noun, tt.format)
+	if lowest, ok := tt.parse(tag.Min); ok && t.Before(lowest) {
+		return "", fmt.Errorf("%q is earlier than %s", raw, tag.Min)
+	}
+	if highest, ok := tt.parse(tag.Max); ok && t.After(highest) {
+		return "", fmt.Errorf("%q is later than %s", raw, tag.Max)
+	}
+	return tt.shortest(t), nil
 }
 
 // dateTimeInputType maps a date/time widget to its input type.
@@ -124,23 +147,54 @@ var timeTexts = map[string]timeText{
 	"time":           {[]string{time.TimeOnly, "15:04"}, "HH:MM", "a time"},
 }
 
-// normalize returns text in the shortest layout that holds it, when text
-// is written exactly in one of the layouts. Exactly means formatting the
-// parsed time gives text back, which rules out fractional seconds that
-// time.Parse would otherwise accept.
-func (tt timeText) normalize(text string) (string, bool) {
+// parse returns the time text stands for, when text is written exactly in
+// one of the layouts. Exactly means formatting the parsed time gives text
+// back, which rules out fractional seconds that time.Parse would otherwise
+// accept.
+func (tt timeText) parse(text string) (time.Time, bool) {
 	for _, layout := range tt.layouts {
 		t, err := time.Parse(layout, text)
-		if err != nil || t.Format(layout) != text {
-			continue
+		if err == nil && t.Format(layout) == text {
+			return t, true
 		}
-		short := tt.layouts[len(tt.layouts)-1]
-		if t.Second() != 0 {
-			short = tt.layouts[0]
-		}
-		return t.Format(short), true
 	}
-	return "", false
+	return time.Time{}, false
+}
+
+// shortest writes t in the shortest layout that holds it, without seconds
+// when they are zero.
+func (tt timeText) shortest(t time.Time) string {
+	if t.Second() != 0 {
+		return t.Format(tt.layouts[0])
+	}
+	return t.Format(tt.layouts[len(tt.layouts)-1])
+}
+
+// normalize returns text in the shortest layout that holds it, when text
+// is written exactly in one of the layouts.
+func (tt timeText) normalize(text string) (string, bool) {
+	t, ok := tt.parse(text)
+	if !ok {
+		return "", false
+	}
+	return tt.shortest(t), true
+}
+
+// input decides the input for formatted, the text in this type's layout
+// that stands for the stored text.
+func (tt timeText) input(inputType, formatted, stored string) (typ, val string) {
+	if formatted == "" {
+		// An empty answer for stored text that is no value itself would
+		// blank the input and clear the stored text on the next save.
+		if _, ok := tt.normalize(stored); stored != "" && !ok {
+			return "text", stored
+		}
+		return inputType, ""
+	}
+	if normalized, ok := tt.normalize(formatted); ok {
+		return inputType, normalized
+	}
+	return "text", stored
 }
 
 // dateFormatter is the Format method of time.Time, which date and time
@@ -157,19 +211,42 @@ func timeTextInput(v reflect.Value, inputType string) (typ, val string) {
 	}
 	tt := timeTexts[inputType]
 	stored := v.String()
-	text := stored
+	formatted := stored
 	if f, ok := safeInterface(v).(dateFormatter); ok {
-		text = f.Format(tt.layouts[0])
+		formatted = f.Format(tt.layouts[0])
 	} else if v.CanAddr() {
 		if f, ok := v.Addr().Interface().(dateFormatter); ok {
-			text = f.Format(tt.layouts[0])
+			formatted = f.Format(tt.layouts[0])
 		}
 	}
-	if text == "" {
-		return inputType, ""
+	return tt.input(inputType, formatted, stored)
+}
+
+// marshaledText returns the text of a dereferenced value that is neither
+// text nor a time.Time but has a MarshalText method, such as a date struct.
+// A null or zero value has none.
+func marshaledText(v reflect.Value) (string, bool) {
+	iface := safeInterface(v)
+	if iface == nil || IsNull(iface) {
+		return "", false
 	}
-	if normalized, ok := tt.normalize(text); ok {
-		return inputType, normalized
+	if z, ok := iface.(Zeroable); ok {
+		if z.IsZero() {
+			return "", false
+		}
+	} else if v.IsZero() {
+		return "", false
 	}
-	return "text", stored
+	m, ok := iface.(encoding.TextMarshaler)
+	if !ok && v.CanAddr() {
+		m, ok = v.Addr().Interface().(encoding.TextMarshaler)
+	}
+	if !ok {
+		return "", false
+	}
+	text, err := m.MarshalText()
+	if err != nil {
+		return "", false
+	}
+	return string(text), true
 }

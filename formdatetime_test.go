@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -27,6 +28,38 @@ func (d isoDate) Format(layout string) string {
 type ptrDate string
 
 func (d *ptrDate) Format(layout string) string { return isoDate(*d).Format(layout) }
+
+// markerDate's Format answers unparseable text with a marker instead of
+// returning it unchanged, which tells the stored text and Format's answer
+// apart.
+type markerDate string
+
+func (d markerDate) Format(layout string) string {
+	if t, err := time.Parse(time.DateOnly, string(d)); err == nil {
+		return t.Format(layout)
+	}
+	return "not a date"
+}
+
+// blankDate's Format answers unparseable text with "", as a Format that
+// treats anything invalid as no date might.
+type blankDate string
+
+func (d blankDate) Format(layout string) string {
+	if t, err := time.Parse(time.DateOnly, string(d)); err == nil && !t.IsZero() {
+		return t.Format(layout)
+	}
+	return ""
+}
+
+// textDate is a date struct with a text form, like civil.Date.
+type textDate struct {
+	Year, Month, Day int
+}
+
+func (d textDate) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%04d-%02d-%02d", d.Year, d.Month, d.Day), nil
+}
 
 // sentinelDate is null when it holds the text "NULL".
 type sentinelDate string
@@ -68,6 +101,13 @@ func TestDateTimeInput(t *testing.T) {
 		{"Format", reflect.ValueOf(isoDate("06.07.2026")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
 		{"Format zero date", reflect.ValueOf(isoDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
 		{"Format returns invalid unchanged", reflect.ValueOf(isoDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD"}},
+		// The text input shows what is stored, not what Format made of it.
+		{"Format answers invalid otherwise", reflect.ValueOf(markerDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD"}},
+		// A Format that answers invalid text with "" must not blank it: a
+		// blank picker would clear the stored text on the next save. A zero
+		// date it answers with "" is still no value.
+		{"Format answers invalid with empty", reflect.ValueOf(blankDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD"}},
+		{"Format answers zero date with empty", reflect.ValueOf(blankDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
 		{"pointer receiver Format", reflect.ValueOf(new(ptrDate("06.07.2026"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
 		{"string", reflect.ValueOf("2026-07-06"), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
 		{"string through two pointers", reflect.ValueOf(new(new("2026-07-06"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
@@ -91,6 +131,18 @@ func TestDateTimeInput(t *testing.T) {
 		{"time Format", reflect.ValueOf(clockTime("9.05")), clock, DateTimeInputSpec{"time", "09:05", "HH:MM"}},
 		{"time one-digit hour", reflect.ValueOf("9:05"), clock, DateTimeInputSpec{"text", "9:05", "HH:MM"}},
 		{"time out of range", reflect.ValueOf("25:00"), clock, DateTimeInputSpec{"text", "25:00", "HH:MM"}},
+
+		// A sensitive field never shows its value, not even as text.
+		{"sensitive text", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"sensitive other spelling", reflect.ValueOf("06.07.2026"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"sensitive time", reflect.ValueOf(when), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+
+		// A type with MarshalText, such as a date struct, shows its text.
+		{"MarshalText", reflect.ValueOf(textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+		{"MarshalText through pointer", reflect.ValueOf(&textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD"}},
+		{"MarshalText zero value", reflect.ValueOf(textDate{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
+		{"MarshalText other form", reflect.ValueOf(textDate{2026, 7, 6}), datetime, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM"}},
+		{"no MarshalText", reflect.ValueOf(struct{ N int }{1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,6 +180,18 @@ func TestParseDateTimeInput(t *testing.T) {
 		{name: "time seconds", tag: clock, raw: "09:05:07", want: "09:05:07"},
 		{name: "time one-digit hour", tag: clock, raw: "9:05",
 			wantErr: `"9:05" is not a time in the format HH:MM`},
+
+		// The range applies on the server: a text input cannot enforce it.
+		{name: "date in range", tag: FormTag{Widget: "date", Min: "2026-01-01", Max: "2026-12-31"}, raw: "2026-07-06", want: "2026-07-06"},
+		{name: "date on the bounds", tag: FormTag{Widget: "date", Min: "2026-07-06", Max: "2026-07-06"}, raw: "2026-07-06", want: "2026-07-06"},
+		{name: "date before min", tag: FormTag{Widget: "date", Min: "2026-01-01"}, raw: "1900-01-01",
+			wantErr: `"1900-01-01" is earlier than 2026-01-01`},
+		{name: "date after max", tag: FormTag{Widget: "date", Max: "2026-12-31"}, raw: "2027-01-01",
+			wantErr: `"2027-01-01" is later than 2026-12-31`},
+		{name: "datetime seconds past max", tag: FormTag{Widget: "datetime", Max: "2026-07-06T09:05"}, raw: "2026-07-06T09:05:01",
+			wantErr: `"2026-07-06T09:05:01" is later than 2026-07-06T09:05`},
+		{name: "time before min", tag: FormTag{Widget: "time", Min: "08:00"}, raw: "07:59", wantErr: `"07:59" is earlier than 08:00`},
+		{name: "invalid bound ignored", tag: FormTag{Widget: "date", Min: "soon"}, raw: "1900-01-01", want: "1900-01-01"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,5 +206,16 @@ func TestParseDateTimeInput(t *testing.T) {
 				t.Errorf("ParseDateTimeInput(%q) = %q, want %q", tt.raw, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDateTimeInputSpecTextFallback(t *testing.T) {
+	if !(DateTimeInputSpec{Type: "text"}).TextFallback() {
+		t.Error(`Type "text" is the text fallback`)
+	}
+	for _, typ := range []string{"date", "datetime-local", "time"} {
+		if (DateTimeInputSpec{Type: typ}).TextFallback() {
+			t.Errorf("Type %q is no text fallback", typ)
+		}
 	}
 }

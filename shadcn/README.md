@@ -150,6 +150,7 @@ package variable read by every render, like `mx.AsComponent`.
 |-------------------------------------------------|----------------------------------------|
 | `BreadcrumbNav`                                 | `Breadcrumb` `aria-label`              |
 | `BreadcrumbEllipsis`                            | `BreadcrumbEllipsis` sr-only text      |
+| `CalendarPrevious` / `CalendarNext`             | `Calendar` month button `aria-label`s  |
 | `CarouselPrevious` / `CarouselNext`             | carousel button `aria-label`s          |
 | `DialogClose`                                   | `DialogContent` / `SheetContent` close |
 | `NavigationMenuNav`                             | `NavigationMenu` `aria-label`          |
@@ -164,6 +165,7 @@ package variable read by every render, like `mx.AsComponent`.
 | `FormChooseOption`                              | required select with no current value  |
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
+| `FormExpectedFormat`                            | date/time text-fallback format hint    |
 
 A caller-supplied `aria-label` still wins over the context label for a single
 call site — the components only fall back to `Labels` when the caller passed
@@ -671,8 +673,11 @@ examples, not functions in this package.
   cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
-  server-side with Go's `time` package; the selected day is marked via
-  `aria-selected`, and every day button carries an ISO 8601 `aria-label`.
+  server-side with Go's `time` package. Like react-day-picker's it is a
+  `role="grid"` table named by its month: the selected day's gridcell carries
+  `aria-selected` (its button `data-selected` for the look), every day button
+  an ISO 8601 `aria-label`, and the month buttons their `aria-label`s from
+  `Labels.CalendarPrevious`/`CalendarNext`.
   Previous/Next are plain buttons with no default behavior — month navigation
   is a server round-trip, so wire them with `html.HRef("?month=…")` or an
   `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
@@ -689,8 +694,11 @@ examples, not functions in this package.
   or Enter picks a day and fires `input`/`change` on that input, the arrow
   keys and Home/End move the focus between enabled days with a single Tab
   stop, a surrounding popover closes, and `CalendarText(name, …)` shows the
-  picked day's `DayLabel` — the label of a date picker's trigger. The
-  zero-value `CalendarOptions` renders exactly what `Calendar` renders.
+  picked day's `DayLabel` — the label of a date picker's trigger.
+  `Disabled`, `StartMonth` and `EndMonth` only shape the grid in the browser,
+  so a handler must check a submitted day against the same rules; a disabled
+  selected day keeps its date in the hidden input. The zero-value
+  `CalendarOptions` renders exactly what `Calendar` renders.
   react-day-picker's range/multiple selection, dropdown caption and
   client-side month navigation are not reproduced (see `TODOS.md`).
 - **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /

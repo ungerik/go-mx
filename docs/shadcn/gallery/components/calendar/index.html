@@ -242,19 +242,19 @@
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div data-slot="calendar" class="bg-background w-fit rounded-md border p-3">
                       <div class="flex items-center justify-between pb-2">
-                        <button data-slot="calendar-prev" type="button" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
+                        <button data-slot="calendar-prev" type="button" aria-label="Go to the previous month" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left">
                             <path d="m15 18-6-6 6-6"></path>
                           </svg>
                         </button>
                         <div class="text-sm font-medium">June 2026</div>
-                        <button data-slot="calendar-next" type="button" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
+                        <button data-slot="calendar-next" type="button" aria-label="Go to the next month" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
                             <path d="m9 18 6-6-6-6"></path>
                           </svg>
                         </button>
                       </div>
-                      <table class="w-full border-collapse">
+                      <table role="grid" aria-label="June 2026" class="w-full border-collapse">
                         <thead>
                           <tr>
                             <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Su</th>
@@ -268,141 +268,141 @@
                         </thead>
                         <tbody>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-05-31" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">31</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-05-31" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">31</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-01" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">1</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-01" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">1</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-02" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">2</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-02" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">2</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-03" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">3</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-03" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">3</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-04" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">4</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-04" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">4</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-05" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">5</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-05" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">5</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-06" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">6</button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-07" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">7</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-08" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">8</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-09" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">9</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-10" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">10</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-11" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">11</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-12" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">12</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-13" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">13</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-06" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">6</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-14" aria-selected="true" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">14</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-07" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">7</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-15" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">15</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-08" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">8</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-16" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">16</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-09" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">9</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-17" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">17</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-10" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">10</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-18" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">18</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-11" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">11</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-19" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">19</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-12" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">12</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-20" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">20</button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-21" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">21</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-22" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">22</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-23" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">23</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-24" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">24</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-25" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">25</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-26" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">26</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-27" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">27</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-13" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">13</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-28" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">28</button>
+                            <td role="gridcell" class="p-0 text-center" aria-selected="true">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-14" data-selected="true" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">14</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-29" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">29</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-15" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">15</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-06-30" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">30</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-16" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">16</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-01" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">1</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-17" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">17</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-02" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">2</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-18" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">18</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-03" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">3</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-19" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">19</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-04" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">4</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-20" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">20</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-05" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">5</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-21" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">21</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-06" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">6</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-22" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">22</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-07" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">7</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-23" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">23</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-08" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">8</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-24" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">24</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-09" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">9</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-25" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">25</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-10" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">10</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-26" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">26</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2026-07-11" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">11</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-27" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">27</button>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-28" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">28</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-29" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">29</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-06-30" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">30</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-01" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">1</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-02" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">2</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-03" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">3</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-04" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">4</button>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-05" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">5</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-06" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">6</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-07" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">7</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-08" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">8</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-09" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">9</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-10" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">10</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2026-07-11" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">11</button>
                             </td>
                           </tr>
                         </tbody>
@@ -428,19 +428,19 @@
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div data-slot="calendar" class="bg-background w-fit rounded-md border p-3">
                       <div class="flex items-center justify-between pb-2">
-                        <button data-slot="calendar-prev" type="button" disabled="disabled" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
+                        <button data-slot="calendar-prev" type="button" aria-label="Go to the previous month" disabled="disabled" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left">
                             <path d="m15 18-6-6 6-6"></path>
                           </svg>
                         </button>
                         <div class="text-sm font-medium">Juni 2026</div>
-                        <button data-slot="calendar-next" type="button" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
+                        <button data-slot="calendar-next" type="button" aria-label="Go to the next month" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-7">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
                             <path d="m9 18 6-6-6-6"></path>
                           </svg>
                         </button>
                       </div>
-                      <table class="w-full border-collapse" onkeydown="calendarKey(event)">
+                      <table role="grid" aria-label="Juni 2026" class="w-full border-collapse" onkeydown="calendarKey(event)">
                         <thead>
                           <tr>
                             <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Mo</th>
@@ -454,147 +454,147 @@
                         </thead>
                         <tbody>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="1. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-01" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">1</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="1. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-01" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">1</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-02" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">2</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-02" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">2</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="3. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-03" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">3</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="3. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-03" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">3</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="4. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-04" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">4</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="4. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-04" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">4</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="5. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-05" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">5</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="5. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-05" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">5</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="6. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-06" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">6</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="6. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-06" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">6</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="7. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-07" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">7</button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="8. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-08" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">8</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="9. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-09" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">9</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="10. Juni 2026" aria-current="date" data-date="2026-06-10" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary bg-accent text-accent-foreground">10</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="11. Juni 2026" data-date="2026-06-11" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">11</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="12. Juni 2026" data-date="2026-06-12" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">12</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="13. Juni 2026" data-date="2026-06-13" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">13</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="14. Juni 2026" aria-selected="true" data-date="2026-06-14" tabindex="0" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">14</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="7. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-07" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">7</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="15. Juni 2026" data-date="2026-06-15" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">15</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="8. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-08" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">8</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="16. Juni 2026" data-date="2026-06-16" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">16</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="9. Juni 2026" disabled="disabled" aria-disabled="true" data-date="2026-06-09" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">9</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="17. Juni 2026" data-date="2026-06-17" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">17</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="10. Juni 2026" aria-current="date" data-date="2026-06-10" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary bg-accent text-accent-foreground">10</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="18. Juni 2026" data-date="2026-06-18" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">18</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="11. Juni 2026" data-date="2026-06-11" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">11</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="19. Juni 2026" data-date="2026-06-19" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">19</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="12. Juni 2026" data-date="2026-06-12" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">12</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="20. Juni 2026" data-date="2026-06-20" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">20</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="13. Juni 2026" data-date="2026-06-13" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">13</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="21. Juni 2026" data-date="2026-06-21" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">21</button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="22. Juni 2026" data-date="2026-06-22" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">22</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="23. Juni 2026" data-date="2026-06-23" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">23</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="24. Juni 2026" data-date="2026-06-24" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">24</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="25. Juni 2026" data-date="2026-06-25" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">25</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="26. Juni 2026" data-date="2026-06-26" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">26</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="27. Juni 2026" data-date="2026-06-27" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">27</button>
-                            </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="28. Juni 2026" data-date="2026-06-28" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">28</button>
+                            <td role="gridcell" class="p-0 text-center" aria-selected="true">
+                              <button data-slot="calendar-day" type="button" aria-label="14. Juni 2026" data-selected="true" data-date="2026-06-14" tabindex="0" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">14</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="29. Juni 2026" data-date="2026-06-29" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">29</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="15. Juni 2026" data-date="2026-06-15" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">15</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="30. Juni 2026" data-date="2026-06-30" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary">30</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="16. Juni 2026" data-date="2026-06-16" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">16</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="1. Juli 2026" data-date="2026-07-01" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">1</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="17. Juni 2026" data-date="2026-06-17" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">17</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="2. Juli 2026" data-date="2026-07-02" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">2</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="18. Juni 2026" data-date="2026-06-18" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">18</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="3. Juli 2026" data-date="2026-07-03" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">3</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="19. Juni 2026" data-date="2026-06-19" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">19</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="4. Juli 2026" data-date="2026-07-04" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">4</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="20. Juni 2026" data-date="2026-06-20" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">20</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="5. Juli 2026" data-date="2026-07-05" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">5</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="21. Juni 2026" data-date="2026-06-21" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">21</button>
                             </td>
                           </tr>
                           <tr>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="6. Juli 2026" data-date="2026-07-06" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">6</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="22. Juni 2026" data-date="2026-06-22" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">22</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="7. Juli 2026" data-date="2026-07-07" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">7</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="23. Juni 2026" data-date="2026-06-23" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">23</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="8. Juli 2026" data-date="2026-07-08" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">8</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="24. Juni 2026" data-date="2026-06-24" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">24</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="9. Juli 2026" data-date="2026-07-09" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">9</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="25. Juni 2026" data-date="2026-06-25" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">25</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="10. Juli 2026" data-date="2026-07-10" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">10</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="26. Juni 2026" data-date="2026-06-26" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">26</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="11. Juli 2026" data-date="2026-07-11" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">11</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="27. Juni 2026" data-date="2026-06-27" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">27</button>
                             </td>
-                            <td class="p-0 text-center">
-                              <button data-slot="calendar-day" type="button" aria-label="12. Juli 2026" data-date="2026-07-12" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary text-muted-foreground opacity-50">12</button>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="28. Juni 2026" data-date="2026-06-28" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">28</button>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="29. Juni 2026" data-date="2026-06-29" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">29</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="30. Juni 2026" data-date="2026-06-30" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary">30</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="1. Juli 2026" data-date="2026-07-01" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">1</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="2. Juli 2026" data-date="2026-07-02" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">2</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="3. Juli 2026" data-date="2026-07-03" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">3</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="4. Juli 2026" data-date="2026-07-04" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">4</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="5. Juli 2026" data-date="2026-07-05" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">5</button>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="6. Juli 2026" data-date="2026-07-06" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">6</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="7. Juli 2026" data-date="2026-07-07" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">7</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="8. Juli 2026" data-date="2026-07-08" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">8</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="9. Juli 2026" data-date="2026-07-09" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">9</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="10. Juli 2026" data-date="2026-07-10" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">10</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="11. Juli 2026" data-date="2026-07-11" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">11</button>
+                            </td>
+                            <td role="gridcell" class="p-0 text-center">
+                              <button data-slot="calendar-day" type="button" aria-label="12. Juli 2026" data-date="2026-07-12" tabindex="-1" onclick="calendarSelect(this)" class="inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary text-muted-foreground opacity-50">12</button>
                             </td>
                           </tr>
                         </tbody>
                       </table>
                       <input type="hidden" name="booking-date" value="2026-06-14" data-slot="calendar-input"/>
-                      <script>if(!window.calendarSelect){window.calendarSelect=function(b){var r=b.closest('[data-slot=calendar]');if(!r||b.disabled)return;r.querySelectorAll('[data-date]').forEach(function(d){d.removeAttribute('aria-selected');d.tabIndex=-1;});b.setAttribute('aria-selected','true');b.tabIndex=0;var i=r.querySelector('[data-slot=calendar-input]');if(!i)return;i.value=b.getAttribute('data-date');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));(i.form||document).querySelectorAll('[data-calendar-text]').forEach(function(t){if(t.getAttribute('data-calendar-text')===i.name){t.textContent=b.getAttribute('aria-label');t.removeAttribute('data-empty');}});var p=r.closest('[popover]');if(p&&p.matches(':popover-open'))p.hidePopover();};window.calendarKey=function(e){var b=e.target.closest('[data-date]');if(!b)return;var r=b.closest('[data-slot=calendar]');var days=Array.prototype.slice.call(r.querySelectorAll('[data-date]'));var i=days.indexOf(b),col=i%7,j,step;var rtl=getComputedStyle(r).direction==='rtl';switch(e.key){case'ArrowLeft':step=rtl?1:-1;j=i+step;break;case'ArrowRight':step=rtl?-1:1;j=i+step;break;case'ArrowUp':step=-7;j=i-7;break;case'ArrowDown':step=7;j=i+7;break;case'Home':step=1;j=i-col;break;case'End':step=-1;j=i-col+6;break;default:return;}e.preventDefault();while(j>=0&&j<days.length&&days[j].disabled&&j!==i){j+=step;}if(j<0||j>=days.length||days[j].disabled)return;days.forEach(function(d){d.tabIndex=-1;});days[j].tabIndex=0;days[j].focus();};}</script>
+                      <script>if(!window.calendarSelect){window.calendarSelect=function(b){var r=b.closest('[data-slot=calendar]');if(!r||b.disabled)return;r.querySelectorAll('[data-date]').forEach(function(d){d.removeAttribute('data-selected');d.parentElement.removeAttribute('aria-selected');d.tabIndex=-1;});b.setAttribute('data-selected','true');b.parentElement.setAttribute('aria-selected','true');b.tabIndex=0;var i=r.querySelector('[data-slot=calendar-input]');if(!i)return;i.value=b.getAttribute('data-date');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));(i.form||document).querySelectorAll('[data-calendar-text]').forEach(function(t){if(t.getAttribute('data-calendar-text')===i.name){t.textContent=b.getAttribute('aria-label');t.removeAttribute('data-empty');}});var p=r.closest('[popover]');if(p&&p.matches(':popover-open'))p.hidePopover();};window.calendarKey=function(e){var b=e.target.closest('[data-date]');if(!b)return;var r=b.closest('[data-slot=calendar]');var days=Array.prototype.slice.call(r.querySelectorAll('[data-date]'));var i=days.indexOf(b),col=i%7,j,step;var rtl=getComputedStyle(r).direction==='rtl';switch(e.key){case'ArrowLeft':step=rtl?1:-1;j=i+step;break;case'ArrowRight':step=rtl?-1:1;j=i+step;break;case'ArrowUp':step=-7;j=i-7;break;case'ArrowDown':step=7;j=i+7;break;case'Home':step=1;j=i-col;break;case'End':step=-1;j=i-col+6;break;default:return;}e.preventDefault();while(j>=0&&j<days.length&&days[j].disabled&&j!==i){j+=step;}if(j<0||j>=days.length||days[j].disabled)return;days.forEach(function(d){d.tabIndex=-1;});days[j].tabIndex=0;days[j].focus();};}</script>
                     </div>
                   </div>
                 </div>

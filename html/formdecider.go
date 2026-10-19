@@ -229,8 +229,9 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		attribs = append(attribs, Value(in.Value))
 	}
 	// A text input shows stored text the picker cannot hold: it has no
-	// date range, and it says which format to enter instead.
-	textFallback := in.Type == "text"
+	// date range, it says which format to enter instead, and it is invalid
+	// from the start, because saving that text unchanged fails.
+	textFallback := in.TextFallback()
 	if textFallback {
 		attribs = append(attribs,
 			Placeholder(cmp.Or(tag.Placeholder, in.Format)),
@@ -250,7 +251,7 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	if tag.Readonly {
 		attribs = append(attribs, Readonly)
 	}
-	if len(errs) > 0 {
+	if len(errs) > 0 || textFallback {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
 	if !textFallback {
@@ -658,11 +659,18 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 // the submission and gives the text to store. An empty submission stores
 // the zero value, which a required field rejects. A valid value goes
 // through UnmarshalText when the type has it and is set as the string
-// otherwise. Anything else is a validation error that leaves value
-// untouched, so a nil pointer stays nil.
+// otherwise.
+//
+// A rejected submission is a validation error, and the field keeps the
+// submitted text so every re-render shows what was posted: a repeatable
+// row is bound from the submission alone, so an add-row click would
+// otherwise blank the stored text and the next save would store "". The
+// form handler never calls onSubmit while a field has an error, so the
+// rejected text is not saved.
 func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
+		setDerefString(value, raw)
 		return err
 	}
 	if text == "" {
@@ -672,6 +680,7 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	parsed := reflect.New(derefType(value.Type()))
 	if u, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
 		if err := u.UnmarshalText([]byte(text)); err != nil {
+			setDerefString(value, raw)
 			return err
 		}
 	} else {
@@ -685,6 +694,18 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	}
 	value.Set(parsed.Elem())
 	return nil
+}
+
+// setDerefString sets the string-kind value behind any pointers to s,
+// allocating nil pointers.
+func setDerefString(value reflect.Value, s string) {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			value.Set(reflect.New(value.Type().Elem()))
+		}
+		value = value.Elem()
+	}
+	value.SetString(s)
 }
 
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {

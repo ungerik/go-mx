@@ -108,13 +108,19 @@ type CalendarOptions struct {
 	// arrow keys stop at the edge of the six-week grid. A request that
 	// re-renders the calendar for another month should include the hidden
 	// input (hx-include) to keep the picked day. "" renders the static grid.
+	//
+	// Disabled, StartMonth and EndMonth only shape the grid in the browser;
+	// the hidden input submits whatever it holds, so the handler must check
+	// a submitted day against the same rules. A selected day that is
+	// disabled is not marked selected, but the hidden input keeps its date,
+	// so an unchanged submit does not clear a stored value.
 	Name string
 }
 
 // calendarScript is the once-emitted client code of a calendar with
 // [CalendarOptions].Name: calendarSelect picks a day button, calendarKey
 // moves the focus between day buttons.
-const calendarScript = /*js*/ `if(!window.calendarSelect){window.calendarSelect=function(b){var r=b.closest('[data-slot=calendar]');if(!r||b.disabled)return;r.querySelectorAll('[data-date]').forEach(function(d){d.removeAttribute('aria-selected');d.tabIndex=-1;});b.setAttribute('aria-selected','true');b.tabIndex=0;var i=r.querySelector('[data-slot=calendar-input]');if(!i)return;i.value=b.getAttribute('data-date');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));(i.form||document).querySelectorAll('[data-calendar-text]').forEach(function(t){if(t.getAttribute('data-calendar-text')===i.name){t.textContent=b.getAttribute('aria-label');t.removeAttribute('data-empty');}});var p=r.closest('[popover]');if(p&&p.matches(':popover-open'))p.hidePopover();};window.calendarKey=function(e){var b=e.target.closest('[data-date]');if(!b)return;var r=b.closest('[data-slot=calendar]');var days=Array.prototype.slice.call(r.querySelectorAll('[data-date]'));var i=days.indexOf(b),col=i%7,j,step;var rtl=getComputedStyle(r).direction==='rtl';switch(e.key){case'ArrowLeft':step=rtl?1:-1;j=i+step;break;case'ArrowRight':step=rtl?-1:1;j=i+step;break;case'ArrowUp':step=-7;j=i-7;break;case'ArrowDown':step=7;j=i+7;break;case'Home':step=1;j=i-col;break;case'End':step=-1;j=i-col+6;break;default:return;}e.preventDefault();while(j>=0&&j<days.length&&days[j].disabled&&j!==i){j+=step;}if(j<0||j>=days.length||days[j].disabled)return;days.forEach(function(d){d.tabIndex=-1;});days[j].tabIndex=0;days[j].focus();};}`
+const calendarScript = /*js*/ `if(!window.calendarSelect){window.calendarSelect=function(b){var r=b.closest('[data-slot=calendar]');if(!r||b.disabled)return;r.querySelectorAll('[data-date]').forEach(function(d){d.removeAttribute('data-selected');d.parentElement.removeAttribute('aria-selected');d.tabIndex=-1;});b.setAttribute('data-selected','true');b.parentElement.setAttribute('aria-selected','true');b.tabIndex=0;var i=r.querySelector('[data-slot=calendar-input]');if(!i)return;i.value=b.getAttribute('data-date');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));(i.form||document).querySelectorAll('[data-calendar-text]').forEach(function(t){if(t.getAttribute('data-calendar-text')===i.name){t.textContent=b.getAttribute('aria-label');t.removeAttribute('data-empty');}});var p=r.closest('[popover]');if(p&&p.matches(':popover-open'))p.hidePopover();};window.calendarKey=function(e){var b=e.target.closest('[data-date]');if(!b)return;var r=b.closest('[data-slot=calendar]');var days=Array.prototype.slice.call(r.querySelectorAll('[data-date]'));var i=days.indexOf(b),col=i%7,j,step;var rtl=getComputedStyle(r).direction==='rtl';switch(e.key){case'ArrowLeft':step=rtl?1:-1;j=i+step;break;case'ArrowRight':step=rtl?-1:1;j=i+step;break;case'ArrowUp':step=-7;j=i-7;break;case'ArrowDown':step=7;j=i+7;break;case'Home':step=1;j=i-col;break;case'End':step=-1;j=i-col+6;break;default:return;}e.preventDefault();while(j>=0&&j<days.length&&days[j].disabled&&j!==i){j+=step;}if(j<0||j>=days.length||days[j].disabled)return;days.forEach(function(d){d.tabIndex=-1;});days[j].tabIndex=0;days[j].focus();};}`
 
 // CalendarText renders the text of a control that shows the day picked in
 // a [Calendar] whose [CalendarOptions].Name is name, such as the label of a
@@ -167,27 +173,39 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	isSelected := func(day time.Time) bool {
 		return hasSel && day.Year() == selY && day.Month() == selM && day.Day() == selD
 	}
-	isDisabled := func(day time.Time) bool { return opts.Disabled != nil && opts.Disabled(day) }
+	// The grid's days, with Disabled asked once per day: a booking calendar's
+	// predicate may look up availability.
+	var days [42]time.Time
+	var disabledDays [42]bool
+	for i := range days {
+		days[i] = gridStart.AddDate(0, 0, i)
+		disabledDays[i] = opts.Disabled != nil && opts.Disabled(days[i])
+	}
 	selectable := opts.Name != ""
 	// In select mode one day is the grid's Tab stop: the selected day, else
-	// today, else the first enabled day of the month.
+	// today, else the first enabled day of the month, else the first enabled
+	// day of the grid, so a month with every day disabled stays reachable.
 	var tabStop time.Time
 	if selectable {
-		var selectedDay, today, firstEnabled time.Time
-		for i := range 42 {
-			day := gridStart.AddDate(0, 0, i)
+		var selectedDay, today, firstInMonth, firstInGrid time.Time
+		for i, day := range days {
+			if disabledDays[i] {
+				continue
+			}
 			inMonth := day.Month() == first.Month()
 			switch {
-			case isDisabled(day):
 			case isSelected(day):
 				selectedDay = day
 			case inMonth && !opts.Today.IsZero() && sameDay(day, opts.Today):
 				today = day
-			case inMonth && firstEnabled.IsZero():
-				firstEnabled = day
+			case inMonth && firstInMonth.IsZero():
+				firstInMonth = day
+			}
+			if firstInGrid.IsZero() {
+				firstInGrid = day
 			}
 		}
-		tabStop = cmp.Or(selectedDay, today, firstEnabled)
+		tabStop = cmp.Or(selectedDay, today, firstInMonth, firstInGrid)
 	}
 
 	head := html.Element("tr")
@@ -201,9 +219,9 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	for week := range 6 {
 		row := html.Element("tr")
 		for d := range 7 {
-			day := gridStart.AddDate(0, 0, week*7+d)
-			disabled := isDisabled(day)
-			cls := "inline-flex size-8 items-center justify-center rounded-md text-sm font-normal hover:bg-accent hover:text-accent-foreground aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary"
+			day := days[week*7+d]
+			disabled := disabledDays[week*7+d]
+			cls := "inline-flex size-8 items-center justify-center rounded-md text-sm font-normal outline-none hover:bg-accent hover:text-accent-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:hover:bg-primary"
 			if day.Month() != first.Month() || disabled {
 				cls += " text-muted-foreground opacity-50"
 			}
@@ -215,13 +233,17 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 			btn := html.ButtonButton(html.Class(cls),
 				html.Attrib("aria-label", dayLabel(day)),
 				strconv.Itoa(day.Day()))
+			// The grid cell carries aria-selected, which a button may not; the
+			// button's data-selected carries the selected look.
+			cell := html.Element("td", html.Role("gridcell"), html.Class("p-0 text-center"))
 			switch {
 			case disabled:
 				// A disabled day is never selectable, so it is never marked
 				// aria-selected even when it equals selected.
 				btn.Attribs = append(btn.Attribs, html.Disabled, html.Attrib("aria-disabled", "true"))
 			case isSelected(day):
-				btn.Attribs = append(btn.Attribs, html.Attrib("aria-selected", "true"))
+				btn.Attribs = append(btn.Attribs, html.DataAttr("selected", "true"))
+				cell.Attribs = append(cell.Attribs, html.Attrib("aria-selected", "true"))
 			}
 			if isToday {
 				btn.Attribs = append(btn.Attribs, html.Attrib("aria-current", "date"))
@@ -237,9 +259,8 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 					html.OnClick("calendarSelect(this)"),
 				)
 			}
-			row.Children = append(row.Children, html.Element("td",
-				html.Class("p-0 text-center"),
-				finish(btn, "calendar-day", "")))
+			cell.Children = append(cell.Children, finish(btn, "calendar-day", ""))
+			row.Children = append(row.Children, cell)
 		}
 		body.Children = append(body.Children, row)
 	}
@@ -247,12 +268,14 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	monthIndex := func(t time.Time) int { return t.Year()*12 + int(t.Month()) }
 	prev := html.ButtonButton(
 		html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
+		labelAriaLabel(func(l Labels) string { return l.CalendarPrevious }),
 		iconChevronLeft())
 	if !opts.StartMonth.IsZero() && monthIndex(first) <= monthIndex(opts.StartMonth) {
 		prev.Attribs = append(prev.Attribs, html.Disabled)
 	}
 	next := html.ButtonButton(
 		html.Class(ButtonClasses(ButtonOutline, SizeIcon)+" size-7"),
+		labelAriaLabel(func(l Labels) string { return l.CalendarNext }),
 		iconChevronRight())
 	if !opts.EndMonth.IsZero() && monthIndex(first) >= monthIndex(opts.EndMonth) {
 		next.Attribs = append(next.Attribs, html.Disabled)
@@ -262,7 +285,10 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 		html.DivClass("text-sm font-medium", monthLabel(month)),
 		finish(next, "calendar-next", ""),
 	)
-	table := html.Element("table", html.Class("w-full border-collapse"),
+	// A grid named by its month, like react-day-picker's, so a screen reader
+	// announces the picked day and passes the arrow keys to select mode.
+	table := html.Element("table", html.Role("grid"), html.Attrib("aria-label", monthLabel(month)),
+		html.Class("w-full border-collapse"),
 		html.Element("thead", head),
 		body,
 	)

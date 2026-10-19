@@ -288,6 +288,28 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 **Priority:** P4
 **Depends on:** None
 
+## mx reflected forms
+
+### Server-side `min`/`max` for `time.Time` date fields
+
+**What:** Check `form:"min=…,max=…"` on the server when binding a `time.Time`
+(or other non-text) date, datetime or time field, as `mx.ParseDateTimeInput`
+already does for fields that hold the value as text.
+
+**Why:** For a `time.Time` field the range only reaches the browser as the
+input's `min`/`max`, so a tampered or scripted POST stores a date outside it.
+
+**Context:** `ParseDateTimeInput` (`formdatetime.go`) parses the bounds with the
+input type's layouts and compares times; `setTime` in `html/formdecider.go`
+parses `time.Time` with its own layout list. Reusing the same bound check there
+keeps both paths consistent. Left out of the string-kind date work because the
+text path needed it (its fallback cannot enforce the range in the browser) and
+the `time.Time` path was to stay unchanged.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## mx dead code
 
 ### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`

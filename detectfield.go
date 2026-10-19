@@ -162,6 +162,9 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		// type declared it.
 		tag.Widget = hintWidget(value, t)
 		switch tag.Widget {
+		case "skip":
+			tag.Skip = true
+			return FieldKindSkip, tag
 		case "textarea":
 			return FieldKindTextarea, tag
 		case "file":

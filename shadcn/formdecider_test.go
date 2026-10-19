@@ -688,6 +688,7 @@ type dateStrings struct {
 	DatePtr   *testDate       `form:"widget=date"`
 	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
 	Unmarshal unmarshaledDate `form:"widget=date"`
+	Localized string          `form:"widget=date,placeholder=TT.MM.JJJJ"`
 }
 
 // The shadcn renderer prefills a date held as text like the html one: the
@@ -719,16 +720,20 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" class="`},
 		// Anything else renders as a text input showing the stored text.
 		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
-			`<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" class="`},
+			`<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true" class="`},
 		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
-			`<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" class="`},
+			`<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true" class="`},
 		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
-			`<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" class="`},
+			`<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true" class="`},
 		// The date input carries the range, the text input only required.
 		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
 			`<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
-			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" class="`},
+			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
+		// A placeholder from the tag, say a translated one, wins over the
+		// format.
+		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
+			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="TT.MM.JJJJ" aria-describedby="Localized-format" aria-invalid="true" class="`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -752,7 +757,7 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 // shadcn binds through the html parser, so a date held as text binds the
 // same way: an empty submission clears, a yyyy-mm-dd date is stored (via
 // UnmarshalText when the type has one), and any other text is an error
-// that leaves the stored value alone.
+// with the posted text kept in the field for the re-render.
 func TestShadcn_DateWidgetBindsStringKinds(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -770,11 +775,11 @@ func TestShadcn_DateWidgetBindsStringKinds(t *testing.T) {
 			want: dateStrings{Date: "2026-07-06"}},
 		{name: "UnmarshalText", field: "Unmarshal", raw: "2026-07-06",
 			want: dateStrings{Unmarshal: "unmarshaled 2026-07-06"}},
-		{name: "nil pointer stays nil", field: "Ptr", raw: "06.07.2026",
-			want:    dateStrings{},
+		{name: "nil pointer gets the posted text", field: "Ptr", raw: "06.07.2026",
+			want:    dateStrings{Ptr: new("06.07.2026")},
 			wantErr: `"06.07.2026" is not a date in the format YYYY-MM-DD`},
-		{name: "date stays", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "next week",
-			want:    dateStrings{Date: "2026-07-06"},
+		{name: "date gets the posted text", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "next week",
+			want:    dateStrings{Date: "next week"},
 			wantErr: `"next week" is not a date in the format YYYY-MM-DD`},
 	}
 	for _, tt := range tests {
@@ -915,11 +920,38 @@ func TestShadcn_TimeWidgetsPrefillStringKinds(t *testing.T) {
 	}
 	out := renderShadcn(t, f, "Clock", nil)
 	if got, want := inputStartTag(out),
-		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" class="`; got != want {
+		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true" class="`; got != want {
 		t.Errorf("Clock renders\n%s\nwant\n%s", got, want)
 	}
 	if !strings.Contains(out, ">Expected format: HH:MM</p>") {
 		t.Errorf("Clock lacks the format hint: %s", out)
+	}
+	if got, want := inputStartTag(renderShadcn(t, &form{Clock: "09:05:00"}, "Clock", nil)),
+		`<input data-slot="input" type="time" name="Clock" id="Clock" hx-trigger="change" value="09:05" class="`; got != want {
+		t.Errorf("valid Clock renders\n%s\nwant\n%s", got, want)
+	}
+}
+
+// hintedDate declares itself a date, so its fields need no widget tag.
+type hintedDate string
+
+func (hintedDate) FormWidget() string { return "date" }
+
+// A type whose FormWidget declares "date" renders a shadcn date input like
+// a field tagged form:"widget=date", also behind a nil pointer.
+func TestShadcn_HintedDateWidget(t *testing.T) {
+	type form struct {
+		Due    hintedDate
+		DuePtr *hintedDate
+	}
+	f := &form{Due: "2026-07-06"}
+	if got, want := inputStartTag(renderShadcn(t, f, "Due", nil)),
+		`<input data-slot="input" type="date" name="Due" id="Due" hx-trigger="change" value="2026-07-06" class="`; got != want {
+		t.Errorf("Due renders\n%s\nwant\n%s", got, want)
+	}
+	if got, want := inputStartTag(renderShadcn(t, f, "DuePtr", nil)),
+		`<input data-slot="input" type="date" name="DuePtr" id="DuePtr" hx-trigger="change" class="`; got != want {
+		t.Errorf("DuePtr renders\n%s\nwant\n%s", got, want)
 	}
 }
 
@@ -937,5 +969,40 @@ func TestShadcn_HintedCheckbox(t *testing.T) {
 	out := renderShadcn(t, &form{}, "Agree", nil)
 	if !strings.Contains(out, `data-slot="checkbox"`) || strings.Contains(out, `data-slot="switch"`) {
 		t.Errorf("a checkbox hint must render a Checkbox: %s", out)
+	}
+}
+
+// After a failed bind the date control gets the destructive border like
+// every other shadcn control: aria-invalid on the input, data-invalid on
+// the Field.
+func TestShadcn_DateWidgetMarksErrors(t *testing.T) {
+	out := renderShadcn(t, &dateStrings{Str: "06.07.2026"}, "Str",
+		[]error{stringErr(`"06.07.2026" is not a date in the format YYYY-MM-DD`)})
+	if got := inputStartTag(out); !strings.Contains(got, `aria-invalid="true"`) {
+		t.Errorf("the input lacks aria-invalid: %s", got)
+	}
+	if !strings.Contains(out, `data-invalid="true"`) {
+		t.Errorf("the Field lacks data-invalid: %s", out)
+	}
+}
+
+// emailAddress declares the email widget.
+type emailAddress string
+
+func (emailAddress) FormWidget() string { return "email" }
+
+// shadcn reads a FormWidgetHint's input type from the tag DetectField
+// fills, and an explicit widget tag still wins over the hint.
+func TestShadcn_HintedInputType(t *testing.T) {
+	type form struct {
+		Contact emailAddress
+		Code    emailAddress `form:"widget=text"`
+	}
+	f := &form{Contact: "a@example.com", Code: "x"}
+	if got := inputStartTag(renderShadcn(t, f, "Contact", nil)); !strings.Contains(got, `type="email"`) {
+		t.Errorf("the hint must render an email input: %s", got)
+	}
+	if got := inputStartTag(renderShadcn(t, f, "Code", nil)); !strings.Contains(got, `type="text"`) {
+		t.Errorf("widget=text must win over the email hint: %s", got)
 	}
 }
