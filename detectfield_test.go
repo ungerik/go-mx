@@ -340,15 +340,38 @@ type timePtr struct {
 	*time.Time
 }
 
+// dateOnlyTime embeds a time but writes only its date.
+type dateOnlyTime struct {
+	time.Time
+}
+
+func (d dateOnlyTime) MarshalText() ([]byte, error) { return []byte(d.Format(time.DateOnly)), nil }
+
 // Rule 14 makes a date/time field only of time-like structs: time.Time, a
 // type defined as it, or a struct whose only field is an embedded time. A
 // registered single-value struct that holds more is a catch-all text input.
+// A slice of a time-like type tagged repeatable would render rows with no
+// cells, since a time's fields are unexported, and zero every value on
+// save, so it is not repeatable, as []time.Time is not.
+func TestDetectField_RepeatableTimeLikeSlice(t *testing.T) {
+	type form struct {
+		Stamps []definedStamp `form:"repeatable"`
+		Soles  []soleTime     `form:"repeatable"`
+	}
+	for _, name := range []string{"Stamps", "Soles"} {
+		if kind, _ := detectKind(t, &form{}, name); kind == FieldKindRepeatable {
+			t.Errorf("DetectField(%s) = repeatable", name)
+		}
+	}
+}
+
 func TestDetectField_TimeLikeStructs(t *testing.T) {
 	SingleValueTypes.Register(reflect.TypeFor[registeredMoney]())
 	SingleValueTypes.Register(reflect.TypeFor[soleTime]())
 	SingleValueTypes.Register(reflect.TypeFor[heldTime]())
 	SingleValueTypes.Register(reflect.TypeFor[namedTime]())
 	SingleValueTypes.Register(reflect.TypeFor[timePtr]())
+	SingleValueTypes.Register(reflect.TypeFor[dateOnlyTime]())
 	type form struct {
 		When  time.Time
 		Stamp definedStamp
@@ -356,6 +379,7 @@ func TestDetectField_TimeLikeStructs(t *testing.T) {
 		Held  heldTime
 		Named namedTime
 		Ptr   timePtr
+		Date  dateOnlyTime
 		Money registeredMoney
 	}
 	for _, tt := range []struct {
@@ -368,6 +392,8 @@ func TestDetectField_TimeLikeStructs(t *testing.T) {
 		{"Held", FieldKindCatchAll},
 		{"Named", FieldKindCatchAll},
 		{"Ptr", FieldKindCatchAll},
+		// Its own text methods are not time.Time's RFC 3339.
+		{"Date", FieldKindCatchAll},
 		{"Money", FieldKindCatchAll},
 	} {
 		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {

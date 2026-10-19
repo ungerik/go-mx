@@ -307,7 +307,8 @@ fell back to `shadcn.DefaultLabels`. Fill it in.
 **`Calendar` is still English.** Weekday and month names need locale data Go's
 `time` package does not carry, so they are not part of `Labels`. Use
 `shadcn.CalendarWith(shadcn.CalendarOptions{WeekStart: time.Monday,
-WeekdayName: …, MonthLabel: …}, month, selected)` instead.
+WeekdayName: …, WeekdayLabel: …, MonthLabel: …, DayLabel: …}, month, selected)`
+instead.
 
 **One control needs a name the translation cannot know.** Pass your own
 `html.Attrib("aria-label", …)`; a caller-supplied attribute still wins over the

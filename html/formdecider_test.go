@@ -1633,7 +1633,7 @@ type dateStrings struct {
 	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
 	Unmarshal unmarshaledDate `form:"widget=date"`
 	Strict    *strictDate     `form:"widget=date"`
-	Localized string          `form:"widget=date,placeholder=TT.MM.JJJJ"`
+	Localized string          `form:"widget=date,placeholder=JJJJ-MM-TT"`
 }
 
 // strictDate rejects dates before 2000 in UnmarshalText, so a test can see
@@ -1699,10 +1699,10 @@ func TestFieldDecider_DateWidgetPrefillsStringKinds(t *testing.T) {
 			`<input type="date" name="Bounded" id="Bounded" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
 			`<input type="text" name="Bounded" id="Bounded" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true"/>`},
-		// A placeholder from the tag, say a translated one, wins over the
-		// format.
+		// A placeholder from the tag, say a translated format, replaces the
+		// format in the placeholder and the hint.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
-			`<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="TT.MM.JJJJ" aria-describedby="Localized-format" aria-invalid="true"/>`},
+			`<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true"/><small class="form-help" id="Localized-format">Expected format: JJJJ-MM-TT</small>`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2528,6 +2528,7 @@ func TestFieldDecider_DateStructBinds(t *testing.T) {
 		WrapPtr *wrappedTime   `form:"widget=date"`
 		Compact compactDate    `form:"widget=date"`
 		SQL     sqlTime        `form:"widget=datetime"`
+		NullAt  nullTime       `form:"widget=datetime"`
 	}
 	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
 	fresh := func() *form {
@@ -2550,8 +2551,15 @@ func TestFieldDecider_DateStructBinds(t *testing.T) {
 		{"defined invalid keeps", "Defined", "06.07.2026", true, func(f *form) bool { return time.Time(f.Defined).Equal(july) }},
 		{"wrapped invalid keeps", "Wrapped", "06.07.2026", true, func(f *form) bool { return f.Wrapped.Equal(july) }},
 		{"wrapped pointer empty clears", "WrapPtr", "", false, func(f *form) bool { return f.WrapPtr == nil }},
+		{"wrapped pointer invalid keeps", "WrapPtr", "06.07.2026", true, func(f *form) bool { return f.WrapPtr != nil && f.WrapPtr.Equal(july) }},
 		{"time with a flag is not half set", "Null", "2026-08-05", true, func(f *form) bool { return !f.Null.Valid && f.Null.IsZero() }},
-		{"nil embedded pointer", "Ptr", "2026-08-05", true, func(f *form) bool { return f.Ptr.Time == nil }},
+		// Nor by RFC 3339 posted directly, which the promoted UnmarshalText reads.
+		{"time with a flag not half set by RFC 3339", "Null", "2026-08-05T00:00:00Z", true, func(f *form) bool { return !f.Null.Valid && f.Null.IsZero() }},
+		{"datetime with a flag not half set by RFC 3339", "NullAt", "2026-08-05T10:30:00Z", true, func(f *form) bool { return !f.NullAt.Valid && f.NullAt.IsZero() }},
+		// A nil embedded time pointer gets a time to take the date in.
+		{"nil embedded pointer takes a date", "Ptr", "2026-08-05", false, func(f *form) bool {
+			return f.Ptr.Time != nil && f.Ptr.Equal(time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC))
+		}},
 		{"string type with UnmarshalText", "Compact", "2026-08-01", false, func(f *form) bool { return f.Compact == "20260801" }},
 		{"SQL-style text", "SQL", "2026-08-05T10:30", false, func(f *form) bool { return f.SQL == "2026-08-05 10:30:00" }},
 	}
@@ -2808,9 +2816,11 @@ func TestFieldDecider_DateStructOwnTextRange(t *testing.T) {
 // A time range may wrap past midnight, as a browser's time input allows.
 func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 	type form struct {
-		At    time.Time `form:"min=2024-01-01T00:00,max=2024-12-31T23:59"`
-		Start time.Time `form:"widget=time,min=22:00,max=06:00"`
-		End   string    `form:"widget=time,min=22:00,max=06:00"`
+		At      time.Time   `form:"min=2024-01-01T00:00,max=2024-12-31T23:59"`
+		Start   time.Time   `form:"widget=time,min=22:00,max=06:00"`
+		End     string      `form:"widget=time,min=22:00,max=06:00"`
+		Wrapped wrappedTime `form:"widget=date,max=2026-12-31"`
+		Opaque  opaqueDate  `form:"widget=date,min=2026-01-01"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2822,11 +2832,223 @@ func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 		{"End", "22:00", ""},
 		{"End", "06:00", ""},
 		{"End", "06:01", `"06:01" is later than 06:00 and earlier than 22:00`},
+		// RFC 3339 caps offsets below 24 hours; a larger one cannot be
+		// marshaled again, so it is no value.
+		{"At", "2024-06-01T00:00:00+24:00", `"2024-06-01T00:00:00+24:00" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		// A wrapped time only takes what the date input sends, never its
+		// own RFC 3339, so a crafted offset cannot slip past max.
+		{"Wrapped", "2099-01-01T00:00:00+24:00", `parsing time "2099-01-01T00:00:00+24:00": extra text: "T00:00:00+24:00"`},
+		// A value whose MarshalText fails cannot be checked against min.
+		{"Opaque", "sometime", `"sometime" is not a date in the format YYYY-MM-DD`},
 	} {
 		err := parseFieldValue(t, f, b.field, b.raw)
 		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
 			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
 		}
+	}
+}
+
+// A rebuilt repeatable row starts as a copy of its loaded row, so a typo
+// followed by an add-row click keeps the stored date instead of blanking
+// the row, and a flagged or pointer-embedded time binds in a row as it
+// does at the top level.
+func TestReflectFormHandler_RepeatableRowKeepsStoredDates(t *testing.T) {
+	type line struct {
+		Loose looseDate
+		Time  time.Time      `form:"widget=date"`
+		Null  nullTime       `form:"widget=date"`
+		Ptr   ptrWrappedTime `form:"widget=date"`
+	}
+	type sheet struct {
+		Lines []line `form:"repeatable"`
+	}
+	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
+	stored := func() line {
+		return line{Loose: looseDate{2026, 8, 5}, Time: july, Null: nullTime{july, true}, Ptr: ptrWrappedTime{new(july)}}
+	}
+	var saved *sheet
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*sheet, error) { return &sheet{Lines: []line{stored()}}, nil },
+		func(_ context.Context, s *sheet) error { saved = s; return nil },
+		FieldDecider,
+	)
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/s", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/s", nil))
+	shown := submittedValues(rec.Body.String())
+	shown.Set("Lines-0-Loose", "2026-8-5x")
+	shown.Set("Lines-0-Time", "2026-13-45")
+	shown.Set("__cmd__", mx.AddRowCommand("Lines"))
+	added := submittedValues(post(shown).Body.String())
+	for name, want := range map[string]string{"Lines-0-Loose": "2026-8-5", "Lines-0-Time": "2026-07-06"} {
+		if got := added.Get(name); got != want {
+			t.Errorf("after typo and add-row %s = %q, want the stored %q", name, got, want)
+		}
+	}
+	added.Del("__cmd__")
+	if rec = post(added); rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged Save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	got := saved.Lines[0]
+	if got.Loose != (looseDate{2026, 8, 5}) || !got.Time.Equal(july) || !got.Null.Valid || !got.Null.Equal(july) || got.Ptr.Time == nil || !got.Ptr.Equal(july) {
+		t.Errorf("saved row %+v, want the stored dates kept", got)
+	}
+}
+
+// Numbers are checked against form:"min=…,max=…" on the server too, not
+// only by the browser. A bound that is no number is ignored.
+func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
+	type form struct {
+		N int     `form:"min=1,max=10"`
+		F float64 `form:"max=2.5"`
+		P *int    `form:"min=0"`
+		X int     `form:"max=lots"`
+	}
+	f := &form{}
+	for _, b := range []struct{ field, raw, wantErr string }{
+		{"N", "9999", `"9999" is greater than 10`},
+		{"N", "0", `"0" is less than 1`},
+		{"N", "5", ""},
+		{"F", "3", `"3" is greater than 2.5`},
+		{"P", "-1", `"-1" is less than 0`},
+		{"X", "9999", ""},
+	} {
+		err := parseFieldValue(t, f, b.field, b.raw)
+		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
+			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
+		}
+	}
+	if f.N != 5 || f.P == nil || *f.P != -1 {
+		t.Errorf("numbers must be bound, in range or not: %+v", f)
+	}
+}
+
+// Text, number and bool fields bind through a pointer into a new pointee,
+// never writing a pointee the field shares with a stored record.
+func TestFieldDecider_ScalarBindKeepsSharedPointees(t *testing.T) {
+	type form struct {
+		S *string
+		N *int
+		B *bool
+	}
+	storedS, storedN, storedB := "kept", 7, true
+	f := &form{S: &storedS, N: &storedN, B: &storedB}
+	for field, raw := range map[string]string{"S": "posted", "N": "8", "B": ""} {
+		if err := parseFieldValue(t, f, field, raw); err != nil {
+			t.Fatalf("bind %s: %v", field, err)
+		}
+	}
+	if storedS != "kept" || storedN != 7 || !storedB {
+		t.Errorf("stored pointees changed: %q %d %t", storedS, storedN, storedB)
+	}
+	if *f.S != "posted" || *f.N != 8 || *f.B {
+		t.Errorf("the form must hold the bound values: %q %d %t", *f.S, *f.N, *f.B)
+	}
+}
+
+// opaqueDate reads any text but cannot write it back.
+type opaqueDate struct {
+	text string
+}
+
+func (d opaqueDate) MarshalText() ([]byte, error) { return nil, errors.New("opaque") }
+
+func (d *opaqueDate) UnmarshalText(text []byte) error {
+	d.text = string(text)
+	return nil
+}
+
+// secondsClock holds a time of day as text that always carries seconds,
+// like civil.Time's.
+type secondsClock string
+
+func (c *secondsClock) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.TimeOnly, string(text))
+	if err != nil {
+		return err
+	}
+	*c = secondsClock(t.Format(time.TimeOnly))
+	return nil
+}
+
+// A time held as text whose UnmarshalText needs seconds takes a whole
+// minute from the time input, which leaves zero seconds out.
+func TestFieldDecider_TimeTextNeedsSeconds(t *testing.T) {
+	type form struct {
+		Start secondsClock `form:"widget=time"`
+	}
+	f := &form{}
+	for _, b := range []struct{ raw, want string }{{"09:05", "09:05:00"}, {"09:05:07", "09:05:07"}} {
+		if err := parseFieldValue(t, f, "Start", b.raw); err != nil || string(f.Start) != b.want {
+			t.Errorf("bind %q: error %v, stored %q, want %q", b.raw, err, f.Start, b.want)
+		}
+	}
+}
+
+// dateOnly embeds a time but writes and reads only its date.
+type dateOnly struct {
+	time.Time
+}
+
+func (d dateOnly) MarshalText() ([]byte, error) { return []byte(d.Format(time.DateOnly)), nil }
+
+func (d *dateOnly) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.DateOnly, string(text))
+	if err != nil {
+		return err
+	}
+	d.Time = t
+	return nil
+}
+
+// A struct embedding time.Time with text methods of its own stays a text
+// input through them, as before this change, instead of a datetime picker
+// whose values it cannot read.
+func TestReflectFormHandler_DateOnlyWrapperIsText(t *testing.T) {
+	type record struct {
+		Day dateOnly
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Day: dateOnly{time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)}}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	body := rec.Body.String()
+	if want := `<input type="text" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(body, want) {
+		t.Fatalf("GET lacks %s: %s", want, body)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(submittedValues(body).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || !saved.Day.Equal(time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A readonly nullable field is never written, so it offers no clear control.
+func TestFieldDecider_ReadonlyNullableHasNoClearControl(t *testing.T) {
+	type form struct {
+		Locked sampleNullable `form:"readonly"`
+		Open   sampleNullable
+	}
+	f := &form{Locked: sampleNullable{v: "x"}, Open: sampleNullable{v: "y"}}
+	if out := renderFieldHTML(t, f, "Locked"); strings.Contains(out, mx.ClearSentinelName("Locked")) {
+		t.Errorf("a readonly field offers a clear control: %s", out)
+	}
+	if out := renderFieldHTML(t, f, "Open"); !strings.Contains(out, mx.ClearSentinelName("Open")) {
+		t.Errorf("a nullable field lacks its clear control: %s", out)
 	}
 }
 
@@ -2914,6 +3136,7 @@ func TestFieldDecider_SensitiveDateErrors(t *testing.T) {
 		Civil   civilDate   `form:"widget=date,sensitive"`
 		Wrapped wrappedTime `form:"widget=date,sensitive"`
 		Strict  strictDate  `form:"widget=date,sensitive"`
+		German  germanDate  `form:"widget=date,sensitive,min=2026-01-01"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2924,6 +3147,8 @@ func TestFieldDecider_SensitiveDateErrors(t *testing.T) {
 		{"Civil", "06.07.1980", "not a date in the format YYYY-MM-DD"},
 		{"Wrapped", "06.07.1980", "not a date in the format YYYY-MM-DD"},
 		{"Strict", "1999-12-31", "not a date in the format YYYY-MM-DD"},
+		// The range applies to a sensitive value in the type's own spelling.
+		{"German", "6.7.2025", "earlier than 2026-01-01"},
 	} {
 		err := parseFieldValue(t, f, b.field, b.raw)
 		if err == nil || err.Error() != b.wantErr {
@@ -2965,18 +3190,27 @@ type boxedMoney struct {
 func TestFieldDecider_ScalarBindGuards(t *testing.T) {
 	type form struct {
 		Box   boxedMoney
-		Count int   `form:"sensitive"`
-		Total money `form:"sensitive"`
+		Count int      `form:"sensitive"`
+		Total money    `form:"sensitive"`
+		Tag   string   `form:"options=test-html-tags,sensitive"`
+		Tags  []string `form:"options=test-html-tags,sensitive"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
 		{"Box", "1.00 EUR", `"1.00 EUR" cannot be stored as html.boxedMoney`},
 		{"Count", "secret", "not a valid value"},
 		{"Total", "secret", "not a valid value"},
+		// The option list's error would quote the posted value.
+		{"Tag", "secret", "not a valid value"},
+		{"Tags", "secret", "not a valid value"},
 	} {
 		if err := parseFieldValue(t, f, b.field, b.raw); fmt.Sprint(err) != b.wantErr {
 			t.Errorf("bind %s %q: error %v, want %s", b.field, b.raw, err, b.wantErr)
 		}
+	}
+	// Rendering guards the promoted MarshalText of the nil pointer too.
+	if out := renderFieldHTML(t, f, "Box"); !strings.Contains(out, `<input type="text" name="Box" id="Box"/>`) {
+		t.Errorf("Box renders %s", out)
 	}
 }
 

@@ -687,7 +687,8 @@ examples, not functions in this package.
   `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
   (Go's `time` has no locale, and the core module deliberately avoids
   `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
-  for the ISO/European week), `WeekdayName`, `MonthLabel`, `DayLabel`, and
+  for the ISO/European week), `WeekdayName`, `WeekdayLabel` (the full name a
+  screen reader announces for a column), `MonthLabel`, `DayLabel`, and
   `Disabled` (grey out unavailable/past dates — a disabled day is never
   marked selected). `Today` marks a day with the accent background and
   `aria-current="date"` (an option, not `time.Now()`, so the caller picks the

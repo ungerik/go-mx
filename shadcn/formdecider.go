@@ -71,7 +71,10 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 	case mx.FieldKindBool:
 		return shadcnBoolField(path, field, value, tag, errs)
 	case mx.FieldKindDateTime:
-		return shadcnField(path, field, tag, errs,
+		// Stored text the parser rejects marks the input invalid before any
+		// submit; the Field root follows, so the label matches the control.
+		invalid := len(errs) > 0 || (mx.DateTimeInput(value, tag).Invalid && !tag.Readonly)
+		return shadcnFieldMarked(path, field, tag, errs, invalid,
 			shadcnDateTime(path, value, tag, errs),
 		)
 	case mx.FieldKindTextarea:
@@ -108,6 +111,13 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 // text) together with each [FieldError]; the control also carries
 // aria-invalid from its own attribs so its border turns destructive.
 func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, input mx.Component) mx.Component {
+	return shadcnFieldMarked(path, field, tag, errs, len(errs) > 0, input)
+}
+
+// shadcnFieldMarked is [shadcnField] with the Field root marked
+// data-invalid when invalid is true, which a control can be without an
+// error, such as a text input holding stored text the parser rejects.
+func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, invalid bool, input mx.Component) mx.Component {
 	parts := make([]any, 0, 4+len(errs))
 	if labelText := fieldLabel(field, tag); labelText != "" {
 		parts = append(parts, FieldLabelFor(string(path), labelText))
@@ -116,19 +126,21 @@ func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, e
 	if tag.Help != "" {
 		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
 	}
-	if isNullable(field, tag) {
+	// A readonly field is never written, so it offers no clear control.
+	if isNullable(field, tag) && !tag.Readonly {
 		parts = append(parts, clearControl(path))
 	}
 	parts = appendFieldErrors(parts, path, errs)
-	return fieldWrap(errs, parts...)
+	return fieldWrap(invalid, parts...)
 }
 
 // fieldWrap builds the [Field] root for a decided form field, marking it
-// data-invalid when there are validation errors so the Field turns its text
-// destructive and its label/error key off the same flag.
-func fieldWrap(errs []error, children ...any) mx.Component {
+// data-invalid when invalid, as when there are validation errors, so the
+// Field turns its text destructive and its label/error key off the same
+// flag.
+func fieldWrap(invalid bool, children ...any) mx.Component {
 	args := make([]any, 0, len(children)+1)
-	if len(errs) > 0 {
+	if invalid {
 		args = append(args, html.DataAttr("invalid", "true"))
 	}
 	args = append(args, children...)
@@ -187,7 +199,7 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
 	}
 	parts = appendFieldErrors(parts, path, errs)
-	return fieldWrap(errs, parts...)
+	return fieldWrap(len(errs) > 0, parts...)
 }
 
 func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
@@ -370,9 +382,12 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	// A readonly field is never saved, so its text input asks for nothing.
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly
+	// A form:"placeholder=…" replaces the format, such as with a translated
+	// one, in the placeholder and the hint alike.
+	format := cmp.Or(tag.Placeholder, in.Format)
 	if askFormat {
 		a = append(a,
-			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
+			html.Placeholder(format),
 			mx.NewAttrib("aria-describedby", formatHintID(path)),
 		)
 	}
@@ -405,7 +420,7 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 		Input(a...),
 		FieldDescription(html.ID(formatHintID(path)),
 			labelText(func(l Labels) string { return l.FormExpectedFormat }),
-			mx.Text(" "+in.Format),
+			mx.Text(" "+format),
 		),
 	}
 }
@@ -482,7 +497,14 @@ func stringWidget(tag mx.FormTag) string {
 	return "text"
 }
 
-func displayValue(v reflect.Value) string {
+func displayValue(v reflect.Value) (text string) {
+	// A method that panics, as the promoted MarshalText of a nil embedded
+	// pointer does, shows no value instead of failing the render.
+	defer func() {
+		if recover() != nil {
+			text = ""
+		}
+	}()
 	if !v.IsValid() {
 		return ""
 	}

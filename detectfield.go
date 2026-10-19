@@ -35,7 +35,8 @@ import (
 // 12. bool / *bool → FieldKindBool
 // 13. int*/uint*/float* and pointer variants → FieldKindNumber
 // 14. time.Time, a type defined as it, or a struct embedding it as its only
-//     field → FieldKindDateTime (other single-value structs → catch-all)
+//     field without text methods of its own → FieldKindDateTime (other
+//     single-value structs → catch-all)
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
@@ -89,7 +90,7 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		if et.Kind() == reflect.Pointer {
 			et = et.Elem()
 		}
-		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) {
+		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) && !isTimeLike(et) {
 			return FieldKindRepeatable, tag
 		}
 	}
@@ -105,7 +106,7 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// 4. anonymous embed with no tag → inline
 	if field.Anonymous {
 		ft := derefType(field.Type)
-		if ft.Kind() == reflect.Struct && !SingleValueTypes.Has(ft) {
+		if ft.Kind() == reflect.Struct && !SingleValueTypes.Has(ft) && !isTimeLike(ft) {
 			return FieldKindInline, tag
 		}
 	}
@@ -250,13 +251,36 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 
 // isTimeLike reports whether the struct type t holds a time the way a
 // time.Time does: it is time.Time, a type defined as time.Time, or a struct
-// whose only field is an embedded time.Time.
+// whose only field is an embedded time.Time and whose text is that time's
+// RFC 3339. A struct that writes its own text, such as a date-only one,
+// stays a text input through its MarshalText and UnmarshalText.
 func isTimeLike(t reflect.Type) bool {
 	timeType := reflect.TypeFor[time.Time]()
 	if t.ConvertibleTo(timeType) {
 		return true
 	}
-	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == timeType
+	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == timeType && textIsRFC3339(t)
+}
+
+// textIsRFC3339 reports whether the zero value of t writes its text as
+// RFC 3339, as a time.Time does and so does a type embedding one without
+// text methods of its own.
+func textIsRFC3339(t reflect.Type) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	m, isMarshaler := reflect.New(t).Interface().(encoding.TextMarshaler)
+	if !isMarshaler {
+		return false
+	}
+	text, err := m.MarshalText()
+	if err != nil {
+		return false
+	}
+	_, err = time.Parse(time.RFC3339Nano, string(text))
+	return err == nil
 }
 
 // derefType returns the element type of a pointer chain, stopping at

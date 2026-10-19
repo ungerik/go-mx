@@ -58,6 +58,44 @@ func TestReflectFormFields_BasicWalk(t *testing.T) {
 	}
 }
 
+type walkMeta struct {
+	Note string
+}
+
+type walkNilSection struct {
+	Name string
+	Meta *walkMeta `form:"nested"`
+	Qty  int
+}
+
+// A nil pointer section is skipped, but the fields after it are walked.
+func TestReflectFormFields_NilSectionKeepsSiblings(t *testing.T) {
+	paths := pathSet(collectVisits(t, &walkNilSection{}))
+	if _, ok := paths["Qty"]; !ok {
+		t.Errorf("the field after a nil section is not walked: %v", paths)
+	}
+	if _, ok := paths["Meta-Note"]; ok {
+		t.Errorf("a nil section's field is walked: %v", paths)
+	}
+}
+
+type walkReadonlySection struct {
+	Name string
+	Meta walkMeta `form:"nested,readonly"`
+}
+
+// form:"readonly" on a section makes its fields readonly, for the walk and
+// for a decider that detects the field again.
+func TestReflectFormFields_ReadonlySection(t *testing.T) {
+	for v := range ReflectFormFields(&walkReadonlySection{}) {
+		_, tag := DetectField(v.Path, v.Field, v.Value)
+		want := v.Path == "Meta-Note"
+		if v.Tag.Readonly != want || tag.Readonly != want {
+			t.Errorf("%s: visit readonly %t, detected readonly %t, want %t", v.Path, v.Tag.Readonly, tag.Readonly, want)
+		}
+	}
+}
+
 func TestReflectFormFields_SectionAttached(t *testing.T) {
 	for v := range ReflectFormFields(&walkOuter{}) {
 		switch v.Path {

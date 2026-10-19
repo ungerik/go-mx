@@ -3,6 +3,7 @@ package mx
 import (
 	"iter"
 	"reflect"
+	"strconv"
 )
 
 // MaxNestingDepth is the maximum recursion depth honored by
@@ -31,6 +32,10 @@ const MaxNestingDepth = 1
 //     recursed into — the guard against turning time.Time into a
 //     five-field section.
 //   - Fields tagged form:"-" or form:"widget=skip" are omitted.
+//   - A nil pointer section is skipped; the fields after it are not.
+//   - form:"readonly" on a section or nested field makes every field in
+//     it readonly: its visits carry the tag in both [FieldVisit.Tag] and
+//     [FieldVisit.Field], so a decider detecting the field again sees it.
 //
 // The optional decider parameter is accepted for forward compatibility
 // (a future API may want to consult the decider during the walk) but
@@ -49,13 +54,15 @@ func ReflectFormFields(target any, decider ...FieldDecider) iter.Seq[FieldVisit]
 		if v.Kind() != reflect.Struct {
 			panic("ReflectFormFields: need struct or pointer to struct, but got: " + reflect.TypeOf(target).String())
 		}
-		walkFormFields(v, "", "", 0, yield)
+		walkFormFields(v, "", "", 0, false, yield)
 	}
 }
 
-// walkFormFields recurses through v yielding leaf field visits. It
-// returns false when yield asks the iteration to stop, propagating up.
-func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int, yield func(FieldVisit) bool) bool {
+// walkFormFields recurses through v yielding leaf field visits. readonly
+// marks every field of a readonly section. It returns false when yield
+// asks the iteration to stop, propagating up.
+func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int, readonly bool, yield func(FieldVisit) bool) bool {
+fields:
 	for _, field := range reflect.VisibleFields(v.Type()) {
 		if !field.IsExported() {
 			continue
@@ -72,6 +79,9 @@ func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int
 			continue
 		}
 		path := prefix.Append(field.Name)
+		if readonly {
+			field.Tag = withReadonlyTag(field.Tag)
+		}
 		kind, tag := DetectField(path, field, fv)
 
 		switch kind {
@@ -85,8 +95,9 @@ func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int
 			sub := fv
 			for sub.Kind() == reflect.Pointer {
 				if sub.IsNil() {
-					// Skip nil pointer-to-struct sections silently.
-					return true
+					// Skip a nil pointer-to-struct section silently, but
+					// not the fields after it.
+					continue fields
 				}
 				sub = sub.Elem()
 			}
@@ -103,7 +114,7 @@ func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int
 					next = field.Name
 				}
 			}
-			if !walkFormFields(sub, path, next, depth+1, yield) {
+			if !walkFormFields(sub, path, next, depth+1, readonly || tag.Readonly, yield) {
 				return false
 			}
 
@@ -126,4 +137,14 @@ func walkFormFields(v reflect.Value, prefix FieldPath, section string, depth int
 		}
 	}
 	return true
+}
+
+// withReadonlyTag returns tag with readonly added to its form tag. The
+// new form key goes first, where [reflect.StructTag.Lookup] finds it.
+func withReadonlyTag(tag reflect.StructTag) reflect.StructTag {
+	value := "readonly"
+	if form, ok := tag.Lookup("form"); ok && form != "" {
+		value = form + ",readonly"
+	}
+	return reflect.StructTag("form:" + strconv.Quote(value) + " " + string(tag))
 }

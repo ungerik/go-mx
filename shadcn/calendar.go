@@ -11,7 +11,8 @@ import (
 
 // Calendar is a Go port of shadcn/ui's Calendar. shadcn wraps react-day-picker;
 // this port generates one month's grid server-side with Go's time package — no
-// client runtime. It renders the month containing `month`, with the day equal
+// client runtime (only the select mode of [CalendarWith] adds a small script).
+// It renders the month containing `month`, with the day equal
 // to `selected` marked (pass the zero time.Time for no selection).
 //
 // Month navigation is a server round-trip: PrevButton/NextButton are plain
@@ -53,6 +54,13 @@ type CalendarOptions struct {
 	// WeekdayName returns the column heading for a weekday. nil uses the
 	// current English two-letter abbreviations ("Su".."Sa").
 	WeekdayName func(time.Weekday) string
+
+	// WeekdayLabel returns the full name of a weekday, the accessible name
+	// (aria-label) of its column heading, so a screen reader moving through
+	// the grid announces "Sunday" rather than the WeekdayName abbreviation.
+	// nil uses time.Weekday.String(), which is always English because Go's
+	// time package has no locale.
+	WeekdayLabel func(time.Weekday) string
 
 	// MonthLabel returns the header text for the displayed month. nil uses
 	// month.Format("January 2006"), which is always English because Go's
@@ -142,13 +150,20 @@ func CalendarText(name string, attribsChildren ...any) *mx.Element {
 
 // CalendarWith is the configurable variant of [Calendar]. A zero-value
 // [CalendarOptions] renders exactly what [Calendar] renders, byte for byte; the
-// options localize the grid (WeekStart, WeekdayName, MonthLabel) and turn it
-// into a booking calendar (Disabled). The Xxx / XxxWith split mirrors
+// options localize the grid (WeekStart, WeekdayName, WeekdayLabel, MonthLabel,
+// DayLabel),
+// turn it into a booking calendar (Disabled, Today, StartMonth/EndMonth) or a
+// form control picked in the browser (Name, see [CalendarOptions].Name). The
+// Xxx / XxxWith split mirrors
 // [ReflectFormHandler] / ReflectFormHandlerWith in the root package.
 func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildren ...any) *mx.Element {
 	weekdayName := opts.WeekdayName
 	if weekdayName == nil {
 		weekdayName = func(wd time.Weekday) string { return defaultWeekdayAbbr[wd] }
+	}
+	weekdayLabel := opts.WeekdayLabel
+	if weekdayLabel == nil {
+		weekdayLabel = time.Weekday.String
 	}
 	monthLabel := opts.MonthLabel
 	if monthLabel == nil {
@@ -214,7 +229,9 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	for col := range 7 {
 		wd := time.Weekday((int(opts.WeekStart) + col) % 7)
 		head.Children = append(head.Children, html.Element("th",
-			html.Class("text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal"), weekdayName(wd)))
+			html.Class("text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal"),
+			html.Attrib("aria-label", weekdayLabel(wd)),
+			weekdayName(wd)))
 	}
 
 	body := html.Element("tbody")

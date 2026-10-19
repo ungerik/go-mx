@@ -74,7 +74,14 @@ type ReflectFormConfig struct {
 // load must return a record the handler may change: it binds the
 // submission into it, including text a field rejected, which stays there for
 // the re-render. Return a deep copy, never a pointer into a cache or store:
-// a field of a pointer type binds through its pointer.
+// a field of a pointer type binds into a new pointee, but the fields of a
+// pointer section, and of a repeatable row's pointer sections, are written
+// in place.
+//
+// When onSubmit returns an error, the form re-renders the record as
+// onSubmit left it. It must not reorder the rows of a repeatable field
+// then: rows are matched to the loaded rows by position, which their
+// readonly and rejected cells are taken from on the next save.
 //
 // load may be nil for submit-only forms (registration, contact, new
 // record) where there is no existing state to load: the handler then
@@ -291,8 +298,8 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 			}
 		}
 		// Required check (type-aware) — relevant for string and
-		// nullable values; the parsers already enforce numeric range
-		// via min/max.
+		// nullable values; the parsers enforce the min/max of numbers
+		// and dates.
 		if visit.Tag.Required && isEffectivelyEmpty(visit.Value) {
 			// Validation results shown to the user carry no callstack.
 			out[visit.Path] = append(out[visit.Path],

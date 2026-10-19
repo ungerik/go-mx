@@ -2,6 +2,7 @@ package mx
 
 import (
 	"context"
+	"errors"
 	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
@@ -438,17 +439,23 @@ func addRow(form url.Values, field FieldPath, index int, cells map[string]string
 
 var (
 	renderedInputRe = regexp.MustCompile(`<input\b([^>]*)>`)
-	renderedAttrRe  = regexp.MustCompile(`\b(name|value)="([^"]*)"`)
+	renderedAttrRe  = regexp.MustCompile(`\b(name|value|type|checked)="([^"]*)"`)
 )
 
 // renderedValues returns what submitting the rendered form unchanged
-// posts: the name and value of every <input> in body.
+// posts: the name and value of every <input> in body, except checkboxes
+// and radios that are not checked.
 func renderedValues(body string) url.Values {
 	values := url.Values{}
 	for _, input := range renderedInputRe.FindAllStringSubmatch(body, -1) {
 		attrs := map[string]string{}
 		for _, a := range renderedAttrRe.FindAllStringSubmatch(input[1], -1) {
 			attrs[a[1]] = stdhtml.UnescapeString(a[2])
+		}
+		if typ := attrs["type"]; typ == "checkbox" || typ == "radio" {
+			if _, checked := attrs["checked"]; !checked {
+				continue
+			}
 		}
 		if name, ok := attrs["name"]; ok {
 			values.Add(name, attrs["value"])
@@ -533,6 +540,156 @@ func TestRepeatable_TamperedOriginsClaimOnce(t *testing.T) {
 	}
 	want := []approvalLine{{"0", "alice"}, {"1", ""}, {"2", ""}, {"3", ""}, {"4", ""}}
 	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type reviewLine struct {
+	Desc       string `form:"required"`
+	ApprovedBy string `form:"readonly"`
+}
+
+type reviewSheet struct {
+	Lines []reviewLine `form:"repeatable"`
+}
+
+// A save rejected after a remove-row click re-renders each row with its
+// origin, so the corrected save keeps the readonly cells on their rows,
+// whether a field, onSubmit's FieldErrors or onSubmit's error rejected it.
+// Rows that onSubmit added or removed before failing claim no loaded row.
+func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
+	stored := []reviewLine{{"a", "alice"}, {"b", "bob"}, {"c", "carol"}}
+	for _, tt := range []struct {
+		name        string
+		blankDesc   bool
+		firstSubmit func(*reviewSheet) error
+		wantMarkers []string
+		want        []reviewLine
+	}{
+		{
+			name:        "required cell blank",
+			blankDesc:   true,
+			wantMarkers: []string{"1", "2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			name:        "onSubmit field errors",
+			firstSubmit: func(*reviewSheet) error { return FieldErrors{"Lines-0-Desc": errors.New("taken")} },
+			wantMarkers: []string{"1", "2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			name:        "onSubmit error",
+			firstSubmit: func(*reviewSheet) error { return errors.New("try again") },
+			wantMarkers: []string{"1", "2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			name: "onSubmit added a row",
+			firstSubmit: func(s *reviewSheet) error {
+				s.Lines = append(s.Lines, reviewLine{Desc: "d"})
+				return errors.New("try again")
+			},
+			wantMarkers: []string{"new", "new", "new"},
+			want:        []reviewLine{{"b", ""}, {"c", ""}, {"d", ""}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			submits := 0
+			var saved *reviewSheet
+			h := ReflectFormHandler(
+				func(context.Context) (*reviewSheet, error) {
+					return &reviewSheet{Lines: append([]reviewLine(nil), stored...)}, nil
+				},
+				func(_ context.Context, s *reviewSheet) error {
+					submits++
+					if submits == 1 && tt.firstSubmit != nil {
+						return tt.firstSubmit(s)
+					}
+					saved = s
+					return nil
+				},
+				newTestDecider(),
+			)
+			get := httptest.NewRecorder()
+			h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+			shown := renderedValues(get.Body.String())
+			shown.Set("__cmd__", DeleteRowCommand("Lines-0"))
+			removed := renderedValues(postForm(t, h, shown).Body.String())
+			removed.Del("__cmd__")
+			if tt.blankDesc {
+				removed.Set("Lines-0-Desc", "")
+			}
+
+			rejected := postForm(t, h, removed)
+			if rejected.Code != http.StatusOK || saved != nil {
+				t.Fatalf("first save: status %d, saved %+v; want a 200 re-render", rejected.Code, saved)
+			}
+			again := renderedValues(rejected.Body.String())
+			for i, want := range tt.wantMarkers {
+				if got := again.Get(RowSentinelName(FieldPath("Lines").Append(strconv.Itoa(i)))); got != want {
+					t.Errorf("row %d origin %q, want %q", i, got, want)
+				}
+			}
+			again.Set("Lines-0-Desc", "b")
+			if rec := postForm(t, h, again); rec.Code != http.StatusSeeOther {
+				t.Fatalf("corrected save: status %d, body %s", rec.Code, rec.Body.String())
+			}
+			if saved == nil || !reflect.DeepEqual(saved.Lines, tt.want) {
+				t.Errorf("saved %+v, want %+v", saved, tt.want)
+			}
+		})
+	}
+}
+
+// A rebuilt row starts as a copy of its origin row: a cell the client did
+// not send keeps its loaded value instead of becoming zero.
+func TestRepeatable_RowCellsStartFromOrigin(t *testing.T) {
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: []approvalLine{{"a", "alice"}}}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{}) // no cells sent
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type lockedSheet struct {
+	Lines []approvalLine `form:"repeatable,readonly"`
+}
+
+// form:"readonly" on the repeatable field renders its rows readonly with no
+// add or remove buttons, and a tampered POST never rebuilds them.
+func TestRepeatable_ReadonlyFieldKeepsRows(t *testing.T) {
+	var saved *lockedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*lockedSheet, error) {
+			return &lockedSheet{Lines: []approvalLine{{"a", "alice"}}}, nil
+		},
+		func(_ context.Context, s *lockedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "__cmd__") {
+		t.Errorf("a readonly repeatable field offers add or remove buttons: %s", body)
+	}
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Desc": "tampered"})
+	addRow(form, "Lines", 1, map[string]string{"Desc": "injected"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Lines, want) {
 		t.Errorf("saved %+v, want %+v", saved, want)
 	}
 }

@@ -245,9 +245,9 @@ it.
 the 42 day buttons' class strings through `finish` → `Cn` → `twmerge` on each
 render.
 
-**Why:** Building one calendar spends about 0.3 ms merging the same few class
-strings (base, muted, faded, today) 42 times; every request that renders a
-month or a date picker pays it.
+**Why:** Building one calendar takes about 0.5 ms, and a pprof run puts about
+85% of it in `Cn` merging the same few class strings (base, muted, faded,
+today) 42 times; every request that renders a month or a date picker pays it.
 
 **Context:** The per-day merge predates the select mode, which made the class
 string longer (focus ring, inert disabled days, `data-[selected=true]`

@@ -689,7 +689,7 @@ type dateStrings struct {
 	DatePtr   *testDate       `form:"widget=date"`
 	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
 	Unmarshal unmarshaledDate `form:"widget=date"`
-	Localized string          `form:"widget=date,placeholder=TT.MM.JJJJ"`
+	Localized string          `form:"widget=date,placeholder=JJJJ-MM-TT"`
 }
 
 // The shadcn renderer prefills a date held as text like the html one: the
@@ -731,10 +731,10 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 			`<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
 			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
-		// A placeholder from the tag, say a translated one, wins over the
-		// format.
+		// A placeholder from the tag, say a translated format, replaces the
+		// format in the placeholder and the hint.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
-			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="TT.MM.JJJJ" aria-describedby="Localized-format" aria-invalid="true" class="`},
+			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true" class="`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -745,7 +745,11 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 			// A text input is followed by the format to enter.
 			hint := `id="` + tt.field + `-format"`
 			if strings.Contains(tt.want, `type="text"`) {
-				if !strings.Contains(out, hint) || !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") {
+				format := "YYYY-MM-DD"
+				if tt.field == "Localized" {
+					format = "JJJJ-MM-TT"
+				}
+				if !strings.Contains(out, hint) || !strings.Contains(out, ">Expected format: "+format+"</p>") {
 					t.Errorf("the text input lacks the format hint: %s", out)
 				}
 			} else if strings.Contains(out, hint) {
@@ -1059,13 +1063,23 @@ func (p *price) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// boxedPrice embeds a pointer to a price; its promoted MarshalText panics on
+// a nil one.
+type boxedPrice struct {
+	*price
+}
+
 // A catch-all value renders as a styled text input in a Field, like a
 // string, with its errors marked, not as the unstyled html fallback.
 func TestShadcn_CatchAllIsStyledText(t *testing.T) {
 	type form struct {
 		Total price
+		Box   boxedPrice
 	}
 	f := &form{Total: price{1250}}
+	if got := inputStartTag(renderShadcn(t, f, "Box", nil)); strings.Contains(got, "value=") {
+		t.Errorf("a panicking MarshalText must render no value: %s", got)
+	}
 	out := renderShadcn(t, f, "Total", nil)
 	if got, want := inputStartTag(out),
 		`<input data-slot="input" type="text" name="Total" id="Total" hx-trigger="change" value="12.50" class="`; got != want {
@@ -1077,6 +1091,21 @@ func TestShadcn_CatchAllIsStyledText(t *testing.T) {
 	errOut := renderShadcn(t, f, "Total", []error{errors.New("bad price")})
 	if !strings.Contains(inputStartTag(errOut), `aria-invalid="true"`) || !strings.Contains(errOut, "bad price") {
 		t.Errorf("errors must mark the input and show: %s", errOut)
+	}
+}
+
+// A readonly nullable field is never written, so it offers no clear control.
+func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
+	type form struct {
+		Locked nullableInt `form:"readonly"`
+		Open   nullableInt
+	}
+	f := &form{Locked: nullableInt{v: 1}, Open: nullableInt{v: 2}}
+	if out := renderShadcn(t, f, "Locked", nil); strings.Contains(out, mx.ClearSentinelName("Locked")) {
+		t.Errorf("a readonly field offers a clear control: %s", out)
+	}
+	if out := renderShadcn(t, f, "Open", nil); !strings.Contains(out, mx.ClearSentinelName("Open")) {
+		t.Errorf("a nullable field lacks its clear control: %s", out)
 	}
 }
 
@@ -1098,8 +1127,16 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 		`<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
 		t.Errorf("Loose renders\n%s\nwant\n%s", got, want)
 	}
-	if got := inputStartTag(renderShadcn(t, f, "Bounded", nil)); !strings.Contains(got, `aria-invalid="true"`) || strings.Contains(got, "min=") {
+	bounded := renderShadcn(t, f, "Bounded", nil)
+	if got := inputStartTag(bounded); !strings.Contains(got, `aria-invalid="true"`) || strings.Contains(got, "min=") {
 		t.Errorf("Bounded renders %s, want an invalid text input without min", got)
+	}
+	// The Field root matches the control, so the label turns destructive too.
+	if !strings.Contains(bounded, `data-invalid="true"`) {
+		t.Errorf("Bounded's Field lacks data-invalid: %s", bounded)
+	}
+	if loose := renderShadcn(t, f, "Loose", nil); strings.Contains(loose, `data-invalid`) {
+		t.Errorf("Loose is not invalid: %s", loose)
 	}
 	// With a min, a value with seconds gets step 1.
 	if got, want := inputStartTag(renderShadcn(t, f, "Seconds", nil)),

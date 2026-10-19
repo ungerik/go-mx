@@ -231,7 +231,7 @@ they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
 POST the submitted value is stored in that same form, through `UnmarshalText`
 when the type has it, and an empty value stores the zero value, which
 `required` rejects. `form:"min=…,max=…"` is checked on the server for every
-date and time field. Whole seconds are the finest step: fractional seconds are
+date and time field, as it is for numbers. Whole seconds are the finest step: fractional seconds are
 not supported, and neither is a `form:"step=…"` under one second. An input cannot show stored text in another spelling
 (`06.07.2026`), an invalid value or a time with a zone, and a blank one would
 clear it on the next save, so such text renders in a text input instead,
@@ -252,9 +252,15 @@ Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
-can map rows to records. A `form:"readonly"` sub-field keeps the value of the
-loaded row it belongs to through add-row and remove-row clicks and the save;
-an added row leaves it zero.
+can map rows to records. A submitted row starts as a copy of the loaded row
+it came from, through add-row and remove-row clicks too: a `form:"readonly"`
+sub-field keeps its loaded value, a rejected cell keeps the stored value, and
+a cell that was not sent stays as loaded; an added row starts at the zero
+value. Rows are matched by position, so if the stored rows can change between
+the GET and the POST, restore server-controlled columns in `onSubmit` by the
+row key, and an `onSubmit` that fails must not reorder the rows.
+`form:"readonly"` on the repeatable field itself, or on a section or nested
+struct, makes everything in it readonly.
 
 Option-driven fields (selects, radio groups, checkbox sets) resolve their
 option lists via `mx.CollectOptions`: `Enums()`/`EnumStrings()` methods, the

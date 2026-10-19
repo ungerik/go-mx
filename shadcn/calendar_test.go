@@ -112,6 +112,24 @@ func TestCalendarGermanLocale(t *testing.T) {
 	}
 }
 
+// Each weekday heading carries the full name as its accessible name: English
+// by default, or WeekdayLabel's.
+func TestCalendarWeekdayLabel(t *testing.T) {
+	month := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	out := render(t, Calendar(month, time.Time{}))
+	if !strings.Contains(out, `aria-label="Sunday">Su</th>`) {
+		t.Errorf("the default heading lacks the full weekday name: %s", out)
+	}
+	de := [7]string{"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"}
+	out = render(t, CalendarWith(CalendarOptions{
+		WeekdayName:  func(wd time.Weekday) string { return de[wd][:2] },
+		WeekdayLabel: func(wd time.Weekday) string { return de[wd] },
+	}, month, time.Time{}))
+	if !strings.Contains(out, `aria-label="Montag">Mo</th>`) || strings.Contains(out, `aria-label="Monday"`) {
+		t.Errorf("WeekdayLabel must name the headings: %s", out)
+	}
+}
+
 // TestCalendarDisabled verifies the booking-calendar predicate: a disabled day
 // is a disabled button with aria-disabled and is never aria-selected even when
 // it equals selected — otherwise an unbookable date could still look chosen.

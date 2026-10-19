@@ -23,14 +23,16 @@ func CalendarDemo() mx.Component {
 // pre-rendered gallery stays deterministic.
 func CalendarBookingDemo() mx.Component {
 	deDays := [7]string{"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"} // indexed by time.Weekday
+	deWeekdays := [7]string{"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"}
 	deMonths := [12]string{"Januar", "Februar", "März", "April", "Mai", "Juni",
 		"Juli", "August", "September", "Oktober", "November", "Dezember"}
 	today := time.Date(2026, time.June, 10, 0, 0, 0, 0, time.UTC)
 	return shadcn.CalendarWith(
 		shadcn.CalendarOptions{
-			WeekStart:   time.Monday,
-			WeekdayName: func(wd time.Weekday) string { return deDays[wd] },
-			MonthLabel:  func(m time.Time) string { return deMonths[m.Month()-1] + m.Format(" 2006") },
+			WeekStart:    time.Monday,
+			WeekdayName:  func(wd time.Weekday) string { return deDays[wd] },
+			WeekdayLabel: func(wd time.Weekday) string { return deWeekdays[wd] },
+			MonthLabel:   func(m time.Time) string { return deMonths[m.Month()-1] + m.Format(" 2006") },
 			DayLabel: func(d time.Time) string {
 				return d.Format("2. ") + deMonths[d.Month()-1] + d.Format(" 2006")
 			},

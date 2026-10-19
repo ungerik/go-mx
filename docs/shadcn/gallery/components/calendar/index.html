@@ -257,13 +257,13 @@
                       <table class="w-full border-collapse">
                         <thead>
                           <tr>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Su</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Mo</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Tu</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">We</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Th</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Fr</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Sa</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Sunday">Su</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Monday">Mo</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Tuesday">Tu</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Wednesday">We</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Thursday">Th</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Friday">Fr</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Saturday">Sa</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -443,13 +443,13 @@
                       <table class="w-full border-collapse" role="grid" aria-label="Juni 2026" onkeydown="calendarKey(event)">
                         <thead>
                           <tr>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Mo</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Di</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Mi</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Do</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Fr</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">Sa</th>
-                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal">So</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Montag">Mo</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Dienstag">Di</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Mittwoch">Mi</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Donnerstag">Do</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Freitag">Fr</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Samstag">Sa</th>
+                            <th class="text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal" aria-label="Sonntag">So</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -599,14 +599,16 @@
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-calendar-german-booking-panel-code" aria-labelledby="tab-calendar-german-booking-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>deDays := [<span class="hl-number">7</span>]<span class="hl-type">string</span>{<span class="hl-string">&quot;So&quot;</span>, <span class="hl-string">&quot;Mo&quot;</span>, <span class="hl-string">&quot;Di&quot;</span>, <span class="hl-string">&quot;Mi&quot;</span>, <span class="hl-string">&quot;Do&quot;</span>, <span class="hl-string">&quot;Fr&quot;</span>, <span class="hl-string">&quot;Sa&quot;</span>} <span class="hl-comment">// indexed by time.Weekday</span>
+deWeekdays := [<span class="hl-number">7</span>]<span class="hl-type">string</span>{<span class="hl-string">&quot;Sonntag&quot;</span>, <span class="hl-string">&quot;Montag&quot;</span>, <span class="hl-string">&quot;Dienstag&quot;</span>, <span class="hl-string">&quot;Mittwoch&quot;</span>, <span class="hl-string">&quot;Donnerstag&quot;</span>, <span class="hl-string">&quot;Freitag&quot;</span>, <span class="hl-string">&quot;Samstag&quot;</span>}
 deMonths := [<span class="hl-number">12</span>]<span class="hl-type">string</span>{<span class="hl-string">&quot;Januar&quot;</span>, <span class="hl-string">&quot;Februar&quot;</span>, <span class="hl-string">&quot;März&quot;</span>, <span class="hl-string">&quot;April&quot;</span>, <span class="hl-string">&quot;Mai&quot;</span>, <span class="hl-string">&quot;Juni&quot;</span>,
 	<span class="hl-string">&quot;Juli&quot;</span>, <span class="hl-string">&quot;August&quot;</span>, <span class="hl-string">&quot;September&quot;</span>, <span class="hl-string">&quot;Oktober&quot;</span>, <span class="hl-string">&quot;November&quot;</span>, <span class="hl-string">&quot;Dezember&quot;</span>}
 today := time.<span class="hl-function">Date</span>(<span class="hl-number">2026</span>, time.June, <span class="hl-number">10</span>, <span class="hl-number">0</span>, <span class="hl-number">0</span>, <span class="hl-number">0</span>, <span class="hl-number">0</span>, time.UTC)
 <span class="hl-keyword">return</span> shadcn.<span class="hl-function">CalendarWith</span>(
 	shadcn.CalendarOptions{
-		WeekStart:   time.Monday,
-		WeekdayName: <span class="hl-keyword">func</span>(wd time.Weekday) <span class="hl-type">string</span> { <span class="hl-keyword">return</span> deDays[wd] },
-		MonthLabel:  <span class="hl-keyword">func</span>(m time.Time) <span class="hl-type">string</span> { <span class="hl-keyword">return</span> deMonths[m.<span class="hl-function">Month</span>()-<span class="hl-number">1</span>] + m.<span class="hl-function">Format</span>(<span class="hl-string">&quot; 2006&quot;</span>) },
+		WeekStart:    time.Monday,
+		WeekdayName:  <span class="hl-keyword">func</span>(wd time.Weekday) <span class="hl-type">string</span> { <span class="hl-keyword">return</span> deDays[wd] },
+		WeekdayLabel: <span class="hl-keyword">func</span>(wd time.Weekday) <span class="hl-type">string</span> { <span class="hl-keyword">return</span> deWeekdays[wd] },
+		MonthLabel:   <span class="hl-keyword">func</span>(m time.Time) <span class="hl-type">string</span> { <span class="hl-keyword">return</span> deMonths[m.<span class="hl-function">Month</span>()-<span class="hl-number">1</span>] + m.<span class="hl-function">Format</span>(<span class="hl-string">&quot; 2006&quot;</span>) },
 		DayLabel: <span class="hl-keyword">func</span>(d time.Time) <span class="hl-type">string</span> {
 			<span class="hl-keyword">return</span> d.<span class="hl-function">Format</span>(<span class="hl-string">&quot;2. &quot;</span>) + deMonths[d.<span class="hl-function">Month</span>()-<span class="hl-number">1</span>] + d.<span class="hl-function">Format</span>(<span class="hl-string">&quot; 2006&quot;</span>)
 		},
