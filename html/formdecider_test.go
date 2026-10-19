@@ -3222,6 +3222,30 @@ func TestFieldDecider_FormatHintAfterError(t *testing.T) {
 	}
 }
 
+// A time shown as text round-trips: it is written as RFC 3339, the text
+// its parser reads back, zone and fraction included.
+func TestReflectFormHandler_TextTimeRoundTrip(t *testing.T) {
+	type record struct {
+		At time.Time `form:"widget=text"`
+	}
+	stamp := time.Date(2026, 7, 6, 9, 5, 7, 123456789, time.FixedZone("CEST", 2*60*60))
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{At: stamp}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(submittedValues(rec.Body.String()).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || !saved.At.Equal(stamp) {
+		t.Errorf("unchanged POST: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
 // opaqueDate reads any text but cannot write it back.
 type opaqueDate struct {
 	text string

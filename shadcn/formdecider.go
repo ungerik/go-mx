@@ -536,8 +536,14 @@ func displayValue(v reflect.Value) (text string) {
 	if x.Kind() == reflect.Array && x.IsZero() {
 		return ""
 	}
-	if t, ok := x.Interface().(time.Time); ok {
-		return t.Format("2006-01-02T15:04:05")
+	// A time, also of a type defined as one, is written as RFC 3339, the
+	// text its parser reads back, zone and fraction included.
+	if x.Kind() == reflect.Struct && x.Type().ConvertibleTo(reflect.TypeFor[time.Time]()) {
+		t := x.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time)
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format(time.RFC3339Nano)
 	}
 	if x.CanInterface() {
 		if tm, ok := x.Interface().(encoding.TextMarshaler); ok {

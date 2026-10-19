@@ -57,7 +57,7 @@ func (s DateTimeInputSpec) TextFallback() bool {
 // type that wraps time.Time: a type defined as time.Time, or one whose
 // MarshalText is RFC 3339, such as a struct embedding time.Time. A
 // form:"sensitive" field never shows its value, like a sensitive text
-// input, so an unchanged save clears it.
+// input; a blank submission keeps the stored value.
 //
 // A string-kind value holds the date or time as text. That covers string,
 // *string and named types with an underlying string, such as a date type.

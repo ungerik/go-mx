@@ -377,7 +377,7 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 		}
 		return
 	}
-	if beh.Parse != nil {
+	if beh.Parse != nil && !keepsStored(cv.Tag, cv.Kind, form, srcCell) {
 		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
 			out[dstCell] = append(out[dstCell], err)
 			return

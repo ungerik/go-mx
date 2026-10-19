@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"slices"
@@ -24,6 +26,20 @@ var DefaultMaxMemory int64 = 4 << 20
 // button. Reassign to change globally; the renderer layer (html / hx /
 // shadcn) may also render its own button instead of relying on this.
 var FormSubmitLabel = "Save"
+
+// FormErrorMessage is the form-level message shown when onSubmit returns
+// an error that is neither [FieldErrors] nor [FormMessage]: such an error
+// may carry internal details and a call stack, so its text is shown only
+// when [RevealInternalServerErrors] is set. Reassign to change it globally.
+var FormErrorMessage = "The form could not be saved."
+
+// FormMessage is an error whose text is meant for the user. When onSubmit
+// returns one, also wrapped, the form shows its text as the form-level
+// message.
+type FormMessage string
+
+// Error returns the message.
+func (m FormMessage) Error() string { return string(m) }
 
 // ReflectFormConfig customizes a single [ReflectFormHandlerWith]
 // invocation. Zero-valued fields fall back to their package-level
@@ -66,8 +82,10 @@ type ReflectFormConfig struct {
 // with inline errors or calls onSubmit. If onSubmit returns a
 // [FieldErrors] the form re-renders with each entry routed to the
 // matching field. On any other error the form re-renders with a
-// form-level message. On success the handler responds with
-// 303 See Other to cfg.Redirect or r.URL.Path when nil.
+// form-level message: a [FormMessage]'s text, or [FormErrorMessage]. On
+// success the handler responds with 303 See Other to cfg.Redirect or
+// r.URL.Path when nil. A body that cannot be parsed is answered with 400
+// (413 when it is too large), never treated as a submission of nothing.
 //
 // load must return a record the handler may change: it binds the
 // submission into it, including text a field rejected, which stays there for
@@ -189,12 +207,22 @@ func ReflectFormHandlerRedirecting[T any](
 			render(w, r, target, nil, "", nil)
 
 		case http.MethodPost:
-			if err := r.ParseMultipartForm(maxMem); err != nil {
-				// Fallback for non-multipart submissions.
-				if err2 := r.ParseForm(); err2 != nil {
-					http.Error(w, "could not parse form", http.StatusBadRequest)
-					return
+			// A body that fails to parse, such as one past the multipart
+			// part limit, must not read as a submission of nothing: onSubmit
+			// would save the unchanged record and drop the user's edits.
+			mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+			parseErr := r.ParseForm()
+			if mediaType == "multipart/form-data" {
+				parseErr = r.ParseMultipartForm(maxMem)
+			}
+			if parseErr != nil {
+				status := http.StatusBadRequest
+				var tooLarge *http.MaxBytesError
+				if errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) {
+					status = http.StatusRequestEntityTooLarge
 				}
+				http.Error(w, "could not parse form", status)
+				return
 			}
 			target, err := load(r.Context())
 			if err != nil {
@@ -230,7 +258,7 @@ func ReflectFormHandlerRedirecting[T any](
 					render(w, r, target, perField, "", origins)
 					return
 				}
-				render(w, r, target, nil, err.Error(), origins)
+				render(w, r, target, nil, formErrorText(err), origins)
 				return
 			}
 			// onSubmit's returned URL wins; an empty string falls back to
@@ -297,7 +325,7 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 			}
 			continue
 		}
-		if beh.Parse != nil {
+		if beh.Parse != nil && !keepsStored(visit.Tag, visit.Kind, form, visit.Path) {
 			if err := beh.Parse(visit.Path, visit.Field, visit.Value, r); err != nil {
 				out[visit.Path] = append(out[visit.Path], err)
 				continue
@@ -342,6 +370,35 @@ func validateBound(kind FieldKind, value reflect.Value) []error {
 		chainErrs = validateSetElements(value)
 	}
 	return chainErrs
+}
+
+// keepsStored reports whether a submission leaves a field's stored value
+// alone: a form:"sensitive" field never shows its value, so leaving it
+// blank means "unchanged", as with a password field (a nullable one is
+// cleared with its clear control). A checkbox, checkbox set, hidden or file
+// field has no such blank.
+func keepsStored(tag FormTag, kind FieldKind, form map[string][]string, path FieldPath) bool {
+	if !tag.Sensitive {
+		return false
+	}
+	switch kind {
+	case FieldKindBool, FieldKindEnumSet, FieldKindHidden, FieldKindFile:
+		return false
+	}
+	return !anyNonEmpty(form[string(path)])
+}
+
+// formErrorText is the form-level message for an error onSubmit returned
+// that is no [FieldErrors]: a [FormMessage]'s text, else [FormErrorMessage]
+// unless [RevealInternalServerErrors] is set.
+func formErrorText(err error) string {
+	if m, ok := errors.AsType[FormMessage](err); ok {
+		return string(m)
+	}
+	if RevealInternalServerErrors {
+		return err.Error()
+	}
+	return FormErrorMessage
 }
 
 // isBlank reports whether a bound value counts as no value for a required
@@ -496,6 +553,15 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	)
 	if formMsg != "" {
 		root = append(root, formMessageComponent(formMsg))
+	}
+	// A hidden field shows no error of its own, so its errors become
+	// form-level messages instead of failing the save silently.
+	for visit := range ReflectFormFields(target) {
+		if visit.Kind == FieldKindHidden {
+			for _, err := range fieldErrs[visit.Path] {
+				root = append(root, formMessageComponent(err.Error()))
+			}
+		}
 	}
 	for visit := range ReflectFormFields(target) {
 		var wrapped Component

@@ -1102,6 +1102,22 @@ func TestShadcn_ReadonlyFileDisabled(t *testing.T) {
 	}
 }
 
+// A time shown as text is written as RFC 3339, which its parser reads,
+// also for a type defined as time.Time that has no text methods of its own.
+func TestShadcn_TextTimeIsRFC3339(t *testing.T) {
+	type stamp time.Time
+	type form struct {
+		At    time.Time `form:"widget=text"`
+		Stamp stamp     `form:"widget=text,readonly"`
+	}
+	at := time.Date(2026, 7, 6, 9, 5, 7, 0, time.FixedZone("CEST", 2*60*60))
+	for _, name := range []string{"At", "Stamp"} {
+		if got := inputStartTag(renderShadcn(t, &form{At: at, Stamp: stamp(at)}, name, nil)); !strings.Contains(got, `value="2026-07-06T09:05:07+02:00"`) {
+			t.Errorf("%s renders %s", name, got)
+		}
+	}
+}
+
 // A sensitive number never shows its value.
 func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
 	type form struct {

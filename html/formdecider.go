@@ -117,36 +117,14 @@ func renderInput(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	return nil
 }
 
+// renderHidden writes the value as displayValue does; a hidden time, such
+// as an UpdatedAt kept for optimistic locking, round-trips as RFC 3339.
 func renderHidden(path mx.FieldPath, value reflect.Value) mx.Component {
-	val := displayValue(value, mx.FormTag{})
-	// A hidden time, such as an UpdatedAt kept for optimistic locking,
-	// round-trips as RFC 3339 with its zone and fraction.
-	if t, ok := hiddenTime(value); ok {
-		val = ""
-		if !t.IsZero() {
-			val = t.Format(time.RFC3339Nano)
-		}
-	}
 	return VoidElement("input",
 		Type("hidden"),
 		Name(string(path)),
-		Value(val),
+		Value(displayValue(value, mx.FormTag{})),
 	)
-}
-
-// hiddenTime returns the time a hidden field holds when its value, through
-// any pointers, is a time.Time or of a type defined as it.
-func hiddenTime(value reflect.Value) (time.Time, bool) {
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return time.Time{}, false
-		}
-		value = value.Elem()
-	}
-	if !isTimeType(value.Type()) {
-		return time.Time{}, false
-	}
-	return value.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time), true
 }
 
 // isTimeType reports whether t is time.Time or a type defined as it.
@@ -450,8 +428,9 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	case mx.FieldKindHidden, mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindCatchAll:
 		raw := form.Get(string(path))
 		if kind == mx.FieldKindHidden && isTimeType(derefType(value.Type())) {
-			// renderHidden writes a time as RFC 3339, whatever the field's
-			// widget or range, and setTime reads that without them.
+			// A hidden time is written as RFC 3339, whatever the field's
+			// widget or range, and setTime reads that without them, also
+			// for a type defined as time.Time, which has no UnmarshalText.
 			return setTime(value, raw, mx.FormTag{Sensitive: tag.Sensitive})
 		}
 		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
@@ -1249,8 +1228,14 @@ func displayValue(value reflect.Value, tag mx.FormTag) (text string) {
 	if v.Kind() == reflect.Array && v.IsZero() {
 		return ""
 	}
-	if t, ok := v.Interface().(time.Time); ok {
-		return t.Format("2006-01-02T15:04:05")
+	// A time, also of a type defined as one, is written as RFC 3339, the
+	// text its parser reads back, zone and fraction included.
+	if isTimeType(v.Type()) {
+		t := v.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time)
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format(time.RFC3339Nano)
 	}
 	if v.CanInterface() {
 		if tm, ok := v.Interface().(encoding.TextMarshaler); ok {

@@ -210,7 +210,10 @@ func main() {
 
 The handler renders the `<form>` on GET and, on POST, parses **only the fields it
 rendered** (an allowlist against mass-assignment), validates, and either
-re-renders with inline errors or 303-redirects on success.
+re-renders with inline errors or 303-redirects on success. Return
+`mx.FormMessage("…")` from `onSubmit` for a message shown above the form; any
+other error shows the generic `mx.FormErrorMessage`, so internal details stay
+out of the page.
 
 **Editing an existing record:** pass a non-nil `load` that returns the current
 `*T`; the form is seeded with its values.

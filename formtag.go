@@ -51,7 +51,8 @@ type FormTag struct {
 	Required bool
 
 	// Sensitive suppresses value round-tripping (passwords, secrets):
-	// the input never echoes its value on re-render.
+	// the input never echoes its value on re-render, and a blank
+	// submission keeps the stored value, as with a password field.
 	Sensitive bool
 
 	// Nested asks the walker to recurse into a named struct field

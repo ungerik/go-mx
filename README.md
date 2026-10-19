@@ -216,6 +216,14 @@ Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
 `(redirect string, err error)`; the returned URL wins, and an empty
 string falls back to `cfg.Redirect` then the request path.
 
+When `onSubmit` fails, the form re-renders with the submitted values. A
+`mx.FieldErrors` puts each message under its field; a `mx.FormMessage` (also
+wrapped) is shown above the form as its text. Any other error is internal: the
+form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
+its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
+parsed is answered with 400 (413 past a size limit) and never reaches
+`onSubmit`.
+
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
 `*string`, or a named string type such as a date type. A date struct with
@@ -246,7 +254,8 @@ named string type whose `Format` writes the input's layout and whose
 `UnmarshalText` stores its own spelling keeps such a column editable. A date
 struct reads its own text back, so text of its own that the picker cannot show
 renders in a text input that saves unchanged. A `form:"sensitive"` date never
-shows its value, like a sensitive text input. A registered single-value struct
+shows its value, like a sensitive text input; as with a password field, a
+sensitive field left blank keeps its stored value. A registered single-value struct
 that holds no time, such as a money type, is a plain text input through its
 `MarshalText`/`UnmarshalText`.
 

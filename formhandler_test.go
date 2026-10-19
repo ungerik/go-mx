@@ -731,7 +731,7 @@ func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
 	t.Run("form-level error", func(t *testing.T) {
 		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
 			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
-				return "", errors.New("boom")
+				return "", errors.New("pq: connection refused to 10.0.0.5")
 			}, newTestDecider())
 		rec := postRedirecting(t, h, "/", form)
 		if rec.Code != http.StatusOK {
@@ -740,8 +740,32 @@ func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
 		if loc := rec.Header().Get("Location"); loc != "" {
 			t.Errorf("errored submit must not redirect, got Location=%q", loc)
 		}
-		if !strings.Contains(rec.Body.String(), "boom") {
-			t.Errorf("form-level error should render: %s", rec.Body.String())
+		// An internal error's details never reach the page.
+		body := rec.Body.String()
+		if !strings.Contains(body, FormErrorMessage) || strings.Contains(body, "10.0.0.5") {
+			t.Errorf("a plain error must show only the generic message: %s", body)
+		}
+	})
+
+	t.Run("FormMessage is shown", func(t *testing.T) {
+		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
+			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
+				return "", fmt.Errorf("saving: %w", FormMessage("the plan is full"))
+			}, newTestDecider())
+		if body := postRedirecting(t, h, "/", form).Body.String(); !strings.Contains(body, ">the plan is full<") {
+			t.Errorf("a FormMessage must render: %s", body)
+		}
+	})
+
+	t.Run("RevealInternalServerErrors shows the error", func(t *testing.T) {
+		RevealInternalServerErrors = true
+		t.Cleanup(func() { RevealInternalServerErrors = false })
+		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
+			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
+				return "", errors.New("boom")
+			}, newTestDecider())
+		if body := postRedirecting(t, h, "/", form).Body.String(); !strings.Contains(body, "boom") {
+			t.Errorf("a revealed error must render: %s", body)
 		}
 	})
 
@@ -882,6 +906,98 @@ func TestRepeatable_RowEnumValidation(t *testing.T) {
 	addRow(form, "Lines", 0, map[string]string{"Color": ""})
 	if rec := postForm(t, handler, form); rec.Code != http.StatusSeeOther || saved == nil {
 		t.Fatalf("a blank optional enum in a row: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A body that cannot be parsed is answered with an error, never treated as
+// a submission of nothing that saves the unchanged record.
+func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
+	saved := false
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{Name: "stored"}, nil },
+		func(context.Context, *sampleStruct) error { saved = true; return nil },
+		newTestDecider(),
+	)
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("--x\r\nContent-Disposition: form-data; name=\"Name\"\r\n\r\ncut"))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=x")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest || saved {
+		t.Errorf("a truncated multipart body: status %d, saved %t", rec.Code, saved)
+	}
+
+	// A body past the server's size limit answers 413.
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader("Name="+strings.Repeat("x", 100)))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	req.Body = http.MaxBytesReader(rec, req.Body, 10)
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge || saved {
+		t.Errorf("an oversized body: status %d, saved %t", rec.Code, saved)
+	}
+}
+
+type sensitiveLine struct {
+	Token string `form:"sensitive"`
+}
+
+type sensitiveRecord struct {
+	Password string          `form:"sensitive"`
+	PIN      int             `form:"sensitive"`
+	Lines    []sensitiveLine `form:"repeatable"`
+}
+
+// A sensitive field never shows its value, so a blank submission keeps
+// the stored value, at the top level and in a row, while a new value
+// replaces it.
+func TestReflectFormHandler_SensitiveBlankKeepsStored(t *testing.T) {
+	var saved *sensitiveRecord
+	h := ReflectFormHandler(
+		func(context.Context) (*sensitiveRecord, error) {
+			return &sensitiveRecord{Password: "secret", PIN: 1234, Lines: []sensitiveLine{{"tok"}}}, nil
+		},
+		func(_ context.Context, r *sensitiveRecord) error { saved = r; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	for _, f := range []string{"Password", "PIN"} {
+		form.Set(PresentSentinelName(FieldPath(f)), "1")
+		form.Set(f, "")
+	}
+	addRow(form, "Lines", 0, map[string]string{"Token": ""})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if saved.Password != "secret" || saved.PIN != 1234 || saved.Lines[0].Token != "tok" {
+		t.Errorf("blank sensitive fields must keep the stored values: %+v", saved)
+	}
+	form.Set("Password", "new")
+	form.Set("PIN", "42")
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Password != "new" || saved.PIN != 42 {
+		t.Errorf("a new value must replace the stored one: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A hidden field shows no error of its own, so its error becomes a
+// form-level message instead of failing the save silently.
+func TestReflectFormHandler_HiddenFieldErrorShown(t *testing.T) {
+	type record struct {
+		Name string
+		ID   int `form:"hidden"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{ID: 7}, nil },
+		func(context.Context, *record) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	form.Set(PresentSentinelName("ID"), "1")
+	form.Set("ID", "x")
+	rec := postForm(t, h, form)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">`) {
+		t.Errorf("status %d, body %s; want the hidden field's error as a form-level message", rec.Code, rec.Body.String())
 	}
 }
 

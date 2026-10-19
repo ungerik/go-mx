@@ -290,6 +290,24 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 
 ## mx reflected forms
 
+### A readonly file field shows "No file chosen"
+
+**What:** Show a readonly file field's stored value, such as its filename,
+instead of only a disabled file picker.
+
+**Why:** A readonly file input renders disabled, and the browser labels it
+"No file chosen" even when a file is stored, so the field tells the user
+there is no file.
+
+**Context:** `fileInput` in `html/formdecider.go` and `fileAttribs` in
+`shadcn/formdecider.go`. A string field holds a filename to show; a `[]byte`
+field has none, so it would need a caption, which needs localizable text
+(shadcn `Labels`).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### A readonly repeatable field with no rows renders an empty box
 
 **What:** Render a short "none" line inside the fieldset of a
