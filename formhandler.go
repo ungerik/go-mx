@@ -162,13 +162,13 @@ func ReflectFormHandlerRedirecting[T any](
 		return DeciderFromContext(r.Context())
 	}
 
-	render := func(w http.ResponseWriter, r *http.Request, target *T, fieldErrs map[FieldPath][]error, formMsg string) {
+	render := func(w http.ResponseWriter, r *http.Request, target *T, fieldErrs map[FieldPath][]error, formMsg string, origins rowOrigins) {
 		d := pickDecider(r)
 		action := selfSubmitAction(r)
 		if cfg.Action != nil {
 			action = cfg.Action(r)
 		}
-		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action)
+		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action, origins)
 		writeFormResponse(w, r, comp)
 	}
 
@@ -180,7 +180,7 @@ func ReflectFormHandlerRedirecting[T any](
 				respondLoadError(w, err)
 				return
 			}
-			render(w, r, target, nil, "")
+			render(w, r, target, nil, "", nil)
 
 		case http.MethodPost:
 			if err := r.ParseMultipartForm(maxMem); err != nil {
@@ -196,6 +196,7 @@ func ReflectFormHandlerRedirecting[T any](
 				return
 			}
 			d := pickDecider(r)
+			origins := rowOrigins{}
 			// Repeatable add/remove buttons submit a __cmd__ value with
 			// formnovalidate: bind whatever the user entered, apply the
 			// row mutation, and re-render without running onSubmit. Only
@@ -203,14 +204,14 @@ func ReflectFormHandlerRedirecting[T any](
 			// path; an unknown/injected __cmd__ falls through to a normal
 			// submit rather than silently discarding the save.
 			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, cmd) {
-				parseAndValidate(target, d, r)
-				applyRepeatableCommand(target, cmd, requestFormValues(r))
-				render(w, r, target, nil, "")
+				parseAndValidate(target, d, r, origins)
+				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
+				render(w, r, target, nil, "", origins)
 				return
 			}
-			fieldErrs := parseAndValidate(target, d, r)
+			fieldErrs := parseAndValidate(target, d, r, origins)
 			if len(fieldErrs) > 0 {
-				render(w, r, target, fieldErrs, "")
+				render(w, r, target, fieldErrs, "", origins)
 				return
 			}
 			redirect, err := onSubmit(r.Context(), target)
@@ -220,10 +221,10 @@ func ReflectFormHandlerRedirecting[T any](
 					for p, e := range fe {
 						perField[p] = []error{e}
 					}
-					render(w, r, target, perField, "")
+					render(w, r, target, perField, "", origins)
 					return
 				}
-				render(w, r, target, nil, err.Error())
+				render(w, r, target, nil, err.Error(), origins)
 				return
 			}
 			// onSubmit's returned URL wins; an empty string falls back to
@@ -249,13 +250,14 @@ func ReflectFormHandlerRedirecting[T any](
 // onto it (only for fields whose __present sentinel is set), and runs
 // each per-field [FieldBehavior.Validate]. Returns a map of paths to
 // the errors that prevented save; an empty map means the form is
-// ready for onSubmit.
-func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[FieldPath][]error {
+// ready for onSubmit. The origins of the rebuilt repeatable rows are
+// recorded in origins.
+func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins rowOrigins) map[FieldPath][]error {
 	out := map[FieldPath][]error{}
 	form := requestFormValues(r)
 	for visit := range ReflectFormFields(target) {
 		if visit.Kind == FieldKindRepeatable {
-			parseRepeatable(visit, d, r, out)
+			parseRepeatable(visit, d, r, out, origins)
 			continue
 		}
 		beh := d(visit.Path, visit.Field, visit.Value)
@@ -270,15 +272,16 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[Fie
 		if !sentinelSet(form, PresentSentinelName(visit.Path)) {
 			continue
 		}
+		// Readonly: render-only; never write a submitted value, not even
+		// the null a __clear sentinel asks for.
+		if visit.Tag.Readonly {
+			continue
+		}
 		// __clear: explicit null intent for nullable fields.
 		if sentinelSet(form, ClearSentinelName(visit.Path)) {
 			if err := setFieldNull(visit.Value); err != nil {
 				out[visit.Path] = append(out[visit.Path], err)
 			}
-			continue
-		}
-		// Readonly: render-only; never write a submitted value.
-		if visit.Tag.Readonly {
 			continue
 		}
 		if beh.Parse != nil {
@@ -455,7 +458,7 @@ func selfSubmitAction(r *http.Request) string {
 // submit button is appended so the form is usable out of the box;
 // renderers can layer their own buttons on top by returning extra
 // children.
-func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string) Component {
+func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
@@ -474,7 +477,7 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 			// The repeatable field owns its own row markup, __present
 			// sentinels and add/remove buttons; the core handler only
 			// places it into the right section.
-			wrapped = renderRepeatable(visit, d, fieldErrs)
+			wrapped = renderRepeatable(visit, d, fieldErrs, origins)
 		} else {
 			beh := d(visit.Path, visit.Field, visit.Value)
 			if beh.Render == nil {

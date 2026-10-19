@@ -42,7 +42,8 @@ type FormTag struct {
 	Options string
 
 	// Min, Max, Step are numeric / range constraints. Empty when
-	// absent.
+	// absent. On a date or time field the finest step is one second:
+	// fractional seconds are not supported.
 	Min, Max, Step string
 
 	// Required forces the value to be non-empty / not-null at submit

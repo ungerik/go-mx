@@ -2,6 +2,7 @@ package html
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -2387,11 +2388,81 @@ func TestReflectFormHandler_TimeStructRoundTrip(t *testing.T) {
 	}
 }
 
-// nullTime embeds a time next to its own validity flag, with no
-// UnmarshalText of its own.
+// nullTime embeds a time next to its own validity flag and reports itself
+// null without it, but has no UnmarshalText of its own: the promoted one
+// sets only the time.
 type nullTime struct {
 	time.Time
 	Valid bool
+}
+
+func (n nullTime) IsNull() bool { return !n.Valid }
+
+// sqlNullTime is a nullable time like null.Time: it embeds sql.NullTime
+// and its own RFC 3339 text methods set the validity flag too.
+type sqlNullTime struct {
+	sql.NullTime
+}
+
+func (n sqlNullTime) MarshalText() ([]byte, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Time.MarshalText()
+}
+
+func (n *sqlNullTime) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*n = sqlNullTime{}
+		return nil
+	}
+	if err := n.Time.UnmarshalText(text); err != nil {
+		return err
+	}
+	n.Valid = true
+	return nil
+}
+
+// A nullable time with its own RFC 3339 text methods round-trips through a
+// date input, at the top level and in a repeatable row after an add-row
+// click, where it is bound into a fresh struct.
+func TestReflectFormHandler_NullableTimeRoundTrip(t *testing.T) {
+	type line struct {
+		Due sqlNullTime `form:"widget=date"`
+	}
+	type order struct {
+		Due   sqlNullTime `form:"widget=date"`
+		Lines []line      `form:"repeatable"`
+	}
+	july := sqlNullTime{sql.NullTime{Time: time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC), Valid: true}}
+	var saved *order
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*order, error) { return &order{Due: july, Lines: []line{{Due: july}}}, nil },
+		func(_ context.Context, r *order) error { saved = r; return nil },
+		FieldDecider,
+	)
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/order", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/order", nil))
+	shown := submittedValues(rec.Body.String())
+	if shown.Get("Due") != "2026-07-06" || shown.Get("Lines-0-Due") != "2026-07-06" {
+		t.Fatalf("GET shows %q and %q, want 2026-07-06", shown.Get("Due"), shown.Get("Lines-0-Due"))
+	}
+	shown.Set("__cmd__", mx.AddRowCommand("Lines"))
+	added := submittedValues(post(shown).Body.String())
+	added.Del("__cmd__")
+	if rec = post(added); rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged Save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if saved == nil || !saved.Due.Valid || !saved.Due.Time.Equal(july.Time) || len(saved.Lines) != 2 || !saved.Lines[0].Due.Valid || !saved.Lines[0].Due.Time.Equal(july.Time) {
+		t.Errorf("saved %+v, want the date kept and valid", saved)
+	}
 }
 
 // ptrWrappedTime embeds a pointer to a time; its promoted methods panic on
@@ -2880,6 +2951,33 @@ func (m *money) UnmarshalText(text []byte) error {
 	}
 	*m = money{units*100 + cents, currency}
 	return nil
+}
+
+// boxedMoney embeds a pointer to money; its promoted UnmarshalText panics
+// on a nil one once the text parses.
+type boxedMoney struct {
+	*money
+}
+
+// The text and number binders guard the type's own methods: a panic is a
+// field error instead of a failed request, and a sensitive field's error
+// does not quote the posted value, as UnmarshalText and strconv errors do.
+func TestFieldDecider_ScalarBindGuards(t *testing.T) {
+	type form struct {
+		Box   boxedMoney
+		Count int   `form:"sensitive"`
+		Total money `form:"sensitive"`
+	}
+	f := &form{}
+	for _, b := range []struct{ field, raw, wantErr string }{
+		{"Box", "1.00 EUR", `"1.00 EUR" cannot be stored as html.boxedMoney`},
+		{"Count", "secret", "not a valid value"},
+		{"Total", "secret", "not a valid value"},
+	} {
+		if err := parseFieldValue(t, f, b.field, b.raw); fmt.Sprint(err) != b.wantErr {
+			t.Errorf("bind %s %q: error %v, want %s", b.field, b.raw, err, b.wantErr)
+		}
+	}
 }
 
 func TestReflectFormHandler_RegisteredMoneyIsText(t *testing.T) {

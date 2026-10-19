@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -398,10 +399,10 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	switch kind {
 	case mx.FieldKindHidden, mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindCatchAll:
 		raw := form.Get(string(path))
-		return setScalar(value, raw)
+		return guardScalar(value, raw, tag, setScalar)
 	case mx.FieldKindNumber:
 		raw := form.Get(string(path))
-		return setNumeric(value, raw)
+		return guardScalar(value, raw, tag, setNumeric)
 	case mx.FieldKindBool:
 		raw := form.Get(string(path))
 		return setBool(value, raw)
@@ -511,6 +512,24 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 		}
 	}
 	return nil
+}
+
+// guardScalar binds raw into value with set, which may call the type's own
+// UnmarshalText. A method that panics, as the promoted method of a nil
+// embedded pointer does, is an error instead of a failed request. A
+// form:"sensitive" field's error leaves raw out, which an UnmarshalText or
+// strconv error would quote. (Date and time fields guard themselves, with
+// errors that name the format.)
+func guardScalar(value reflect.Value, raw string, tag mx.FormTag, set func(reflect.Value, string) error) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
+		}
+		if err != nil && tag.Sensitive {
+			err = errors.New("not a valid value")
+		}
+	}()
+	return set(value, raw)
 }
 
 // setScalar writes raw into a string-shaped or TextUnmarshaler
@@ -718,9 +737,11 @@ func checkOwnTextRange(value reflect.Value, raw string, tag mx.FormTag) error {
 //  2. t, the time raw was parsed into (parseErr nil), in the input type's
 //     layout with seconds, which a time-of-day type may need where the
 //     input left zero seconds out;
-//  3. t in RFC 3339, the only text an embedded time.Time reads, but only
-//     when that time (or a pointer to it) is the type's only field, so a
-//     type holding more state, such as a validity flag, is never half set.
+//  3. t in RFC 3339, the only text an embedded time.Time reads and the
+//     text of a nullable time such as null.Time. The promoted UnmarshalText
+//     of an embedded time.Time sets only the time, not a validity flag next
+//     to it, so a result that reports itself null ([mx.IsNull]) was half
+//     set and is refused.
 //
 // A method that panics, as the promoted method of a nil embedded pointer
 // does, is an error. A form:"sensitive" field's error does not echo raw.
@@ -739,7 +760,7 @@ func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error,
 	// value when the submission is rejected. A *time.Time field gets a copy
 	// of its time, so a promoted UnmarshalText never writes the time the
 	// stored value points to.
-	try := func(text string) error {
+	try := func(text string, refuseNull bool) error {
 		dst := reflect.New(typ)
 		dst.Elem().Set(value)
 		if typ.Kind() == reflect.Struct {
@@ -753,30 +774,23 @@ func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error,
 		if err := dst.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text)); err != nil {
 			return err
 		}
+		if refuseNull && mx.IsNull(dst.Interface()) {
+			return errors.New("half set")
+		}
 		value.Set(dst.Elem())
 		return nil
 	}
-	err = try(raw)
+	err = try(raw, false)
 	if err == nil || parseErr != nil {
 		return err
 	}
-	if try(t.Format(mx.DateTimeInputLayout(tag))) == nil {
+	if try(t.Format(mx.DateTimeInputLayout(tag)), false) == nil {
 		return nil
 	}
-	if embedsOnlyTime(typ) && try(t.Format(time.RFC3339Nano)) == nil {
+	if try(t.Format(time.RFC3339Nano), true) == nil {
 		return nil
 	}
 	return err
-}
-
-// embedsOnlyTime reports whether t is a struct whose only field is an
-// embedded time.Time or *time.Time.
-func embedsOnlyTime(t reflect.Type) bool {
-	if t.Kind() != reflect.Struct || t.NumField() != 1 || !t.Field(0).Anonymous {
-		return false
-	}
-	ft := t.Field(0).Type
-	return ft == reflect.TypeFor[time.Time]() || ft == reflect.TypeFor[*time.Time]()
 }
 
 // setTimeText binds a submitted date or time into a string-kind field

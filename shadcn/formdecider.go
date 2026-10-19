@@ -34,9 +34,8 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 	base := hx.FieldDecider(path, field, value)
 
 	switch kind {
-	case mx.FieldKindSkip, mx.FieldKindHidden, mx.FieldKindCatchAll:
-		// Skip and hidden fields don't need styling; the catch-all
-		// path is the unstyled fallback by definition.
+	case mx.FieldKindSkip, mx.FieldKindHidden:
+		// Skip and hidden fields don't need styling.
 		return base
 	}
 
@@ -59,7 +58,9 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 
 func renderShadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
 	switch kind {
-	case mx.FieldKindString:
+	case mx.FieldKindString, mx.FieldKindCatchAll:
+		// A catch-all value, such as a registered money type, is a text
+		// input through its MarshalText and UnmarshalText.
 		return shadcnField(path, field, tag, errs,
 			Input(stringAttribs(path, value, tag, errs)...),
 		)

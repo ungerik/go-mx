@@ -2,10 +2,12 @@ package mx
 
 import (
 	"context"
+	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -421,16 +423,117 @@ func TestRepeatable_PointerElements(t *testing.T) {
 }
 
 // addRow writes a full row (the field-level __present marker, the row's
-// __row__ marker, and each cell's __present sentinel and value) into
-// form.
+// __row__ marker naming the loaded row of that index as its origin, and
+// each cell's __present sentinel and value) into form.
 func addRow(form url.Values, field FieldPath, index int, cells map[string]string) {
 	form.Set(PresentSentinelName(field), "1")
 	rowPath := field.Append(strconv.Itoa(index))
-	form.Set(RowSentinelName(rowPath), "1")
+	form.Set(RowSentinelName(rowPath), strconv.Itoa(index))
 	for sub, val := range cells {
 		cellPath := rowPath.Append(sub)
 		form.Set(PresentSentinelName(cellPath), "1")
 		form.Set(string(cellPath), val)
+	}
+}
+
+var (
+	renderedInputRe = regexp.MustCompile(`<input\b([^>]*)>`)
+	renderedAttrRe  = regexp.MustCompile(`\b(name|value)="([^"]*)"`)
+)
+
+// renderedValues returns what submitting the rendered form unchanged
+// posts: the name and value of every <input> in body.
+func renderedValues(body string) url.Values {
+	values := url.Values{}
+	for _, input := range renderedInputRe.FindAllStringSubmatch(body, -1) {
+		attrs := map[string]string{}
+		for _, a := range renderedAttrRe.FindAllStringSubmatch(input[1], -1) {
+			attrs[a[1]] = stdhtml.UnescapeString(a[2])
+		}
+		if name, ok := attrs["name"]; ok {
+			values.Add(name, attrs["value"])
+		}
+	}
+	return values
+}
+
+type approvalLine struct {
+	Desc       string
+	ApprovedBy string `form:"readonly"`
+}
+
+type approvalSheet struct {
+	Lines []approvalLine `form:"repeatable"`
+}
+
+// A readonly cell of a repeatable row is never parsed, yet keeps the value
+// of the loaded row it came from: through the re-renders of a remove-row
+// and an add-row click, on its own row after an earlier row was removed,
+// and never on the added row, whatever that row posts for it.
+func TestRepeatable_ReadonlyCellsKeepLoadedValues(t *testing.T) {
+	stored := []approvalLine{{"a", "alice"}, {"b", "bob"}, {"c", "carol"}}
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: append([]approvalLine(nil), stored...)}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	shown := renderedValues(get.Body.String())
+	if got := shown.Get(RowSentinelName("Lines-2")); got != "2" {
+		t.Fatalf("GET marks row 2 with origin %q, want 2", got)
+	}
+
+	shown.Set("__cmd__", DeleteRowCommand("Lines-0"))
+	removedBody := postForm(t, h, shown).Body.String()
+	removed := renderedValues(removedBody)
+	if removed.Get("Lines-0-ApprovedBy") != "bob" || removed.Get(RowSentinelName("Lines-0")) != "1" {
+		t.Fatalf("after removing row 0, row 0 must be bob's with origin 1: %s", removedBody)
+	}
+
+	removed.Set("__cmd__", AddRowCommand("Lines"))
+	added := renderedValues(postForm(t, h, removed).Body.String())
+	if got := added.Get(RowSentinelName("Lines-2")); got != "new" {
+		t.Fatalf("the added row's origin is %q, want new", got)
+	}
+	added.Del("__cmd__")
+	added.Set("Lines-2-Desc", "d")
+	added.Set("Lines-2-ApprovedBy", "mallory")
+	if rec := postForm(t, h, added); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	want := []approvalLine{{"b", "bob"}, {"c", "carol"}, {"d", ""}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// The __row__ marker is client-controlled: a loaded row's readonly values
+// go to at most one submitted row, and a marker naming no loaded row
+// claims none.
+func TestRepeatable_TamperedOriginsClaimOnce(t *testing.T) {
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: []approvalLine{{"a", "alice"}, {"b", "bob"}}}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	for i, origin := range []string{"0", "0", "7", "-1", "x"} {
+		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
+		form.Set(RowSentinelName(FieldPath("Lines").Append(strconv.Itoa(i))), origin)
+	}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	want := []approvalLine{{"0", "alice"}, {"1", ""}, {"2", ""}, {"3", ""}, {"4", ""}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
 	}
 }
 

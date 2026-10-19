@@ -310,6 +310,48 @@ affected: their text has no zone, and text with one falls back to a text input.
 **Priority:** P2
 **Depends on:** None
 
+### Fractional seconds in date and time inputs
+
+**What:** Accept and keep fractional seconds in datetime and time inputs, so
+a `form:"step=…"` under one second works.
+
+**Why:** A sub-second step makes the browser submit values such as
+`2026-07-06T09:05:30.123`. A field holding text rejects them, since its parser
+reads only whole seconds, and stored text with a fraction renders as an
+invalid text input. A `time.Time` accepts them, because `time.Parse` tolerates a
+fraction, but renders without it, so an unchanged save truncates. For now the
+README and `FormTag.Step` document that the finest step is one second.
+
+**Context:** `timeText.parse` and `shortest` in `formdatetime.go` read and
+write the input forms; a `.999999999` layout variant would keep the fraction,
+and `dateTimeInput` would format a `time.Time` with it. The `step="1"` rule in
+`DateTimeInput` would then count sub-second remainders from `min` too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A time-of-day type whose zero is midnight cannot hold 00:00
+
+**What:** Let a time-of-day type such as `civil.Time`, whose `IsZero` is true
+at 00:00:00, show and store midnight in a time input.
+
+**Why:** `DateTimeInput` renders a zero value as no value, so a stored
+midnight shows an empty input, and the handler's required check reads the
+bound zero value as missing, so a required time field rejects a posted 00:00.
+An optional field saves midnight but shows it empty again.
+
+**Context:** `marshaledText` in `formdatetime.go` honours the type's own
+`IsZero`; `isEffectivelyEmpty` in `formhandler.go` decides required. A fix would
+show a time-of-day value's text whenever it is not null and decide required
+from the raw submission for date and time fields. The type cannot tell an
+unset value from midnight itself, so either way it needs a pointer or a
+nullable wrapper to mean "no time".
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## mx dead code
 
 ### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`

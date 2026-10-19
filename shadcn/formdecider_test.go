@@ -2,6 +2,7 @@ package shadcn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -1037,6 +1038,46 @@ func (d *looseDay) UnmarshalText(text []byte) error {
 	}
 	*d = looseDay{t.Year(), int(t.Month()), t.Day()}
 	return nil
+}
+
+// price is a struct with text methods, so a field of it is a catch-all
+// text input.
+type price struct {
+	Cents int
+}
+
+func (p price) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d.%02d", p.Cents/100, p.Cents%100), nil
+}
+
+func (p *price) UnmarshalText(text []byte) error {
+	var units, cents int
+	if _, err := fmt.Sscanf(string(text), "%d.%d", &units, &cents); err != nil {
+		return err
+	}
+	*p = price{units*100 + cents}
+	return nil
+}
+
+// A catch-all value renders as a styled text input in a Field, like a
+// string, with its errors marked, not as the unstyled html fallback.
+func TestShadcn_CatchAllIsStyledText(t *testing.T) {
+	type form struct {
+		Total price
+	}
+	f := &form{Total: price{1250}}
+	out := renderShadcn(t, f, "Total", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Total" id="Total" hx-trigger="change" value="12.50" class="`; got != want {
+		t.Errorf("Total renders\n%s\nwant\n%s", got, want)
+	}
+	if !strings.Contains(out, `data-slot="field"`) {
+		t.Errorf("the input must sit in a Field: %s", out)
+	}
+	errOut := renderShadcn(t, f, "Total", []error{errors.New("bad price")})
+	if !strings.Contains(inputStartTag(errOut), `aria-invalid="true"`) || !strings.Contains(errOut, "bad price") {
+		t.Errorf("errors must mark the input and show: %s", errOut)
+	}
 }
 
 func TestShadcn_DateKindsRender(t *testing.T) {

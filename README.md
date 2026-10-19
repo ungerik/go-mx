@@ -220,7 +220,8 @@ The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
 `*string`, or a named string type such as a date type. A date struct with
 `MarshalText`/`UnmarshalText` works too, and so does a type that wraps
-`time.Time` (defined as it, or a struct embedding it as its only field), which
+`time.Time` (defined as it, a struct embedding it as its only field, or a
+nullable time such as `null.Time` with its own RFC 3339 text methods), which
 renders and binds like a `time.Time`. A type can declare its widget once
 with `FormWidget() string` (`mx.FormWidgetHint`) instead of every field
 carrying `form:"widget=date"`. The input shows the stored value: a
@@ -230,7 +231,8 @@ they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
 POST the submitted value is stored in that same form, through `UnmarshalText`
 when the type has it, and an empty value stores the zero value, which
 `required` rejects. `form:"min=…,max=…"` is checked on the server for every
-date and time field. An input cannot show stored text in another spelling
+date and time field. Whole seconds are the finest step: fractional seconds are
+not supported, and neither is a `form:"step=…"` under one second. An input cannot show stored text in another spelling
 (`06.07.2026`), an invalid value or a time with a zone, and a blank one would
 clear it on the next save, so such text renders in a text input instead,
 marked invalid, with the format to enter as placeholder and hint. Saving it
@@ -250,7 +252,9 @@ Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
-can map rows to records.
+can map rows to records. A `form:"readonly"` sub-field keeps the value of the
+loaded row it belongs to through add-row and remove-row clicks and the save;
+an added row leaves it zero.
 
 Option-driven fields (selects, radio groups, checkbox sets) resolve their
 option lists via `mx.CollectOptions`: `Enums()`/`EnumStrings()` methods, the

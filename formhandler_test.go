@@ -497,6 +497,39 @@ type clearableStruct struct {
 	Mandatory string      `form:"required"`
 }
 
+type lockedLine struct {
+	Approved nullableStr `form:"readonly"`
+}
+
+type lockedRecord struct {
+	Approved nullableStr  `form:"readonly"`
+	Lines    []lockedLine `form:"repeatable"`
+}
+
+// A tampered __clear sentinel cannot null a readonly field, at the top
+// level or in a repeatable row: readonly never writes a submitted value.
+func TestReflectFormHandler_ReadonlyIgnoresClear(t *testing.T) {
+	var captured *lockedRecord
+	h := ReflectFormHandler(
+		func(context.Context) (*lockedRecord, error) {
+			return &lockedRecord{Approved: nullableStr{v: "yes"}, Lines: []lockedLine{{nullableStr{v: "yes"}}}}, nil
+		},
+		func(_ context.Context, r *lockedRecord) error { captured = r; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Approved"), "1")
+	form.Set(ClearSentinelName("Approved"), "1")
+	addRow(form, "Lines", 0, map[string]string{"Approved": ""})
+	form.Set(ClearSentinelName("Lines-0-Approved"), "1")
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if captured == nil || captured.Approved.IsNull() || len(captured.Lines) != 1 || captured.Lines[0].Approved.IsNull() || captured.Lines[0].Approved.v != "yes" {
+		t.Errorf("readonly values cleared: %+v", captured)
+	}
+}
+
 func TestReflectFormHandler_ReadonlyAndClear(t *testing.T) {
 	var captured clearableStruct
 	load := func(ctx context.Context) (*clearableStruct, error) {
