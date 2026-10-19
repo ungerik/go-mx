@@ -290,6 +290,23 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 
 ## mx reflected forms
 
+### A readonly repeatable field with no rows renders an empty box
+
+**What:** Render a short "none" line inside the fieldset of a
+`form:"readonly"` repeatable field that has no rows.
+
+**Why:** A readonly repeatable field has no add-row button, so with no rows
+its fieldset shows only the legend, and a user cannot tell "no entries" from a
+broken render.
+
+**Context:** `renderRepeatable` in `repeatable.go` builds the fieldset in the
+core package, which has no localizable labels; the text would need a hook, such
+as a shadcn `Labels` field passed down or a `ReflectFormConfig` option.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### Date and time inputs drop the stored time zone
 
 **What:** Bind a submitted date or time into a `time.Time` (or a type that

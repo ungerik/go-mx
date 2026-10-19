@@ -30,6 +30,14 @@ func TestParseFormTagString(t *testing.T) {
 			want: FormTag{Options: "ISO4217"}},
 		{name: "repeatable", raw: "repeatable",
 			want: FormTag{Repeatable: true}},
+		// An apostrophe inside a value is a literal: only a quote that
+		// starts a value opens one, so the options after it still count.
+		{name: "apostrophe in a value",
+			raw:  "label=Owner's email,readonly,required,sensitive",
+			want: FormTag{Label: "Owner's email", Readonly: true, Required: true, Sensitive: true}},
+		{name: "quote after = with spaces",
+			raw:  "help= 'a, b',readonly",
+			want: FormTag{Help: "a, b", Readonly: true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

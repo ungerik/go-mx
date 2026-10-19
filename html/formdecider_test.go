@@ -9,6 +9,7 @@ import (
 	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -1686,7 +1687,7 @@ func TestFieldDecider_DateWidgetPrefillsStringKinds(t *testing.T) {
 		// with the format to enter as placeholder and hint.
 		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
 			`<input type="text" name="Str" id="Str" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="Str-format">Expected format: YYYY-MM-DD</small>`},
+				`<small class="form-help" id="Str-format">Not in the expected format: YYYY-MM-DD</small>`},
 		{"impossible date", dateStrings{Str: "2026-02-30"}, "Str",
 			`<input type="text" name="Str" id="Str" value="2026-02-30" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>`},
 		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
@@ -1700,9 +1701,9 @@ func TestFieldDecider_DateWidgetPrefillsStringKinds(t *testing.T) {
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
 			`<input type="text" name="Bounded" id="Bounded" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true"/>`},
 		// A placeholder from the tag, say a translated format, replaces the
-		// format in the placeholder and the hint.
+		// placeholder; the hint names the format the parser reads.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
-			`<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true"/><small class="form-help" id="Localized-format">Expected format: JJJJ-MM-TT</small>`},
+			`<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true"/><small class="form-help" id="Localized-format">Not in the expected format: YYYY-MM-DD</small>`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1989,14 +1990,14 @@ func TestFieldDecider_TimeWidgetsPrefillStringKinds(t *testing.T) {
 			`<input type="datetime-local" name="AtPtr" id="AtPtr"/>`},
 		{"datetime with zone", timeStrings{At: "2026-07-06T09:05:07Z"}, "At",
 			`<input type="text" name="At" id="At" value="2026-07-06T09:05:07Z" placeholder="YYYY-MM-DDTHH:MM" aria-describedby="At-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="At-format">Expected format: YYYY-MM-DDTHH:MM</small>`},
+				`<small class="form-help" id="At-format">Not in the expected format: YYYY-MM-DDTHH:MM</small>`},
 		{"time minutes", timeStrings{Clock: "09:05"}, "Clock",
 			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
 		{"time drops zero seconds", timeStrings{Clock: "09:05:00"}, "Clock",
 			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
 		{"time other spelling", timeStrings{Clock: "9.05"}, "Clock",
 			`<input type="text" name="Clock" id="Clock" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="Clock-format">Expected format: HH:MM</small>`},
+				`<small class="form-help" id="Clock-format">Not in the expected format: HH:MM</small>`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2529,6 +2530,7 @@ func TestFieldDecider_DateStructBinds(t *testing.T) {
 		Compact compactDate    `form:"widget=date"`
 		SQL     sqlTime        `form:"widget=datetime"`
 		NullAt  nullTime       `form:"widget=datetime"`
+		NilText nilTextDate    `form:"widget=date"`
 	}
 	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
 	fresh := func() *form {
@@ -2556,6 +2558,9 @@ func TestFieldDecider_DateStructBinds(t *testing.T) {
 		// Nor by RFC 3339 posted directly, which the promoted UnmarshalText reads.
 		{"time with a flag not half set by RFC 3339", "Null", "2026-08-05T00:00:00Z", true, func(f *form) bool { return !f.Null.Valid && f.Null.IsZero() }},
 		{"datetime with a flag not half set by RFC 3339", "NullAt", "2026-08-05T10:30:00Z", true, func(f *form) bool { return !f.NullAt.Valid && f.NullAt.IsZero() }},
+		// A promoted UnmarshalText on a nil embedded pointer panics; that is
+		// an error, not a failed request.
+		{"nil embedded text pointer", "NilText", "2026-08-05", true, func(f *form) bool { return f.NilText.civilDate == nil }},
 		// A nil embedded time pointer gets a time to take the date in.
 		{"nil embedded pointer takes a date", "Ptr", "2026-08-05", false, func(f *form) bool {
 			return f.Ptr.Time != nil && f.Ptr.Equal(time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC))
@@ -2661,7 +2666,7 @@ func TestReflectFormHandler_DateStructOwnText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, httptest.NewRequest(http.MethodGet, "/order", nil))
 	body := rec.Body.String()
-	if want := `<input type="text" name="Due" id="Due" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Due-format"/>`; !strings.Contains(body, want) {
+	if want := `<input type="text" name="Due" id="Due" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Due-format"/><small class="form-help" id="Due-format">Expected format: YYYY-MM-DD</small>`; !strings.Contains(body, want) {
 		t.Fatalf("GET lacks %s: %s", want, body)
 	}
 	shown := submittedValues(body)
@@ -2835,6 +2840,8 @@ func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 		// RFC 3339 caps offsets below 24 hours; a larger one cannot be
 		// marshaled again, so it is no value.
 		{"At", "2024-06-01T00:00:00+24:00", `"2024-06-01T00:00:00+24:00" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		{"At", "2024-06-01T00:00:00-24:00", `"2024-06-01T00:00:00-24:00" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		{"At", "2024-06-01T12:00:00+23:59", ""},
 		// A wrapped time only takes what the date input sends, never its
 		// own RFC 3339, so a crafted offset cannot slip past max.
 		{"Wrapped", "2099-01-01T00:00:00+24:00", `parsing time "2099-01-01T00:00:00+24:00": extra text: "T00:00:00+24:00"`},
@@ -2909,12 +2916,21 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		F float64 `form:"max=2.5"`
 		P *int    `form:"min=0"`
 		X int     `form:"max=lots"`
+		B int64   `form:"max=9007199254740992"`
+		G float64
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
 		{"N", "9999", `"9999" is greater than 10`},
 		{"N", "0", `"0" is less than 1`},
 		{"N", "5", ""},
+		{"N", "1", ""},
+		{"N", "10", ""},
+		// No bound holds NaN, so a non-finite number is never accepted.
+		{"F", "NaN", `"NaN" is not a finite number`},
+		{"G", "Inf", `"Inf" is not a finite number`},
+		// Compared exactly, not as float64.
+		{"B", "9007199254740993", `"9007199254740993" is greater than 9007199254740992`},
 		{"F", "3", `"3" is greater than 2.5`},
 		{"P", "-1", `"-1" is less than 0`},
 		{"X", "9999", ""},
@@ -2924,7 +2940,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
 		}
 	}
-	if f.N != 5 || f.P == nil || *f.P != -1 {
+	if f.N != 10 || f.P == nil || *f.P != -1 {
 		t.Errorf("numbers must be bound, in range or not: %+v", f)
 	}
 }
@@ -2936,19 +2952,181 @@ func TestFieldDecider_ScalarBindKeepsSharedPointees(t *testing.T) {
 		S *string
 		N *int
 		B *bool
+		C *[]colorEnum
 	}
-	storedS, storedN, storedB := "kept", 7, true
-	f := &form{S: &storedS, N: &storedN, B: &storedB}
-	for field, raw := range map[string]string{"S": "posted", "N": "8", "B": ""} {
+	storedS, storedN, storedB, storedC := "kept", 7, true, []colorEnum{"red"}
+	f := &form{S: &storedS, N: &storedN, B: &storedB, C: &storedC}
+	for field, raw := range map[string]string{"S": "posted", "N": "8", "B": "", "C": "blue"} {
 		if err := parseFieldValue(t, f, field, raw); err != nil {
 			t.Fatalf("bind %s: %v", field, err)
 		}
 	}
-	if storedS != "kept" || storedN != 7 || !storedB {
-		t.Errorf("stored pointees changed: %q %d %t", storedS, storedN, storedB)
+	if storedS != "kept" || storedN != 7 || !storedB || !reflect.DeepEqual(storedC, []colorEnum{"red"}) {
+		t.Errorf("stored pointees changed: %q %d %t %v", storedS, storedN, storedB, storedC)
 	}
-	if *f.S != "posted" || *f.N != 8 || *f.B {
-		t.Errorf("the form must hold the bound values: %q %d %t", *f.S, *f.N, *f.B)
+	if *f.S != "posted" || *f.N != 8 || *f.B || !reflect.DeepEqual(*f.C, []colorEnum{"blue"}) {
+		t.Errorf("the form must hold the bound values: %q %d %t %v", *f.S, *f.N, *f.B, *f.C)
+	}
+}
+
+// nilTextDate embeds a pointer to a date struct; its promoted methods panic
+// on a nil one.
+type nilTextDate struct {
+	*civilDate
+}
+
+// A half-set refusal names the type rather than an internal message.
+func TestFieldDecider_HalfSetErrorNamesType(t *testing.T) {
+	type form struct {
+		At nullTime `form:"widget=datetime"`
+	}
+	err := parseFieldValue(t, &form{}, "At", "2026-08-05T10:30:00Z")
+	if want := `"2026-08-05T10:30:00Z" cannot be stored as html.nullTime`; fmt.Sprint(err) != want {
+		t.Errorf("error %v, want %s", err, want)
+	}
+}
+
+// A type whose UnmarshalText zeroes itself on an error, as netip.Addr's
+// does, keeps the stored value when a submission is rejected, at the top
+// level and in a repeatable row through a typo and an add-row click.
+func TestReflectFormHandler_RejectedTextKeepsStoredValue(t *testing.T) {
+	type line struct {
+		Addr netip.Addr
+	}
+	type record struct {
+		Addr  netip.Addr
+		Lines []line `form:"repeatable"`
+	}
+	stored := netip.MustParseAddr("10.0.0.1")
+	if f := (&record{Addr: stored}); parseFieldValue(t, f, "Addr", "10.0.0.x") == nil || f.Addr != stored {
+		t.Errorf("a rejected address changed the field: %v", f.Addr)
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Addr: stored, Lines: []line{{stored}}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	shown := submittedValues(rec.Body.String())
+	shown.Set("Lines-0-Addr", "10.0.0.x")
+	shown.Set("__cmd__", mx.AddRowCommand("Lines"))
+	added := submittedValues(post(shown).Body.String())
+	if got := added.Get("Lines-0-Addr"); got != "10.0.0.1" {
+		t.Errorf("after a typo and add-row the row shows %q, want the stored 10.0.0.1", got)
+	}
+	added.Del("__cmd__")
+	if rec = post(added); rec.Code != http.StatusSeeOther || saved == nil || saved.Lines[0].Addr != stored {
+		t.Errorf("unchanged Save: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A readonly repeatable field renders each cell readonly and offers no row
+// buttons; a readonly file input is disabled and never required.
+func TestFieldDecider_ReadonlyRowsAndFiles(t *testing.T) {
+	type line struct {
+		Desc string
+	}
+	type record struct {
+		Lines []line `form:"repeatable,readonly"`
+		Doc   []byte `form:"widget=file,required,readonly"`
+	}
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Lines: []line{{"a"}}}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	body := rec.Body.String()
+	if want := `<input type="text" name="Lines-0-Desc" id="Lines-0-Desc" value="a" readonly="readonly"/>`; !strings.Contains(body, want) {
+		t.Errorf("GET lacks %s: %s", want, body)
+	}
+	if strings.Contains(body, "__cmd__") {
+		t.Errorf("a readonly repeatable field offers row buttons: %s", body)
+	}
+	if want := `<input type="file" name="Doc" id="Doc" disabled="disabled"/>`; !strings.Contains(body, want) {
+		t.Errorf("GET lacks %s: %s", want, body)
+	}
+}
+
+// A sensitive number never shows its value, and an error a form shows
+// carries no call stack.
+func TestFieldDecider_SensitiveNumberAndPlainErrors(t *testing.T) {
+	type form struct {
+		PIN   int `form:"sensitive"`
+		Plain struct{ N int }
+	}
+	f := &form{PIN: 1234}
+	if out := renderFieldHTML(t, f, "PIN"); strings.Contains(out, "1234") {
+		t.Errorf("a sensitive number shows its value: %s", out)
+	}
+	err := parseFieldValue(t, f, "Plain", "x")
+	if want := `cannot parse value into struct { N int }: implement encoding.TextUnmarshaler or use a form:"widget=..." override`; fmt.Sprint(err) != want {
+		t.Errorf("error %q, want %q", fmt.Sprint(err), want)
+	}
+}
+
+// A hidden time, such as an UpdatedAt kept for optimistic locking,
+// round-trips unchanged, with its zone and fraction.
+func TestReflectFormHandler_HiddenTimeRoundTrip(t *testing.T) {
+	type record struct {
+		UpdatedAt time.Time   `form:"hidden"`
+		Defined   definedTime `form:"hidden"`
+	}
+	stamp := time.Date(2026, 7, 6, 9, 5, 7, 123456789, time.FixedZone("CEST", 2*60*60))
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{UpdatedAt: stamp, Defined: definedTime(stamp)}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(submittedValues(rec.Body.String()).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || !saved.UpdatedAt.Equal(stamp) || !time.Time(saved.Defined).Equal(stamp) {
+		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A repeatable-tagged slice of times is skipped: never rendered or bound,
+// so it neither blocks the save nor loses its stored times.
+func TestReflectFormHandler_RepeatableTimesSkipped(t *testing.T) {
+	type record struct {
+		Name string
+		Days []definedTime `form:"repeatable"`
+	}
+	day := definedTime(time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC))
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Name: "n", Days: []definedTime{day}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
+	if strings.Contains(rec.Body.String(), "Days") {
+		t.Errorf("the skipped field renders: %s", rec.Body.String())
+	}
+	req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(submittedValues(rec.Body.String()).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || len(saved.Days) != 1 || saved.Days[0] != day {
+		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
 	}
 }
 

@@ -166,6 +166,7 @@ package variable read by every render, like `mx.AsComponent`.
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
 | `FormExpectedFormat`                            | date/time text-fallback format hint    |
+| `FormInvalidFormat`                             | the hint when stored text is invalid   |
 
 A caller-supplied `aria-label` still wins over the context label for a single
 call site — the components only fall back to `Labels` when the caller passed

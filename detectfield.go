@@ -90,7 +90,15 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		if et.Kind() == reflect.Pointer {
 			et = et.Elem()
 		}
-		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) && !isTimeLike(et) {
+		if et.Kind() == reflect.Struct && isTimeLike(et) {
+			// A time's fields are unexported, so its rows would have no
+			// cells and every save would zero the stored times, and no
+			// input binds a slice of times: the field is skipped, never
+			// rendered or bound, and its stored value is left alone.
+			tag.Skip = true
+			return FieldKindSkip, tag
+		}
+		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) {
 			return FieldKindRepeatable, tag
 		}
 	}
@@ -221,7 +229,8 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	}
 
 	// 14. time-like struct types: time.Time, a type defined as it, or a
-	// struct embedding a time.Time as its only field. Another single-value
+	// struct embedding a time.Time as its only field without text methods
+	// of its own (its text is the time's RFC 3339). Another single-value
 	// struct, such as a registered money type, is a text input through its
 	// MarshalText and UnmarshalText (the catch-all below).
 	if ft.Kind() == reflect.Struct && isTimeLike(ft) {

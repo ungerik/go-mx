@@ -50,6 +50,7 @@ var germanLabels = Labels{
 	FormNoSelection:        "(keine)",
 	FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
 	FormExpectedFormat:     "Erwartetes Format:",
+	FormInvalidFormat:      "Nicht im erwarteten Format:",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -186,16 +187,36 @@ var labelCases = []labelCase{
 		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
 	}, {
 		name:    "FormExpectedFormat",
-		comp:    dateWithStoredText,
+		comp:    dateStructWithOwnText,
 		fields:  []string{"FormExpectedFormat"},
 		english: []string{">Expected format: YYYY-MM-DD<"},
 		german:  []string{">Erwartetes Format: YYYY-MM-DD<"},
+	}, {
+		name:    "FormInvalidFormat",
+		comp:    dateWithStoredText,
+		fields:  []string{"FormInvalidFormat"},
+		english: []string{">Not in the expected format: YYYY-MM-DD<"},
+		german:  []string{">Nicht im erwarteten Format: YYYY-MM-DD<"},
 	},
 }
 
+// dateStructWithOwnText builds a reflected date field holding a date
+// struct whose own text a date input cannot show but which reads it back,
+// the way to reach the plain FormExpectedFormat hint.
+func dateStructWithOwnText() mx.Component {
+	type draftForm struct {
+		Due looseDay `form:"widget=date"`
+	}
+	s := &draftForm{Due: looseDay{2026, 7, 6}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Due")
+	beh := FieldDecider(mx.FieldPath("Due"), f, v.Field(0))
+	return beh.Render(mx.FieldPath("Due"), f, v.Field(0), nil)
+}
+
 // dateWithStoredText builds a reflected date field whose stored text a date
-// input cannot show, which is the only way to reach the FormExpectedFormat
-// hint.
+// input cannot show and the parser rejects, the way to reach the
+// FormInvalidFormat hint.
 func dateWithStoredText() mx.Component {
 	type draftForm struct {
 		Due string `form:"widget=date"`

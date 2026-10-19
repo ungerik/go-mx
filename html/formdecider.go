@@ -6,6 +6,8 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
 	"net/http"
 	"reflect"
 	"sort"
@@ -13,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 )
 
@@ -21,8 +22,8 @@ import (
 // It implements the dispatch table from the ReflectFormHandler design:
 // each detected [mx.FieldKind] picks an HTML element from this package
 // (Input / Select / TextArea / Label) and a matching parser. It emits
-// the __clear sentinel for nullable fields; the form handler emits the
-// __present sentinel.
+// the __clear sentinel for nullable fields that are neither required nor
+// readonly; the form handler emits the __present sentinel.
 //
 // Layered renderers (hx, shadcn) wrap this decider — calling it for
 // the kinds they don't customize and falling through for the rest.
@@ -116,11 +117,36 @@ func renderInput(path mx.FieldPath, field reflect.StructField, value reflect.Val
 }
 
 func renderHidden(path mx.FieldPath, value reflect.Value) mx.Component {
+	val := displayValue(value, mx.FormTag{})
+	// A hidden time, such as an UpdatedAt kept for optimistic locking,
+	// round-trips as RFC 3339 with its zone and fraction.
+	if t, ok := hiddenTime(value); ok {
+		val = ""
+		if !t.IsZero() {
+			val = t.Format(time.RFC3339Nano)
+		}
+	}
 	return VoidElement("input",
 		Type("hidden"),
 		Name(string(path)),
-		Value(displayValue(value, mx.FormTag{})),
+		Value(val),
 	)
+}
+
+// hiddenTime returns the time a hidden field holds when its value, through
+// any pointers, is a time.Time or of a type defined as it.
+func hiddenTime(value reflect.Value) (time.Time, bool) {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return time.Time{}, false
+		}
+		value = value.Elem()
+	}
+	timeType := reflect.TypeFor[time.Time]()
+	if value.Kind() != reflect.Struct || !value.Type().ConvertibleTo(timeType) {
+		return time.Time{}, false
+	}
+	return value.Convert(timeType).Interface().(time.Time), true
 }
 
 func inputElement(path mx.FieldPath, inputType, val string, _ reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
@@ -178,7 +204,10 @@ func numberInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []
 		Type("number"),
 		Name(string(path)),
 		ID(string(path)),
-		Value(displayValue(value, tag)),
+	}
+	// A sensitive number never shows its value, like a sensitive text input.
+	if !tag.Sensitive {
+		attribs = append(attribs, Value(displayValue(value, tag)))
 	}
 	if tag.Min != "" {
 		attribs = append(attribs, Min(tag.Min))
@@ -236,12 +265,9 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	// readonly field is never saved, so it asks for nothing.
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly
-	// A form:"placeholder=…" replaces the format, such as with a translated
-	// one, in the placeholder and the hint alike.
-	format := cmp.Or(tag.Placeholder, in.Format)
 	if askFormat {
 		attribs = append(attribs,
-			Placeholder(format),
+			Placeholder(cmp.Or(tag.Placeholder, in.Format)),
 			mx.NewAttrib("aria-describedby", formatHintID(path)),
 		)
 	}
@@ -273,9 +299,18 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		mx.NewElement("small",
 			mx.Attribute{Name: "class", Value: "form-help"},
 			mx.Attribute{Name: "id", Value: formatHintID(path)},
-			mx.Text("Expected format: "+format),
+			mx.Text(formatHint(in)),
 		),
 	}
+}
+
+// formatHint names the format the parser reads, which a placeholder from
+// the tag does not replace, and says so when the stored text is not in it.
+func formatHint(in mx.DateTimeInputSpec) string {
+	if in.Invalid {
+		return "Not in the expected format: " + in.Format
+	}
+	return "Expected format: " + in.Format
 }
 
 // formatHintID is the id of the format hint under a date or time field
@@ -291,7 +326,12 @@ func fileInput(path mx.FieldPath, tag mx.FormTag, errs []error) mx.Component {
 		Name(string(path)),
 		ID(string(path)),
 	}
-	if tag.Required {
+	// A file input cannot be readonly, and a readonly field is never
+	// saved, so it is disabled and asks for nothing.
+	switch {
+	case tag.Readonly:
+		attribs = append(attribs, Disabled)
+	case tag.Required:
 		attribs = append(attribs, Required)
 	}
 	if len(errs) > 0 {
@@ -394,7 +434,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 // handling is left to higher layers.
 func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, r *http.Request) error {
 	if !value.CanSet() {
-		return errs.New("field not settable: " + string(path))
+		return errors.New("field not settable: " + string(path))
 	}
 	form := r.PostForm
 	if r.MultipartForm != nil {
@@ -403,6 +443,10 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	switch kind {
 	case mx.FieldKindHidden, mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindCatchAll:
 		raw := form.Get(string(path))
+		if _, ok := hiddenTime(reflect.New(derefType(value.Type())).Elem()); ok && kind == mx.FieldKindHidden {
+			// renderHidden writes a time as RFC 3339, which setTime reads.
+			return setTime(value, raw, tag)
+		}
 		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
 	case mx.FieldKindNumber:
 		raw := form.Get(string(path))
@@ -482,7 +526,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			value.SetString(fh.Filename)
 			return nil
 		}
-		return errs.New("file upload requires []byte or string field")
+		return errors.New("file upload requires []byte or string field")
 	}
 	return nil
 }
@@ -498,7 +542,9 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 // (generated by go-enum), an enum set element by element.
 //
 // The rejection is a plain validation error (rendered inline at the
-// field); a failure to resolve the option list itself propagates as-is.
+// field); a failure to resolve the option list itself propagates as-is,
+// except for a form:"sensitive" field, where the parser's guard reports
+// either as "not a valid value".
 func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.FormTag, t reflect.Type, vals ...string) error {
 	if len(vals) == 0 || !mx.OptionsNeedContext(tag, t) {
 		return nil
@@ -548,20 +594,18 @@ func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() erro
 }
 
 // checkNumberRange returns a validation error when raw, a number already
-// bound, lies outside the tag's form:"min=…,max=…". A bound that is no
-// number is ignored, as a browser ignores it.
+// bound, lies outside the tag's form:"min=…,max=…". The numbers are
+// compared exactly, so an int64 bound above 2^53 holds. A bound that is
+// no number is ignored, as a browser ignores it.
 func checkNumberRange(raw string, tag mx.FormTag) error {
-	if raw == "" {
+	n, ok := new(big.Rat).SetString(raw)
+	if !ok {
 		return nil
 	}
-	n, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return nil
-	}
-	if lowest, err := strconv.ParseFloat(tag.Min, 64); err == nil && n < lowest {
+	if lowest, ok := new(big.Rat).SetString(tag.Min); ok && n.Cmp(lowest) < 0 {
 		return fmt.Errorf("%q is less than %s", raw, tag.Min)
 	}
-	if highest, err := strconv.ParseFloat(tag.Max, 64); err == nil && n > highest {
+	if highest, ok := new(big.Rat).SetString(tag.Max); ok && n.Cmp(highest) > 0 {
 		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
 	}
 	return nil
@@ -603,15 +647,24 @@ func setScalar(value reflect.Value, raw string) error {
 		return nil
 	}
 	if value.CanAddr() {
-		if u, ok := value.Addr().Interface().(encoding.TextUnmarshaler); ok {
-			return u.UnmarshalText([]byte(raw))
+		if _, ok := value.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			// Unmarshal into a copy: an UnmarshalText that fails may still
+			// change its value, as netip.Addr's zeroes it, and a rejected
+			// field must keep the stored value.
+			dst := reflect.New(value.Type())
+			dst.Elem().Set(value)
+			if err := dst.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(raw)); err != nil {
+				return err
+			}
+			value.Set(dst.Elem())
+			return nil
 		}
 	}
 	if u, ok := value.Interface().(encoding.TextUnmarshaler); ok {
 		return u.UnmarshalText([]byte(raw))
 	}
 	// Fallback: try fmt.Sscan-style conversion via reflect.
-	return errs.Errorf("cannot parse value into %s — implement encoding.TextUnmarshaler or use a form:\"widget=...\" override", value.Type())
+	return fmt.Errorf("cannot parse value into %s: implement encoding.TextUnmarshaler or use a form:\"widget=...\" override", value.Type())
 }
 
 func setNumeric(value reflect.Value, raw string) error {
@@ -644,9 +697,14 @@ func setNumeric(value reflect.Value, raw string) error {
 		if err != nil {
 			return err
 		}
+		// No input submits NaN or an infinity, and no min or max can bound
+		// NaN, which compares false with everything.
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			return fmt.Errorf("%q is not a finite number", raw)
+		}
 		value.SetFloat(f)
 	default:
-		return errs.Errorf("setNumeric: unsupported kind %s", value.Kind())
+		return fmt.Errorf("cannot store a number in a %s", value.Kind())
 	}
 	return nil
 }
@@ -655,7 +713,7 @@ func setBool(value reflect.Value, raw string) error {
 	on := raw == "on" || raw == "true" || raw == "1"
 	if value.Kind() == reflect.Pointer {
 		if !value.CanSet() {
-			return errs.New("pointer not settable")
+			return errors.New("pointer not settable")
 		}
 		return bindPointee(value, func(v reflect.Value) error {
 			v.SetBool(on)
@@ -667,15 +725,15 @@ func setBool(value reflect.Value, raw string) error {
 }
 
 func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
-	if derefType(value.Type()).Kind() == reflect.String {
-		return setTimeText(value, raw, tag)
-	}
 	if value.Kind() == reflect.Pointer {
 		if raw == "" {
 			value.SetZero()
 			return nil
 		}
 		return bindPointee(value, func(v reflect.Value) error { return setTime(v, raw, tag) })
+	}
+	if value.Kind() == reflect.String {
+		return setTimeText(value, raw, tag)
 	}
 	if raw == "" {
 		value.SetZero()
@@ -709,10 +767,10 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 		parseErr = mx.DateTimeFormatError(tag, raw)
 	}
 	// The range applies on the server too, not only in the browser. A value
-	// outside it is still bound, as rejected text is (see [setTimeText]): a
-	// repeatable row is bound from the submission alone and an add-row click
-	// discards its errors, so an unbound value would blank the row and the
-	// next save would store the zero value. The form handler never calls
+	// outside it is still bound, as rejected text is (see [setTimeText]), so
+	// every re-render shows what was posted, also after an add-row click,
+	// which discards the errors, and in an added repeatable row, which has
+	// no stored value to fall back on. The form handler never calls
 	// onSubmit while a field has an error, so the value is not saved.
 	var rangeErr error
 	if parseErr == nil {
@@ -767,10 +825,9 @@ func checkOwnTextRange(value reflect.Value, raw string, tag mx.FormTag) error {
 //
 //  1. raw in the type's own form, such as a date struct's 2006-01-02 or the
 //     text a text input showed because the picker could not, so an
-//     unchanged submit binds back to the stored value, also in a
-//     repeatable row, which is bound from the submission alone. A type
-//     whose own form is RFC 3339, as a struct embedding time.Time, is
-//     never shown in it, so it only takes what the input layouts read;
+//     unchanged submit binds back to the stored value. A type whose own
+//     form is RFC 3339, as a struct embedding time.Time, is never shown in
+//     it, so it only takes what the input layouts read;
 //  2. t, the time raw was parsed into (parseErr nil), in the input type's
 //     layout with seconds, which a time-of-day type may need where the
 //     input left zero seconds out;
@@ -865,7 +922,7 @@ func textIsRFC3339(t reflect.Type) (ok bool) {
 }
 
 // setTimeText binds a submitted date or time into a string-kind field
-// (through any pointers) that holds it as text, the counterpart of the
+// that holds it as text, the counterpart of the
 // text values [mx.DateTimeInput] prefills. [mx.ParseDateTimeInput] checks
 // the submission and gives the text to store. An empty submission stores
 // the zero value, which a required field rejects. A valid value goes
@@ -873,36 +930,34 @@ func textIsRFC3339(t reflect.Type) (ok bool) {
 // otherwise.
 //
 // A rejected submission is a validation error, and the field keeps the
-// submitted text so every re-render shows what was posted: a repeatable
-// row is bound from the submission alone, so an add-row click would
-// otherwise blank the stored text and the next save would store "". The
-// form handler never calls onSubmit while a field has an error, so the
-// rejected text is not saved. Through pointers, the text goes into new
-// pointees, so it never reaches a record that shares the old ones.
+// submitted text so every re-render shows what was posted, also after an
+// add-row click, which discards the errors, and in an added repeatable
+// row. The form handler never calls onSubmit while a field has an error,
+// so the rejected text is not saved.
 func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
-		derefNew(value).SetString(raw)
+		value.SetString(raw)
 		return err
 	}
 	if text == "" {
 		value.SetZero()
 		return nil
 	}
-	parsed := reflect.New(derefType(value.Type()))
+	parsed := reflect.New(value.Type())
 	if _, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
 		err := parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text))
 		if full, ok := withSeconds(tag, text); err != nil && ok {
 			// A type whose text always carries seconds, as civil.Time's
 			// does, reads the value in the layout with seconds, which the
 			// shortest form leaves out when they are zero.
-			parsed = reflect.New(derefType(value.Type()))
+			parsed = reflect.New(value.Type())
 			if parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(full)) == nil {
 				err = nil
 			}
 		}
 		if err != nil {
-			derefNew(value).SetString(raw)
+			value.SetString(raw)
 			if tag.Sensitive {
 				return mx.DateTimeFormatError(tag, raw)
 			}
@@ -911,7 +966,7 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	} else {
 		parsed.Elem().SetString(text)
 	}
-	derefNew(value).Set(parsed.Elem())
+	value.Set(parsed.Elem())
 	return nil
 }
 
@@ -931,20 +986,10 @@ func withSeconds(tag mx.FormTag, text string) (string, bool) {
 	return t.Format(layout), true
 }
 
-// derefNew follows the pointers of value, giving each a new pointee, and
-// returns the zero value they lead to.
-func derefNew(value reflect.Value) reflect.Value {
-	for value.Kind() == reflect.Pointer {
-		value.Set(reflect.New(value.Type().Elem()))
-		value = value.Elem()
-	}
-	return value
-}
-
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {
 	keyType := setKeyType(fieldType)
 	if keyType == nil {
-		return errs.New("not a recognized set type")
+		return errors.New("not a recognized set type")
 	}
 	if value.Kind() == reflect.Pointer {
 		return bindPointee(value, func(v reflect.Value) error { return setEnumSet(v, value.Type().Elem(), vals) })
@@ -971,7 +1016,7 @@ func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) erro
 		}
 		value.Set(newSlice)
 	default:
-		return errs.Errorf("setEnumSet: unsupported kind %s", value.Kind())
+		return fmt.Errorf("cannot store a set in a %s", value.Kind())
 	}
 	return nil
 }
@@ -1038,7 +1083,7 @@ func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 		dst.SetUint(n)
 		return dst, nil
 	}
-	return reflect.Value{}, errs.Errorf("cannot convert %q to %s", s, t)
+	return reflect.Value{}, fmt.Errorf("cannot convert %q to %s", s, t)
 }
 
 func setSelectedValues(value reflect.Value) map[string]struct{} {

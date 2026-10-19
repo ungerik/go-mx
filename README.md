@@ -220,9 +220,11 @@ The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
 `*string`, or a named string type such as a date type. A date struct with
 `MarshalText`/`UnmarshalText` works too, and so does a type that wraps
-`time.Time` (defined as it, a struct embedding it as its only field, or a
-nullable time such as `null.Time` with its own RFC 3339 text methods), which
-renders and binds like a `time.Time`. A type can declare its widget once
+`time.Time` (defined as it, a struct embedding it as its only field without
+text methods of its own, or a nullable time such as `null.Time` with its own
+RFC 3339 text methods), which renders and binds like a `time.Time`; a struct
+embedding a time with text methods of its own, such as a date-only one, is a
+text input through them. A type can declare its widget once
 with `FormWidget() string` (`mx.FormWidgetHint`) instead of every field
 carrying `form:"widget=date"`. The input shows the stored value: a
 `Format(string) string` method is asked for it, and otherwise text in the
@@ -254,13 +256,15 @@ render as a dynamic list of rows — one per element, with JavaScript-free
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
 can map rows to records. A submitted row starts as a copy of the loaded row
 it came from, through add-row and remove-row clicks too: a `form:"readonly"`
-sub-field keeps its loaded value, a rejected cell keeps the stored value, and
-a cell that was not sent stays as loaded; an added row starts at the zero
-value. Rows are matched by position, so if the stored rows can change between
+sub-field keeps its loaded value, a rejected cell behaves as the same
+top-level field does (it keeps the stored value, or shows the posted text
+where the field keeps that), and a cell that was not sent stays as loaded; an
+added row starts at the zero value. Rows are matched by position, so if the stored rows can change between
 the GET and the POST, restore server-controlled columns in `onSubmit` by the
 row key, and an `onSubmit` that fails must not reorder the rows.
-`form:"readonly"` on the repeatable field itself, or on a section or nested
-struct, makes everything in it readonly.
+`form:"readonly"` on the repeatable field itself, or on a section, nested or
+embedded struct, makes everything in it readonly, and `form:"-"` on an
+embedded struct omits its fields.
 
 Option-driven fields (selects, radio groups, checkbox sets) resolve their
 option lists via `mx.CollectOptions`: `Enums()`/`EnumStrings()` methods, the

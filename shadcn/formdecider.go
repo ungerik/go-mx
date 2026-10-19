@@ -103,7 +103,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 //	  <FieldLabel for=path>label</FieldLabel> (when set)
 //	  <input ...>
 //	  <FieldDescription>help</FieldDescription> (when set)
-//	  <Label for=clear>clear</Label> (when nullable)
+//	  <Label for=clear>clear</Label> (when nullable, not required and not readonly)
 //	  <FieldError data-error=path>err</FieldError> (one per error, role="alert")
 //	</Field>
 //
@@ -341,8 +341,11 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		html.Type("number"),
 		html.Name(string(path)),
 		html.ID(string(path)),
-		html.Value(displayValue(value)),
 		hx.Trigger("change"),
+	}
+	// A sensitive number never shows its value, like a sensitive text input.
+	if !tag.Sensitive {
+		a = append(a, html.Value(displayValue(value)))
 	}
 	if tag.Min != "" {
 		a = append(a, html.Min(tag.Min))
@@ -382,12 +385,9 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	// A readonly field is never saved, so its text input asks for nothing.
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly
-	// A form:"placeholder=…" replaces the format, such as with a translated
-	// one, in the placeholder and the hint alike.
-	format := cmp.Or(tag.Placeholder, in.Format)
 	if askFormat {
 		a = append(a,
-			html.Placeholder(format),
+			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
 			mx.NewAttrib("aria-describedby", formatHintID(path)),
 		)
 	}
@@ -413,14 +413,20 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 	if len(errs) > 0 || (in.Invalid && !tag.Readonly) {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
+	// The hint names the format the parser reads, which a placeholder from
+	// the tag does not replace, and says so when the stored text is not in it.
+	caption := func(l Labels) string { return l.FormExpectedFormat }
+	if in.Invalid {
+		caption = func(l Labels) string { return l.FormInvalidFormat }
+	}
 	if !askFormat {
 		return Input(a...)
 	}
 	return mx.Components{
 		Input(a...),
 		FieldDescription(html.ID(formatHintID(path)),
-			labelText(func(l Labels) string { return l.FormExpectedFormat }),
-			mx.Text(" "+format),
+			labelText(caption),
+			mx.Text(" "+in.Format),
 		),
 	}
 }
@@ -462,7 +468,12 @@ func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
 		html.Name(string(path)),
 		html.ID(string(path)),
 	}
-	if tag.Required {
+	// A file input cannot be readonly, and a readonly field is never
+	// saved, so it is disabled and asks for nothing.
+	switch {
+	case tag.Readonly:
+		a = append(a, html.Disabled)
+	case tag.Required:
 		a = append(a, html.Required)
 	}
 	if len(errs) > 0 {

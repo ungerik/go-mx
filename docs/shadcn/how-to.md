@@ -256,6 +256,7 @@ so the language is chosen per request — not per call site.
        FormNoSelection:        "(keine)",
        FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
        FormExpectedFormat:     "Erwartetes Format:",
+       FormInvalidFormat:      "Nicht im erwarteten Format:",
    }
    ```
 

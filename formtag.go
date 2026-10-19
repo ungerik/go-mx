@@ -149,6 +149,9 @@ func ParseFormTagString(raw string) FormTag {
 // substring. The grammar is intentionally simple: a value introduced
 // by '=' may be wrapped in '...' or "..." to embed commas (useful for
 // help text and labels). Quotes are stripped from the returned value.
+// Only a quote that starts a value opens one: an apostrophe inside a
+// value, as in label=Owner's email, is a literal and never swallows the
+// options after it.
 func splitFormTag(raw string) []string {
 	var (
 		parts   []string
@@ -164,7 +167,7 @@ func splitFormTag(raw string) []string {
 				continue
 			}
 			current.WriteByte(c)
-		case c == '\'' || c == '"':
+		case (c == '\'' || c == '"') && strings.HasSuffix(strings.TrimRight(current.String(), " "), "="):
 			quote = c
 		case c == ',':
 			parts = append(parts, current.String())

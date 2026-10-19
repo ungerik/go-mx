@@ -96,6 +96,75 @@ func TestReflectFormFields_ReadonlySection(t *testing.T) {
 	}
 }
 
+type walkLocked struct {
+	Note  string `form:"widget=textarea,label=Notes"`
+	Owner string `form:"help=The owner's login email"`
+	Hash  string `form:"-"`
+}
+
+type walkLockedSection struct {
+	Name    string
+	Account walkLocked `form:"section=Account,readonly"`
+}
+
+// Readonly passed down by a section keeps each field's own options, holds
+// against a quote in them, and never brings a skipped field back.
+func TestReflectFormFields_ReadonlySectionKeepsTags(t *testing.T) {
+	got := map[FieldPath]FormTag{}
+	for v := range ReflectFormFields(&walkLockedSection{}) {
+		_, tag := DetectField(v.Path, v.Field, v.Value)
+		got[v.Path] = tag
+	}
+	if _, ok := got["Account-Hash"]; ok {
+		t.Errorf("a form:\"-\" field in a readonly section is walked: %v", got)
+	}
+	if tag := got["Account-Note"]; !tag.Readonly || tag.Widget != "textarea" || tag.Label != "Notes" {
+		t.Errorf("Account-Note detected as %+v, want readonly with its own options", tag)
+	}
+	if tag := got["Account-Owner"]; !tag.Readonly {
+		t.Errorf("an apostrophe in the help text cancels readonly: %+v", tag)
+	}
+}
+
+type walkAudit struct {
+	CreatedBy string
+	IsAdmin   bool
+}
+
+type walkInternal struct {
+	Role string
+}
+
+type walkEmbedTags struct {
+	walkAudit    `form:"readonly"`
+	walkInternal `form:"-"`
+	Name         string
+}
+
+// The form tag of an embedded struct applies to the fields it promotes:
+// form:"-" omits them, form:"readonly" locks them.
+func TestReflectFormFields_EmbeddedStructTags(t *testing.T) {
+	got := map[FieldPath]FieldVisit{}
+	for v := range ReflectFormFields(&walkEmbedTags{}) {
+		got[v.Path] = v
+	}
+	if _, ok := got["Role"]; ok {
+		t.Errorf("a field of a form:\"-\" embed is walked: %v", got)
+	}
+	for _, p := range []FieldPath{"CreatedBy", "IsAdmin"} {
+		v, ok := got[p]
+		if !ok {
+			t.Fatalf("%s is not walked", p)
+		}
+		if _, tag := DetectField(v.Path, v.Field, v.Value); !v.Tag.Readonly || !tag.Readonly {
+			t.Errorf("%s of a readonly embed is not readonly", p)
+		}
+	}
+	if got["Name"].Tag.Readonly {
+		t.Errorf("Name is readonly")
+	}
+}
+
 func TestReflectFormFields_SectionAttached(t *testing.T) {
 	for v := range ReflectFormFields(&walkOuter{}) {
 		switch v.Path {

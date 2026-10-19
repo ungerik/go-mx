@@ -772,6 +772,46 @@ func (s strictEnum) Validate() error {
 	return nil
 }
 
+// A required field whose __present sentinel is missing is still checked:
+// leaving the sentinel out of a submit-only form cannot save a blank.
+func TestReflectFormHandler_RequiredWithoutSentinel(t *testing.T) {
+	type signup struct {
+		Email string `form:"required"`
+	}
+	saved := false
+	handler := ReflectFormHandler(nil, func(context.Context, *signup) error { saved = true; return nil }, newTestDecider())
+	rec := postForm(t, handler, url.Values{})
+	if rec.Code != http.StatusOK || saved {
+		t.Errorf("status %d, saved %t; want the required error and nothing saved", rec.Code, saved)
+	}
+}
+
+type enumLine struct {
+	Color strictEnum
+	Set   map[strictEnum]struct{}
+}
+
+type enumSheet struct {
+	Lines []enumLine `form:"repeatable"`
+}
+
+// A repeatable row validates like a top-level field: a blank optional enum
+// saves, and an enum set rejects a member that is not an enum value.
+func TestRepeatable_RowEnumValidation(t *testing.T) {
+	var saved *enumSheet
+	handler := ReflectFormHandler(nil, func(_ context.Context, s *enumSheet) error { saved = s; return nil }, newTestDecider())
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Color": ""})
+	if rec := postForm(t, handler, form); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("a blank optional enum in a row: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	saved = nil
+	addRow(form, "Lines", 0, map[string]string{"Color": "a", "Set": "z"})
+	if rec := postForm(t, handler, form); rec.Code != http.StatusOK || saved != nil {
+		t.Errorf("an invalid set member in a row: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
 func TestReflectFormHandler_OptionalEnumAllowsBlank(t *testing.T) {
 	type draft struct {
 		Color strictEnum

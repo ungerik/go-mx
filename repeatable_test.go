@@ -429,7 +429,7 @@ func TestRepeatable_PointerElements(t *testing.T) {
 func addRow(form url.Values, field FieldPath, index int, cells map[string]string) {
 	form.Set(PresentSentinelName(field), "1")
 	rowPath := field.Append(strconv.Itoa(index))
-	form.Set(RowSentinelName(rowPath), strconv.Itoa(index))
+	form.Set(RowSentinelName(rowPath), "o"+strconv.Itoa(index))
 	for sub, val := range cells {
 		cellPath := rowPath.Append(sub)
 		form.Set(PresentSentinelName(cellPath), "1")
@@ -490,15 +490,15 @@ func TestRepeatable_ReadonlyCellsKeepLoadedValues(t *testing.T) {
 	get := httptest.NewRecorder()
 	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
 	shown := renderedValues(get.Body.String())
-	if got := shown.Get(RowSentinelName("Lines-2")); got != "2" {
-		t.Fatalf("GET marks row 2 with origin %q, want 2", got)
+	if got := shown.Get(RowSentinelName("Lines-2")); got != "o2" {
+		t.Fatalf("GET marks row 2 with origin %q, want o2", got)
 	}
 
 	shown.Set("__cmd__", DeleteRowCommand("Lines-0"))
 	removedBody := postForm(t, h, shown).Body.String()
 	removed := renderedValues(removedBody)
-	if removed.Get("Lines-0-ApprovedBy") != "bob" || removed.Get(RowSentinelName("Lines-0")) != "1" {
-		t.Fatalf("after removing row 0, row 0 must be bob's with origin 1: %s", removedBody)
+	if removed.Get("Lines-0-ApprovedBy") != "bob" || removed.Get(RowSentinelName("Lines-0")) != "o1" {
+		t.Fatalf("after removing row 0, row 0 must be bob's with origin o1: %s", removedBody)
 	}
 
 	removed.Set("__cmd__", AddRowCommand("Lines"))
@@ -520,7 +520,8 @@ func TestRepeatable_ReadonlyCellsKeepLoadedValues(t *testing.T) {
 
 // The __row__ marker is client-controlled: a loaded row's readonly values
 // go to at most one submitted row, and a marker naming no loaded row
-// claims none.
+// claims none, nor does the bare "1" of a page rendered before markers
+// carried origins.
 func TestRepeatable_TamperedOriginsClaimOnce(t *testing.T) {
 	var saved *approvalSheet
 	h := ReflectFormHandler(
@@ -531,7 +532,7 @@ func TestRepeatable_TamperedOriginsClaimOnce(t *testing.T) {
 		newTestDecider(),
 	)
 	form := url.Values{}
-	for i, origin := range []string{"0", "0", "7", "-1", "x"} {
+	for i, origin := range []string{"o0", "o0", "o7", "1", "x"} {
 		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
 		form.Set(RowSentinelName(FieldPath("Lines").Append(strconv.Itoa(i))), origin)
 	}
@@ -556,7 +557,8 @@ type reviewSheet struct {
 // A save rejected after a remove-row click re-renders each row with its
 // origin, so the corrected save keeps the readonly cells on their rows,
 // whether a field, onSubmit's FieldErrors or onSubmit's error rejected it.
-// Rows that onSubmit added or removed before failing claim no loaded row.
+// Rows that onSubmit appended before failing claim no loaded row; the rows
+// before them keep theirs.
 func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
 	stored := []reviewLine{{"a", "alice"}, {"b", "bob"}, {"c", "carol"}}
 	for _, tt := range []struct {
@@ -569,19 +571,19 @@ func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
 		{
 			name:        "required cell blank",
 			blankDesc:   true,
-			wantMarkers: []string{"1", "2"},
+			wantMarkers: []string{"o1", "o2"},
 			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
 		},
 		{
 			name:        "onSubmit field errors",
 			firstSubmit: func(*reviewSheet) error { return FieldErrors{"Lines-0-Desc": errors.New("taken")} },
-			wantMarkers: []string{"1", "2"},
+			wantMarkers: []string{"o1", "o2"},
 			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
 		},
 		{
 			name:        "onSubmit error",
 			firstSubmit: func(*reviewSheet) error { return errors.New("try again") },
-			wantMarkers: []string{"1", "2"},
+			wantMarkers: []string{"o1", "o2"},
 			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
 		},
 		{
@@ -590,8 +592,8 @@ func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
 				s.Lines = append(s.Lines, reviewLine{Desc: "d"})
 				return errors.New("try again")
 			},
-			wantMarkers: []string{"new", "new", "new"},
-			want:        []reviewLine{{"b", ""}, {"c", ""}, {"d", ""}},
+			wantMarkers: []string{"o1", "o2", "new"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}, {"d", ""}},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -691,6 +693,41 @@ func TestRepeatable_ReadonlyFieldKeepsRows(t *testing.T) {
 	}
 	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Lines, want) {
 		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+	// A forged row command on a readonly field is a plain submit.
+	form.Set("__cmd__", AddRowCommand("Lines"))
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || len(saved.Lines) != 1 {
+		t.Errorf("forged add-row: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+type pointerSheet struct {
+	Lines []*approvalLine `form:"repeatable"`
+}
+
+// Rows of pointer elements start as a copy of their origin row too, a nil
+// one as the zero row, and the loaded pointees are never written.
+func TestRepeatable_PointerRowsStartFromOrigin(t *testing.T) {
+	first := &approvalLine{"a", "alice"}
+	var saved *pointerSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*pointerSheet, error) {
+			return &pointerSheet{Lines: []*approvalLine{first, nil}}, nil
+		},
+		func(_ context.Context, s *pointerSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Desc": "a2", "ApprovedBy": "mallory"})
+	addRow(form, "Lines", 1, map[string]string{"Desc": "b"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if saved == nil || len(saved.Lines) != 2 || *saved.Lines[0] != (approvalLine{"a2", "alice"}) || *saved.Lines[1] != (approvalLine{"b", ""}) {
+		t.Errorf("saved %+v", saved)
+	}
+	if *first != (approvalLine{"a", "alice"}) {
+		t.Errorf("the loaded row was written: %+v", *first)
 	}
 }
 

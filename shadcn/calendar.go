@@ -59,7 +59,8 @@ type CalendarOptions struct {
 	// (aria-label) of its column heading, so a screen reader moving through
 	// the grid announces "Sunday" rather than the WeekdayName abbreviation.
 	// nil uses time.Weekday.String(), which is always English because Go's
-	// time package has no locale.
+	// time package has no locale, but only when WeekdayName is nil too: a
+	// localized heading is not given an English name.
 	WeekdayLabel func(time.Weekday) string
 
 	// MonthLabel returns the header text for the displayed month. nil uses
@@ -162,7 +163,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 		weekdayName = func(wd time.Weekday) string { return defaultWeekdayAbbr[wd] }
 	}
 	weekdayLabel := opts.WeekdayLabel
-	if weekdayLabel == nil {
+	if weekdayLabel == nil && opts.WeekdayName == nil {
 		weekdayLabel = time.Weekday.String
 	}
 	monthLabel := opts.MonthLabel
@@ -228,10 +229,12 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	head := html.Element("tr")
 	for col := range 7 {
 		wd := time.Weekday((int(opts.WeekStart) + col) % 7)
-		head.Children = append(head.Children, html.Element("th",
-			html.Class("text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal"),
-			html.Attrib("aria-label", weekdayLabel(wd)),
-			weekdayName(wd)))
+		th := html.Element("th", html.Class("text-muted-foreground w-8 pb-1 text-[0.8rem] font-normal"))
+		if weekdayLabel != nil {
+			th.Attribs = append(th.Attribs, html.Attrib("aria-label", weekdayLabel(wd)))
+		}
+		th.Children = append(th.Children, mx.Text(weekdayName(wd)))
+		head.Children = append(head.Children, th)
 	}
 
 	body := html.Element("tbody")

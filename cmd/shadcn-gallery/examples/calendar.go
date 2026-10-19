@@ -1,9 +1,11 @@
 package examples
 
 import (
+	"context"
 	"time"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn"
 )
 
@@ -27,7 +29,10 @@ func CalendarBookingDemo() mx.Component {
 	deMonths := [12]string{"Januar", "Februar", "März", "April", "Mai", "Juni",
 		"Juli", "August", "September", "Oktober", "November", "Dezember"}
 	today := time.Date(2026, time.June, 10, 0, 0, 0, 0, time.UTC)
-	return shadcn.CalendarWith(
+	// The month buttons take their names from the context's Labels, and
+	// lang lets a screen reader read the German names with a German voice.
+	de := shadcn.Labels{CalendarPrevious: "Zum vorherigen Monat", CalendarNext: "Zum nächsten Monat"}
+	calendar := shadcn.CalendarWith(
 		shadcn.CalendarOptions{
 			WeekStart:    time.Monday,
 			WeekdayName:  func(wd time.Weekday) string { return deDays[wd] },
@@ -43,5 +48,9 @@ func CalendarBookingDemo() mx.Component {
 		},
 		time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC),
+		html.Lang("de"),
 	)
+	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return calendar.Render(shadcn.ContextWithLabels(ctx, de), w)
+	})
 }

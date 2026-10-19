@@ -98,6 +98,10 @@ type Labels struct {
 	// reflected date or time field whose stored text the date picker cannot
 	// show, so it renders as a text input instead.
 	FormExpectedFormat string
+	// FormInvalidFormat replaces FormExpectedFormat when the stored text is
+	// not in that format, so saving it unchanged fails: the text says so,
+	// not only the destructive color.
+	FormInvalidFormat string
 }
 
 // DefaultLabels holds the strings used when the render context carries no
@@ -139,6 +143,7 @@ var englishLabels = Labels{
 	FormNoSelection:        "(none)",
 	FormValuesNotAvailable: "(some current values are not available)",
 	FormExpectedFormat:     "Expected format:",
+	FormInvalidFormat:      "Not in the expected format:",
 }
 
 // ctxKeyLabels is the unexported render-context key under which
@@ -201,6 +206,7 @@ func (l Labels) orDefaults() Labels {
 		FormNoSelection:        cmp.Or(l.FormNoSelection, DefaultLabels.FormNoSelection, englishLabels.FormNoSelection),
 		FormValuesNotAvailable: cmp.Or(l.FormValuesNotAvailable, DefaultLabels.FormValuesNotAvailable, englishLabels.FormValuesNotAvailable),
 		FormExpectedFormat:     cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
+		FormInvalidFormat:      cmp.Or(l.FormInvalidFormat, DefaultLabels.FormInvalidFormat, englishLabels.FormInvalidFormat),
 	}
 }
 

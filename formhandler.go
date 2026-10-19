@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/domonda/go-errs"
 )
 
 // DefaultMaxMemory is the default upper bound on multipart form parsing
@@ -270,13 +269,18 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 		beh := d(visit.Path, visit.Field, visit.Value)
 		if !visit.Value.CanAddr() {
 			out[visit.Path] = append(out[visit.Path],
-				errs.New("internal: field value not addressable"))
+				errors.New("internal: field value not addressable"))
 			continue
 		}
 		// __present gate: skip silently when the field was not
 		// rendered. This is the allowlist that defends against
 		// mass-assignment via tampered POSTs.
 		if !sentinelSet(form, PresentSentinelName(visit.Path)) {
+			// Omitting the sentinel leaves a field alone but cannot skip
+			// its required check, as for a submit-only form's new(T).
+			if visit.Tag.Required && !visit.Tag.Readonly && isEffectivelyEmpty(visit.Value) {
+				out[visit.Path] = append(out[visit.Path], errors.New("required"))
+			}
 			continue
 		}
 		// Readonly: render-only; never write a submitted value, not even
@@ -306,21 +310,8 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 				errors.New("required"))
 			continue
 		}
-		// A blank optional enum is "no choice", not an invalid constant.
-		// go-enum Validate rejects the zero string, which would make the
-		// leading "(none)" option impossible to save. A decider Validate
-		// still runs: that hook is the caller's, not the type's enum check.
-		if !(visit.Kind == FieldKindEnum && isEffectivelyEmpty(visit.Value)) {
-			// The elements of an enum set carry the enum's Validate, not
-			// the map or slice holding them, so a set is validated element
-			// by element unless it validates itself.
-			chainErrs := RunValidationChain(visit.Value)
-			if len(chainErrs) == 0 && visit.Kind == FieldKindEnumSet {
-				chainErrs = validateSetElements(visit.Value)
-			}
-			if len(chainErrs) > 0 {
-				out[visit.Path] = append(out[visit.Path], chainErrs...)
-			}
+		if chainErrs := validateBound(visit.Kind, visit.Value); len(chainErrs) > 0 {
+			out[visit.Path] = append(out[visit.Path], chainErrs...)
 		}
 		// Decider-supplied Validate runs after the chain (additive).
 		if beh.Validate != nil {
@@ -330,6 +321,25 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 		}
 	}
 	return out
+}
+
+// validateBound runs the validation chain on a bound field value, at the
+// top level and in a repeatable row alike. A blank optional enum is "no
+// choice", not an invalid constant: go-enum Validate rejects the zero
+// string, which would make the leading "(none)" option impossible to save
+// (a decider Validate still runs: that hook is the caller's, not the
+// type's enum check). The elements of an enum set carry the enum's
+// Validate, not the map or slice holding them, so a set is validated
+// element by element unless it validates itself.
+func validateBound(kind FieldKind, value reflect.Value) []error {
+	if kind == FieldKindEnum && isEffectivelyEmpty(value) {
+		return nil
+	}
+	chainErrs := RunValidationChain(value)
+	if len(chainErrs) == 0 && kind == FieldKindEnumSet {
+		chainErrs = validateSetElements(value)
+	}
+	return chainErrs
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a
@@ -377,7 +387,7 @@ func sentinelSet(form map[string][]string, name string) bool {
 // slice/map/interface kinds.
 func setFieldNull(value reflect.Value) error {
 	if !value.IsValid() {
-		return errs.New("internal: invalid value for clear")
+		return errors.New("internal: invalid value for clear")
 	}
 	if value.CanAddr() {
 		if ns, ok := value.Addr().Interface().(NullSetter); ok {
@@ -392,7 +402,7 @@ func setFieldNull(value reflect.Value) error {
 			return nil
 		}
 	}
-	return errs.New("field is not nullable")
+	return errors.New("field is not nullable")
 }
 
 // isEffectivelyEmpty reports whether value should be treated as

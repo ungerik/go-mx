@@ -732,7 +732,7 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
 			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
 		// A placeholder from the tag, say a translated format, replaces the
-		// format in the placeholder and the hint.
+		// placeholder; the hint names the format the parser reads.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
 			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true" class="`},
 	}
@@ -744,12 +744,10 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 			}
 			// A text input is followed by the format to enter.
 			hint := `id="` + tt.field + `-format"`
+			// Every text input here holds text the parser rejects, and the
+			// hint names the parser's format, also under a tag placeholder.
 			if strings.Contains(tt.want, `type="text"`) {
-				format := "YYYY-MM-DD"
-				if tt.field == "Localized" {
-					format = "JJJJ-MM-TT"
-				}
-				if !strings.Contains(out, hint) || !strings.Contains(out, ">Expected format: "+format+"</p>") {
+				if !strings.Contains(out, hint) || !strings.Contains(out, ">Not in the expected format: YYYY-MM-DD</p>") {
 					t.Errorf("the text input lacks the format hint: %s", out)
 				}
 			} else if strings.Contains(out, hint) {
@@ -928,7 +926,7 @@ func TestShadcn_TimeWidgetsPrefillStringKinds(t *testing.T) {
 		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true" class="`; got != want {
 		t.Errorf("Clock renders\n%s\nwant\n%s", got, want)
 	}
-	if !strings.Contains(out, ">Expected format: HH:MM</p>") {
+	if !strings.Contains(out, ">Not in the expected format: HH:MM</p>") {
 		t.Errorf("Clock lacks the format hint: %s", out)
 	}
 	if got, want := inputStartTag(renderShadcn(t, &form{Clock: "09:05:00"}, "Clock", nil)),
@@ -1094,6 +1092,16 @@ func TestShadcn_CatchAllIsStyledText(t *testing.T) {
 	}
 }
 
+// A sensitive number never shows its value.
+func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
+	type form struct {
+		PIN int `form:"sensitive"`
+	}
+	if out := renderShadcn(t, &form{PIN: 1234}, "PIN", nil); strings.Contains(out, "1234") {
+		t.Errorf("a sensitive number shows its value: %s", out)
+	}
+}
+
 // A readonly nullable field is never written, so it offers no clear control.
 func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
 	type form struct {
@@ -1123,6 +1131,9 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 	}
 	// A date struct reads its own text back, so its text input is not
 	// marked invalid, unless a bound it cannot be checked against is set.
+	if out := renderShadcn(t, f, "Loose", nil); !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") {
+		t.Errorf("Loose lacks the plain format hint: %s", out)
+	}
 	if got, want := inputStartTag(renderShadcn(t, f, "Loose", nil)),
 		`<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
 		t.Errorf("Loose renders\n%s\nwant\n%s", got, want)
@@ -1152,7 +1163,7 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 		`<input data-slot="input" type="text" name="Old" id="Old" hx-trigger="change" value="06.07.2026" readonly="readonly" class="`; got != want {
 		t.Errorf("Old renders\n%s\nwant\n%s", got, want)
 	}
-	if strings.Contains(out, "Expected format") {
-		t.Errorf("a readonly text input needs no format hint: %s", out)
+	if strings.Contains(out, "Expected format") || strings.Contains(out, "data-invalid") {
+		t.Errorf("a readonly text input needs no format hint and is never marked invalid: %s", out)
 	}
 }

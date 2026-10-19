@@ -350,18 +350,39 @@ func (d dateOnlyTime) MarshalText() ([]byte, error) { return []byte(d.Format(tim
 // Rule 14 makes a date/time field only of time-like structs: time.Time, a
 // type defined as it, or a struct whose only field is an embedded time. A
 // registered single-value struct that holds more is a catch-all text input.
+// localStamp and localSole are time-like types no test registers, so the
+// detection below rests on their shape alone.
+type localStamp time.Time
+
+type localSole struct {
+	time.Time
+}
+
+type embedsLocalSole struct {
+	localSole
+}
+
 // A slice of a time-like type tagged repeatable would render rows with no
 // cells, since a time's fields are unexported, and zero every value on
-// save, so it is not repeatable, as []time.Time is not.
+// save, and no input binds a slice of times, so the field is skipped.
 func TestDetectField_RepeatableTimeLikeSlice(t *testing.T) {
 	type form struct {
-		Stamps []definedStamp `form:"repeatable"`
-		Soles  []soleTime     `form:"repeatable"`
+		Stamps []localStamp `form:"repeatable"`
+		Soles  []localSole  `form:"repeatable"`
 	}
 	for _, name := range []string{"Stamps", "Soles"} {
-		if kind, _ := detectKind(t, &form{}, name); kind == FieldKindRepeatable {
-			t.Errorf("DetectField(%s) = repeatable", name)
+		if kind, _ := detectKind(t, &form{}, name); kind != FieldKindSkip {
+			t.Errorf("DetectField(%s) = %s, want skip", name, kind)
 		}
+	}
+}
+
+// An embedded time-like struct is a date and time field, not fields to
+// inline, for a caller that detects it directly; the walker skips embeds.
+func TestDetectField_EmbeddedTimeLikeNotInline(t *testing.T) {
+	field := reflect.TypeFor[embedsLocalSole]().Field(0)
+	if kind, _ := DetectField("localSole", field, reflect.ValueOf(embedsLocalSole{}).Field(0)); kind != FieldKindDateTime {
+		t.Errorf("DetectField(embedded localSole) = %s, want datetime", kind)
 	}
 }
 

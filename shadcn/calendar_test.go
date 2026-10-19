@@ -107,6 +107,10 @@ func TestCalendarGermanLocale(t *testing.T) {
 	if strings.Contains(out, ">Su<") || strings.Contains(out, ">We<") {
 		t.Errorf("English weekday headings leaked into German calendar: %s", out)
 	}
+	// Without a WeekdayLabel, a localized heading gets no English name.
+	if strings.Contains(out, `aria-label="Monday"`) {
+		t.Errorf("an English weekday name leaked into the German calendar: %s", out)
+	}
 	if strings.Index(out, ">Mo<") > strings.Index(out, ">So<") {
 		t.Errorf("German week should start Monday and end Sunday: %s", out)
 	}
