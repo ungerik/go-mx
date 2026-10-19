@@ -9,7 +9,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-
 )
 
 // DefaultMaxMemory is the default upper bound on multipart form parsing
@@ -78,9 +77,10 @@ type ReflectFormConfig struct {
 // in place.
 //
 // When onSubmit returns an error, the form re-renders the record as
-// onSubmit left it. It must not reorder the rows of a repeatable field
-// then: rows are matched to the loaded rows by position, which their
-// readonly and rejected cells are taken from on the next save.
+// onSubmit left it. It must not reorder or remove the rows of a repeatable
+// field then: rows are matched to the loaded rows by position, which their
+// readonly and rejected cells are taken from on the next save. Rows it
+// appends have no loaded row.
 //
 // load may be nil for submit-only forms (registration, contact, new
 // record) where there is no existing state to load: the handler then
@@ -276,9 +276,11 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 		// rendered. This is the allowlist that defends against
 		// mass-assignment via tampered POSTs.
 		if !sentinelSet(form, PresentSentinelName(visit.Path)) {
-			// Omitting the sentinel leaves a field alone but cannot skip
-			// its required check, as for a submit-only form's new(T).
-			if visit.Tag.Required && !visit.Tag.Readonly && isEffectivelyEmpty(visit.Value) {
+			// Omitting the sentinel of a rendered field leaves it alone but
+			// cannot skip its required check, as for a submit-only form's
+			// new(T). A field the decider does not render has no sentinel
+			// and shows no error, so it is left alone.
+			if beh.Render != nil && visit.Tag.Required && !visit.Tag.Readonly && isBlank(visit.Kind, visit.Value) {
 				out[visit.Path] = append(out[visit.Path], errors.New("required"))
 			}
 			continue
@@ -332,7 +334,7 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 // Validate, not the map or slice holding them, so a set is validated
 // element by element unless it validates itself.
 func validateBound(kind FieldKind, value reflect.Value) []error {
-	if kind == FieldKindEnum && isEffectivelyEmpty(value) {
+	if kind == FieldKindEnum && isBlank(kind, value) {
 		return nil
 	}
 	chainErrs := RunValidationChain(value)
@@ -340,6 +342,13 @@ func validateBound(kind FieldKind, value reflect.Value) []error {
 		chainErrs = validateSetElements(value)
 	}
 	return chainErrs
+}
+
+// isBlank reports whether a bound value counts as no value for a required
+// check: [isEffectivelyEmpty], or the zero of an enum of any kind, the value
+// an empty select stores, which isEffectivelyEmpty never sees in a number.
+func isBlank(kind FieldKind, value reflect.Value) bool {
+	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a

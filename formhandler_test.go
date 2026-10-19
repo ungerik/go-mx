@@ -776,13 +776,90 @@ func (s strictEnum) Validate() error {
 // leaving the sentinel out of a submit-only form cannot save a blank.
 func TestReflectFormHandler_RequiredWithoutSentinel(t *testing.T) {
 	type signup struct {
-		Email string `form:"required"`
+		Email  string   `form:"required"`
+		Prio   prioEnum `form:"required"`
+		Locked string   `form:"readonly,required"`
+	}
+	var saved *signup
+	handler := ReflectFormHandler(nil, func(_ context.Context, s *signup) error { saved = s; return nil }, newTestDecider())
+	rec := postForm(t, handler, url.Values{})
+	if rec.Code != http.StatusOK || saved != nil {
+		t.Fatalf("status %d, saved %+v; want the required errors and nothing saved", rec.Code, saved)
+	}
+	body := rec.Body.String()
+	for _, path := range []string{"Email", "Prio"} {
+		if !strings.Contains(body, `data-error="`+path+`"`) {
+			t.Errorf("no required error at %s: %s", path, body)
+		}
+	}
+	// A readonly field the user cannot fill never blocks the save.
+	if strings.Contains(body, `data-error="Locked"`) {
+		t.Errorf("a readonly field got a required error: %s", body)
+	}
+}
+
+// A required field the decider does not render has no sentinel and shows
+// no error, so it is left alone instead of blocking every save.
+func TestReflectFormHandler_UnrenderedRequiredFieldSaves(t *testing.T) {
+	type hidden struct {
+		Name     string
+		Approver string `form:"required"`
+		Lines    []struct {
+			Desc     string
+			Approver string `form:"required"`
+		} `form:"repeatable"`
+	}
+	base := newTestDecider()
+	decider := func(p FieldPath, f reflect.StructField, v reflect.Value) FieldBehavior {
+		if f.Name == "Approver" {
+			return FieldBehavior{}
+		}
+		return base(p, f, v)
 	}
 	saved := false
-	handler := ReflectFormHandler(nil, func(context.Context, *signup) error { saved = true; return nil }, newTestDecider())
-	rec := postForm(t, handler, url.Values{})
-	if rec.Code != http.StatusOK || saved {
-		t.Errorf("status %d, saved %t; want the required error and nothing saved", rec.Code, saved)
+	handler := ReflectFormHandler(nil, func(context.Context, *hidden) error { saved = true; return nil }, decider)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	addRow(form, "Lines", 0, map[string]string{"Desc": "d"})
+	form.Set(RowSentinelName("Lines-0"), "new")
+	if rec := postForm(t, handler, form); rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("status %d, saved %t; want the save to go through", rec.Code, saved)
+	}
+}
+
+// prioEnum is an int enum whose zero is no valid value.
+type prioEnum int
+
+func (prioEnum) Enums() []prioEnum { return []prioEnum{1, 2} }
+
+func (p prioEnum) Validate() error {
+	if p != 1 && p != 2 {
+		return errors.New("invalid prio")
+	}
+	return nil
+}
+
+// An added row's required cell cannot be skipped by leaving out its
+// sentinel. (The "(none)" of an optional int enum is covered with the html
+// decider, which binds an empty select.)
+func TestRepeatable_AddedRowRequiredWithoutSentinel(t *testing.T) {
+	type line struct {
+		Desc string `form:"required"`
+		Prio prioEnum
+	}
+	type record struct {
+		Prio  prioEnum
+		Lines []line `form:"repeatable"`
+	}
+	var saved *record
+	handler := ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, newTestDecider())
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Prio": "1"})
+	form.Set(RowSentinelName("Lines-0"), "new")
+	rec := postForm(t, handler, form)
+	if rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), `data-error="Lines-0-Desc"`) {
+		t.Errorf("an added row without its required cell: status %d, saved %+v", rec.Code, saved)
 	}
 }
 
@@ -795,8 +872,9 @@ type enumSheet struct {
 	Lines []enumLine `form:"repeatable"`
 }
 
-// A repeatable row validates like a top-level field: a blank optional enum
-// saves, and an enum set rejects a member that is not an enum value.
+// A blank optional enum in a repeatable row saves, as at the top level.
+// (Set members are validated per element too; the test decider cannot bind
+// a set, so html.TestReflectFormHandler_RowEnumSetValidated covers that.)
 func TestRepeatable_RowEnumValidation(t *testing.T) {
 	var saved *enumSheet
 	handler := ReflectFormHandler(nil, func(_ context.Context, s *enumSheet) error { saved = s; return nil }, newTestDecider())
@@ -804,11 +882,6 @@ func TestRepeatable_RowEnumValidation(t *testing.T) {
 	addRow(form, "Lines", 0, map[string]string{"Color": ""})
 	if rec := postForm(t, handler, form); rec.Code != http.StatusSeeOther || saved == nil {
 		t.Fatalf("a blank optional enum in a row: status %d, body %s", rec.Code, rec.Body.String())
-	}
-	saved = nil
-	addRow(form, "Lines", 0, map[string]string{"Color": "a", "Set": "z"})
-	if rec := postForm(t, handler, form); rec.Code != http.StatusOK || saved != nil {
-		t.Errorf("an invalid set member in a row: status %d, saved %+v", rec.Code, saved)
 	}
 }
 

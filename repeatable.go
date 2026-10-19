@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
 )
 
 // This file implements form:"repeatable" — slice-of-struct fields
@@ -47,9 +46,9 @@ import (
 // slice load returns on that POST, so if the stored rows changed since
 // the GET, the values follow the row now at that position: key such rows
 // with a form:"hidden" sub-field and restore server-controlled columns in
-// onSubmit. For the same reason a failing onSubmit must not reorder the
-// rows; rows it appends have no origin, and if it removes rows, no row
-// keeps one. The marker is
+// onSubmit. For the same reason a failing onSubmit must not reorder or
+// remove the rows; rows it appends have no origin (and if the rows are
+// fewer, no row keeps one). The marker is
 // client-controlled, so only the index of a loaded row that no earlier
 // submitted row claimed counts: a tampered POST can reorder the record's
 // rows but cannot copy one row onto a second or keep a row whose origin it
@@ -170,9 +169,9 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			if recorded {
 				// A failing onSubmit that appended rows left the others in
 				// place, so they keep their origins and the appended ones
-				// have none; one that removed rows may have shifted any, so
-				// then no row claims a loaded one. It must not reorder
-				// them, as origins are positions.
+				// have none; with fewer rows, any may have shifted, so no
+				// row claims a loaded one. It must not reorder or remove
+				// rows, as origins are positions.
 				origin = -1
 				if i < len(rowsOrigin) && len(rowsOrigin) <= slice.Len() {
 					origin = rowsOrigin[i]
@@ -362,10 +361,12 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 		// Never a submitted value, not even the null of __clear.
 		return
 	}
+	beh := d(srcCell, cv.Field, cv.Value)
 	if !sentinelSet(form, PresentSentinelName(srcCell)) {
 		// A cell not sent keeps the value the row started with, but an
-		// empty required one, as in an added row, is still an error.
-		if cv.Tag.Required && isEffectivelyEmpty(cv.Value) {
+		// empty required one the decider renders, as in an added row, is
+		// still an error.
+		if beh.Render != nil && cv.Tag.Required && isBlank(cv.Kind, cv.Value) {
 			out[dstCell] = append(out[dstCell], errors.New("required"))
 		}
 		return
@@ -376,7 +377,6 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 		}
 		return
 	}
-	beh := d(srcCell, cv.Field, cv.Value)
 	if beh.Parse != nil {
 		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
 			out[dstCell] = append(out[dstCell], err)

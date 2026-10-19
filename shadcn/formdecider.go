@@ -414,9 +414,11 @@ func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
 	// The hint names the format the parser reads, which a placeholder from
-	// the tag does not replace, and says so when the stored text is not in it.
+	// the tag does not replace, and says so when the stored text is not in
+	// it.
+	// After a submit, the field error says that already.
 	caption := func(l Labels) string { return l.FormExpectedFormat }
-	if in.Invalid {
+	if in.Invalid && len(errs) == 0 {
 		caption = func(l Labels) string { return l.FormInvalidFormat }
 	}
 	if !askFormat {

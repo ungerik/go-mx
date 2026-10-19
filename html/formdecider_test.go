@@ -2918,6 +2918,8 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		X int     `form:"max=lots"`
 		B int64   `form:"max=9007199254740992"`
 		G float64
+		M float64 `form:"min=1"`
+		H int     `form:"max=0x10,min=1/2"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2931,6 +2933,11 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		{"G", "Inf", `"Inf" is not a finite number`},
 		// Compared exactly, not as float64.
 		{"B", "9007199254740993", `"9007199254740993" is greater than 9007199254740992`},
+		// The stored value is compared, whatever text the parser read.
+		{"M", "1e-1000001", `"1e-1000001" is less than 1`},
+		{"G", strings.Repeat("1", 65), "too long for a number"},
+		// A bound a browser would not read is no bound.
+		{"H", "99", ""},
 		{"F", "3", `"3" is greater than 2.5`},
 		{"P", "-1", `"-1" is less than 0`},
 		{"X", "9999", ""},
@@ -2940,7 +2947,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
 		}
 	}
-	if f.N != 10 || f.P == nil || *f.P != -1 {
+	if f.N != 10 || f.P == nil || *f.P != -1 || f.H != 99 {
 		t.Errorf("numbers must be bound, in range or not: %+v", f)
 	}
 }
@@ -3081,12 +3088,15 @@ func TestReflectFormHandler_HiddenTimeRoundTrip(t *testing.T) {
 	type record struct {
 		UpdatedAt time.Time   `form:"hidden"`
 		Defined   definedTime `form:"hidden"`
+		Day       time.Time   `form:"hidden,widget=date,min=2030-01-01"`
+		Ptr       *time.Time  `form:"hidden"`
+		Nil       *time.Time  `form:"hidden"`
 	}
 	stamp := time.Date(2026, 7, 6, 9, 5, 7, 123456789, time.FixedZone("CEST", 2*60*60))
 	var saved *record
 	handler := mx.ReflectFormHandler(
 		func(context.Context) (*record, error) {
-			return &record{UpdatedAt: stamp, Defined: definedTime(stamp)}, nil
+			return &record{UpdatedAt: stamp, Defined: definedTime(stamp), Day: stamp, Ptr: new(stamp)}, nil
 		},
 		func(_ context.Context, r *record) error { saved = r; return nil },
 		FieldDecider,
@@ -3097,8 +3107,9 @@ func TestReflectFormHandler_HiddenTimeRoundTrip(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec = httptest.NewRecorder()
 	handler(rec, req)
-	if rec.Code != http.StatusSeeOther || saved == nil || !saved.UpdatedAt.Equal(stamp) || !time.Time(saved.Defined).Equal(stamp) {
-		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
+	if rec.Code != http.StatusSeeOther || saved == nil || !saved.UpdatedAt.Equal(stamp) || !time.Time(saved.Defined).Equal(stamp) ||
+		!saved.Day.Equal(stamp) || saved.Ptr == nil || !saved.Ptr.Equal(stamp) || saved.Nil != nil {
+		t.Errorf("unchanged POST: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
 	}
 }
 
@@ -3127,6 +3138,87 @@ func TestReflectFormHandler_RepeatableTimesSkipped(t *testing.T) {
 	handler(rec, req)
 	if rec.Code != http.StatusSeeOther || saved == nil || len(saved.Days) != 1 || saved.Days[0] != day {
 		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// checkedColor is an enum that validates itself.
+type checkedColor string
+
+func (checkedColor) EnumStrings() []string { return []string{"red", "green"} }
+
+func (c checkedColor) Validate() error {
+	if c != "red" && c != "green" {
+		return errors.New("not a color")
+	}
+	return nil
+}
+
+// prio is an int enum whose zero is no valid value.
+type prio int
+
+func (prio) Enums() []prio { return []prio{1, 2} }
+
+func (p prio) Validate() error {
+	if p != 1 && p != 2 {
+		return errors.New("invalid prio")
+	}
+	return nil
+}
+
+// A repeatable row validates like a top-level field: a checkbox set is
+// validated element by element, and the "(none)" of an optional int enum
+// saves, there and at the top level.
+func TestReflectFormHandler_RowEnumValidation(t *testing.T) {
+	type line struct {
+		Colors map[checkedColor]struct{}
+		Prio   prio
+	}
+	type record struct {
+		Prio  prio
+		Lines []line `form:"repeatable"`
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	post := func(colors ...string) *httptest.ResponseRecorder {
+		form := url.Values{}
+		form.Set(mx.PresentSentinelName("Prio"), "1")
+		form.Set("Prio", "")
+		form.Set(mx.PresentSentinelName("Lines"), "1")
+		form.Set(mx.RowSentinelName("Lines-0"), "new")
+		form.Set(mx.PresentSentinelName("Lines-0-Prio"), "1")
+		form.Set("Lines-0-Prio", "")
+		form.Set(mx.PresentSentinelName("Lines-0-Colors"), "1")
+		for _, c := range colors {
+			form.Add("Lines-0-Colors", c)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("red"); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("blank optional int enums: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	saved = nil
+	if rec := post("red", "blue"); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), "not a color") {
+		t.Errorf("an invalid set member in a row: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// After a submit, the field error says the text is not in the format, so
+// the hint only names the format.
+func TestFieldDecider_FormatHintAfterError(t *testing.T) {
+	type form struct {
+		Due string `form:"widget=date"`
+	}
+	f := &form{Due: "06.07.2026"}
+	v := reflect.ValueOf(f).Elem()
+	field, _ := v.Type().FieldByName("Due")
+	beh := FieldDecider("Due", field, v.Field(0))
+	out := renderToString(t, beh.Render("Due", field, v.Field(0), []error{errors.New(`"06.07.2026" is not a date in the format YYYY-MM-DD`)}))
+	if !strings.Contains(out, ">Expected format: YYYY-MM-DD<") || strings.Contains(out, "Not in the expected format") {
+		t.Errorf("hint after an error: %s", out)
 	}
 }
 

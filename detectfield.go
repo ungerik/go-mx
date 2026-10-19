@@ -54,7 +54,8 @@ import (
 //     decider's Render checks IsNull at render time.
 //   - Before rule 3, a form:"repeatable" tag on a direct []struct /
 //     []*struct field (element not a single-value type) yields
-//     FieldKindRepeatable; on any other shape the tag is ignored.
+//     FieldKindRepeatable, and on a slice of times FieldKindSkip; on any
+//     other shape the tag is ignored.
 //   - Between rules 7 and 8, a form:"options=name" tag yields
 //     FieldKindEnum (set-shaped fields: FieldKindEnumSet); the name
 //     must be registered via [RegisterNamedOptions] before rendering.
@@ -90,7 +91,7 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		if et.Kind() == reflect.Pointer {
 			et = et.Elem()
 		}
-		if et.Kind() == reflect.Struct && isTimeLike(et) {
+		if et.Kind() == reflect.Struct && (isTimeLike(et) || embedsOnlyTime(et)) {
 			// A time's fields are unexported, so its rows would have no
 			// cells and every save would zero the stored times, and no
 			// input binds a slice of times: the field is skipped, never
@@ -269,6 +270,12 @@ func isTimeLike(t reflect.Type) bool {
 		return true
 	}
 	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == timeType && textIsRFC3339(t)
+}
+
+// embedsOnlyTime reports whether the struct type t holds nothing but an
+// embedded time.Time, whatever text methods of its own it has.
+func embedsOnlyTime(t reflect.Type) bool {
+	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == reflect.TypeFor[time.Time]()
 }
 
 // textIsRFC3339 reports whether the zero value of t writes its text as

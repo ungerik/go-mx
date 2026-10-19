@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -142,11 +143,15 @@ func hiddenTime(value reflect.Value) (time.Time, bool) {
 		}
 		value = value.Elem()
 	}
-	timeType := reflect.TypeFor[time.Time]()
-	if value.Kind() != reflect.Struct || !value.Type().ConvertibleTo(timeType) {
+	if !isTimeType(value.Type()) {
 		return time.Time{}, false
 	}
-	return value.Convert(timeType).Interface().(time.Time), true
+	return value.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time), true
+}
+
+// isTimeType reports whether t is time.Time or a type defined as it.
+func isTimeType(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct && t.ConvertibleTo(reflect.TypeFor[time.Time]())
 }
 
 func inputElement(path mx.FieldPath, inputType, val string, _ reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
@@ -299,15 +304,16 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		mx.NewElement("small",
 			mx.Attribute{Name: "class", Value: "form-help"},
 			mx.Attribute{Name: "id", Value: formatHintID(path)},
-			mx.Text(formatHint(in)),
+			mx.Text(formatHint(in, errs)),
 		),
 	}
 }
 
 // formatHint names the format the parser reads, which a placeholder from
 // the tag does not replace, and says so when the stored text is not in it.
-func formatHint(in mx.DateTimeInputSpec) string {
-	if in.Invalid {
+// After a submit, the field error says that already.
+func formatHint(in mx.DateTimeInputSpec, errs []error) string {
+	if in.Invalid && len(errs) == 0 {
 		return "Not in the expected format: " + in.Format
 	}
 	return "Expected format: " + in.Format
@@ -443,20 +449,26 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	switch kind {
 	case mx.FieldKindHidden, mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindCatchAll:
 		raw := form.Get(string(path))
-		if _, ok := hiddenTime(reflect.New(derefType(value.Type())).Elem()); ok && kind == mx.FieldKindHidden {
-			// renderHidden writes a time as RFC 3339, which setTime reads.
-			return setTime(value, raw, tag)
+		if kind == mx.FieldKindHidden && isTimeType(derefType(value.Type())) {
+			// renderHidden writes a time as RFC 3339, whatever the field's
+			// widget or range, and setTime reads that without them.
+			return setTime(value, raw, mx.FormTag{Sensitive: tag.Sensitive})
 		}
 		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
 	case mx.FieldKindNumber:
 		raw := form.Get(string(path))
+		// No number input submits more; a longer text is no number, and
+		// parsing it would only cost time.
+		if len(raw) > maxNumberLen {
+			return errors.New("too long for a number")
+		}
 		return guardBind(value, raw, tag, func() error {
 			if err := setNumeric(value, raw); err != nil {
 				return err
 			}
 			// The range applies on the server too, not only in the browser.
 			// The number stays bound, as a date outside its range does.
-			return checkNumberRange(raw, tag)
+			return checkNumberRange(value, raw, tag)
 		})
 	case mx.FieldKindBool:
 		raw := form.Get(string(path))
@@ -593,22 +605,52 @@ func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() erro
 	return bind()
 }
 
-// checkNumberRange returns a validation error when raw, a number already
-// bound, lies outside the tag's form:"min=…,max=…". The numbers are
-// compared exactly, so an int64 bound above 2^53 holds. A bound that is
-// no number is ignored, as a browser ignores it.
-func checkNumberRange(raw string, tag mx.FormTag) error {
-	n, ok := new(big.Rat).SetString(raw)
-	if !ok {
+// maxNumberLen is the longest text a number field takes.
+const maxNumberLen = 64
+
+// checkNumberRange returns a validation error when value, the number just
+// bound from raw, lies outside the tag's form:"min=…,max=…". The bound
+// value is compared, never raw itself, so whatever text the parser read is
+// checked as it is stored. The comparison is exact, so an int64 bound above
+// 2^53 holds. A bound that is no valid HTML floating-point number is
+// ignored, as a browser ignores it.
+func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
+	if raw == "" || (tag.Min == "" && tag.Max == "") {
 		return nil
 	}
-	if lowest, ok := new(big.Rat).SetString(tag.Min); ok && n.Cmp(lowest) < 0 {
+	for value.Kind() == reflect.Pointer {
+		value = value.Elem()
+	}
+	n := new(big.Rat)
+	switch value.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		n.SetInt64(value.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		n.SetUint64(value.Uint())
+	case reflect.Float32, reflect.Float64:
+		n.SetFloat64(value.Float()) // finite: setNumeric rejects the rest
+	default:
+		return nil
+	}
+	if lowest, ok := numberBound(tag.Min); ok && n.Cmp(lowest) < 0 {
 		return fmt.Errorf("%q is less than %s", raw, tag.Min)
 	}
-	if highest, ok := new(big.Rat).SetString(tag.Max); ok && n.Cmp(highest) > 0 {
+	if highest, ok := numberBound(tag.Max); ok && n.Cmp(highest) > 0 {
 		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
 	}
 	return nil
+}
+
+// htmlNumber matches a valid HTML floating-point number, the only form a
+// browser reads a min or max in.
+var htmlNumber = regexp.MustCompile(`^-?(\d+|\d*\.\d+)([eE][-+]?\d+)?$`)
+
+// numberBound reads a min or max as a browser does.
+func numberBound(bound string) (*big.Rat, bool) {
+	if !htmlNumber.MatchString(bound) {
+		return nil, false
+	}
+	return new(big.Rat).SetString(bound)
 }
 
 // bindPointee binds into a new pointee of the pointer value that starts as

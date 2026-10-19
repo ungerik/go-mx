@@ -223,7 +223,7 @@ disabled placeholder a select shows when the current value is not in its option
 list, the "Choose…" and "(none)" options on a select with no empty choice, the
 note an enum-set shows when stored members are hidden by the current list, and
 the "Expected format:" hint under a date or time field whose stored text the
-picker cannot show.
+picker cannot show ("Not in the expected format:" when that text is invalid).
 
 Those strings live in `shadcn.Labels` and are read **from the render context**,
 so the language is chosen per request — not per call site.

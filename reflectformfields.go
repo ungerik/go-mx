@@ -172,15 +172,16 @@ func indexUnder(index []int, embeds [][]int) bool {
 	return false
 }
 
-// withReadonlyTag returns tag with readonly added to its form tag. The
-// option goes first, so no quote in the field's own options can swallow
-// it, and the new form key goes first, where [reflect.StructTag.Lookup]
-// finds it. A skipped field's tag (form:"-") stops reading as skip, so the
-// walker decides the kind from the original tag.
+// withReadonlyTag returns tag with readonly added to its form tag, first,
+// so an unterminated quote in the field's own options cannot swallow it,
+// and last, so the field's own readonly=false cannot override it. The new
+// form key goes first, where [reflect.StructTag.Lookup] finds it. A
+// skipped field's tag (form:"-") stops reading as skip, so the walker
+// decides the kind from the original tag.
 func withReadonlyTag(tag reflect.StructTag) reflect.StructTag {
 	value := "readonly"
 	if form, ok := tag.Lookup("form"); ok && form != "" {
-		value += "," + form
+		value += "," + form + ",readonly"
 	}
 	return reflect.StructTag("form:" + strconv.Quote(value) + " " + string(tag))
 }

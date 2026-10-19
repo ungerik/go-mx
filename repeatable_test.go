@@ -587,6 +587,16 @@ func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
 			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
 		},
 		{
+			// Fewer rows may have shifted, so none claims a loaded row.
+			name: "onSubmit removed a row",
+			firstSubmit: func(s *reviewSheet) error {
+				s.Lines = s.Lines[1:]
+				return errors.New("try again")
+			},
+			wantMarkers: []string{"new"},
+			want:        []reviewLine{{"b", ""}},
+		},
+		{
 			name: "onSubmit added a row",
 			firstSubmit: func(s *reviewSheet) error {
 				s.Lines = append(s.Lines, reviewLine{Desc: "d"})

@@ -1092,6 +1092,16 @@ func TestShadcn_CatchAllIsStyledText(t *testing.T) {
 	}
 }
 
+// A readonly file input is disabled and never required.
+func TestShadcn_ReadonlyFileDisabled(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file,required,readonly"`
+	}
+	if got := inputStartTag(renderShadcn(t, &form{}, "Doc", nil)); !strings.Contains(got, `disabled="disabled"`) || strings.Contains(got, `required="required"`) {
+		t.Errorf("a readonly file input renders %s", got)
+	}
+}
+
 // A sensitive number never shows its value.
 func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
 	type form struct {

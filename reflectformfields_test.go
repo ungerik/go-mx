@@ -97,9 +97,11 @@ func TestReflectFormFields_ReadonlySection(t *testing.T) {
 }
 
 type walkLocked struct {
-	Note  string `form:"widget=textarea,label=Notes"`
-	Owner string `form:"help=The owner's login email"`
-	Hash  string `form:"-"`
+	Note   string `form:"widget=textarea,label=Notes"`
+	Owner  string `form:"help=The owner's login email"`
+	Hash   string `form:"-"`
+	Open   string `form:"readonly=false"`
+	Quoted string `form:"help='unterminated"`
 }
 
 type walkLockedSection struct {
@@ -123,6 +125,13 @@ func TestReflectFormFields_ReadonlySectionKeepsTags(t *testing.T) {
 	}
 	if tag := got["Account-Owner"]; !tag.Readonly {
 		t.Errorf("an apostrophe in the help text cancels readonly: %+v", tag)
+	}
+	// Neither the field's own readonly=false nor an unterminated quote in
+	// its options cancels the readonly the section passes down.
+	for _, p := range []FieldPath{"Account-Open", "Account-Quoted"} {
+		if tag := got[p]; !tag.Readonly {
+			t.Errorf("%s detected as %+v, want readonly", p, tag)
+		}
 	}
 }
 

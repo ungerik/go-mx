@@ -367,10 +367,11 @@ type embedsLocalSole struct {
 // save, and no input binds a slice of times, so the field is skipped.
 func TestDetectField_RepeatableTimeLikeSlice(t *testing.T) {
 	type form struct {
-		Stamps []localStamp `form:"repeatable"`
-		Soles  []localSole  `form:"repeatable"`
+		Stamps []localStamp   `form:"repeatable"`
+		Soles  []localSole    `form:"repeatable"`
+		Dates  []dateOnlyTime `form:"repeatable"`
 	}
-	for _, name := range []string{"Stamps", "Soles"} {
+	for _, name := range []string{"Stamps", "Soles", "Dates"} {
 		if kind, _ := detectKind(t, &form{}, name); kind != FieldKindSkip {
 			t.Errorf("DetectField(%s) = %s, want skip", name, kind)
 		}

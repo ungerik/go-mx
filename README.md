@@ -261,7 +261,7 @@ top-level field does (it keeps the stored value, or shows the posted text
 where the field keeps that), and a cell that was not sent stays as loaded; an
 added row starts at the zero value. Rows are matched by position, so if the stored rows can change between
 the GET and the POST, restore server-controlled columns in `onSubmit` by the
-row key, and an `onSubmit` that fails must not reorder the rows.
+row key, and an `onSubmit` that fails must not reorder or remove the rows.
 `form:"readonly"` on the repeatable field itself, or on a section, nested or
 embedded struct, makes everything in it readonly, and `form:"-"` on an
 embedded struct omits its fields.

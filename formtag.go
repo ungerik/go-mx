@@ -72,7 +72,9 @@ type FormTag struct {
 
 	// Repeatable renders a slice-of-struct field ([]T or []*T) as a
 	// dynamic list of rows and binds the submitted rows back into the
-	// slice. It is a no-op on any other field shape. See repeatable.go.
+	// slice. On a slice of times it skips the field, whose rows would
+	// have no cells; it is a no-op on any other field shape. See
+	// repeatable.go.
 	Repeatable bool
 }
 
