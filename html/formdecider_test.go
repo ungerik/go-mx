@@ -2926,6 +2926,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		S float32 `form:"max=0.1"`
 		E float64 `form:"min=1e400"`
 		T float32 `form:"min=1e39"`
+		I float64 `form:"max=+5,min=Inf"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2960,6 +2961,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		{"S", "0.1", ""},
 		// A bound past the range of a double is no bound, as in a browser.
 		{"E", "5", ""},
+		{"I", "99", ""},
 		{"T", "1", `"1" is less than 1e39`},
 	} {
 		err := parseFieldValue(t, f, b.field, b.raw)
@@ -3237,12 +3239,15 @@ func TestReflectFormHandler_SensitivePointerClears(t *testing.T) {
 	type record struct {
 		Token *string    `form:"sensitive"`
 		At    *time.Time `form:"widget=date,sensitive"`
+		N     *int       `form:"sensitive"`
 		Plain *string
+		Flag  *bool      `form:"sensitive"`
+		Color *colorEnum `form:"sensitive"`
 	}
 	stored := func() *record {
-		return &record{Token: new("secret"), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Plain: new("p")}
+		return &record{Token: new("secret"), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), N: new(3), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
 	}
-	for field, want := range map[string]bool{"Token": true, "At": true, "Plain": false} {
+	for field, want := range map[string]bool{"Token": true, "At": true, "N": true, "Plain": false, "Flag": false, "Color": false} {
 		if got := strings.Contains(renderFieldHTML(t, stored(), field), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
 			t.Errorf("%s: clear control %t, want %t", field, got, want)
 		}
@@ -3271,16 +3276,18 @@ type zonedStamp struct{ time.Time }
 // keeps the instant; a new record reads UTC.
 func TestReflectFormHandler_ZonedTimeKeepsInstant(t *testing.T) {
 	type record struct {
-		At    time.Time  `form:"widget=datetime"`
-		Day   time.Time  `form:"widget=date"`
-		Stamp zonedStamp `form:"widget=datetime"`
+		At    time.Time      `form:"widget=datetime"`
+		Day   time.Time      `form:"widget=date"`
+		Stamp zonedStamp     `form:"widget=datetime"`
+		Ptr   ptrWrappedTime `form:"widget=datetime"`
+		Null  sqlNullTime    `form:"widget=datetime"`
 	}
 	cest := time.FixedZone("CEST", 2*60*60)
 	edt := time.FixedZone("EDT", -4*60*60)
 	at := time.Date(2026, 6, 14, 10, 30, 0, 0, cest)
 	day := time.Date(2026, 6, 14, 0, 0, 0, 0, edt)
 	for name, loaded := range map[string]record{
-		"zoned": {At: at, Day: day, Stamp: zonedStamp{at}},
+		"zoned": {At: at, Day: day, Stamp: zonedStamp{at}, Ptr: ptrWrappedTime{new(at)}, Null: sqlNullTime{sql.NullTime{Time: at, Valid: true}}},
 		"new":   {},
 	} {
 		var saved *record
@@ -3301,8 +3308,8 @@ func TestReflectFormHandler_ZonedTimeKeepsInstant(t *testing.T) {
 		}
 		switch name {
 		case "zoned":
-			if !saved.At.Equal(at) || !saved.Day.Equal(day) || !saved.Stamp.Equal(at) {
-				t.Errorf("zoned: saved %v %v %v, want %v %v %v", saved.At, saved.Day, saved.Stamp.Time, at, day, at)
+			if !saved.At.Equal(at) || !saved.Day.Equal(day) || !saved.Stamp.Equal(at) || saved.Ptr.Time == nil || !saved.Ptr.Equal(at) || !saved.Null.Time.Equal(at) {
+				t.Errorf("zoned: saved %+v, want the instants of %v and %v", saved, at, day)
 			}
 		case "new":
 			if want := time.Date(2026, 6, 14, 10, 30, 0, 0, time.UTC); !saved.At.Equal(want) {
@@ -3312,25 +3319,62 @@ func TestReflectFormHandler_ZonedTimeKeepsInstant(t *testing.T) {
 	}
 }
 
-// A hidden number, such as a per-row key, round-trips as a number.
+// prefixedNumber is a number whose text carries a prefix.
+type prefixedNumber int
+
+func (n prefixedNumber) MarshalText() ([]byte, error) { return fmt.Appendf(nil, "id_%d", int(n)), nil }
+
+func (n *prefixedNumber) UnmarshalText(text []byte) error {
+	_, err := fmt.Sscanf(string(text), "id_%d", (*int)(n))
+	return err
+}
+
+// A posted time with an explicit offset keeps it rather than taking the
+// stored time's location.
+func TestReflectFormHandler_PostedOffsetWins(t *testing.T) {
+	type record struct {
+		At time.Time `form:"widget=datetime"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{At: time.Date(2026, 6, 14, 10, 30, 0, 0, time.FixedZone("CEST", 2*60*60))}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	want := time.Date(2026, 6, 14, 10, 30, 0, 0, time.UTC)
+	if rec := postValues(t, h, url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {"2026-06-14T10:30:00Z"}}); rec.Code != http.StatusSeeOther || saved == nil || !saved.At.Equal(want) {
+		t.Errorf("status %d, saved %+v, want %v", rec.Code, saved, want)
+	}
+}
+
+// A hidden number, such as a per-row key, round-trips as a number, and one
+// with its own text form round-trips through it.
 func TestReflectFormHandler_HiddenNumberRoundTrip(t *testing.T) {
 	type line struct {
 		ID   int `form:"hidden"`
 		Desc string
 	}
 	type record struct {
-		Version int    `form:"hidden"`
-		Lines   []line `form:"repeatable"`
+		Version int            `form:"hidden"`
+		Ref     prefixedNumber `form:"hidden"`
+		Lines   []line         `form:"repeatable"`
 	}
 	var saved *record
 	h := mx.ReflectFormHandler(
-		func(context.Context) (*record, error) { return &record{Version: 7, Lines: []line{{42, "a"}}}, nil },
+		func(context.Context) (*record, error) {
+			return &record{Version: 7, Ref: 5, Lines: []line{{42, "a"}}}, nil
+		},
 		func(_ context.Context, r *record) error { saved = r; return nil },
 		FieldDecider,
 	)
 	get := httptest.NewRecorder()
 	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
-	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Version != 7 || saved.Lines[0].ID != 42 {
+	if !strings.Contains(get.Body.String(), `value="id_5"`) {
+		t.Errorf("a hidden number with its own text form renders %s", get.Body.String())
+	}
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Version != 7 || saved.Ref != 5 || saved.Lines[0].ID != 42 {
 		t.Errorf("status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
 	}
 }

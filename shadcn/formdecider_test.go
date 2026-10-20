@@ -1138,14 +1138,16 @@ func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
 // offers the clear control, as a nullable field does.
 func TestShadcn_SensitivePointerHasClearControl(t *testing.T) {
 	type form struct {
-		Token *string `form:"sensitive"`
+		Token *string    `form:"sensitive"`
+		N     *int       `form:"sensitive"`
+		At    *time.Time `form:"widget=date,sensitive"`
 		Plain *string
 		Flag  *bool `form:"sensitive"`
 		// A select shows its stored option and clears with "(none)".
 		Color *colorEnum `form:"sensitive"`
 	}
-	f := &form{Token: new("secret"), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
-	for field, want := range map[string]bool{"Token": true, "Plain": false, "Flag": false, "Color": false} {
+	f := &form{Token: new("secret"), N: new(3), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
+	for field, want := range map[string]bool{"Token": true, "N": true, "At": true, "Plain": false, "Flag": false, "Color": false} {
 		if got := strings.Contains(renderShadcn(t, f, field, nil), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
 			t.Errorf("%s: clear control %t, want %t", field, got, want)
 		}

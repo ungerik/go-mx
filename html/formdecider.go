@@ -882,37 +882,36 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 }
 
 // storedLocation returns the location of the time value holds: a
-// time.Time, a type defined as it, or a struct whose first field is one or
-// points to one, as a wrapper such as a nullable time is. It returns nil
-// for a zero time or a value holding none.
+// time.Time, a type defined as it, or a wrapper whose first field holds
+// one, also through a pointer or another wrapper, as a nullable time
+// embedding sql.NullTime does. It returns nil for a zero time or a value
+// holding none.
 func storedLocation(value reflect.Value) *time.Location {
 	timeType := reflect.TypeFor[time.Time]()
-	if value.Kind() != reflect.Struct {
-		return nil
-	}
-	var t time.Time
-	switch {
-	case value.Type().ConvertibleTo(timeType):
-		t = value.Convert(timeType).Interface().(time.Time)
-	case value.NumField() > 0 && value.Field(0).CanInterface():
-		switch f := value.Field(0).Interface().(type) {
-		case time.Time:
-			t = f
-		case *time.Time:
-			if f == nil {
+	// A few levels cover every wrapper seen in practice and bound the walk.
+	for range 4 {
+		for value.Kind() == reflect.Pointer {
+			if value.IsNil() {
 				return nil
 			}
-			t = *f
-		default:
+			value = value.Elem()
+		}
+		if value.Kind() != reflect.Struct || !value.CanInterface() {
 			return nil
 		}
-	default:
-		return nil
+		if value.Type().ConvertibleTo(timeType) {
+			t := value.Convert(timeType).Interface().(time.Time)
+			if t.IsZero() {
+				return nil
+			}
+			return t.Location()
+		}
+		if value.NumField() == 0 {
+			return nil
+		}
+		value = value.Field(0)
 	}
-	if t.IsZero() {
-		return nil
-	}
-	return t.Location()
+	return nil
 }
 
 // checkOwnTextRange checks form:"min=…,max=…" for a value that
