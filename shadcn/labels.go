@@ -142,7 +142,7 @@ var englishLabels = Labels{
 	FormValueNotAvailable:  "(current value not available)",
 	FormChooseOption:       "Choose…",
 	FormNoSelection:        "(none)",
-	FormValuesNotAvailable: "(some current values are not available)",
+	FormValuesNotAvailable: "(some current values are not available and are removed when you save)",
 	FormExpectedFormat:     "Expected format:",
 	FormInvalidFormat:      "Not in the expected format:",
 }

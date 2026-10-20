@@ -217,8 +217,9 @@ Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
 string falls back to `cfg.Redirect` then the request path.
 
 When `onSubmit` fails, the form re-renders with the submitted values. A
-`mx.FieldErrors` puts each message under its field; a `mx.FormMessage` (also
-wrapped) is shown above the form as its text. Any other error is internal: the
+`mx.FieldErrors` puts each message under its field (a path no input shows, such
+as a hidden field's, goes above the form like the next two); a `mx.FormMessage`
+(also wrapped) is shown above the form as its text. Any other error is internal: the
 form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
 its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
 parsed is answered with 400 (413 past the multipart limits or an
@@ -231,9 +232,9 @@ The `date`, `datetime` and `time` widgets render the matching input for a
 `MarshalText`/`UnmarshalText` works too, and so does a type that wraps
 `time.Time` (defined as it, a struct embedding it as its only field without
 text methods of its own, or a nullable time such as `null.Time` with its own
-RFC 3339 text methods), which renders and binds like a `time.Time`; a struct
-embedding a time with text methods of its own, such as a date-only one, is a
-text input through them. A type can declare its widget once
+RFC 3339 text methods), which renders and binds like a `time.Time`; untagged, a
+struct embedding a time with text methods of its own, such as a date-only one,
+is a text input through them (with a date widget it is a date struct). A type can declare its widget once
 with `FormWidget() string` (`mx.FormWidgetHint`) instead of every field
 carrying `form:"widget=date"`. The input shows the stored value: a
 `Format(string) string` method is asked for it, and otherwise text in the
@@ -257,10 +258,10 @@ struct reads its own text back, so text of its own that the picker cannot show
 renders in a text input that saves unchanged. A `form:"sensitive"` date never
 shows its value, like a sensitive text input; as with a password field, a
 sensitive input left blank keeps its stored value (a select, which shows its
-stored option, does not, and a nullable or pointer one is cleared with its clear
-control). A `widget=password` field is sensitive by itself. A posted date or time
-without a zone is read in the location of the stored time, so an unchanged save
-keeps the instant. A registered single-value struct
+stored option, does not), and an optional one has a clear control to empty it,
+ticked while it is empty. A `widget=password` field is sensitive by
+itself. An unchanged date or time keeps the stored value as it is; a changed one
+is read in the zone the input showed the stored time in. A registered single-value struct
 that holds no time, such as a money type, is a plain text input through its
 `MarshalText`/`UnmarshalText`.
 
@@ -268,14 +269,17 @@ Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
-can map rows to records. A submitted row starts as a copy of the loaded row
+can map rows to records; like every hidden value it comes from the client, so
+`onSubmit` must check it against the loaded record before trusting it. A submitted row starts as a copy of the loaded row
 it came from, through add-row and remove-row clicks too: a `form:"readonly"`
 sub-field keeps its loaded value, a rejected cell behaves as the same
 top-level field does (it keeps the stored value, or shows the posted text
 where the field keeps that), and a cell that was not sent stays as loaded; an
-added row starts at the zero value. Rows are matched by position, so if the stored rows can change between
-the GET and the POST, restore server-controlled columns in `onSubmit` by the
-row key, and an `onSubmit` that fails must not reorder or remove the rows.
+added row starts at the zero value. Rows are matched by position through
+client-controlled markers, so a tampered POST can reorder rows, and the stored
+rows can change between the GET and the POST: restore server-controlled
+columns in `onSubmit` by the row key, and an `onSubmit` that fails must not
+reorder or remove the rows.
 `form:"readonly"` on the repeatable field itself, or on a section, nested or
 embedded struct, makes everything in it readonly, and `form:"-"` on an
 embedded struct omits its fields.

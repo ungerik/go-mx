@@ -190,7 +190,7 @@ import (
 
 type Signup struct {
     Email string `form:"required,placeholder=you@example.com"`
-    Age   int    `form:"min=13"`
+    Age   *int   `form:"min=13"` // a pointer, so it may stay empty
     Bio   string `form:"widget=textarea,help=Tell us about yourself"`
 }
 

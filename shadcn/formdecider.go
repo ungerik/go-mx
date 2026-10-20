@@ -57,16 +57,19 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 }
 
 func renderShadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
+	// The input renders without required when a sensitive value is stored,
+	// as in the html renderer; the label and clear control keep the tag.
+	inputTag := browserTag(tag, kind, value)
 	switch kind {
 	case mx.FieldKindString, mx.FieldKindCatchAll:
 		// A catch-all value, such as a registered money type, is a text
 		// input through its MarshalText and UnmarshalText.
-		return shadcnField(path, field, tag, errs,
-			Input(stringAttribs(path, value, tag, errs)...),
+		return shadcnField(path, field, value, kind, tag, errs,
+			Input(stringAttribs(path, value, inputTag, errs)...),
 		)
 	case mx.FieldKindNumber:
-		return shadcnField(path, field, tag, errs,
-			Input(numberAttribs(path, value, tag, errs)...),
+		return shadcnField(path, field, value, kind, tag, errs,
+			Input(numberAttribs(path, value, inputTag, errs)...),
 		)
 	case mx.FieldKindBool:
 		return shadcnBoolField(path, field, value, tag, errs)
@@ -75,23 +78,23 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		// submit; the Field root follows, so the label matches the control.
 		in := mx.DateTimeInput(value, tag)
 		invalid := len(errs) > 0 || (in.Invalid && !tag.Readonly)
-		return shadcnFieldMarked(path, field, tag, errs, invalid,
-			shadcnDateTime(path, in, tag, errs),
+		return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
+			shadcnDateTime(path, in, inputTag, errs),
 		)
 	case mx.FieldKindTextarea:
-		return shadcnField(path, field, tag, errs,
-			Textarea(textareaAttribs(path, value, tag, errs)...),
+		return shadcnField(path, field, value, kind, tag, errs,
+			Textarea(textareaAttribs(path, value, inputTag, errs)...),
 		)
 	case mx.FieldKindEnum:
-		return shadcnField(path, field, tag, errs,
+		return shadcnField(path, field, value, kind, tag, errs,
 			shadcnEnum(path, field, value, tag, errs),
 		)
 	case mx.FieldKindEnumSet:
-		return shadcnField(path, field, tag, errs,
+		return shadcnField(path, field, value, kind, tag, errs,
 			shadcnEnumSet(path, field, value, tag, errs),
 		)
 	case mx.FieldKindFile:
-		return shadcnField(path, field, tag, errs,
+		return shadcnField(path, field, value, kind, tag, errs,
 			Input(fileAttribs(path, tag, errs)...),
 		)
 	}
@@ -104,21 +107,21 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 //	  <FieldLabel for=path>label</FieldLabel> (when set)
 //	  <input ...>
 //	  <FieldDescription>help</FieldDescription> (when set)
-//	  <Label for=clear>clear</Label> (when nullable, not required and not readonly)
+//	  <Label for=clear>clear</Label> (when nullable or sensitive, not required and not readonly)
 //	  <FieldError data-error=path>err</FieldError> (one per error, role="alert")
 //	</Field>
 //
 // The error look keys off data-invalid on the [Field] root (destructive
 // text) together with each [FieldError]; the control also carries
 // aria-invalid from its own attribs so its border turns destructive.
-func shadcnField(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, input mx.Component) mx.Component {
-	return shadcnFieldMarked(path, field, tag, errs, len(errs) > 0, input)
+func shadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error, input mx.Component) mx.Component {
+	return shadcnFieldMarked(path, field, value, kind, tag, errs, len(errs) > 0, input)
 }
 
 // shadcnFieldMarked is [shadcnField] with the Field root marked
 // data-invalid when invalid is true, which a control can be without an
 // error, such as a text input holding stored text the parser rejects.
-func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, tag mx.FormTag, errs []error, invalid bool, input mx.Component) mx.Component {
+func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error, invalid bool, input mx.Component) mx.Component {
 	parts := make([]any, 0, 4+len(errs))
 	if labelText := fieldLabel(field, tag); labelText != "" {
 		parts = append(parts, FieldLabelFor(string(path), labelText))
@@ -127,9 +130,12 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, tag mx.Form
 	if tag.Help != "" {
 		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
 	}
-	// A readonly field is never written, so it offers no clear control.
-	if isNullable(field, tag) && !tag.Readonly {
-		parts = append(parts, clearControl(path))
+	// A readonly field is never written, so it offers no clear control. A
+	// blank sensitive input keeps the stored value, so the clear control is
+	// how it is emptied, ticked while it is empty so a re-render keeps a
+	// clear the user asked for.
+	if !tag.Readonly && isNullable(field, kind, tag) {
+		parts = append(parts, clearControl(path, tag.Sensitive && kind.KeepsStoredWhenBlank() && isEmptyValue(value)))
 	}
 	parts = appendFieldErrors(parts, path, errs)
 	return fieldWrap(invalid, parts...)
@@ -484,12 +490,17 @@ func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
 	return a
 }
 
-func clearControl(path mx.FieldPath) mx.Component {
+func clearControl(path mx.FieldPath, checked bool) mx.Component {
+	box := []mx.Attrib{
+		html.ID(mx.ClearSentinelName(path)),
+		html.Name(mx.ClearSentinelName(path)),
+		html.Value("1"),
+	}
+	if checked {
+		box = append(box, html.Checked)
+	}
 	return LabelFor(mx.ClearSentinelName(path),
-		Checkbox(
-			html.Name(mx.ClearSentinelName(path)),
-			html.Value("1"),
-		),
+		Checkbox(box...),
 		mx.NewElement("span",
 			mx.Attribute{Name: "class", Value: "ml-2 text-sm"},
 			labelText(func(l Labels) string { return l.FormClear }),
@@ -589,7 +600,7 @@ func stringifyValue(v reflect.Value) string {
 	return displayValue(v)
 }
 
-func isNullable(field reflect.StructField, tag mx.FormTag) bool {
+func isNullable(field reflect.StructField, kind mx.FieldKind, tag mx.FormTag) bool {
 	if tag.Required {
 		return false
 	}
@@ -598,15 +609,27 @@ func isNullable(field reflect.StructField, tag mx.FormTag) bool {
 		return true
 	}
 	// A form:"sensitive" text, number or date input keeps the stored value
-	// when left blank, so a pointer one is set to nil with the clear
-	// control, as in the html renderer.
-	if tag.Sensitive && t.Kind() == reflect.Pointer {
-		switch kind, _ := mx.DetectField(mx.FieldPath(field.Name), field, reflect.New(t).Elem()); kind {
-		case mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindNumber, mx.FieldKindDateTime, mx.FieldKindCatchAll:
-			return true
-		}
+	// when left blank, so it is emptied with the clear control, as in the
+	// html renderer.
+	return tag.Sensitive && kind.KeepsStoredWhenBlank()
+}
+
+// browserTag is the tag an input renders with: a form:"sensitive" input
+// that holds a stored value shows none, and a blank keeps the stored
+// value, so the browser must not demand one (see the html renderer).
+func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
+	if tag.Sensitive && tag.Required && kind.KeepsStoredWhenBlank() && !isEmptyValue(value) {
+		tag.Required = false
 	}
-	return false
+	return tag
+}
+
+// isEmptyValue reports whether value holds nothing: the zero value or null.
+func isEmptyValue(value reflect.Value) bool {
+	if !value.IsValid() || value.IsZero() {
+		return true
+	}
+	return value.CanInterface() && mx.IsNull(value.Interface())
 }
 
 func isTrueBool(v reflect.Value) bool {

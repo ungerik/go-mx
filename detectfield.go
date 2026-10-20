@@ -243,8 +243,8 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	}
 
 	// 14. time-like struct types: time.Time, a type defined as it, or a
-	// struct embedding a time.Time as its only field without text methods
-	// of its own (its text is the time's RFC 3339). Another single-value
+	// struct embedding a time.Time as its only field whose text is RFC 3339
+	// (as it is without text methods of its own). Another single-value
 	// struct, such as a registered money type, is a text input through its
 	// MarshalText and UnmarshalText (the catch-all below).
 	if ft.Kind() == reflect.Struct && isTimeLike(ft) {

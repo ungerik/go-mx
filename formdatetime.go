@@ -35,6 +35,13 @@ type DateTimeInputSpec struct {
 	// invalid only when the tag sets a min or max, which cannot be checked
 	// on text the input type cannot show.
 	Invalid bool
+
+	// Time is the time the input shows for a time.Time or a type wrapping
+	// one, in the location it is shown in; it is zero for text, for a zero
+	// or null value and for a sensitive field. A parser reads a submission
+	// without a zone in this location, so the wall clock means what the
+	// user saw.
+	Time time.Time
 }
 
 // TextFallback reports whether the spec is the text input for stored text
@@ -124,6 +131,7 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 	if t, ok := timeOf(v); ok {
 		if !t.IsZero() {
 			spec.Value = t.Format(tt.layouts[0])
+			spec.Time = t
 		}
 		return spec
 	}
@@ -131,6 +139,7 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		// RFC 3339 is the text of an embedded time.Time.
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
 			spec.Value = t.Format(tt.layouts[0])
+			spec.Time = t
 			return spec
 		}
 		spec.Type, spec.Value = tt.input(inputType, text, text)

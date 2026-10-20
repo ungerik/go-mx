@@ -148,7 +148,7 @@ var labelCases = []labelCase{
 		// The reflected-form strings are built-in labels too: the caller
 		// never passes them, so before Labels they were English-only in an
 		// otherwise translated form.
-		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional")) },
+		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), false) },
 		fields:  []string{"FormClear"},
 		english: []string{`text-sm">clear<`},
 		german:  []string{`text-sm">leeren<`},
@@ -183,7 +183,7 @@ var labelCases = []labelCase{
 		name:    "FormValuesNotAvailable",
 		comp:    enumSetWithHiddenMember,
 		fields:  []string{"FormValuesNotAvailable"},
-		english: []string{">(some current values are not available)<"},
+		english: []string{">(some current values are not available and are removed when you save)<"},
 		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
 	}, {
 		name:    "FormExpectedFormat",

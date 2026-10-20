@@ -278,15 +278,19 @@ no spoken confirmation.
 **Priority:** P3
 **Depends on:** None
 
-### The static calendar marks only the selected day `aria-pressed`
+### The static calendar's days are buttons that do nothing
 
-**What:** Decide how a static (display-only) calendar conveys its selected
-day: `aria-pressed="false"` on every other enabled day button, or the state in
-the selected button's name or `aria-current` instead of `aria-pressed`.
+**What:** Decide how a static (display-only) calendar renders its days:
+as text in the cell, as react-day-picker does without a mode, or as
+buttons with one roving Tab stop; and how it conveys the selected day,
+`aria-pressed="false"` on the other days or the state in the selected
+day's name or `aria-current` instead of `aria-pressed`.
 
-**Why:** Only the selected day's button carries `aria-pressed="true"`, so
-assistive tech announces one toggle button among 41 plain buttons, and
-"pressed" is an odd meaning for the date a display-only grid shows.
+**Why:** All 42 days are `<button>`s with a focus ring, so each is a Tab
+stop that does nothing, and only the selected day's button carries
+`aria-pressed="true"`, so assistive tech announces one toggle button among
+41 plain buttons; "pressed" is an odd meaning for the date a display-only
+grid shows.
 
 **Context:** The static branch of `CalendarWith` in `shadcn/calendar.go`; the
 select mode uses the gridcell's `aria-selected`.

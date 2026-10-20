@@ -386,6 +386,98 @@ found in its review.
 **Priority:** P2
 **Depends on:** None
 
+### `form:"pattern=…"` is checked only by the browser
+
+**What:** Check a string field's `form:"pattern=…"` on the server too,
+anchored like the HTML attribute (`^(?:pattern)$`), compiled once per tag,
+with a sensitive field's error masked; or document it as browser-only.
+
+**Why:** `FormTag.Pattern` is documented as a constraint on string inputs,
+but it only becomes the `pattern` attribute, so a scripted POST stores any
+string. `min`/`max` of numbers and dates are now checked on the server, so
+`pattern` is the last declarative constraint only the browser enforces.
+
+**Context:** The string bind in `html/formdecider.go` (`parseField`'s
+`FieldKindString` case). Predates the date widget work; found in its review.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A missing `__present` sentinel skips `required` and `min` of a number
+
+**What:** Reject a required number that is no pointer, and check a number's
+range, when a rendered field's `__present` sentinel is missing and the value
+is the zero a submit-only form's `new(T)` starts with.
+
+**Why:** A browser always sends the sentinel. A scripted POST that leaves it
+out keeps the stored value unchecked, and for `new(T)` that is a 0 that
+`form:"required,min=1"` should reject. The missing-sentinel required check
+treats a number as never blank, and the range check lives in the parser,
+which does not run.
+
+**Context:** The missing-sentinel branch of `parseField` (`formhandler.go`)
+and `checkNumberRange` (`html/formdecider.go`). Exposing the range check
+as the decider's `Validate` would let that branch run it. A partial update
+that posts a subset of fields must keep working.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Form-level messages are unstyled in shadcn forms
+
+**What:** Let a renderer style the form-level `<p role="alert">` messages,
+for example with a `data-slot="form-message"` hook that the shadcn renderer
+styles like a destructive `Alert`.
+
+**Why:** The messages above a reflected form (an `onSubmit` error, an error
+no input shows) are bare paragraphs, so in a shadcn form they look like
+body text next to the red field errors, though they are often the only sign
+that a save failed.
+
+**Context:** `formMessageComponent` in `formhandler.go` builds them in the
+core package, which knows no Tailwind classes.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A sensitive input says nothing about its stored value
+
+**What:** Tell the user what a blank sensitive input does: a caption such
+as "Leave blank to keep the current value" while a value is stored, and a
+note on an add-row or remove-row re-render that a typed value must be typed
+again.
+
+**Why:** A sensitive input never shows its value, so a user cannot tell a
+stored secret from none, does not know a blank keeps it, and loses a value
+typed before a row command without notice.
+
+**Context:** `renderField` (html) and `shadcnFieldMarked` (shadcn); the
+captions need shadcn `Labels` fields.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### shadcn readonly inputs look editable
+
+**What:** Give readonly text, number and date inputs in shadcn forms a
+readonly look, such as `read-only:bg-muted/50 read-only:cursor-default`,
+or mark the Field root `data-readonly`.
+
+**Why:** The `Input` classes have no `read-only:` variant, so a readonly
+input looks like an editable one, while readonly checkboxes, selects and
+file inputs in the same readonly section render disabled and dimmed.
+
+**Context:** The attrib builders in `shadcn/formdecider.go`; the `Input`
+component stays faithful to upstream.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### Fractional seconds in date and time inputs
 
 **What:** Accept and keep fractional seconds in datetime and time inputs, so
@@ -478,10 +570,10 @@ affected: their text has no zone, and text with one falls back to a text input.
 **Effort:** S
 **Priority:** P2
 **Depends on:** None
-**Completed:** 2026-10-20 — `setTime` reads a submission without a zone in the
-location of the stored time (`storedLocation`), for `time.Time`, types defined
-as it and wrappers, so an unchanged save keeps the instant; a new record still
-reads UTC.
+**Completed:** 2026-10-20 — `setTime` keeps the stored value on an unchanged
+submission and reads a changed one in the zone the input showed it in
+(`mx.DateTimeInputSpec.Time`): a date at the first instant of its day, a time
+on the stored date; a new record still reads UTC.
 
 
 ### Server-side `min`/`max` for `time.Time` date fields

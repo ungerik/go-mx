@@ -137,12 +137,19 @@ func requestFormValues(r *http.Request) map[string][]string {
 // d renders each cell; fieldErrs supplies inline errors keyed by the
 // row-scoped cell path.
 // origins gives each row's origin after a POST; a field it has no entry
-// for renders the loaded slice, whose origins are the row indices.
-func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins) Component {
+// for renders the loaded slice, whose origins are the row indices. The
+// field's own errors, such as an onSubmit one asking for at least one row,
+// show after the legend. Each path whose errors an input shows is added to
+// consumed. hasFile reports a file cell, which needs a multipart body.
+func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	slice := visit.Value
 	structType := repeatableStructType(slice.Type())
 	if structType == nil {
-		return nil
+		return nil, false
+	}
+	// A row added later renders the cells of a zero row.
+	for cv := range ReflectFormFields(reflect.New(structType).Interface()) {
+		hasFile = hasFile || cv.Kind == FieldKindFile
 	}
 
 	label := visit.Field.Name
@@ -163,6 +170,14 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			Attribute{Name: "value", Value: "1"},
 		),
 	}
+	for _, err := range fieldErrs[visit.Path] {
+		children = append(children, NewElement("p",
+			Attribute{Name: "role", Value: "alert"},
+			Attribute{Name: "data-error", Value: string(visit.Path)},
+			Text(err.Error()),
+		))
+	}
+	consumed[visit.Path] = true
 	readonly := visit.Tag.Readonly
 	if slice.IsValid() && slice.Kind() == reflect.Slice {
 		rowsOrigin, recorded := origins[visit.Path]
@@ -180,7 +195,7 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 				}
 			}
 			structVal := rowStructValue(slice.Index(i), structType)
-			children = append(children, renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly))
+			children = append(children, renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed))
 		}
 	}
 	if !readonly {
@@ -188,15 +203,16 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 	}
 
 	attribs := []any{Attribute{Name: "data-repeatable", Value: string(visit.Path)}}
-	return NewElement("fieldset", append(attribs, children...)...)
+	return NewElement("fieldset", append(attribs, children...)...), hasFile
 }
 
 // renderRepeatableRow renders one row: every leaf sub-field of
 // structVal (rendered by d and wrapped with its __present sentinel),
 // the hidden __row__ marker carrying the row's origin (see
 // [rowOriginMarker]), and a "Remove" button. readonly renders every cell
-// readonly and no button.
-func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool) Component {
+// readonly and no button. Each cell path whose errors an input shows is
+// added to consumed; a hidden cell, such as a per-row key, shows none.
+func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) Component {
 	rowPath := fieldPath.Append(strconv.Itoa(index))
 	var cells []any
 	for cv := range ReflectFormFields(structVal.Addr().Interface()) {
@@ -216,6 +232,9 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 		if comp == nil {
 			continue
 		}
+		if cv.Kind != FieldKindHidden {
+			consumed[cellPath] = true
+		}
 		cells = append(cells, wrapWithPresentSentinel(cellPath, comp))
 	}
 	cells = append(cells, NewVoidElement("input",
@@ -229,27 +248,6 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 
 	attribs := []any{Attribute{Name: "data-row", Value: string(rowPath)}}
 	return NewElement("div", append(attribs, cells...)...)
-}
-
-// hiddenRowErrors returns the errors of the hidden cells in a repeatable
-// field's rows, such as a per-row key: like a hidden field at the top
-// level, such a cell shows no error of its own.
-func hiddenRowErrors(visit FieldVisit, fieldErrs map[FieldPath][]error) []error {
-	slice := visit.Value
-	structType := repeatableStructType(slice.Type())
-	if len(fieldErrs) == 0 || structType == nil || slice.Kind() != reflect.Slice {
-		return nil
-	}
-	var errs []error
-	for i := range slice.Len() {
-		rowPath := visit.Path.Append(strconv.Itoa(i))
-		for cv := range ReflectFormFields(rowStructValue(slice.Index(i), structType).Addr().Interface()) {
-			if cv.Kind == FieldKindHidden {
-				errs = append(errs, fieldErrs[rowPath.Append(string(cv.Path))]...)
-			}
-		}
-	}
-	return errs
 }
 
 func repeatableAddButton(fieldPath FieldPath) Component {
@@ -329,7 +327,7 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 			}
 			srcCell := srcRow.Append(string(cv.Path))
 			dstCell := dstRow.Append(string(cv.Path))
-			parseRepeatableCell(cv, d, r, form, srcCell, dstCell, out)
+			parseField(cv, d, r, form, srcCell, dstCell, out)
 		}
 
 		if elemIsPointer {
@@ -372,53 +370,6 @@ func rowOrigin(form map[string][]string, rowPath FieldPath, loadedLen int, claim
 	}
 	claimed[origin] = true
 	return origin
-}
-
-// parseRepeatableCell applies one submitted cell value onto cv.Value,
-// mirroring the top-level parse+validate sequence: readonly skip (the
-// cell keeps the value the row started with), __present gate, __clear
-// handling, decider Parse, required check, validation chain, and decider
-// Validate. Errors are keyed by dstCell.
-func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form map[string][]string, srcCell, dstCell FieldPath, out map[FieldPath][]error) {
-	if cv.Tag.Readonly {
-		// Never a submitted value, not even the null of __clear.
-		return
-	}
-	beh := d(srcCell, cv.Field, cv.Value)
-	if !sentinelSet(form, PresentSentinelName(srcCell)) {
-		// A cell not sent keeps the value the row started with, but an
-		// empty required one the decider renders, as in an added row, is
-		// still an error.
-		if beh.Render != nil && cv.Tag.Required && isBlank(cv.Kind, cv.Value) {
-			out[dstCell] = append(out[dstCell], errors.New("required"))
-		}
-		return
-	}
-	if sentinelSet(form, ClearSentinelName(srcCell)) {
-		// As at the top level, a clear on a required cell is tampered.
-		if cv.Tag.Required {
-			out[dstCell] = append(out[dstCell], errors.New("required"))
-			return
-		}
-		if err := setFieldNull(cv.Value); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-		}
-		return
-	}
-	if beh.Parse != nil && !keepsStored(cv.Tag, cv.Kind, form, srcCell) {
-		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-			return
-		}
-	}
-	if cv.Tag.Required && isEffectivelyEmpty(cv.Value) {
-		// Validation results shown to the user carry no callstack.
-		out[dstCell] = append(out[dstCell], errors.New("required"))
-		return
-	}
-	if errs := validateField(cv, beh, dstCell); len(errs) > 0 {
-		out[dstCell] = append(out[dstCell], errs...)
-	}
 }
 
 // applyRepeatableCommand mutates the slice referenced by an add/remove

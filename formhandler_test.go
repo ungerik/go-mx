@@ -930,6 +930,17 @@ func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 		t.Errorf("a truncated multipart body: status %d, saved %t", rec.Code, saved)
 	}
 
+	// A URL query that cannot be parsed fails nothing: the body is the
+	// submission.
+	req = httptest.NewRequest(http.MethodPost, "/edit?id=1;tab=2", strings.NewReader("__present__Name=1&Name=n"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("a valid body under a semicolon query: status %d, saved %t", rec.Code, saved)
+	}
+	saved = false
+
 	// A multipart body past the part limit answers 413.
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -1061,40 +1072,142 @@ func TestReflectFormHandler_InheritedReadonlyIgnoresPost(t *testing.T) {
 		func(_ context.Context, r *inheritedRecord) error { saved = r; return nil },
 		newTestDecider(),
 	)
-	for _, raw := range []string{"mallory", ""} {
+	// Each case reaches its own path: a value, a blank, and a clear alone.
+	for _, c := range []struct {
+		raw   string
+		clear bool
+	}{{"mallory", false}, {"", false}, {"", true}} {
 		form := url.Values{}
 		for _, p := range []FieldPath{"Owner", FieldPath("Audit").Append("By")} {
 			form.Set(PresentSentinelName(p), "1")
-			form.Set(string(p), raw)
-			form.Set(ClearSentinelName(p), "1")
+			form.Set(string(p), c.raw)
+			if c.clear {
+				form.Set(ClearSentinelName(p), "1")
+			}
 		}
 		if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Owner != "o" || saved.Audit.By != "alice" {
-			t.Errorf("posting %q wrote an inherited readonly field: status %d, saved %+v", raw, rec.Code, saved)
+			t.Errorf("posting %q (clear %t) wrote an inherited readonly field: status %d, saved %+v", c.raw, c.clear, rec.Code, saved)
 		}
 	}
 }
 
-// A hidden cell in a repeatable row, such as a per-row key, shows no error
-// of its own either, so its error becomes a form-level message.
-func TestReflectFormHandler_HiddenRowCellErrorShown(t *testing.T) {
-	type line struct {
-		Key  string `form:"hidden"`
-		Desc string
+// hiddenKeyLine and hiddenKeyRecord key their rows with a hidden cell.
+type hiddenKeyLine struct {
+	Key  string `form:"hidden"`
+	Desc string
+}
+
+type hiddenKeyRecord struct {
+	Name  string
+	Lines []hiddenKeyLine `form:"repeatable"`
+}
+
+// hiddenKeyDecider is the test decider that renders hidden fields as
+// hidden inputs without errors, and the field "Skipped" as nothing.
+func hiddenKeyDecider() FieldDecider {
+	base := newTestDecider()
+	return func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		kind, _ := DetectField(path, field, value)
+		switch {
+		case kind == FieldKindHidden:
+			beh.Render = func(path FieldPath, _ reflect.StructField, value reflect.Value, _ []error) Component {
+				return NewVoidElement("input",
+					Attribute{Name: "type", Value: "hidden"},
+					Attribute{Name: "name", Value: string(path)},
+					Attribute{Name: "value", Value: stringify(value)},
+				)
+			}
+		case field.Name == "Skipped":
+			beh.Render = func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return nil }
+		}
+		return beh
 	}
+}
+
+// An error no input shows, of a hidden row cell or of a path that names no
+// field, becomes a form-level message written as an onSubmit error is: a
+// FormMessage's text, otherwise the generic message, once.
+func TestReflectFormHandler_UnshownErrorsAtFormLevel(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		errs FieldErrors
+		want string
+	}{
+		{"hidden cell message", FieldErrors{FieldPath("Lines").Append("0").Append("Key"): FormMessage("the row changed meanwhile")}, ">the row changed meanwhile<"},
+		{"hidden cell internal", FieldErrors{FieldPath("Lines").Append("0").Append("Key"): errors.New("pq: row 7 locked")}, ">" + FormErrorMessage + "<"},
+		{"misspelled path", FieldErrors{"Nmae": FormMessage("orphan message")}, ">orphan message<"},
+	} {
+		h := ReflectFormHandler(
+			func(context.Context) (*hiddenKeyRecord, error) {
+				return &hiddenKeyRecord{Name: "n", Lines: []hiddenKeyLine{{"k", "a"}}}, nil
+			},
+			func(context.Context, *hiddenKeyRecord) error { return c.errs },
+			hiddenKeyDecider(),
+		)
+		form := url.Values{}
+		form.Set(PresentSentinelName("Name"), "1")
+		form.Set("Name", "n")
+		addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
+		body := postForm(t, h, form).Body.String()
+		if !strings.Contains(body, `<p role="alert"`+c.want) || strings.Contains(body, "pq:") {
+			t.Errorf("%s: body %s, want %s", c.name, body, c.want)
+		}
+	}
+}
+
+// A field the decider renders as nothing is not in the form, so it gets no
+// __present sentinel and a save leaves it alone.
+func TestReflectFormHandler_NothingRenderedIsLeftAlone(t *testing.T) {
 	type record struct {
-		Lines []line `form:"repeatable"`
+		Name    string
+		Skipped string
 	}
+	var saved *record
 	h := ReflectFormHandler(
-		func(context.Context) (*record, error) { return &record{Lines: []line{{"k", "a"}}}, nil },
-		func(context.Context, *record) error {
-			return FieldErrors{FieldPath("Lines").Append("0").Append("Key"): errors.New("the row changed meanwhile")}
-		},
-		newTestDecider(),
+		func(context.Context) (*record, error) { return &record{Name: "n", Skipped: "keep"}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		hiddenKeyDecider(),
 	)
+	body := getBody(t, h)
+	if strings.Contains(body, PresentSentinelName("Skipped")) {
+		t.Errorf("a field rendered as nothing has a sentinel: %s", body)
+	}
 	form := url.Values{}
-	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
-	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">the row changed meanwhile</p>`) {
-		t.Errorf("status %d, body %s; want the hidden cell's error as a form-level message", rec.Code, rec.Body.String())
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "m")
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Skipped != "keep" {
+		t.Errorf("status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A form posts urlencoded, whose limit is 10,000 values, unless a file
+// input, also in a row, needs multipart.
+func TestReflectFormHandler_Enctype(t *testing.T) {
+	type fileLine struct {
+		Doc []byte `form:"widget=file"`
+	}
+	type withRowFile struct {
+		Lines []fileLine `form:"repeatable"`
+	}
+	type withFile struct {
+		Doc []byte `form:"widget=file"`
+	}
+	for _, c := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{"no file", getBody(t, ReflectFormHandler(func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+			func(context.Context, *sampleStruct) error { return nil }, newTestDecider())), "application/x-www-form-urlencoded"},
+		{"file", getBody(t, ReflectFormHandler(func(context.Context) (*withFile, error) { return &withFile{}, nil },
+			func(context.Context, *withFile) error { return nil }, newTestDecider())), "multipart/form-data"},
+		{"file in an empty repeatable", getBody(t, ReflectFormHandler(func(context.Context) (*withRowFile, error) { return &withRowFile{}, nil },
+			func(context.Context, *withRowFile) error { return nil }, newTestDecider())), "multipart/form-data"},
+	} {
+		if !strings.Contains(c.body, `enctype="`+c.want+`"`) {
+			t.Errorf("%s: %s, want enctype %s", c.name, c.body, c.want)
+		}
 	}
 }
 
@@ -1175,8 +1288,49 @@ func TestReflectFormHandler_SensitiveValidationHidesValue(t *testing.T) {
 	}
 }
 
+// pwPolicy is a sensitive value whose rule is meant for the user.
+type pwPolicy string
+
+func (p pwPolicy) Validate() error {
+	if len(p) < 12 {
+		return FormMessage("must be at least 12 characters")
+	}
+	return nil
+}
+
+// A sensitive field's FormMessage, such as a password rule, shows as it is;
+// a nil entry in onSubmit's FieldErrors is no error.
+func TestReflectFormHandler_SensitiveMessagesAndNilFieldErrors(t *testing.T) {
+	type record struct {
+		PW pwPolicy `form:"sensitive"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("PW"), "1")
+	form.Set("PW", "short")
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, ">must be at least 12 characters<") || strings.Contains(body, "not a valid value") {
+		t.Errorf("a sensitive FormMessage must show as it is: %s", body)
+	}
+	saved := false
+	nilErrs := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { saved = true; return FieldErrors{"Name": nil} },
+		newTestDecider(),
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	if rec := postForm(t, nilErrs, form); rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("FieldErrors with only nil entries: status %d", rec.Code)
+	}
+}
+
 // An error of a repeatable field itself, such as one asking for at least
-// one row, has no input to show it, so it becomes a form-level message.
+// one row, shows inside its box, after the legend.
 func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
 	h := ReflectFormHandler(
 		func(context.Context) (*keyRecord, error) { return &keyRecord{Key: "sk_1"}, nil },
@@ -1187,8 +1341,8 @@ func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
 	)
 	form := url.Values{}
 	form.Set(PresentSentinelName("Lines"), "1")
-	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">add at least one line</p>`) {
-		t.Errorf("status %d, body %s; want the repeatable field's error as a form-level message", rec.Code, rec.Body.String())
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<legend>Lines</legend><input type="hidden" name="__present__Lines" value="1"/><p role="alert" data-error="Lines">add at least one line</p>`) {
+		t.Errorf("status %d, body %s; want the repeatable field's error after its legend", rec.Code, rec.Body.String())
 	}
 }
 

@@ -162,121 +162,153 @@ func TestDateTimeInput(t *testing.T) {
 		tag   FormTag
 		want  DateTimeInputSpec
 	}{
-		{"no value", reflect.Value{}, FormTag{}, DateTimeInputSpec{"datetime-local", "", "YYYY-MM-DDTHH:MM", "", false}},
-		{"time default widget", reflect.ValueOf(when), FormTag{}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false}},
-		{"time date widget", reflect.ValueOf(when), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"time time widget", reflect.ValueOf(when), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
-		{"time keeps zero seconds", reflect.ValueOf(when.Truncate(time.Minute)), clock, DateTimeInputSpec{"time", "09:05:00", "HH:MM", "", false}},
-		{"zero time", reflect.ValueOf(time.Time{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"nil time pointer", reflect.ValueOf((*time.Time)(nil)), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
+		{"no value", reflect.Value{}, FormTag{}, DateTimeInputSpec{"datetime-local", "", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"time default widget", reflect.ValueOf(when), FormTag{}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"time date widget", reflect.ValueOf(when), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"time time widget", reflect.ValueOf(when), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
+		{"time keeps zero seconds", reflect.ValueOf(when.Truncate(time.Minute)), clock, DateTimeInputSpec{"time", "09:05:00", "HH:MM", "", false, time.Time{}}},
+		{"zero time", reflect.ValueOf(time.Time{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"nil time pointer", reflect.ValueOf((*time.Time)(nil)), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
 
 		// Dates held as text.
-		{"Format", reflect.ValueOf(isoDate("06.07.2026")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"Format zero date", reflect.ValueOf(isoDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"Format returns invalid unchanged", reflect.ValueOf(isoDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true}},
+		{"Format", reflect.ValueOf(isoDate("06.07.2026")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"Format zero date", reflect.ValueOf(isoDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"Format returns invalid unchanged", reflect.ValueOf(isoDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true, time.Time{}}},
 		// The text input shows what is stored, not what Format made of it.
-		{"Format answers invalid otherwise", reflect.ValueOf(markerDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true}},
+		{"Format answers invalid otherwise", reflect.ValueOf(markerDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true, time.Time{}}},
 		// A Format that answers invalid text with "" must not blank it: a
 		// blank picker would clear the stored text on the next save. A zero
 		// date it answers with "" is still no value.
-		{"Format answers invalid with empty", reflect.ValueOf(blankDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true}},
-		{"Format answers zero date with empty", reflect.ValueOf(blankDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"pointer receiver Format", reflect.ValueOf(new(ptrDate("06.07.2026"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"string", reflect.ValueOf("2026-07-06"), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"string through two pointers", reflect.ValueOf(new(new("2026-07-06"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"empty string", reflect.ValueOf(""), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"null", reflect.ValueOf(sentinelDate("NULL")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"non-null sentinel type", reflect.ValueOf(sentinelDate("2026-07-06")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"other spelling", reflect.ValueOf("06.07.2026"), date, DateTimeInputSpec{"text", "06.07.2026", "YYYY-MM-DD", "", true}},
-		{"impossible date", reflect.ValueOf("2026-02-30"), date, DateTimeInputSpec{"text", "2026-02-30", "YYYY-MM-DD", "", true}},
+		{"Format answers invalid with empty", reflect.ValueOf(blankDate("garbage")), date, DateTimeInputSpec{"text", "garbage", "YYYY-MM-DD", "", true, time.Time{}}},
+		{"Format answers zero date with empty", reflect.ValueOf(blankDate("0001-01-01")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"pointer receiver Format", reflect.ValueOf(new(ptrDate("06.07.2026"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"string", reflect.ValueOf("2026-07-06"), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"string through two pointers", reflect.ValueOf(new(new("2026-07-06"))), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"empty string", reflect.ValueOf(""), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"null", reflect.ValueOf(sentinelDate("NULL")), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"non-null sentinel type", reflect.ValueOf(sentinelDate("2026-07-06")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"other spelling", reflect.ValueOf("06.07.2026"), date, DateTimeInputSpec{"text", "06.07.2026", "YYYY-MM-DD", "", true, time.Time{}}},
+		{"impossible date", reflect.ValueOf("2026-02-30"), date, DateTimeInputSpec{"text", "2026-02-30", "YYYY-MM-DD", "", true, time.Time{}}},
 
 		// Dates and times held as text: no zone, seconds only when not zero.
-		{"datetime minutes", reflect.ValueOf("2026-07-06T09:05"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false}},
-		{"datetime drops zero seconds", reflect.ValueOf("2026-07-06T09:05:00"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false}},
-		{"datetime seconds", reflect.ValueOf("2026-07-06T09:05:07"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false}},
-		{"datetime-local widget", reflect.ValueOf("2026-07-06T09:05"), FormTag{Widget: "datetime-local"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false}},
-		{"datetime with zone", reflect.ValueOf("2026-07-06T09:05:07Z"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07Z", "YYYY-MM-DDTHH:MM", "", true}},
-		{"datetime with fraction", reflect.ValueOf("2026-07-06T09:05:07.5"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07.5", "YYYY-MM-DDTHH:MM", "", true}},
-		{"datetime with space", reflect.ValueOf("2026-07-06 09:05"), datetime, DateTimeInputSpec{"text", "2026-07-06 09:05", "YYYY-MM-DDTHH:MM", "", true}},
-		{"time minutes", reflect.ValueOf("09:05"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false}},
-		{"time drops zero seconds", reflect.ValueOf("09:05:00"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false}},
-		{"time seconds", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
-		{"time Format", reflect.ValueOf(clockTime("9.05")), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false}},
-		{"time one-digit hour", reflect.ValueOf("9:05"), clock, DateTimeInputSpec{"text", "9:05", "HH:MM", "", true}},
-		{"time out of range", reflect.ValueOf("25:00"), clock, DateTimeInputSpec{"text", "25:00", "HH:MM", "", true}},
+		{"datetime minutes", reflect.ValueOf("2026-07-06T09:05"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"datetime drops zero seconds", reflect.ValueOf("2026-07-06T09:05:00"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"datetime seconds", reflect.ValueOf("2026-07-06T09:05:07"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"datetime-local widget", reflect.ValueOf("2026-07-06T09:05"), FormTag{Widget: "datetime-local"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"datetime with zone", reflect.ValueOf("2026-07-06T09:05:07Z"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07Z", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"datetime with fraction", reflect.ValueOf("2026-07-06T09:05:07.5"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07.5", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"datetime with space", reflect.ValueOf("2026-07-06 09:05"), datetime, DateTimeInputSpec{"text", "2026-07-06 09:05", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"time minutes", reflect.ValueOf("09:05"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
+		{"time drops zero seconds", reflect.ValueOf("09:05:00"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
+		{"time seconds", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
+		{"time Format", reflect.ValueOf(clockTime("9.05")), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
+		{"time one-digit hour", reflect.ValueOf("9:05"), clock, DateTimeInputSpec{"text", "9:05", "HH:MM", "", true, time.Time{}}},
+		{"time out of range", reflect.ValueOf("25:00"), clock, DateTimeInputSpec{"text", "25:00", "HH:MM", "", true, time.Time{}}},
 
 		// A sensitive field never shows its value, not even as text.
-		{"sensitive text", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"sensitive other spelling", reflect.ValueOf("06.07.2026"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"sensitive time", reflect.ValueOf(when), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
+		{"sensitive text", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"sensitive other spelling", reflect.ValueOf("06.07.2026"), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"sensitive time", reflect.ValueOf(when), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
 
 		// A type with MarshalText, such as a date struct, shows its text.
-		{"MarshalText", reflect.ValueOf(textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"MarshalText through pointer", reflect.ValueOf(&textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"MarshalText zero value", reflect.ValueOf(textDate{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"MarshalText other form", reflect.ValueOf(textDate{2026, 7, 6}), datetime, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", false}},
+		{"MarshalText", reflect.ValueOf(textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"MarshalText through pointer", reflect.ValueOf(&textDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"MarshalText zero value", reflect.ValueOf(textDate{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"MarshalText other form", reflect.ValueOf(textDate{2026, 7, 6}), datetime, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
 		// A bound cannot be checked on text the input cannot show.
-		{"MarshalText other form with min", reflect.ValueOf(textDate{2026, 7, 6}), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", true}},
-		{"no MarshalText", reflect.ValueOf(struct{ N int }{1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"MarshalText on the pointer receiver", reflect.ValueOf(&ptrTextDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
+		{"MarshalText other form with min", reflect.ValueOf(textDate{2026, 7, 6}), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"no MarshalText", reflect.ValueOf(struct{ N int }{1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"MarshalText on the pointer receiver", reflect.ValueOf(&ptrTextDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
 		// The type's own IsZero decides, not the struct's reflect zero.
-		{"IsZero date", reflect.ValueOf(zeroableDate{1, 1, 1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"non-zero IsZero date", reflect.ValueOf(zeroableDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
+		{"IsZero date", reflect.ValueOf(zeroableDate{1, 1, 1}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"non-zero IsZero date", reflect.ValueOf(zeroableDate{2026, 7, 6}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
 
 		// Types that wrap time.Time render like it.
-		{"embedded time date", reflect.ValueOf(wrappedTime{when}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"embedded time datetime", reflect.ValueOf(wrappedTime{when}), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false}},
-		{"embedded time time", reflect.ValueOf(&wrappedTime{when}), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
-		{"embedded zero time", reflect.ValueOf(wrappedTime{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"defined time", reflect.ValueOf(definedTime(when)), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
-		{"defined zero time", reflect.ValueOf(definedTime{}), datetime, DateTimeInputSpec{"datetime-local", "", "YYYY-MM-DDTHH:MM", "", false}},
-		{"defined time datetime", reflect.ValueOf(definedTime(when)), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false}},
-		{"defined time time", reflect.ValueOf(definedTime(when)), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
+		{"embedded time date", reflect.ValueOf(wrappedTime{when}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"embedded time datetime", reflect.ValueOf(wrappedTime{when}), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"embedded time time", reflect.ValueOf(&wrappedTime{when}), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
+		{"embedded zero time", reflect.ValueOf(wrappedTime{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"defined time", reflect.ValueOf(definedTime(when)), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"defined zero time", reflect.ValueOf(definedTime{}), datetime, DateTimeInputSpec{"datetime-local", "", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"defined time datetime", reflect.ValueOf(definedTime(when)), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"defined time time", reflect.ValueOf(definedTime(when)), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
 		// The wall clock of the stored zone is shown, not UTC's.
-		{"embedded time in another zone", reflect.ValueOf(wrappedTime{time.Date(2026, 7, 6, 0, 30, 0, 0, time.FixedZone("CEST", 2*60*60))}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
+		{"embedded time in another zone", reflect.ValueOf(wrappedTime{time.Date(2026, 7, 6, 0, 30, 0, 0, time.FixedZone("CEST", 2*60*60))}), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
 		// A nil embedded pointer's promoted methods panic; it is no value.
-		{"nil embedded pointer", reflect.ValueOf(ptrWrappedTime{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"datetime struct", reflect.ValueOf(civDateTime{when.Truncate(time.Minute)}), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false}},
+		{"nil embedded pointer", reflect.ValueOf(ptrWrappedTime{}), date, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"datetime struct", reflect.ValueOf(civDateTime{when.Truncate(time.Minute)}), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
 
 		// Without Format, a string type's MarshalText gives the text.
-		{"string MarshalText", reflect.ValueOf(compactDate("20260706")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false}},
+		{"string MarshalText", reflect.ValueOf(compactDate("20260706")), date, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "", false, time.Time{}}},
 		// Stored text that is a valid value shows even when MarshalText's
 		// text is not one, since saving it unchanged works.
-		{"string MarshalText unreadable, stored valid", reflect.ValueOf(zonedText("2024-01-02")), date, DateTimeInputSpec{"date", "2024-01-02", "YYYY-MM-DD", "", false}},
+		{"string MarshalText unreadable, stored valid", reflect.ValueOf(zonedText("2024-01-02")), date, DateTimeInputSpec{"date", "2024-01-02", "YYYY-MM-DD", "", false, time.Time{}}},
 		// A Format that answers "" still lets a valid stored text show, such
 		// as posted text kept after a rejection; a zero date stays empty.
-		{"Format answers kept text with empty", reflect.ValueOf(dottedDate("2026-08-05")), date, DateTimeInputSpec{"date", "2026-08-05", "YYYY-MM-DD", "", false}},
-		{"Format reads its own spelling", reflect.ValueOf(dottedDate("05.08.2026")), date, DateTimeInputSpec{"date", "2026-08-05", "YYYY-MM-DD", "", false}},
+		{"Format answers kept text with empty", reflect.ValueOf(dottedDate("2026-08-05")), date, DateTimeInputSpec{"date", "2026-08-05", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"Format reads its own spelling", reflect.ValueOf(dottedDate("05.08.2026")), date, DateTimeInputSpec{"date", "2026-08-05", "YYYY-MM-DD", "", false, time.Time{}}},
 
 		// Sensitive values of every kind stay hidden.
-		{"sensitive Format", reflect.ValueOf(isoDate("06.07.2026")), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"sensitive MarshalText", reflect.ValueOf(textDate{2026, 7, 6}), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"sensitive defined time", reflect.ValueOf(definedTime(when)), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
-		{"sensitive embedded time", reflect.ValueOf(wrappedTime{when}), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false}},
+		{"sensitive Format", reflect.ValueOf(isoDate("06.07.2026")), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"sensitive MarshalText", reflect.ValueOf(textDate{2026, 7, 6}), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"sensitive defined time", reflect.ValueOf(definedTime(when)), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
+		{"sensitive embedded time", reflect.ValueOf(wrappedTime{when}), FormTag{Widget: "date", Sensitive: true}, DateTimeInputSpec{"date", "", "YYYY-MM-DD", "", false, time.Time{}}},
 
 		// The browser counts the default 60-second step from min: a value
 		// that is not whole minutes after it needs step 1. The tag's step
 		// wins.
-		{"seconds with min", reflect.ValueOf("2026-07-06T09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "1", false}},
-		{"time with seconds and min", reflect.ValueOf(when), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "1", false}},
-		{"whole minutes with min", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false}},
+		{"seconds with min", reflect.ValueOf("2026-07-06T09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "1", false, time.Time{}}},
+		{"time with seconds and min", reflect.ValueOf(when), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "1", false, time.Time{}}},
+		{"whole minutes with min", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
 		// A time.Time always shows its seconds, zero ones too.
-		{"time zero seconds with min", reflect.ValueOf(when.Truncate(time.Minute)), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:00", "HH:MM", "", false}},
-		{"whole minutes off a min with seconds", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "1", false}},
-		{"seconds on a min with seconds", reflect.ValueOf("09:05:30"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05:30", "HH:MM", "", false}},
+		{"time zero seconds with min", reflect.ValueOf(when.Truncate(time.Minute)), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:00", "HH:MM", "", false, time.Time{}}},
+		{"whole minutes off a min with seconds", reflect.ValueOf("09:05"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05", "HH:MM", "1", false, time.Time{}}},
+		{"seconds on a min with seconds", reflect.ValueOf("09:05:30"), FormTag{Widget: "time", Min: "08:00:30"}, DateTimeInputSpec{"time", "09:05:30", "HH:MM", "", false, time.Time{}}},
 		// Without a valid min the browser counts from the value itself.
-		{"seconds without min", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
-		{"seconds with invalid min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "soon"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false}},
-		{"text fallback with min", reflect.ValueOf("2026-07-06 09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06 09:05:07", "YYYY-MM-DDTHH:MM", "", true}},
-		{"tag step", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Step: "7"}, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "7", false}},
-		{"tag step over seconds and min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "08:00", Step: "30"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "30", false}},
+		{"seconds without min", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
+		{"seconds with invalid min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "soon"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
+		{"text fallback with min", reflect.ValueOf("2026-07-06 09:05:07"), FormTag{Widget: "datetime", Min: "2026-01-01T00:00"}, DateTimeInputSpec{"text", "2026-07-06 09:05:07", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"tag step", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date", Step: "7"}, DateTimeInputSpec{"date", "2026-07-06", "YYYY-MM-DD", "7", false, time.Time{}}},
+		{"tag step over seconds and min", reflect.ValueOf("09:05:07"), FormTag{Widget: "time", Min: "08:00", Step: "30"}, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "30", false, time.Time{}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := DateTimeInput(tt.value, tt.tag); got != tt.want {
+			// The shown time is checked by TestDateTimeInputTime.
+			got := DateTimeInput(tt.value, tt.tag)
+			got.Time = time.Time{}
+			if got != tt.want {
 				t.Errorf("DateTimeInput = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+// The spec carries the time the input shows, in the location it is shown
+// in, for a time.Time and a type wrapping one, and no time for text, a
+// zero time or a sensitive field.
+func TestDateTimeInputTime(t *testing.T) {
+	cest := time.FixedZone("CEST", 2*60*60)
+	when := time.Date(2026, 7, 6, 9, 5, 7, 0, cest)
+	type embedded struct{ time.Time }
+	for _, c := range []struct {
+		name  string
+		value reflect.Value
+		tag   FormTag
+		want  time.Time
+	}{
+		{"time", reflect.ValueOf(when), FormTag{}, when},
+		{"embedded time", reflect.ValueOf(embedded{when}), FormTag{Widget: "date"}, when},
+		{"zero time", reflect.ValueOf(time.Time{}), FormTag{}, time.Time{}},
+		{"text", reflect.ValueOf("2026-07-06"), FormTag{Widget: "date"}, time.Time{}},
+		{"sensitive", reflect.ValueOf(when), FormTag{Sensitive: true}, time.Time{}},
+	} {
+		got := DateTimeInput(c.value, c.tag).Time
+		if !got.Equal(c.want) {
+			t.Errorf("%s: Time = %v, want %v", c.name, got, c.want)
+		}
+		if _, offset := got.Zone(); !c.want.IsZero() && offset != 2*60*60 {
+			t.Errorf("%s: Time shown in offset %d, want the stored one", c.name, offset)
+		}
 	}
 }
 

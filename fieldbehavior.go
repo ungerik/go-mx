@@ -46,7 +46,8 @@ const (
 	FieldKindUnknown FieldKind = iota
 
 	// FieldKindSkip means the field is tagged form:"-" or
-	// form:"widget=skip" and must not be rendered or parsed.
+	// form:"widget=skip" (or hinted so by [FormWidgetHint]), or is a
+	// form:"repeatable" slice of times, and must not be rendered or parsed.
 	FieldKindSkip
 
 	// FieldKindHidden means the field is tagged form:"hidden": render
@@ -123,6 +124,19 @@ const (
 )
 
 // String returns the kind's name (handy in error messages and tests).
+// KeepsStoredWhenBlank reports whether a form:"sensitive" field of this
+// kind keeps its stored value when submitted blank: a text, number or date
+// input never shows a sensitive value, so its blank means "unchanged", and
+// the clear control empties it. A checkbox, checkbox set, select, hidden or
+// file field has a blank of its own.
+func (k FieldKind) KeepsStoredWhenBlank() bool {
+	switch k {
+	case FieldKindString, FieldKindTextarea, FieldKindNumber, FieldKindDateTime, FieldKindCatchAll:
+		return true
+	}
+	return false
+}
+
 func (k FieldKind) String() string {
 	switch k {
 	case FieldKindSkip:

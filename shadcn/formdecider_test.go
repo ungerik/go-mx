@@ -403,7 +403,7 @@ func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
 	if strings.Contains(out, "kept") {
 		t.Errorf("unlisted member must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, "(some current values are not available)") {
+	if !strings.Contains(out, "(some current values are not available and are removed when you save)") {
 		t.Errorf("missing members must be announced: %q", out)
 	}
 	if strings.Count(out, `data-slot="checkbox"`) != 2 {
@@ -458,7 +458,7 @@ func TestShadcn_EnumSetEmptyListWithMembersRenders(t *testing.T) {
 	if strings.Contains(out, `data-slot="checkbox"`) {
 		t.Errorf("empty list must not render a checkbox: %q", out)
 	}
-	if !strings.Contains(out, "(some current values are not available)") {
+	if !strings.Contains(out, "(some current values are not available and are removed when you save)") {
 		t.Errorf("missing members must be announced: %q", out)
 	}
 }
@@ -1141,16 +1141,43 @@ func TestShadcn_SensitivePointerHasClearControl(t *testing.T) {
 		Token *string    `form:"sensitive"`
 		N     *int       `form:"sensitive"`
 		At    *time.Time `form:"widget=date,sensitive"`
+		Note  *string    `form:"sensitive,widget=textarea"`
 		Plain *string
 		Flag  *bool `form:"sensitive"`
 		// A select shows its stored option and clears with "(none)".
 		Color *colorEnum `form:"sensitive"`
 	}
-	f := &form{Token: new("secret"), N: new(3), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
-	for field, want := range map[string]bool{"Token": true, "N": true, "At": true, "Plain": false, "Flag": false, "Color": false} {
+	f := &form{Token: new("secret"), N: new(3), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Note: new("n"), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
+	for field, want := range map[string]bool{"Token": true, "N": true, "At": true, "Note": true, "Plain": false, "Flag": false, "Color": false} {
 		if got := strings.Contains(renderShadcn(t, f, field, nil), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
 			t.Errorf("%s: clear control %t, want %t", field, got, want)
 		}
+	}
+	// The label names its checkbox, so the box has an accessible name.
+	if out := renderShadcn(t, f, "Token", nil); !strings.Contains(out, `id="`+mx.ClearSentinelName("Token")+`"`) {
+		t.Errorf("the clear checkbox has no id for its label: %s", out)
+	}
+}
+
+// A stored sensitive value does not make the input demand one from the
+// browser, and an optional sensitive input offers the clear control, ticked
+// while it is empty, as in the html renderer.
+func TestShadcn_SensitiveStoredAndClear(t *testing.T) {
+	type form struct {
+		Key    string `form:"required,sensitive"`
+		Secret string `form:"sensitive"`
+	}
+	if got := inputStartTag(renderShadcn(t, &form{Key: "sk_1"}, "Key", nil)); strings.Contains(got, "required") {
+		t.Errorf("a stored sensitive input demands a value: %s", got)
+	}
+	if got := inputStartTag(renderShadcn(t, &form{}, "Key", nil)); !strings.Contains(got, "required") {
+		t.Errorf("with nothing stored the input must be required: %s", got)
+	}
+	stored := renderShadcn(t, &form{Secret: "s"}, "Secret", nil)
+	empty := renderShadcn(t, &form{}, "Secret", nil)
+	clearBox := `id="` + mx.ClearSentinelName("Secret") + `" name="` + mx.ClearSentinelName("Secret") + `" value="1"`
+	if !strings.Contains(stored, clearBox+` type="checkbox"`) || !strings.Contains(empty, clearBox+` checked="checked"`) {
+		t.Errorf("clear control: stored %s, empty %s", stored, empty)
 	}
 }
 

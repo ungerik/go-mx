@@ -6,6 +6,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"net/http"
@@ -23,8 +24,9 @@ import (
 // It implements the dispatch table from the ReflectFormHandler design:
 // each detected [mx.FieldKind] picks an HTML element from this package
 // (Input / Select / TextArea / Label) and a matching parser. It emits
-// the __clear sentinel for nullable fields that are neither required nor
-// readonly; the form handler emits the __present sentinel.
+// the __clear sentinel for nullable fields and form:"sensitive" text,
+// number and date fields that are neither required nor readonly; the form
+// handler emits the __present sentinel.
 //
 // Layered renderers (hx, shadcn) wrap this decider — calling it for
 // the kinds they don't customize and falling through for the rest.
@@ -53,7 +55,7 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 		return nil
 	}
 
-	input := renderInput(path, field, value, kind, tag, errs)
+	input := renderInput(path, field, value, kind, browserTag(tag, kind, value), errs)
 	if input == nil {
 		return nil
 	}
@@ -75,8 +77,12 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 		))
 	}
 	// A readonly field is never written, so it offers no clear control.
-	if (isNullable(value) || isSensitivePointer(value, kind, tag)) && !tag.Required && !tag.Readonly {
-		parts = append(parts, clearSentinelInput(path))
+	// A blank sensitive input keeps the stored value, so the clear control
+	// is how it is emptied, ticked while it is empty so a re-render keeps
+	// a clear the user asked for.
+	sensitive := tag.Sensitive && kind.KeepsStoredWhenBlank()
+	if (isNullable(value) || sensitive) && !tag.Required && !tag.Readonly {
+		parts = append(parts, clearSentinelInput(path, sensitive && isEmptyValue(value)))
 	}
 	if len(errs) > 0 {
 		for _, e := range errs {
@@ -397,7 +403,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 		}
 		return mx.NewElement("p",
 			mx.Attribute{Name: "class", Value: "form-help"},
-			mx.Text("(some current values are not available)"),
+			mx.Text("(some current values are not available and are removed when you save)"),
 		)
 	})
 	if len(errs) > 0 {
@@ -435,8 +441,13 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		}
 		if kind == mx.FieldKindHidden && isPlainNumber(derefType(value.Type())) {
 			// A hidden number, such as a per-row key, binds as a number
-			// does; setScalar takes only text.
+			// does, and a hidden bool as a checkbox does; setScalar takes
+			// only text.
 			return guardBind(value, raw, tag, func() error { return setNumeric(value, raw) })
+		}
+		if kind == mx.FieldKindHidden && derefType(value.Type()).Kind() == reflect.Bool &&
+			!reflect.PointerTo(derefType(value.Type())).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
+			return setBool(value, raw)
 		}
 		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
 	case mx.FieldKindNumber:
@@ -510,25 +521,30 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			return nil
 		}
 		fh := files[0]
+		// String destinations get the filename only.
+		if value.Kind() == reflect.String {
+			value.SetString(fh.Filename)
+			return nil
+		}
+		if value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Uint8 {
+			return errors.New("file upload requires []byte or string field")
+		}
+		// The multipart parser keeps a large file on disk; reading it into
+		// memory is bounded like the parse.
+		if limit := mx.FormMaxMemory(r.Context()); fh.Size > limit {
+			return fmt.Errorf("the file is larger than %d bytes", limit)
+		}
 		f, err := fh.Open()
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 		buf := make([]byte, fh.Size)
-		if _, err := f.Read(buf); err != nil && err.Error() != "EOF" {
+		if _, err := io.ReadFull(f, buf); err != nil {
 			return err
 		}
-		if value.Kind() == reflect.Slice && value.Type().Elem().Kind() == reflect.Uint8 {
-			value.SetBytes(buf)
-			return nil
-		}
-		// String destinations get the filename only.
-		if value.Kind() == reflect.String {
-			value.SetString(fh.Filename)
-			return nil
-		}
-		return errors.New("file upload requires []byte or string field")
+		value.SetBytes(buf)
+		return nil
 	}
 	return nil
 }
@@ -581,14 +597,15 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 // own UnmarshalText. A method that panics, as the promoted method of a nil
 // embedded pointer does, is an error instead of a failed request. A
 // form:"sensitive" field's error leaves raw out, which an option list,
-// UnmarshalText or strconv error would quote. (Date and time fields guard
-// their own panics and sensitive errors.)
+// UnmarshalText or strconv error would quote; an [mx.FormMessage], which
+// quotes nothing, shows as it is. (Date and time fields guard their own
+// panics and sensitive errors.)
 func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
 		}
-		if err != nil && tag.Sensitive {
+		if _, message := errors.AsType[mx.FormMessage](err); err != nil && tag.Sensitive && !message {
 			err = errors.New("not a valid value")
 		}
 	}()
@@ -630,12 +647,27 @@ func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
 		return nil
 	}
 	if lowest, ok := numberBound(tag.Min); ok && n.Cmp(lowest) < 0 {
-		return fmt.Errorf("%q is less than %s", raw, tag.Min)
+		return rangeError(raw, tag, true)
 	}
 	if highest, ok := numberBound(tag.Max); ok && n.Cmp(highest) > 0 {
-		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
+		return rangeError(raw, tag, false)
 	}
 	return nil
+}
+
+// rangeError is the error of a number below (or above) its form:"min=…" (or
+// "max=…"). A form:"sensitive" field's names only the bound, as an
+// [mx.FormMessage], which the masking of its errors lets through.
+func rangeError(raw string, tag mx.FormTag, below bool) error {
+	switch {
+	case tag.Sensitive && below:
+		return mx.FormMessage("must be at least " + tag.Min)
+	case tag.Sensitive:
+		return mx.FormMessage("must be at most " + tag.Max)
+	case below:
+		return fmt.Errorf("%q is less than %s", raw, tag.Min)
+	}
+	return fmt.Errorf("%q is greater than %s", raw, tag.Max)
 }
 
 // checkFloatRange compares a float at its own precision, as a browser
@@ -644,10 +676,10 @@ func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
 // as setNumeric rejects the rest.
 func checkFloatRange(f float64, bits int, raw string, tag mx.FormTag) error {
 	if lowest, ok := floatBound(tag.Min, bits); ok && f < lowest {
-		return fmt.Errorf("%q is less than %s", raw, tag.Min)
+		return rangeError(raw, tag, true)
 	}
 	if highest, ok := floatBound(tag.Max, bits); ok && f > highest {
-		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
+		return rangeError(raw, tag, false)
 	}
 	return nil
 }
@@ -835,27 +867,31 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	if _, offset := t.Zone(); parseErr == nil && (offset <= -24*60*60 || offset >= 24*60*60) {
 		parseErr = mx.DateTimeFormatError(tag, raw)
 	}
-	// The input shows a stored time's wall clock in its own location (see
-	// [mx.DateTimeInput]), so a submission without a zone is read in that
-	// location, and an unchanged save keeps the instant. Without a stored
-	// time, as on a new record, it is read as UTC.
-	if parseErr == nil && !zoned {
-		if loc := storedLocation(value); loc != nil {
-			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
-		}
-	}
-	// The range applies on the server too, not only in the browser. A value
-	// outside it is still bound, as rejected text is (see [setTimeText]), so
-	// every re-render shows what was posted, also after an add-row click,
-	// which discards the errors, and in an added repeatable row, which has
-	// no stored value to fall back on. The form handler never calls
-	// onSubmit while a field has an error, so the value is not saved.
+	// The range applies on the server too, not only in the browser, to the
+	// time as posted. A value outside it is still bound, as rejected text is
+	// (see [setTimeText]), so every re-render shows what was posted, also
+	// after an add-row click, which discards the errors, and in an added
+	// repeatable row, which has no stored value to fall back on. The form
+	// handler never calls onSubmit while a field has an error, so the value
+	// is not saved.
 	var rangeErr error
 	if parseErr == nil {
 		rangeErr = mx.CheckDateTimeRange(tag, raw, t)
 	} else if tag.Sensitive {
 		// A sensitive value is not echoed through the parse error.
 		parseErr = mx.DateTimeFormatError(tag, raw)
+	}
+	if parseErr == nil {
+		shownTag := tag
+		shownTag.Sensitive = false
+		shown := mx.DateTimeInput(value, shownTag).Time
+		// The input shows a stored time without its zone, so reading it
+		// back could move it, as in the hour repeated when clocks go back:
+		// an unchanged submission keeps the stored value as it is.
+		if !zoned && !shown.IsZero() && t.Format(mx.DateTimeInputLayout(tag)) == shown.Format(mx.DateTimeInputLayout(tag)) {
+			return rangeErr
+		}
+		t = inShownLocation(t, zoned, shown, dateTimeKind(tag))
 	}
 	timeType := reflect.TypeFor[time.Time]()
 	if value.Type() == timeType || (value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType)) {
@@ -881,37 +917,44 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	return fmt.Errorf("cannot assign time to %s", value.Type())
 }
 
-// storedLocation returns the location of the time value holds: a
-// time.Time, a type defined as it, or a wrapper whose first field holds
-// one, also through a pointer or another wrapper, as a nullable time
-// embedding sql.NullTime does. It returns nil for a zero time or a value
-// holding none.
-func storedLocation(value reflect.Value) *time.Location {
-	timeType := reflect.TypeFor[time.Time]()
-	// A few levels cover every wrapper seen in practice and bound the walk.
-	for range 4 {
-		for value.Kind() == reflect.Pointer {
-			if value.IsNil() {
-				return nil
-			}
-			value = value.Elem()
-		}
-		if value.Kind() != reflect.Struct || !value.CanInterface() {
-			return nil
-		}
-		if value.Type().ConvertibleTo(timeType) {
-			t := value.Convert(timeType).Interface().(time.Time)
-			if t.IsZero() {
-				return nil
-			}
-			return t.Location()
-		}
-		if value.NumField() == 0 {
-			return nil
-		}
-		value = value.Field(0)
+// inShownLocation puts a posted time into the location the input showed
+// the stored time in, so the wall clock means what the user saw. A date is
+// the first instant of its day, which is not midnight where the clocks
+// jump over it, and a time keeps the stored date. A time posted with an
+// offset keeps its instant, in that location, so a re-render shows it as
+// the stored times are shown. Without a stored time, as on a new record,
+// the posted time stays as parsed: a zone-less one is UTC.
+func inShownLocation(t time.Time, zoned bool, shown time.Time, kind string) time.Time {
+	if shown.IsZero() {
+		return t
 	}
-	return nil
+	loc := shown.Location()
+	switch {
+	case zoned:
+		return t.In(loc)
+	case kind == "time":
+		return time.Date(shown.Year(), shown.Month(), shown.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
+	case kind == "date":
+		day := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+		for range 3 {
+			if day.Day() == t.Day() {
+				break
+			}
+			day = day.Add(time.Hour)
+		}
+		return day
+	}
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
+}
+
+// dateTimeKind is the input type the tag's widget renders for a time:
+// "date", "time" or "datetime".
+func dateTimeKind(tag mx.FormTag) string {
+	switch tag.Widget {
+	case "date", "time":
+		return tag.Widget
+	}
+	return "datetime"
 }
 
 // checkOwnTextRange checks form:"min=…,max=…" for a value that
@@ -1045,7 +1088,15 @@ func textIsRFC3339(t reflect.Type) (ok bool) {
 // add-row click, which discards the errors, and in an added repeatable
 // row. The form handler never calls onSubmit while a field has an error,
 // so the rejected text is not saved.
-func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
+func setTimeText(value reflect.Value, raw string, tag mx.FormTag) (bindErr error) {
+	// An UnmarshalText that panics rejects the value, which stays bound as
+	// posted, as other rejected text does.
+	defer func() {
+		if recover() != nil {
+			value.SetString(raw)
+			bindErr = mx.DateTimeFormatError(tag, raw)
+		}
+	}()
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
 		value.SetString(raw)
@@ -1394,25 +1445,30 @@ func isNullable(value reflect.Value) bool {
 func isPlainNumber(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
 		return !reflect.PointerTo(t).Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
 	}
 	return false
 }
 
-// isSensitivePointer reports whether value is a form:"sensitive" pointer
-// whose input keeps the stored value when left blank, as a text, number or
-// date input does: the clear control is the only way to set it to nil.
-func isSensitivePointer(value reflect.Value, kind mx.FieldKind, tag mx.FormTag) bool {
-	if !tag.Sensitive || !value.IsValid() || value.Kind() != reflect.Pointer {
-		return false
+// browserTag is the tag the input renders with: a form:"sensitive" input
+// that holds a stored value shows none, and a blank keeps the stored
+// value, so the browser must not demand one. The server still rejects a
+// blank required field when nothing is stored.
+func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
+	if tag.Sensitive && tag.Required && kind.KeepsStoredWhenBlank() && !isEmptyValue(value) {
+		tag.Required = false
 	}
-	switch kind {
-	case mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindNumber, mx.FieldKindDateTime, mx.FieldKindCatchAll:
+	return tag
+}
+
+// isEmptyValue reports whether value holds nothing: the zero value or null.
+func isEmptyValue(value reflect.Value) bool {
+	if !value.IsValid() || value.IsZero() {
 		return true
 	}
-	return false
+	return value.CanInterface() && mx.IsNull(value.Interface())
 }
 
 func isTrueBool(value reflect.Value) bool {
@@ -1425,13 +1481,17 @@ func isTrueBool(value reflect.Value) bool {
 	return value.Kind() == reflect.Bool && value.Bool()
 }
 
-func clearSentinelInput(path mx.FieldPath) mx.Component {
+func clearSentinelInput(path mx.FieldPath, checked bool) mx.Component {
+	box := []mx.Attrib{
+		Type("checkbox"),
+		Name(mx.ClearSentinelName(path)),
+		Value("1"),
+	}
+	if checked {
+		box = append(box, Checked)
+	}
 	return Label(
-		Input(
-			Type("checkbox"),
-			Name(mx.ClearSentinelName(path)),
-			Value("1"),
-		),
+		Input(box...),
 		mx.Text(" clear"),
 	)
 }
