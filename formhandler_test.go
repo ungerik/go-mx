@@ -1,10 +1,12 @@
 package mx
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -926,7 +928,26 @@ func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 		t.Errorf("a truncated multipart body: status %d, saved %t", rec.Code, saved)
 	}
 
-	// A body past the server's size limit answers 413.
+	// A multipart body past the part limit answers 413.
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for i := range 1001 {
+		if err := mw.WriteField("F"+strconv.Itoa(i), "x"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge || saved {
+		t.Errorf("a multipart body past the part limit: status %d, saved %t", rec.Code, saved)
+	}
+
+	// A body past a size limit the server set answers 413.
 	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader("Name="+strings.Repeat("x", 100)))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec = httptest.NewRecorder()
@@ -944,6 +965,7 @@ type sensitiveLine struct {
 type sensitiveRecord struct {
 	Password string          `form:"sensitive"`
 	PIN      int             `form:"sensitive"`
+	Opt      bool            `form:"sensitive"`
 	Lines    []sensitiveLine `form:"repeatable"`
 }
 
@@ -954,7 +976,7 @@ func TestReflectFormHandler_SensitiveBlankKeepsStored(t *testing.T) {
 	var saved *sensitiveRecord
 	h := ReflectFormHandler(
 		func(context.Context) (*sensitiveRecord, error) {
-			return &sensitiveRecord{Password: "secret", PIN: 1234, Lines: []sensitiveLine{{"tok"}}}, nil
+			return &sensitiveRecord{Password: "secret", PIN: 1234, Opt: true, Lines: []sensitiveLine{{"tok"}}}, nil
 		},
 		func(_ context.Context, r *sensitiveRecord) error { saved = r; return nil },
 		newTestDecider(),
@@ -964,12 +986,17 @@ func TestReflectFormHandler_SensitiveBlankKeepsStored(t *testing.T) {
 		form.Set(PresentSentinelName(FieldPath(f)), "1")
 		form.Set(f, "")
 	}
+	// An unchecked checkbox sends no value; that is "false", not a blank.
+	form.Set(PresentSentinelName("Opt"), "1")
 	addRow(form, "Lines", 0, map[string]string{"Token": ""})
 	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
 	if saved.Password != "secret" || saved.PIN != 1234 || saved.Lines[0].Token != "tok" {
 		t.Errorf("blank sensitive fields must keep the stored values: %+v", saved)
+	}
+	if saved.Opt {
+		t.Error("a sensitive checkbox could not be unchecked")
 	}
 	form.Set("Password", "new")
 	form.Set("PIN", "42")

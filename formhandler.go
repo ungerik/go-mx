@@ -84,8 +84,9 @@ type ReflectFormConfig struct {
 // matching field. On any other error the form re-renders with a
 // form-level message: a [FormMessage]'s text, or [FormErrorMessage]. On
 // success the handler responds with 303 See Other to cfg.Redirect or
-// r.URL.Path when nil. A body that cannot be parsed is answered with 400
-// (413 when it is too large), never treated as a submission of nothing.
+// r.URL.Path when nil. A body that cannot be parsed is answered with 400,
+// or 413 past the multipart limits or a limit set with
+// [http.MaxBytesReader], never treated as a submission of nothing.
 //
 // load must return a record the handler may change: it binds the
 // submission into it, including text a field rejected, which stays there for

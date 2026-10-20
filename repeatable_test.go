@@ -679,6 +679,14 @@ type lockedSheet struct {
 	Lines []approvalLine `form:"repeatable,readonly"`
 }
 
+type auditPart struct {
+	Lines []approvalLine `form:"repeatable"`
+}
+
+type auditedSheet struct {
+	Audit auditPart `form:"section=Audit,readonly"`
+}
+
 // form:"readonly" on the repeatable field renders its rows readonly with no
 // add or remove buttons, and a tampered POST never rebuilds them.
 func TestRepeatable_ReadonlyFieldKeepsRows(t *testing.T) {
@@ -708,6 +716,36 @@ func TestRepeatable_ReadonlyFieldKeepsRows(t *testing.T) {
 	form.Set("__cmd__", AddRowCommand("Lines"))
 	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || len(saved.Lines) != 1 {
 		t.Errorf("forged add-row: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A repeatable inside a readonly section inherits readonly: no row
+// buttons, its rows are not rebuilt from the submission, and a forged row
+// command is a plain submit.
+func TestRepeatable_ReadonlySectionKeepsRows(t *testing.T) {
+	var saved *auditedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*auditedSheet, error) {
+			return &auditedSheet{Audit: auditPart{Lines: []approvalLine{{"a", "alice"}}}}, nil
+		},
+		func(_ context.Context, s *auditedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "__cmd__") {
+		t.Errorf("a repeatable in a readonly section offers add or remove buttons: %s", body)
+	}
+	lines := FieldPath("Audit").Append("Lines")
+	form := url.Values{}
+	addRow(form, lines, 0, map[string]string{"Desc": "tampered"})
+	addRow(form, lines, 1, map[string]string{"Desc": "injected"})
+	form.Set("__cmd__", AddRowCommand(lines))
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Audit.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
 	}
 }
 

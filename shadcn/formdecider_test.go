@@ -1115,16 +1115,25 @@ func TestShadcn_TextTimeIsRFC3339(t *testing.T) {
 		if got := inputStartTag(renderShadcn(t, &form{At: at, Stamp: stamp(at)}, name, nil)); !strings.Contains(got, `value="2026-07-06T09:05:07+02:00"`) {
 			t.Errorf("%s renders %s", name, got)
 		}
+		// The zero time, as on a new record, shows an empty input.
+		if got := inputStartTag(renderShadcn(t, &form{}, name, nil)); strings.Contains(got, "value=") {
+			t.Errorf("zero %s renders %s", name, got)
+		}
 	}
 }
 
-// A sensitive number never shows its value.
+// A sensitive number never shows its value; any other number does, or an
+// unchanged save would post it empty.
 func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
 	type form struct {
 		PIN int `form:"sensitive"`
+		Qty int
 	}
 	if out := renderShadcn(t, &form{PIN: 1234}, "PIN", nil); strings.Contains(out, "1234") {
 		t.Errorf("a sensitive number shows its value: %s", out)
+	}
+	if got := inputStartTag(renderShadcn(t, &form{Qty: 1234}, "Qty", nil)); !strings.Contains(got, `value="1234"`) {
+		t.Errorf("a number renders %s", got)
 	}
 }
 

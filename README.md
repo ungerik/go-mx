@@ -221,7 +221,8 @@ When `onSubmit` fails, the form re-renders with the submitted values. A
 wrapped) is shown above the form as its text. Any other error is internal: the
 form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
 its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
-parsed is answered with 400 (413 past a size limit) and never reaches
+parsed is answered with 400 (413 past the multipart limits or an
+`http.MaxBytesReader` limit) and never reaches
 `onSubmit`.
 
 The `date`, `datetime` and `time` widgets render the matching input for a

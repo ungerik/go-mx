@@ -403,7 +403,7 @@ API is still free to change.
 
 - **A `time.Time` shown as text round-trips.** A time field tagged `form:"widget=text"`, also of a type defined as `time.Time`, rendered Go's `String()` form (`2026-07-06 09:05:07 +0200 CEST`), which its own parser rejects, so saving the form unchanged failed. It renders as RFC 3339 now (`2026-07-06T09:05:07+02:00`, fraction included), and the zero time as an empty input.
 
-- **A form body that cannot be parsed is rejected.** A truncated multipart body, or one past a size limit, read as a submission of no fields, so `onSubmit` saved the unchanged record and the user's edits were lost without a message. The handlers now answer 400, or 413 for a body past the limit, without calling `onSubmit`.
+- **A form body that cannot be parsed is rejected.** A truncated multipart body, or one past a size limit, read as a submission of no fields, so `onSubmit` saved the unchanged record and the user's edits were lost without a message. The handlers now answer 400, or 413 for a body past the multipart limits or an `http.MaxBytesReader` limit, without calling `onSubmit`.
 
 - **An error of a hidden field is shown.** A hidden field has no place for its own message, so a parse error of a tampered hidden value, or a `mx.FieldErrors` entry for a hidden path, failed the save with no visible reason. Such errors are now shown above the form.
 - **Form errors no longer carry a call stack.** A few parser errors (`cannot parse value into …`, unsupported kinds, an unsettable field or set) were go-errs values whose text includes the stack, and the form showed it; they are plain errors now.
