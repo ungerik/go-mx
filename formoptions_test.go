@@ -20,17 +20,17 @@ func TestSelectPreface(t *testing.T) {
 		{name: "required list already has empty", selected: "", tag: FormTag{Required: true}, context: true, options: withEmpty, want: OptionPrefaceNone},
 		{name: "optional listed value", selected: "a", context: true, options: opts, want: OptionPrefaceClear},
 		{name: "required listed value", selected: "a", tag: FormTag{Required: true}, context: true, options: opts, want: OptionPrefaceNone},
-		{name: "context out of list", selected: "z", context: true, options: opts, want: OptionPrefaceUnavailableRemoved},
-		{name: "context out of list even when list has empty", selected: "z", context: true, options: withEmpty, want: OptionPrefaceUnavailableRemoved},
+		{name: "context out of list", selected: "z", context: true, options: opts, want: OptionPrefaceUnavailable},
+		{name: "context out of list even when list has empty", selected: "z", context: true, options: withEmpty, want: OptionPrefaceUnavailable},
 		{name: "listed value and list has empty", selected: "a", context: true, options: withEmpty, want: OptionPrefaceNone},
-		{name: "sensitive out of list", selected: "z", tag: FormTag{Sensitive: true}, context: true, options: opts, want: OptionPrefaceUnavailableRemoved},
+		{name: "sensitive out of list", selected: "z", tag: FormTag{Sensitive: true}, context: true, options: opts, want: OptionPrefaceUnavailable},
 		{name: "static out of list", selected: "z", options: opts, want: OptionPrefaceClear},
 		{name: "required static out of list", selected: "z", tag: FormTag{Required: true}, options: opts, want: OptionPrefaceUnavailable},
 		// A required select rejects the blank, and a readonly one is never
 		// saved, so neither placeholder says the value is removed.
 		{name: "required context out of list", selected: "z", tag: FormTag{Required: true}, context: true, options: opts, want: OptionPrefaceUnavailable},
 		{name: "readonly context out of list", selected: "z", tag: FormTag{Readonly: true}, context: true, options: opts, want: OptionPrefaceUnavailable},
-		{name: "empty list with value", selected: "z", context: true, want: OptionPrefaceUnavailableRemoved},
+		{name: "empty list with value", selected: "z", context: true, want: OptionPrefaceUnavailable},
 		{name: "empty list required", selected: "", tag: FormTag{Required: true}, context: true, want: OptionPrefaceChoose},
 		{name: "empty list optional blank", selected: "", context: true, want: OptionPrefaceEmpty},
 		{name: "static empty required", selected: "", tag: FormTag{Required: true}, want: OptionPrefaceChoose},
@@ -63,6 +63,7 @@ func TestEnumSetPreface(t *testing.T) {
 		{name: "empty list with member", members: []string{"hidden"}, context: true, want: OptionPrefaceValuesUnavailable},
 		{name: "empty list required", tag: FormTag{Required: true}, context: true, want: OptionPrefaceNone},
 		{name: "empty list optional blank", context: true, want: OptionPrefaceNone},
+		{name: "readonly missing", members: []string{"hidden"}, tag: FormTag{Readonly: true}, context: true, options: opts, want: OptionPrefaceValuesUnavailable},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -71,5 +72,29 @@ func TestEnumSetPreface(t *testing.T) {
 				t.Fatalf("preface = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// Saving drops an unlisted value where the field is saved and a blank is
+// accepted: not on a required select, which rejects the blank, nor on a
+// readonly field, which is never saved.
+func TestOptionPrefaceRemovesValue(t *testing.T) {
+	for _, tc := range []struct {
+		preface OptionPreface
+		tag     FormTag
+		want    bool
+	}{
+		{OptionPrefaceUnavailable, FormTag{}, true},
+		{OptionPrefaceUnavailable, FormTag{Required: true}, false},
+		{OptionPrefaceUnavailable, FormTag{Readonly: true}, false},
+		{OptionPrefaceValuesUnavailable, FormTag{}, true},
+		{OptionPrefaceValuesUnavailable, FormTag{Required: true}, true},
+		{OptionPrefaceValuesUnavailable, FormTag{Readonly: true}, false},
+		{OptionPrefaceClear, FormTag{}, false},
+		{OptionPrefaceNone, FormTag{}, false},
+	} {
+		if got := tc.preface.RemovesValue(tc.tag); got != tc.want {
+			t.Errorf("%v.RemovesValue(%+v) = %v, want %v", tc.preface, tc.tag, got, tc.want)
+		}
 	}
 }

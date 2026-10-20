@@ -2,9 +2,13 @@ package mx
 
 import (
 	"database/sql/driver"
+	"encoding"
+	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Nullable is implemented by types that can report whether they hold a NULL
@@ -32,6 +36,11 @@ type NullSetter interface {
 // or implements the Nullable interface and IsNull() returns true
 // or implements the database/sql/driver.Valuer interface and Value() returns nil and no error.
 func IsNull(value any) bool {
+	// A nil pointer is null, and a value method called through it panics,
+	// as the Value of a nil *sql.NullString does.
+	if v := reflect.ValueOf(value); v.Kind() == reflect.Pointer && v.IsNil() {
+		return true
+	}
 	switch x := value.(type) {
 	case nil:
 		return true
@@ -47,15 +56,26 @@ func IsNull(value any) bool {
 	return false
 }
 
-// DriverValueText returns the text a reflected form writes for a struct
-// implementing database/sql/driver.Valuer, such as sql.NullInt64, which has
-// no text methods: the driver value it holds, a time in RFC 3339 as the
-// forms write every time. The html form parser reads that text back with
-// the type's Scan method. A null is "". ok is false for any other value,
-// for a driver value of another type and when Value fails. Renderers
-// prefer a type's own MarshalText.
+// sqlScanner is database/sql.Scanner, without linking database/sql.
+type sqlScanner interface{ Scan(src any) error }
+
+// DriverValueText returns the text a reflected form writes for a struct a
+// database driver reads and writes, such as sql.NullInt64: its Value
+// (database/sql/driver.Valuer) gives the value it holds, its Scan
+// (database/sql.Scanner) reads one back, and it has no MarshalText,
+// UnmarshalText or String method, whose text a renderer or parser would
+// use instead. The text is the driver value, a time in RFC 3339 as the
+// forms write every time, and a null is "". The html form parser reads it
+// back with Scan. ok is false for any other value, when Value fails, for a
+// driver value of another type and for text an input cannot hold
+// unchanged: invalid UTF-8, as binary bytes are, or a NUL.
 func DriverValueText(value reflect.Value) (text string, ok bool) {
 	if value.Kind() != reflect.Struct {
+		return "", false
+	}
+	ptr := reflect.PointerTo(value.Type())
+	if !ptr.Implements(reflect.TypeFor[sqlScanner]()) || ptr.Implements(reflect.TypeFor[encoding.TextMarshaler]()) ||
+		ptr.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) || ptr.Implements(reflect.TypeFor[fmt.Stringer]()) {
 		return "", false
 	}
 	valuer, isValuer := safeInterface(value).(driver.Valuer)
@@ -73,9 +93,13 @@ func DriverValueText(value reflect.Value) (text string, ok bool) {
 	case nil:
 		return "", true
 	case string:
-		return x, true
+		if inputText(x) {
+			return x, true
+		}
 	case []byte:
-		return string(x), true
+		if inputText(string(x)) {
+			return string(x), true
+		}
 	case int64:
 		return strconv.FormatInt(x, 10), true
 	case float64:
@@ -86,6 +110,12 @@ func DriverValueText(value reflect.Value) (text string, ok bool) {
 		return x.Format(time.RFC3339Nano), true
 	}
 	return "", false
+}
+
+// inputText reports whether an input holds s unchanged: a browser replaces
+// invalid UTF-8 and a NUL.
+func inputText(s string) bool {
+	return utf8.ValidString(s) && !strings.ContainsRune(s, 0)
 }
 
 func canBeNil(k reflect.Kind) bool {

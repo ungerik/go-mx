@@ -222,8 +222,8 @@ as a hidden field's, goes above the form like the next two); a `mx.FormMessage`
 (also wrapped) is shown above the form as its text. Any other error is internal: the
 form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
 its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
-parsed is answered with 400 (413 past the multipart limits or an
-`http.MaxBytesReader` limit) and never reaches
+parsed is answered with 400 (413 past the multipart limits, net/http's
+10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
 `onSubmit`.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
@@ -314,8 +314,8 @@ echoed). A sensitive field uses that same generic placeholder: the value
 stays out of the markup, and an unchanged submit does not fall through to
 the first listed option. Because the placeholder is disabled, an unchanged submit sends no
 value for the field: required fields fail validation until a value is picked
-from the list, while non-required fields are cleared, which the placeholder
-of an optional, editable select says.
+from the list, while non-required fields are cleared, which a note below an
+optional, editable select says.
 
 When the option list has no empty value, a select with no current value
 gets a leading empty option so the browser does not submit the first real
@@ -335,7 +335,8 @@ the whole set that is stored, so a value the list stopped offering cannot
 be written back, and unchecking a box that was on the page removes it even
 if the list changes before the POST. The group says that some current
 values are not available and are removed when you save, without naming
-them. A static enum list is the
+them (a readonly group, which is never saved, keeps them and says only that
+they are not available). A static enum list is the
 whole domain, so parse replaces the set from the submission. A blank
 optional enum is no choice: the type's `Validate` does not reject it, and
 a decider `Validate` still runs.

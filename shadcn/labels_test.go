@@ -28,30 +28,32 @@ func renderWith(t *testing.T, ctx context.Context, c mx.Component) string {
 // silently fall back to the English DefaultLabels instead of failing loudly,
 // which is what TestLabelsFieldsAllCovered checks.
 var germanLabels = Labels{
-	BreadcrumbNav:                "Brotkrümelnavigation",
-	BreadcrumbEllipsis:           "Mehr Einträge",
-	CalendarPrevious:             "Zum vorherigen Monat",
-	CalendarNext:                 "Zum nächsten Monat",
-	CarouselPrevious:             "Vorheriges Bild",
-	CarouselNext:                 "Nächstes Bild",
-	DialogClose:                  "Schließen",
-	NavigationMenuNav:            "Hauptnavigation",
-	PaginationNav:                "Seitennummerierung",
-	PaginationPrevious:           "Zurück",
-	PaginationNext:               "Weiter",
-	PaginationPreviousPage:       "Zur vorherigen Seite",
-	PaginationNextPage:           "Zur nächsten Seite",
-	PaginationEllipsis:           "Mehr Seiten",
-	SidebarTrigger:               "Seitenleiste umschalten",
-	Spinner:                      "Lädt",
-	FormClear:                    "leeren",
-	FormValueNotAvailable:        "(aktueller Wert nicht verfügbar)",
-	FormValueNotAvailableRemoved: "(aktueller Wert nicht verfügbar und wird beim Speichern entfernt)",
-	FormChooseOption:             "Auswählen…",
-	FormNoSelection:              "(keine)",
-	FormValuesNotAvailable:       "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
-	FormExpectedFormat:           "Erwartetes Format:",
-	FormInvalidFormat:            "Nicht im erwarteten Format:",
+	BreadcrumbNav:                  "Brotkrümelnavigation",
+	BreadcrumbEllipsis:             "Mehr Einträge",
+	CalendarPrevious:               "Zum vorherigen Monat",
+	CalendarNext:                   "Zum nächsten Monat",
+	CarouselPrevious:               "Vorheriges Bild",
+	CarouselNext:                   "Nächstes Bild",
+	DialogClose:                    "Schließen",
+	NavigationMenuNav:              "Hauptnavigation",
+	PaginationNav:                  "Seitennummerierung",
+	PaginationPrevious:             "Zurück",
+	PaginationNext:                 "Weiter",
+	PaginationPreviousPage:         "Zur vorherigen Seite",
+	PaginationNextPage:             "Zur nächsten Seite",
+	PaginationEllipsis:             "Mehr Seiten",
+	SidebarTrigger:                 "Seitenleiste umschalten",
+	Spinner:                        "Lädt",
+	FormClear:                      "leeren",
+	FormClearField:                 "%s leeren",
+	FormValueNotAvailable:          "(aktueller Wert nicht verfügbar)",
+	FormValueRemovedOnSave:         "Der aktuelle Wert wird beim Speichern entfernt.",
+	FormChooseOption:               "Auswählen…",
+	FormNoSelection:                "(keine)",
+	FormValuesNotAvailable:         "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
+	FormValuesNotAvailableReadonly: "(einige aktuelle Werte sind nicht verfügbar)",
+	FormExpectedFormat:             "Erwartetes Format:",
+	FormInvalidFormat:              "Nicht im erwarteten Format:",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -150,9 +152,9 @@ var labelCases = []labelCase{
 		// never passes them, so before Labels they were English-only in an
 		// otherwise translated form.
 		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), "Optional", false) },
-		fields:  []string{"FormClear"},
-		english: []string{`text-sm">clear<`},
-		german:  []string{`text-sm">leeren<`},
+		fields:  []string{"FormClear", "FormClearField"},
+		english: []string{`text-sm">clear<`, `aria-label="clear Optional"`},
+		german:  []string{`text-sm">leeren<`, `aria-label="Optional leeren"`},
 	}, {
 		name: "FormSelectOutOfListPlaceholder", comp: requiredOutOfListSelect,
 		fields:  []string{"FormValueNotAvailable"},
@@ -164,9 +166,9 @@ var labelCases = []labelCase{
 		},
 	}, {
 		name: "FormSelectOutOfListRemoved", comp: outOfListSelect,
-		fields:  []string{"FormValueNotAvailableRemoved"},
-		english: []string{`selected="selected">(current value not available and is removed when you save)<`},
-		german:  []string{`selected="selected">(aktueller Wert nicht verfügbar und wird beim Speichern entfernt)<`},
+		fields:  []string{"FormValueRemovedOnSave"},
+		english: []string{`>The current value is removed when you save.<`},
+		german:  []string{`>Der aktuelle Wert wird beim Speichern entfernt.<`},
 		wrapCtx: func(ctx context.Context) context.Context {
 			return context.WithValue(ctx, shadcnPartnersKey{},
 				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
@@ -195,6 +197,12 @@ var labelCases = []labelCase{
 		fields:  []string{"FormValuesNotAvailable"},
 		english: []string{">(some current values are not available and are removed when you save)<"},
 		german:  []string{">(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)<"},
+	}, {
+		name:    "FormValuesNotAvailableReadonly",
+		comp:    readonlyEnumSetWithHiddenMember,
+		fields:  []string{"FormValuesNotAvailableReadonly"},
+		english: []string{">(some current values are not available)<"},
+		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
 	}, {
 		name:    "FormExpectedFormat",
 		comp:    dateStructWithOwnText,
@@ -288,6 +296,17 @@ func optionalEmptySelect() mx.Component {
 func enumSetWithHiddenMember() mx.Component {
 	type tagForm struct {
 		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"kept", "b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	return FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+}
+
+func readonlyEnumSetWithHiddenMember() mx.Component {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags,readonly"`
 	}
 	s := &tagForm{Tags: []string{"kept", "b"}}
 	v := reflect.ValueOf(s).Elem()

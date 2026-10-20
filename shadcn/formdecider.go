@@ -123,7 +123,11 @@ func shadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 // error, such as a text input holding stored text the parser rejects.
 func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error, invalid bool, input mx.Component) mx.Component {
 	parts := make([]any, 0, 4+len(errs))
-	if labelText := fieldLabel(field, tag); labelText != "" {
+	if labelText := fieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
+		// A set has no control with the path as its id: the label names
+		// its group.
+		parts = append(parts, FieldLabel(html.ID(groupLabelID(path)), labelText))
+	} else if labelText != "" {
 		parts = append(parts, FieldLabelFor(string(path), labelText))
 	}
 	parts = append(parts, input)
@@ -226,6 +230,7 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
+	removed := false
 	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{html.Value(opt.Value)}
 		if opt.Value == selected {
@@ -234,9 +239,21 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
 		return html.Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		return selectPrefaceOption(mx.SelectPreface(selected, tag, contextList, options))
+		preface := mx.SelectPreface(selected, tag, contextList, options)
+		removed = preface.RemovesValue(tag)
+		return selectPrefaceOption(preface)
 	})
-	return Select(append(attribs, options)...)
+	return mx.Components{
+		Select(append(attribs, options)...),
+		// The options decide whether saving drops the value, also those a
+		// context list resolves while the select renders, before this.
+		mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+			if !removed {
+				return nil
+			}
+			return FieldDescription(labelText(func(l Labels) string { return l.FormValueRemovedOnSave })).Render(ctx, w)
+		}),
+	}
 }
 
 // selectPrefaceOption renders the leading option [mx.SelectPreface] chose.
@@ -247,9 +264,6 @@ func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
 	case mx.OptionPrefaceUnavailable:
 		return html.Option(html.Value(""), html.Disabled, html.Selected,
 			labelText(func(l Labels) string { return l.FormValueNotAvailable }))
-	case mx.OptionPrefaceUnavailableRemoved:
-		return html.Option(html.Value(""), html.Disabled, html.Selected,
-			labelText(func(l Labels) string { return l.FormValueNotAvailableRemoved }))
 	case mx.OptionPrefaceChoose:
 		return html.Option(html.Value(""), html.Disabled, html.Selected,
 			labelText(func(l Labels) string { return l.FormChooseOption }))
@@ -301,12 +315,19 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return nil
 		}
+		if !preface.RemovesValue(tag) {
+			return FieldDescription(html.Class("col-span-2"),
+				labelText(func(l Labels) string { return l.FormValuesNotAvailableReadonly }))
+		}
 		return FieldDescription(html.Class("col-span-2"),
 			labelText(func(l Labels) string { return l.FormValuesNotAvailable }))
 	})
 	wrapAttribs := []any{
 		mx.Attribute{Name: "role", Value: "group"},
 		mx.Attribute{Name: "class", Value: "grid grid-cols-2 gap-2"},
+	}
+	if fieldLabel(field, tag) != "" {
+		wrapAttribs = append(wrapAttribs, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
 	if len(errs) > 0 {
 		wrapAttribs = append(wrapAttribs, mx.NewAttrib("aria-invalid", "true"))
@@ -496,14 +517,22 @@ func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
 	return a
 }
 
+// groupLabelID is the id of the label that names a field's group of
+// controls, such as an enum set's checkboxes (as in the html renderer).
+func groupLabelID(path mx.FieldPath) string {
+	return string(path) + "-label"
+}
+
 func clearControl(path mx.FieldPath, label string, checked bool) mx.Component {
 	box := []mx.Attrib{
 		html.ID(mx.ClearSentinelName(path)),
 		html.Name(mx.ClearSentinelName(path)),
 		html.Value("1"),
-		// The visible word comes first in the name, which says which field
-		// a form full of clear boxes, as in repeatable rows, clears.
-		labelAttrib{name: "aria-label", get: func(l Labels) string { return strings.TrimSpace(l.FormClear + " " + label) }},
+		// The name holds the visible word and says which field a form full
+		// of clear boxes, as in repeatable rows, clears.
+		labelAttrib{name: "aria-label", get: func(l Labels) string {
+			return strings.TrimSpace(strings.Replace(l.FormClearField, "%s", label, 1))
+		}},
 	}
 	if checked {
 		box = append(box, html.Checked)
@@ -515,7 +544,7 @@ func clearControl(path mx.FieldPath, label string, checked bool) mx.Component {
 			html.Class("w-fit"),
 			Checkbox(box...),
 			mx.NewElement("span",
-				mx.Attribute{Name: "class", Value: "ml-2 text-sm"},
+				mx.Attribute{Name: "class", Value: "text-sm"},
 				labelText(func(l Labels) string { return l.FormClear }),
 			),
 		),

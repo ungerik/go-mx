@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -28,20 +29,72 @@ func TestIsNull(t *testing.T) {
 	}
 }
 
+// scans gives a test type the Scan method a database type has.
+type scans struct{}
+
+func (*scans) Scan(any) error { return nil }
+
 // failingValuer is a driver.Valuer whose Value fails.
-type failingValuer struct{ n int }
+type failingValuer struct{ scans }
 
 func (failingValuer) Value() (driver.Value, error) { return nil, errors.New("broken") }
 
 // intValuer returns a driver value no driver accepts, an int.
-type intValuer struct{ n int }
+type intValuer struct {
+	scans
+	n int
+}
 
 func (v intValuer) Value() (driver.Value, error) { return v.n, nil }
 
 // ptrValuer has Value on the pointer, so only an addressable value has it.
-type ptrValuer struct{ s string }
+type ptrValuer struct {
+	scans
+	s string
+}
 
 func (v *ptrValuer) Value() (driver.Value, error) { return v.s, nil }
+
+// bytesValuer holds a []byte driver value.
+type bytesValuer struct {
+	scans
+	b []byte
+}
+
+func (v bytesValuer) Value() (driver.Value, error) { return v.b, nil }
+
+// writeOnly has Value but no Scan, so nothing reads its text back.
+type writeOnly struct{ n int64 }
+
+func (v writeOnly) Value() (driver.Value, error) { return v.n, nil }
+
+// centsMoney stores cents but reads and shows major units with its own
+// methods, so its driver value is not its text.
+type centsMoney struct {
+	scans
+	cents int64
+}
+
+func (m centsMoney) Value() (driver.Value, error) { return m.cents, nil }
+func (m centsMoney) String() string               { return fmt.Sprintf("%d.%02d", m.cents/100, m.cents%100) }
+
+// writesText has MarshalText but no UnmarshalText.
+type writesText struct {
+	scans
+	n int64
+}
+
+func (v writesText) Value() (driver.Value, error) { return v.n, nil }
+func (writesText) MarshalText() ([]byte, error)   { return []byte("x"), nil }
+
+// readsText has UnmarshalText but no MarshalText or String.
+type readsText struct {
+	scans
+	n int64
+}
+
+func (v readsText) Value() (driver.Value, error) { return v.n, nil }
+func (*readsText) UnmarshalText([]byte) error    { return nil }
 
 func TestDriverValueText(t *testing.T) {
 	berlin, err := time.LoadLocation("Europe/Berlin")
@@ -63,8 +116,15 @@ func TestDriverValueText(t *testing.T) {
 		{"byte as int64", sql.NullByte{Byte: 7, Valid: true}, "7", true},
 		{"time", sql.NullTime{Time: at, Valid: true}, "2026-03-29T03:30:00.000000005+02:00", true},
 		{"generic", sql.Null[string]{V: "x", Valid: true}, "x", true},
+		{"text bytes", bytesValuer{b: []byte(`{"a":1}`)}, `{"a":1}`, true},
+		{"binary bytes", bytesValuer{b: []byte{0xff, 0x00, 'A'}}, "", false},
+		{"NUL in a string", sql.NullString{String: "a\x00b", Valid: true}, "", false},
 		{"failing Value", failingValuer{}, "", false},
-		{"unsupported driver value", intValuer{3}, "", false},
+		{"unsupported driver value", intValuer{n: 3}, "", false},
+		{"no Scan", writeOnly{7}, "", false},
+		{"own String", centsMoney{cents: 1250}, "", false},
+		{"own UnmarshalText", readsText{n: 1250}, "", false},
+		{"own MarshalText", writesText{n: 3}, "", false},
 		{"no Valuer", struct{ N int }{1}, "", false},
 		{"not a struct", 5, "", false},
 	} {
@@ -81,5 +141,12 @@ func TestDriverValueText(t *testing.T) {
 	}
 	if _, ok := DriverValueText(reflect.ValueOf(ptrValuer{s: "p"})); ok {
 		t.Error("an unaddressable value has no pointer-receiver Value")
+	}
+}
+
+// A nil pointer is null without calling a value method through it.
+func TestIsNullNilPointer(t *testing.T) {
+	if !IsNull((*sql.NullString)(nil)) {
+		t.Error("a nil *sql.NullString must be null")
 	}
 }

@@ -3,9 +3,10 @@ package mx
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -119,7 +120,8 @@ const (
 
 	// FieldKindCatchAll means no rule matched. The renderer falls back
 	// to a text input and Parse requires the value type to implement
-	// encoding.TextUnmarshaler.
+	// encoding.TextUnmarshaler, or to be a database/sql type that
+	// [DriverValueText] writes and its Scan method reads back.
 	FieldKindCatchAll
 )
 
@@ -210,15 +212,20 @@ type FieldBehavior struct {
 	// or an optional form:"sensitive" input, see
 	// [FieldKind.KeepsStoredWhenBlank]). errs holds any validation errors
 	// to display inline; it is nil on a fresh GET and may be non-nil after
-	// a failed POST. A nil Component leaves the field out of the form.
+	// a failed POST. A nil Render, or a nil Component, leaves the field
+	// out of the form, and the handler never writes it, so a decider can
+	// hide a field from some users. The handler calls Render on a POST to
+	// tell, with the stored value and no errors.
 	Render func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component
 
 	// Parse reads the submitted value out of r and writes it into
 	// value (which is addressable). The handler skips this call when
-	// the field's __present sentinel is absent — never touching a
-	// loaded record's field that the form did not render — and applies
+	// the field's __present sentinel is absent or Render leaves the field
+	// out — never touching a loaded record's field that the form did not
+	// render — and applies
 	// the __clear sentinel itself: it sets a null with NullSetter.SetNull
-	// (or a nil pointer) without calling Parse, while text typed into a
+	// (or a nil pointer, or Scan(nil) for a database/sql type such as
+	// sql.NullString) without calling Parse, while text typed into a
 	// sensitive input wins over the clear and a sensitive value without a
 	// null is cleared by parsing the blank. A blank sensitive input that
 	// keeps the stored value is not parsed either. Otherwise Parse decodes
@@ -260,31 +267,23 @@ type FieldVisit struct {
 // FieldErrors implements the error interface via errors.Join. A nil entry
 // is no error, so a FieldErrors whose entries are all nil is a successful
 // submit; an entry for a path no input shows, such as a hidden field's,
-// is shown above the form.
+// is shown above the form as a form-level message: a [FormMessage]'s text,
+// else [FormErrorMessage].
 type FieldErrors map[FieldPath]error
 
 // Error joins every entry's message in deterministic (path-sorted)
 // order and returns a single string. It uses errors.Join's formatting
 // (newline-separated) when there is more than one entry.
 func (e FieldErrors) Error() string {
-	if len(e) == 0 {
-		return ""
+	parts := make([]error, 0, len(e))
+	for _, p := range slices.Sorted(maps.Keys(e)) {
+		parts = append(parts, e[p])
 	}
-	paths := make([]string, 0, len(e))
-	for p, err := range e {
-		if err != nil {
-			paths = append(paths, string(p))
-		}
+	// errors.Join drops the nil entries, and is nil when all are.
+	if err := errors.Join(parts...); err != nil {
+		return err.Error()
 	}
-	sort.Strings(paths)
-	parts := make([]error, 0, len(paths))
-	for _, p := range paths {
-		parts = append(parts, e[FieldPath(p)])
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return errors.Join(parts...).Error()
+	return ""
 }
 
 // Unwrap allows errors.Is/errors.As to inspect each per-field error.

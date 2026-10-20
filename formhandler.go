@@ -23,6 +23,16 @@ import (
 // handler via [ReflectFormConfig.MaxMemory].
 var DefaultMaxMemory int64 = 4 << 20
 
+// DefaultMaxUploadSize is the default upper bound on the size of a
+// multipart request body that [ReflectFormHandler] reads; past it a POST
+// answers 413. Every reflected form accepts a multipart body, also one
+// without a file field, and the parser writes file parts past MaxMemory to
+// disk, so the bound keeps one request from filling it.
+//
+// Override globally by reassigning this variable at init time or per
+// handler via [ReflectFormConfig.MaxUploadSize].
+var DefaultMaxUploadSize int64 = 32 << 20
+
 // FormSubmitLabel is the default text rendered on the form's submit
 // button. Reassign to change globally; the renderer layer (html / hx /
 // shadcn) may also render its own button instead of relying on this.
@@ -50,6 +60,14 @@ type ReflectFormConfig struct {
 	// a file field reads into memory ([FormMaxMemory]). 0 means use
 	// [DefaultMaxMemory].
 	MaxMemory int64
+
+	// MaxUploadSize bounds the size of a multipart request body; past it
+	// a POST answers 413. 0 means use [DefaultMaxUploadSize], and a
+	// negative value means no bound, for a handler behind a limit of its
+	// own: an http.MaxBytesReader with a larger limit is cut to this one.
+	// A urlencoded body has net/http's 10 MB limit, or the limit of an
+	// http.MaxBytesReader around it.
+	MaxUploadSize int64
 
 	// Redirect produces the URL to 303-redirect to on successful
 	// submit. nil means "redirect to r.URL.Path" — the same handler
@@ -180,6 +198,10 @@ func ReflectFormHandlerRedirecting[T any](
 	if maxMem <= 0 {
 		maxMem = DefaultMaxMemory
 	}
+	maxUpload := cfg.MaxUploadSize
+	if maxUpload == 0 {
+		maxUpload = DefaultMaxUploadSize
+	}
 	submitLabel := cfg.SubmitLabel
 	if submitLabel == "" {
 		submitLabel = FormSubmitLabel
@@ -216,17 +238,21 @@ func ReflectFormHandlerRedirecting[T any](
 			// A body that fails to parse, such as one past the multipart
 			// part limit, must not read as a submission of nothing: onSubmit
 			// would save the unchanged record and drop the user's edits.
-			if parseErr := parseFormBody(w, r, maxMem); parseErr != nil {
+			loaded := r.MultipartForm
+			if parseErr := parseFormBody(w, r, maxMem, maxUpload); parseErr != nil {
 				status := http.StatusBadRequest
 				var tooLarge *http.MaxBytesError
-				if errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) {
+				if errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) || parseErr.Error() == errPostTooLarge {
 					status = http.StatusRequestEntityTooLarge
 				}
 				http.Error(w, "could not parse form", status)
 				return
 			}
-			// Attached after the parse: the server removes the temporary
-			// files of the multipart form set on the request it passed in.
+			// The server removes the temporary files only of a form set on
+			// the request it passed in, which a middleware's copy is not.
+			if form := r.MultipartForm; form != nil && form != loaded {
+				defer form.RemoveAll()
+			}
 			r = r.WithContext(context.WithValue(r.Context(), maxMemoryKey{}, maxMem))
 			target, err := load(r.Context())
 			if err != nil {
@@ -383,13 +409,16 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		return
 	}
 	beh := d(srcCell, cv.Field, cv.Value)
+	// A field the decider does not render, or renders as nothing, is not
+	// in the form: it is never written, also not by a forged __present
+	// sentinel, and shows no error.
+	if beh.Render == nil || beh.Render(srcCell, cv.Field, cv.Value, nil) == nil {
+		return
+	}
 	if !sentinelSet(form, PresentSentinelName(srcCell)) {
-		// A value not sent is left alone, but an empty required one the
-		// decider renders, as in a submit-only form's new(T) or an added
-		// row, is still an error. A field the decider does not render has
-		// no sentinel and shows no error.
-		// A decider that renders the field as nothing leaves it out too.
-		if beh.Render != nil && cv.Tag.Required && isBlank(cv.Kind, cv.Value) && beh.Render(srcCell, cv.Field, cv.Value, nil) != nil {
+		// A value not sent is left alone, but an empty required one, as in
+		// a submit-only form's new(T) or an added row, is still an error.
+		if cv.Tag.Required && isBlank(cv.Kind, cv.Value) {
 			out[dstCell] = append(out[dstCell], errors.New("required"))
 		}
 		return
@@ -462,19 +491,24 @@ func clearField(tag FormTag, kind FieldKind, value reflect.Value, form url.Value
 	return true, nil
 }
 
-// maxFormBody is the size net/http's ParseForm reads of a urlencoded body;
-// past it the request answers 413, as one past the multipart limits does.
-const maxFormBody = 10 << 20
+// errPostTooLarge is the text of the error net/http's ParseForm returns for
+// a urlencoded body past its 10 MB limit, which it applies unless the body
+// is an http.MaxBytesReader with a limit of its own. Either answers 413, as
+// a body past the multipart limits does.
+const errPostTooLarge = "http: POST too large"
 
 // parseFormBody parses the request body into r.PostForm, r.Form and, for a
 // multipart body, r.MultipartForm. Only the body is the submission, so it
 // is parsed on its own: a URL query that cannot be parsed, such as one with
-// a semicolon, fails nothing, and its readable values join r.Form.
-func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem int64) error {
+// a semicolon, fails nothing, and its readable values join r.Form. A form
+// a middleware parsed already holds the query. A multipart body past
+// maxUpload, when it is positive, is too large.
+func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem, maxUpload int64) error {
 	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if mediaType != ContentTypeMultipartFormData && r.Body != nil {
-		r.Body = http.MaxBytesReader(w, r.Body, maxFormBody)
+	if mediaType == ContentTypeMultipartFormData && maxUpload > 0 && r.Body != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	}
+	parsed := r.Form != nil
 	body := *r
 	bodyURL := *r.URL
 	bodyURL.RawQuery = ""
@@ -487,9 +521,11 @@ func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem int64) error {
 	if r.Form == nil {
 		r.Form = url.Values{}
 	}
-	query, _ := url.ParseQuery(r.URL.RawQuery)
-	for name, values := range query {
-		r.Form[name] = append(r.Form[name], values...)
+	if !parsed {
+		query, _ := url.ParseQuery(r.URL.RawQuery)
+		for name, values := range query {
+			r.Form[name] = append(r.Form[name], values...)
+		}
 	}
 	return err
 }
@@ -577,6 +613,15 @@ func setFieldNull(value reflect.Value) error {
 		if ns, ok := value.Addr().Interface().(NullSetter); ok {
 			ns.SetNull()
 			return nil
+		}
+		// A database/sql type, such as sql.NullString, scans nil as its
+		// null, into a copy: a Scan that fails may change its value.
+		if _, ok := value.Addr().Interface().(sqlScanner); ok && value.Kind() == reflect.Struct {
+			null := reflect.New(value.Type())
+			if null.Interface().(sqlScanner).Scan(nil) == nil {
+				value.Set(null.Elem())
+				return nil
+			}
 		}
 	}
 	switch value.Kind() {

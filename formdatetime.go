@@ -140,11 +140,14 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
 			spec.Value = t.Format(tt.layouts[0])
 			spec.Time = t
-			// The text keeps only the offset; the wrapped time, where it is
-			// the same time shown the same way, keeps its named zone and so
-			// the offset of another date.
-			if held, ok := innerTime(v); ok && held.Equal(t) && held.Format(time.RFC3339) == t.Format(time.RFC3339) {
-				spec.Time = held
+			// The text keeps only the offset; the wrapped time's zone, where
+			// it shows this instant with the same offset, is named and so
+			// has the offset of another date. The instant is the text's,
+			// which may drop the wrapped time's fraction.
+			if held, ok := innerTime(v); ok {
+				if named := t.In(held.Location()); named.Format(time.RFC3339Nano) == t.Format(time.RFC3339Nano) {
+					spec.Time = named
+				}
 			}
 			return spec
 		}
@@ -165,6 +168,10 @@ func innerTime(v reflect.Value) (time.Time, bool) {
 				return time.Time{}, false
 			}
 			v = v.Elem()
+		}
+		// An unexported field cannot be read; its zone stays unknown.
+		if !v.CanInterface() {
+			return time.Time{}, false
 		}
 		if t, ok := timeOf(v); ok {
 			return t, true
@@ -236,7 +243,8 @@ func DateTimeFormatError(tag FormTag, raw string) error {
 // are read in the layouts of the tag's input type, as a browser reads the
 // input's min and max, and a bound that is no value of that type is
 // ignored, as a browser ignores it. The bounds have no zone, so t's wall
-// clock is compared, whatever its zone. A time input's range may wrap past
+// clock is compared, whatever its zone, and for a time input only the
+// clock, whatever date t carries. A time input's range may wrap past
 // midnight, such as min=22:00,max=06:00: then a time from min on or up to
 // max is in range. A form:"sensitive" field's error leaves raw out.
 func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
@@ -247,6 +255,11 @@ func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 		subject = ""
 	}
 	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	if inputType == "time" {
+		// A time input has no date, and its bounds are read on the zero
+		// date: a posted time put on the stored date compares its clock.
+		t = time.Date(0, 1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	}
 	lowest, hasMin := tt.parse(tag.Min)
 	highest, hasMax := tt.parse(tag.Max)
 	if inputType == "time" && hasMin && hasMax && highest.Before(lowest) {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -916,6 +917,85 @@ func TestRepeatable_RowEnumValidation(t *testing.T) {
 
 // A body that cannot be parsed is answered with an error, never treated as
 // a submission of nothing that saves the unchanged record.
+// A field the decider renders as nothing, or not at all, is not in the
+// form, so a forged __present sentinel and value cannot write it.
+func TestReflectFormHandler_UnrenderedFieldNotWritten(t *testing.T) {
+	type account struct {
+		Name string
+		Role string
+		Plan string
+	}
+	var saved *account
+	base := newTestDecider()
+	h := ReflectFormHandler(
+		func(context.Context) (*account, error) { return &account{Role: "member", Plan: "free"}, nil },
+		func(_ context.Context, a *account) error { saved = a; return nil },
+		func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+			beh := base(path, field, value)
+			switch path {
+			case "Role": // hidden from this user by rendering nothing
+				beh.Render = func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return nil }
+			case "Plan":
+				beh.Render = nil
+			}
+			return beh
+		},
+	)
+	rec := postForm(t, h, url.Values{
+		PresentSentinelName("Name"): {"1"}, "Name": {"n"},
+		PresentSentinelName("Role"): {"1"}, "Role": {"admin"},
+		PresentSentinelName("Plan"): {"1"}, "Plan": {"pro"},
+	})
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "n" || saved.Role != "member" || saved.Plan != "free" {
+		t.Errorf("status %d, saved %+v; want Name written and Role, Plan kept", rec.Code, saved)
+	}
+}
+
+// A multipart body past MaxUploadSize answers 413, by default past
+// DefaultMaxUploadSize; a negative MaxUploadSize sets no bound.
+func TestReflectFormHandler_MaxUploadSize(t *testing.T) {
+	prev := DefaultMaxUploadSize
+	DefaultMaxUploadSize = 2048
+	t.Cleanup(func() { DefaultMaxUploadSize = prev })
+	upload := func() (*bytes.Buffer, string) {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		_ = mw.WriteField(PresentSentinelName("Name"), "1")
+		_ = mw.WriteField("Name", "n")
+		part, _ := mw.CreateFormFile("Doc", "doc.bin")
+		_, _ = part.Write(bytes.Repeat([]byte("x"), 4096))
+		_ = mw.Close()
+		return &body, mw.FormDataContentType()
+	}
+	for _, c := range []struct {
+		name  string
+		limit int64
+		want  int
+	}{
+		{"default", 0, http.StatusRequestEntityTooLarge},
+		{"own limit", 1024, http.StatusRequestEntityTooLarge},
+		{"room enough", 1 << 20, http.StatusSeeOther},
+		{"no bound", -1, http.StatusSeeOther},
+	} {
+		saved := false
+		h := ReflectFormHandlerWith(ReflectFormConfig{MaxUploadSize: c.limit},
+			func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+			func(context.Context, *sampleStruct) error { saved = true; return nil }, newTestDecider())
+		body, contentType := upload()
+		req := httptest.NewRequest(http.MethodPost, "/", body)
+		req.Header.Set("Content-Type", contentType)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != c.want || saved != (c.want == http.StatusSeeOther) {
+			t.Errorf("%s: status %d, saved %t; want %d", c.name, rec.Code, saved, c.want)
+		}
+	}
+}
+
+// maxFormBody is the size net/http's ParseForm reads of a urlencoded body
+// that no http.MaxBytesReader limits.
+const maxFormBody = 10 << 20
+
 func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 	saved := false
 	h := ReflectFormHandler(
@@ -941,28 +1021,36 @@ func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 		t.Errorf("a valid body under a semicolon query: status %d, saved %t", rec.Code, saved)
 	}
 	saved = false
-	// The query's values join r.Form, which a decider may read.
-	var fromQuery string
+	// The query's readable values join r.Form, which a decider may read,
+	// once, also when a middleware parsed the form already.
+	var fromQuery []string
 	qh := ReflectFormHandler(
 		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
 		func(context.Context, *sampleStruct) error { return nil },
 		func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
 			beh := newTestDecider()(path, field, value)
 			beh.Parse = func(_ FieldPath, _ reflect.StructField, _ reflect.Value, r *http.Request) error {
-				fromQuery = r.Form.Get("src")
+				fromQuery = r.Form["x"]
 				return nil
 			}
 			return beh
 		},
 	)
-	req = httptest.NewRequest(http.MethodPost, "/edit?src=list;tab=2&x=1", strings.NewReader("__present__Name=1&Name=n"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	qh.ServeHTTP(httptest.NewRecorder(), req)
-	req = httptest.NewRequest(http.MethodPost, "/edit?src=list", strings.NewReader("__present__Name=1&Name=n"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	qh.ServeHTTP(httptest.NewRecorder(), req)
-	if fromQuery != "list" {
-		t.Errorf("the query value reached r.Form as %q", fromQuery)
+	preParsed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		qh.ServeHTTP(w, r)
+	})
+	for name, handler := range map[string]http.Handler{"fresh": qh, "parsed by a middleware": preParsed} {
+		for _, target := range []string{"/edit?src=list;tab=2&x=1", "/edit?x=1"} {
+			fromQuery = nil
+			req = httptest.NewRequest(http.MethodPost, target, strings.NewReader("__present__Name=1&Name=n"))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec = httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusSeeOther || !slices.Equal(fromQuery, []string{"1"}) {
+				t.Errorf("%s, %s: status %d, r.Form[x] = %q; want 303 and one value", name, target, rec.Code, fromQuery)
+			}
+		}
 	}
 	// A malformed body is rejected, also when the query has the same error.
 	for _, target := range []string{"/edit?id=1;tab=2", "/edit"} {
@@ -982,6 +1070,45 @@ func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 	if rec.Code != http.StatusRequestEntityTooLarge || saved {
 		t.Errorf("a urlencoded body past 10 MB: status %d, saved %t", rec.Code, saved)
 	}
+	// Exactly 10 MB is accepted, and so is more under a larger limit a
+	// caller set with http.MaxBytesReader.
+	prefix := "__present__Name=1&Name="
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(prefix+strings.Repeat("x", maxFormBody-len(prefix))))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("a urlencoded body of exactly 10 MB: status %d, saved %t", rec.Code, saved)
+	}
+	saved = false
+	raised := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
+		h.ServeHTTP(w, r)
+	})
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(prefix+strings.Repeat("x", maxFormBody+1)))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	raised.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("11 MB under a caller's 50 MB limit: status %d, saved %t", rec.Code, saved)
+	}
+	saved = false
+	// A multipart upload is not held to the urlencoded limit.
+	var upload bytes.Buffer
+	uw := multipart.NewWriter(&upload)
+	_ = uw.WriteField(PresentSentinelName("Name"), "1")
+	_ = uw.WriteField("Name", "n")
+	part, _ := uw.CreateFormFile("Doc", "big.bin")
+	_, _ = part.Write(bytes.Repeat([]byte("x"), maxFormBody+1))
+	_ = uw.Close()
+	req = httptest.NewRequest(http.MethodPost, "/", &upload)
+	req.Header.Set("Content-Type", uw.FormDataContentType())
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("a multipart body past 10 MB: status %d, saved %t", rec.Code, saved)
+	}
+	saved = false
 
 	// A multipart body past the part limit answers 413.
 	var body bytes.Buffer
@@ -1328,26 +1455,34 @@ func TestReflectFormHandler_ClearAndFieldErrorsEdges(t *testing.T) {
 // The server removes a multipart body's temporary files, also of an upload
 // past MaxMemory, which the parser keeps on disk.
 func TestReflectFormHandler_MultipartTempFilesRemoved(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("TMPDIR", dir)
 	h := ReflectFormHandlerWith(ReflectFormConfig{MaxMemory: 64},
 		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
 		func(context.Context, *sampleStruct) error { return nil }, newTestDecider())
-	srv := httptest.NewServer(h)
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	_ = mw.WriteField(PresentSentinelName("Name"), "1")
-	part, _ := mw.CreateFormFile("Doc", "doc.bin")
-	_, _ = part.Write(bytes.Repeat([]byte("x"), 4096))
-	_ = mw.Close()
-	resp, err := http.Post(srv.URL, mw.FormDataContentType(), &body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	srv.Close() // waits for the handler, so the server's cleanup has run
-	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
-		t.Errorf("multipart temp files left behind: %v", entries)
+	type ctxKey struct{}
+	// A middleware that passes a copy of the request on, as most do, hides
+	// the parsed form from the server's own cleanup.
+	copied := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, 1)))
+	})
+	for name, handler := range map[string]http.Handler{"mounted directly": h, "behind a middleware": copied} {
+		dir := t.TempDir()
+		t.Setenv("TMPDIR", dir)
+		srv := httptest.NewServer(handler)
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		_ = mw.WriteField(PresentSentinelName("Name"), "1")
+		part, _ := mw.CreateFormFile("Doc", "doc.bin")
+		_, _ = part.Write(bytes.Repeat([]byte("x"), 4096))
+		_ = mw.Close()
+		resp, err := http.Post(srv.URL, mw.FormDataContentType(), &body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		srv.Close() // waits for the handler, so the server's cleanup has run
+		if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+			t.Errorf("%s: multipart temp files left behind: %v", name, entries)
+		}
 	}
 }
 

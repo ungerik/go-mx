@@ -3,6 +3,7 @@ package html
 import (
 	"cmp"
 	"context"
+	"database/sql/driver"
 	"encoding"
 	"errors"
 	"fmt"
@@ -61,7 +62,11 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	}
 
 	parts := mx.Components{}
-	if labelText := fieldLabel(field, tag); labelText != "" && kind != mx.FieldKindBool {
+	if labelText := fieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
+		// A set has no control with the path as its id: the label names
+		// its group.
+		parts = append(parts, Label(ID(groupLabelID(path)), labelText+":"))
+	} else if labelText != "" && kind != mx.FieldKindBool {
 		parts = append(parts, Label(For(string(path)), labelText+":"))
 	}
 	parts = append(parts, input)
@@ -346,6 +351,7 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
+	removed := false
 	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{Value(opt.Value)}
 		if opt.Value == selected {
@@ -354,9 +360,24 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
 		return Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		return selectPrefaceOption(mx.SelectPreface(selected, tag, contextList, options))
+		preface := mx.SelectPreface(selected, tag, contextList, options)
+		removed = preface.RemovesValue(tag)
+		return selectPrefaceOption(preface)
 	})
-	return Select(append(attribs, options)...)
+	return mx.Components{
+		Select(append(attribs, options)...),
+		// The options decide whether saving drops the value, also those a
+		// context list resolves while the select renders, before this.
+		mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+			if !removed {
+				return nil
+			}
+			return mx.NewElement("p",
+				mx.Attribute{Name: "class", Value: "form-help"},
+				mx.Text("The current value is removed when you save."),
+			).Render(ctx, w)
+		}),
+	}
 }
 
 // selectPrefaceOption renders the leading option [mx.SelectPreface] chose.
@@ -365,8 +386,6 @@ func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
 	switch preface {
 	case mx.OptionPrefaceUnavailable:
 		return Option(Value(""), Disabled, Selected, mx.Text("(current value not available)"))
-	case mx.OptionPrefaceUnavailableRemoved:
-		return Option(Value(""), Disabled, Selected, mx.Text("(current value not available and is removed when you save)"))
 	case mx.OptionPrefaceChoose:
 		return Option(Value(""), Disabled, Selected, mx.Text("Choose…"))
 	case mx.OptionPrefaceEmpty:
@@ -403,21 +422,23 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return nil
 		}
+		note := "(some current values are not available)"
+		if preface.RemovesValue(tag) {
+			note = "(some current values are not available and are removed when you save)"
+		}
 		return mx.NewElement("p",
 			mx.Attribute{Name: "class", Value: "form-help"},
-			mx.Text("(some current values are not available and are removed when you save)"),
+			mx.Text(note),
 		)
 	})
-	if len(errs) > 0 {
-		return mx.Components{
-			mx.NewElement("div",
-				mx.Attribute{Name: "role", Value: "group"},
-				mx.Attribute{Name: "aria-invalid", Value: "true"},
-				items,
-			),
-		}
+	group := []any{mx.Attribute{Name: "role", Value: "group"}}
+	if fieldLabel(field, tag) != "" {
+		group = append(group, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
-	return mx.NewElement("div", mx.Attribute{Name: "role", Value: "group"}, items)
+	if len(errs) > 0 {
+		group = append(group, mx.Attribute{Name: "aria-invalid", Value: "true"})
+	}
+	return mx.NewElement("div", append(group, items)...)
 }
 
 // parseField writes the submitted form value into value (which is
@@ -456,7 +477,12 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			}
 			return guardBind(value, raw, tag, func() error { return setBool(value, raw) })
 		}
-		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
+		return guardBind(value, raw, tag, func() error {
+			if err := setScalar(value, raw); err != nil {
+				return err
+			}
+			return checkScannedRange(value, raw, tag)
+		})
 	case mx.FieldKindNumber:
 		raw := form.Get(string(path))
 		// No number input submits more; a longer text is no number, and
@@ -737,8 +763,8 @@ func bindPointee(value reflect.Value, bind func(reflect.Value) error) error {
 	return err
 }
 
-// setScalar writes raw into a string-shaped or TextUnmarshaler
-// destination. A pointer gets a new pointee.
+// setScalar writes raw into a string-shaped, TextUnmarshaler or
+// database/sql (see setScanned) destination. A pointer gets a new pointee.
 func setScalar(value reflect.Value, raw string) error {
 	if value.Kind() == reflect.Pointer {
 		if raw == "" {
@@ -778,29 +804,31 @@ func setScalar(value reflect.Value, raw string) error {
 	if u, ok := value.Interface().(encoding.TextUnmarshaler); ok {
 		return u.UnmarshalText([]byte(raw))
 	}
-	// Fallback: try fmt.Sscan-style conversion via reflect.
-	return fmt.Errorf("cannot parse value into %s: implement encoding.TextUnmarshaler or use a form:\"widget=...\" override", value.Type())
+	return fmt.Errorf("cannot parse value into %s: implement encoding.TextUnmarshaler or database/sql.Scanner, or use a form:\"widget=...\" override", value.Type())
 }
 
 // scanner is database/sql.Scanner, without linking database/sql.
 type scanner interface{ Scan(src any) error }
 
-// isScanner reports whether value is a struct that reads its value with
-// Scan and has no UnmarshalText, as sql.NullInt64 does.
+// isScanner reports whether value is a database/sql type such as
+// sql.NullInt64 that [mx.DriverValueText] writes, and so its Scan method
+// reads back.
 func isScanner(value reflect.Value) bool {
-	if value.Kind() != reflect.Struct || !value.CanAddr() {
+	if !value.CanAddr() {
 		return false
 	}
-	ptr := value.Addr().Interface()
-	_, scans := ptr.(scanner)
-	_, unmarshals := ptr.(encoding.TextUnmarshaler)
-	return scans && !unmarshals
+	_, ok := mx.DriverValueText(value)
+	return ok
 }
 
 // setScanned binds raw to a database/sql type such as sql.NullInt64 with
-// its Scan method, which reads the text [mx.DriverValueText] writes. A
-// blank is null. Text unchanged from the stored value keeps it, so a valid
-// empty string stays valid and a time keeps its zone.
+// its Scan method, which reads the text [mx.DriverValueText] writes: as a
+// string, as a driver gives text; as []byte, which the Scan of a JSON
+// column may require; or as the time.Time of RFC 3339 text. A blank is
+// null. Text unchanged from the stored value keeps it, so a valid empty
+// string stays valid and a time keeps its zone. A number is held to the
+// rules of a number field: finite and at most maxNumberLen long (the
+// handler checks form:"min=…,max=…", see checkScannedRange).
 func setScanned(value reflect.Value, raw string) error {
 	if raw == displayValue(value, mx.FormTag{}) {
 		return nil
@@ -811,25 +839,91 @@ func setScanned(value reflect.Value, raw string) error {
 		dst := reflect.New(value.Type())
 		return dst, dst.Interface().(scanner).Scan(src)
 	}
-	var src any // nil, the null, for a blank
+	sources := []any{nil} // the null, for a blank
 	if raw != "" {
-		src = raw
+		sources = []any{raw, []byte(raw)}
+		if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+			sources = append(sources, t)
+		}
 	}
-	dst, err := scan(src)
+	var dst reflect.Value
+	var err error
+	for _, src := range sources {
+		if dst, err = scan(src); err == nil {
+			break
+		}
+	}
 	if err != nil {
-		// sql.NullTime scans a time.Time, not its text.
-		t, timeErr := time.Parse(time.RFC3339Nano, raw)
-		if timeErr != nil {
-			return err
+		// The driver's error names Go types; the stored value tells what
+		// to enter.
+		return scanError(raw, driverValueOf(value))
+	}
+	switch n := driverValueOf(dst.Elem()).(type) {
+	case int64, float64:
+		if len(raw) > maxNumberLen {
+			return errors.New("too long for a number")
 		}
-		timeDst, timeScanErr := scan(t)
-		if timeScanErr != nil {
-			return err
+		if f, ok := n.(float64); ok && (math.IsNaN(f) || math.IsInf(f, 0)) {
+			return fmt.Errorf("%q is not a finite number", raw)
 		}
-		dst = timeDst
 	}
 	value.Set(dst.Elem())
 	return nil
+}
+
+// checkScannedRange checks form:"min=…,max=…" on a database/sql number,
+// such as a sql.NullInt64 that setScanned bound, as on a number field.
+func checkScannedRange(value reflect.Value, raw string, tag mx.FormTag) error {
+	if tag.Min == "" && tag.Max == "" {
+		return nil
+	}
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return nil
+		}
+		value = value.Elem()
+	}
+	if !isScanner(value) {
+		return nil
+	}
+	switch n := driverValueOf(value).(type) {
+	case int64, float64:
+		return checkNumberRange(reflect.ValueOf(n), raw, tag)
+	}
+	return nil
+}
+
+// driverValueOf returns the driver value an addressable database/sql value
+// holds, or nil.
+func driverValueOf(value reflect.Value) any {
+	if !value.CanAddr() {
+		return nil
+	}
+	valuer, ok := value.Addr().Interface().(driver.Valuer)
+	if !ok {
+		return nil
+	}
+	dv, err := valuer.Value()
+	if err != nil {
+		return nil
+	}
+	return dv
+}
+
+// scanError is the validation error for raw, text a database/sql type does
+// not scan: it names what to enter, judged by the stored driver value.
+func scanError(raw string, stored any) error {
+	switch stored.(type) {
+	case int64:
+		return fmt.Errorf("%q is not a whole number", raw)
+	case float64:
+		return fmt.Errorf("%q is not a number", raw)
+	case bool:
+		return fmt.Errorf("%q is not true or false", raw)
+	case time.Time:
+		return fmt.Errorf("%q is not a time in RFC 3339 format, such as 2026-01-02T15:04:05Z", raw)
+	}
+	return fmt.Errorf("%q is not a valid value", raw)
 }
 
 func setNumeric(value reflect.Value, raw string) error {
@@ -1535,6 +1629,12 @@ func isTrueBool(value reflect.Value) bool {
 		value = value.Elem()
 	}
 	return value.Kind() == reflect.Bool && value.Bool()
+}
+
+// groupLabelID is the id of the label that names a field's group of
+// controls, such as an enum set's checkboxes.
+func groupLabelID(path mx.FieldPath) string {
+	return string(path) + "-label"
 }
 
 func clearSentinelInput(path mx.FieldPath, label string, checked bool) mx.Component {

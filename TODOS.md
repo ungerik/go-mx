@@ -520,6 +520,28 @@ nullable wrapper to mean "no time".
 **Priority:** P4
 **Depends on:** None
 
+### `database/sql` types render as plain text inputs
+
+**What:** Give a `sql.Null*` field the widget of the value it holds: a
+nullable checkbox or a true/false/(none) select for `sql.NullBool`, the
+datetime widget for `sql.NullTime`, and a number input with `min`, `max` and
+`step` for the integer and float types.
+
+**Why:** A catch-all `sql.Null*` field is a text input holding the driver
+value, so a user types "true", a raw RFC 3339 time with no picker, or a
+number without a numeric keypad, and the browser checks none of it; the
+server does (`setScanned`).
+
+**Context:** `mx.DriverValueText` and `setScanned`/`checkScannedRange` in
+`html/formdecider.go` bind them today. `DetectField` would map the type by
+its driver value kind (from a zero value's `Scan` targets or a field-name
+convention such as `Bool`/`Time`/`Int64`) to the matching `FieldKind`, and
+the binders of those kinds would need a null for a blank.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## mx dead code
 
 ### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`

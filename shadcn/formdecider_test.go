@@ -124,6 +124,10 @@ func TestShadcn_EnumSetUsesCheckboxGrid(t *testing.T) {
 // label toggles its box.
 func TestShadcn_EnumSetLabelsNameTheirBoxes(t *testing.T) {
 	out := renderShadcn(t, &formSample{Features: map[colorEnum]struct{}{"red": {}}}, "Features", nil)
+	// The field label names the group: no control has the path as its id.
+	if !strings.Contains(out, `id="Features-label"`) || strings.Contains(out, `for="Features"`) || !strings.Contains(out, `role="group" class="grid grid-cols-2 gap-2" aria-labelledby="Features-label"`) {
+		t.Errorf("want the group named by its label: %s", out)
+	}
 	for _, value := range []string{"red", "blue"} {
 		id := mx.KeyedIDValue(mx.FieldPath("Features"), value)
 		if !strings.Contains(out, `id="`+id+`"`) || !strings.Contains(out, `for="`+id+`"`) {
@@ -351,7 +355,7 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := b.String()
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -421,7 +425,7 @@ func TestShadcn_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `(current value not available and is removed when you save)`) {
+	if !strings.Contains(out, `(current value not available)`) || !strings.Contains(out, `>The current value is removed when you save.<`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }

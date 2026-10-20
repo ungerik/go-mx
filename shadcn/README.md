@@ -161,11 +161,13 @@ package variable read by every render, like `mx.AsComponent`.
 | `SidebarTrigger`                                | `SidebarTrigger` `aria-label`          |
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
+| `FormClearField`                                | clear box aria-label, %s = field       |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
-| `FormValueNotAvailableRemoved`                  | the same option where saving clears it |
+| `FormValueRemovedOnSave`                        | note where saving clears that value    |
 | `FormChooseOption`                              | required select with no current value  |
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
+| `FormValuesNotAvailableReadonly`                | that note on a readonly set            |
 | `FormExpectedFormat`                            | date/time text-fallback format hint    |
 | `FormInvalidFormat`                             | the hint when stored text is invalid   |
 

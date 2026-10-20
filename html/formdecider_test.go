@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	stdhtml "html"
@@ -15,6 +17,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -436,7 +439,7 @@ func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	}
 
 	out := render("gone")
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -472,11 +475,7 @@ func TestFieldDecider_SelectPlaceholderSaysRemoval(t *testing.T) {
 	v := reflect.ValueOf(target).Elem()
 	ctx := context.WithValue(context.Background(), partnersCtxKey{},
 		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
-	for name, want := range map[string]string{
-		"Optional": "(current value not available and is removed when you save)",
-		"Required": "(current value not available)",
-		"Readonly": "(current value not available)",
-	} {
+	for name, removed := range map[string]bool{"Optional": true, "Required": false, "Readonly": false} {
 		field, _ := v.Type().FieldByName(name)
 		value := v.FieldByName(name)
 		comp := FieldDecider(mx.FieldPath(name), field, value).Render(mx.FieldPath(name), field, value, nil)
@@ -484,9 +483,49 @@ func TestFieldDecider_SelectPlaceholderSaysRemoval(t *testing.T) {
 		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
 			t.Fatalf("%s: render: %v", name, err)
 		}
-		if !strings.Contains(b.String(), `selected="selected">`+want+`</option>`) {
-			t.Errorf("%s: want the caption %q in %q", name, want, b.String())
+		out := b.String()
+		if !strings.Contains(out, `selected="selected">(current value not available)</option>`) {
+			t.Errorf("%s: want the short caption in %q", name, out)
 		}
+		if got := strings.Contains(out, `<p class="form-help">The current value is removed when you save.</p>`); got != removed {
+			t.Errorf("%s: removal note shown %t, want %t: %q", name, got, removed, out)
+		}
+	}
+}
+
+// A set's field label names its group, as no control has the path as its
+// id.
+func TestFieldDecider_EnumSetLabelNamesGroup(t *testing.T) {
+	type tagForm struct {
+		Tags []string `form:"options=test-html-tags"`
+	}
+	out := renderFieldHTML(t, &tagForm{}, "Tags")
+	if !strings.Contains(out, `<label id="Tags-label">Tags:</label><div role="group" aria-labelledby="Tags-label">`) {
+		t.Errorf("want the group named by its label: %s", out)
+	}
+}
+
+// The placeholder keeps its promise on save: the disabled option submits
+// nothing, so an optional select is cleared, and a readonly one keeps its
+// value.
+func TestReflectFormHandler_PlaceholderSaveRemovesValue(t *testing.T) {
+	type draft struct {
+		Partner  string `form:"options=test-html-partners"`
+		Readonly string `form:"options=test-html-partners,readonly"`
+	}
+	var saved *draft
+	inner := mx.ReflectFormHandler(
+		func(context.Context) (*draft, error) { return &draft{Partner: "gone", Readonly: "gone"}, nil },
+		func(_ context.Context, d *draft) error { saved = d; return nil },
+		FieldDecider,
+	)
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inner(w, r.WithContext(context.WithValue(r.Context(), partnersCtxKey{}, []mx.NamedOption{{Name: "Partner One", Value: "p1"}})))
+	})
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Partner != "" || saved.Readonly != "gone" {
+		t.Errorf("status %d, saved %+v; want Partner cleared and Readonly kept", rec.Code, saved)
 	}
 }
 
@@ -513,7 +552,7 @@ func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
 	if strings.Contains(out, "secret-123") {
 		t.Errorf("sensitive value leaked into placeholder: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("sensitive out-of-list value must use the generic placeholder so the first option is not submitted: %q", out)
 	}
 }
@@ -539,7 +578,7 @@ func TestFieldDecider_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
@@ -883,8 +922,8 @@ func TestFieldDecider_EnumSetDropsMembersMissingFromOptionList(t *testing.T) {
 	type readonlyForm struct {
 		Tags []string `form:"options=test-html-tags,readonly"`
 	}
-	if out := renderFieldHTML(t, &readonlyForm{Tags: []string{"kept", "b"}}, "Tags"); strings.Contains(out, "not available") {
-		t.Errorf("a readonly set must not announce a removal: %q", out)
+	if out := renderFieldHTML(t, &readonlyForm{Tags: []string{"kept", "b"}}, "Tags"); !strings.Contains(out, ">(some current values are not available)<") || strings.Contains(out, "removed") {
+		t.Errorf("a readonly set says some values are not available, but not that they are removed: %q", out)
 	}
 
 	parse := func(f *tagForm, submitted ...string) error {
@@ -1450,7 +1489,7 @@ func TestReflectFormHandler_EmptyOptionListStillRenders(t *testing.T) {
 	if strings.Contains(body, "gone") {
 		t.Errorf("stored value must not be echoed: %q", body)
 	}
-	if !strings.Contains(body, "(current value not available and is removed when you save)") {
+	if !strings.Contains(body, "(current value not available)") || !strings.Contains(body, "The current value is removed when you save.") {
 		t.Errorf("stored value must show the generic placeholder: %q", body)
 	}
 }
@@ -3157,7 +3196,7 @@ func TestFieldDecider_SensitiveNumberAndPlainErrors(t *testing.T) {
 		t.Errorf("a sensitive number shows its value: %s", out)
 	}
 	err := parseFieldValue(t, f, "Plain", "x")
-	if want := `cannot parse value into struct { N int }: implement encoding.TextUnmarshaler or use a form:"widget=..." override`; fmt.Sprint(err) != want {
+	if want := `cannot parse value into struct { N int }: implement encoding.TextUnmarshaler or database/sql.Scanner, or use a form:"widget=..." override`; fmt.Sprint(err) != want {
 		t.Errorf("error %q, want %q", fmt.Sprint(err), want)
 	}
 }
@@ -3663,6 +3702,308 @@ func TestReflectFormHandler_SQLNullRoundTrip(t *testing.T) {
 	vals.Set("ID", "abc")
 	if rec := postValues(t, h, vals); rec.Code == http.StatusSeeOther || saved != nil {
 		t.Errorf("text that does not scan must not save: status %d", rec.Code)
+	}
+}
+
+// centsMoney stores cents but reads and shows major units with its own
+// methods, so its driver value is not its text.
+type centsMoney struct{ cents int64 }
+
+func (m centsMoney) Value() (driver.Value, error) { return m.cents, nil }
+func (m *centsMoney) Scan(src any) error          { m.cents, _ = src.(int64); return nil }
+func (m centsMoney) String() string               { return fmt.Sprintf("%d.%02d", m.cents/100, m.cents%100) }
+
+func (m *centsMoney) UnmarshalText(text []byte) error {
+	major, minor, _ := strings.Cut(string(text), ".")
+	units, err := strconv.ParseInt(major+minor, 10, 64)
+	m.cents = units
+	return err
+}
+
+// jsonDoc is a JSON column type whose Scan takes []byte only, as many do.
+type jsonDoc struct {
+	A string
+	B int
+}
+
+func (d jsonDoc) Value() (driver.Value, error) {
+	return json.Marshal(struct {
+		A string
+		B int
+	}(d))
+}
+
+func (d *jsonDoc) Scan(src any) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("type assertion to []byte failed")
+	}
+	return json.Unmarshal(b, (*struct {
+		A string
+		B int
+	})(d))
+}
+
+// prefixedCode embeds sql.NullString but writes and reads its own text.
+type prefixedCode struct{ sql.NullString }
+
+func (c prefixedCode) MarshalText() ([]byte, error) {
+	if !c.Valid {
+		return nil, nil
+	}
+	return []byte("code:" + c.String), nil
+}
+
+func (c *prefixedCode) UnmarshalText(text []byte) error {
+	v, ok := strings.CutPrefix(string(text), "code:")
+	if !ok {
+		return errors.New("missing code: prefix")
+	}
+	c.String, c.Valid = v, true
+	return nil
+}
+
+// A database/sql type is held to the rules of what it holds: a number to
+// those of a number field, text it must scan as []byte to that, and an
+// error names what to enter. A type with its own text methods or String,
+// whose driver value is not its text, keeps using them.
+func TestReflectFormHandler_SQLNullRules(t *testing.T) {
+	type record struct {
+		Price centsMoney `form:"hidden"`
+		Rate  sql.NullFloat64
+		Count sql.NullInt64 `form:"min=0,max=10"`
+		Doc   jsonDoc
+		At    sql.NullTime
+		Flag  sql.NullBool
+		Code  prefixedCode `form:"hidden"`
+	}
+	stored := record{
+		Price: centsMoney{1250},
+		Rate:  sql.NullFloat64{Float64: 1.5, Valid: true},
+		Count: sql.NullInt64{Int64: 3, Valid: true},
+		Doc:   jsonDoc{A: "x", B: 1},
+		At:    sql.NullTime{Time: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Valid: true},
+		Flag:  sql.NullBool{Bool: true, Valid: true},
+		Code:  prefixedCode{sql.NullString{String: "x", Valid: true}},
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{`name="Price" value="12.50"`, `name="Code" value="code:x"`, `name="Doc" id="Doc" value="{&quot;A&quot;:&quot;x&quot;,&quot;B&quot;:1}"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("want %s in %s", want, body)
+		}
+	}
+	base := submittedValues(body)
+	if rec := postValues(t, h, base); rec.Code != http.StatusSeeOther || saved == nil || *saved != stored {
+		t.Fatalf("unchanged save: status %d, saved %+v", rec.Code, saved)
+	}
+	post := func(field, raw string) (*httptest.ResponseRecorder, *record) {
+		t.Helper()
+		saved = nil
+		vals := url.Values{}
+		for k, v := range base {
+			vals[k] = v
+		}
+		vals.Set(field, raw)
+		return postValues(t, h, vals), saved
+	}
+	for _, c := range []struct{ field, raw, msg string }{
+		{"Rate", "NaN", `&quot;NaN&quot; is not a finite number`},
+		{"Rate", "-Inf", `&quot;-Inf&quot; is not a finite number`},
+		{"Rate", strings.Repeat("1", maxNumberLen+1), "too long for a number"},
+		{"Count", "50", "10"},
+		{"Count", "abc", `&quot;abc&quot; is not a whole number`},
+		{"At", "nope", "is not a time in RFC 3339 format"},
+		{"Flag", "yes", `&quot;yes&quot; is not true or false`},
+	} {
+		if rec, got := post(c.field, c.raw); rec.Code == http.StatusSeeOther || got != nil || !strings.Contains(rec.Body.String(), c.msg) {
+			t.Errorf("%s=%q: status %d, saved %v; want rejected with %q in %s", c.field, c.raw, rec.Code, got != nil, c.msg, rec.Body.String())
+		}
+	}
+	if rec, got := post("Count", "7"); rec.Code != http.StatusSeeOther || got.Count != (sql.NullInt64{Int64: 7, Valid: true}) {
+		t.Errorf("Count=7: status %d", rec.Code)
+	}
+	if rec, got := post("Doc", `{"A":"y","B":2}`); rec.Code != http.StatusSeeOther || got.Doc != (jsonDoc{A: "y", B: 2}) {
+		t.Errorf("Doc edit: status %d, %s", rec.Code, rec.Body.String())
+	}
+	if rec, got := post("Price", "13.75"); rec.Code != http.StatusSeeOther || got.Price.cents != 1375 {
+		t.Errorf("Price edit: status %d", rec.Code)
+	}
+	if rec, got := post("Code", "code:y"); rec.Code != http.StatusSeeOther || got.Code.String != "y" {
+		t.Errorf("Code edit: status %d", rec.Code)
+	}
+}
+
+// A sensitive database/sql value keeps what is stored on a blank save and
+// is emptied by its clear box, also a valid empty string, which shows as
+// blank as well.
+func TestReflectFormHandler_SensitiveScannerCells(t *testing.T) {
+	type record struct {
+		N sql.NullInt64  `form:"sensitive"`
+		S sql.NullString `form:"sensitive"`
+	}
+	stored := record{N: sql.NullInt64{Int64: 42, Valid: true}, S: sql.NullString{Valid: true}}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	vals := submittedValues(get.Body.String())
+	vals.Del(mx.ClearSentinelName("N"))
+	vals.Del(mx.ClearSentinelName("S"))
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || *saved != stored {
+		t.Fatalf("blank save: status %d, saved %+v", rec.Code, saved)
+	}
+	vals.Set(mx.ClearSentinelName("N"), "1")
+	vals.Set(mx.ClearSentinelName("S"), "1")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved.N.Valid || saved.S.Valid {
+		t.Errorf("ticked save: status %d, saved %+v; want both null", rec.Code, saved)
+	}
+}
+
+// A blank required *sql.NullString is "required", not a crash: its nil
+// pointer is null without calling Value through it.
+func TestReflectFormHandler_RequiredNilScannerPointer(t *testing.T) {
+	type record struct {
+		Name *sql.NullString `form:"required"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	vals := url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {""}}
+	if rec := postValues(t, h, vals); rec.Code == http.StatusSeeOther || !strings.Contains(rec.Body.String(), "required") {
+		t.Errorf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// secStamp writes its time in whole seconds, as a database timestamp type
+// may, while holding a fraction.
+type secStamp struct{ time.Time }
+
+func (s secStamp) MarshalText() ([]byte, error) { return []byte(s.Format(time.RFC3339)), nil }
+
+func (s *secStamp) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.RFC3339, string(text))
+	s.Time = t
+	return err
+}
+
+// privStamp keeps its time in an unexported field.
+type privStamp struct{ t time.Time }
+
+func (s privStamp) MarshalText() ([]byte, error) { return []byte(s.t.Format(time.RFC3339)), nil }
+
+func (s *privStamp) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.RFC3339, string(text))
+	s.t = t
+	return err
+}
+
+// A wrapper's named zone is found through pointers and nested wrappers,
+// and through text that drops the wrapped time's fraction, so a changed
+// date takes that date's offset. A wrapper whose time sits in an
+// unexported field renders and saves with its text's offset.
+func TestReflectFormHandler_NamedZoneNestedWrappers(t *testing.T) {
+	sydney, err := time.LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type record struct {
+		Null sqlNullTime    `form:"widget=datetime"`
+		Ptr  ptrWrappedTime `form:"widget=datetime"`
+		Sec  secStamp       `form:"widget=datetime"`
+		Priv privStamp      `form:"widget=datetime"`
+	}
+	june := time.Date(2026, 6, 14, 10, 0, 0, 0, sydney)
+	loaded := record{
+		Null: sqlNullTime{sql.NullTime{Time: june, Valid: true}},
+		Ptr:  ptrWrappedTime{new(june)},
+		Sec:  secStamp{june.Add(123456 * time.Microsecond)},
+		Priv: privStamp{june},
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			r := loaded
+			r.Ptr = ptrWrappedTime{new(*loaded.Ptr.Time)}
+			return &r, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if get.Code != http.StatusOK {
+		t.Fatalf("GET status %d: %s", get.Code, get.Body)
+	}
+	vals := submittedValues(get.Body.String())
+	for _, name := range []string{"Null", "Ptr", "Sec"} {
+		vals.Set(name, "2026-12-14T10:00")
+	}
+	vals.Set("Priv", "2026-06-14T11:00")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	december := time.Date(2026, 12, 14, 10, 0, 0, 0, sydney) // summer time, +11:00
+	if !saved.Null.Time.Equal(december) || saved.Ptr.Time == nil || !saved.Ptr.Time.Equal(december) || !saved.Sec.Equal(december) {
+		t.Errorf("Null %v, Ptr %v, Sec %v; want %v", saved.Null.Time, saved.Ptr.Time, saved.Sec.Time, december)
+	}
+	if want := time.Date(2026, 6, 14, 11, 0, 0, 0, sydney); !saved.Priv.t.Equal(want) {
+		t.Errorf("Priv %v, want %v", saved.Priv.t, want)
+	}
+}
+
+// A time input's range compares the clock, also on a record whose stored
+// time puts a posted time on its date.
+func TestReflectFormHandler_TimeRangeOnStoredRecord(t *testing.T) {
+	type record struct {
+		From  time.Time `form:"widget=time,min=09:00"`
+		Shift time.Time `form:"widget=time,min=09:00,max=17:00"`
+		Night time.Time `form:"widget=time,min=22:00,max=06:00"`
+	}
+	stored := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{stored, stored, stored.Add(11 * time.Hour)}, nil
+		},
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	base := submittedValues(get.Body.String())
+	for _, c := range []struct {
+		field, posted string
+		ok            bool
+	}{
+		{"From", "08:00", false},
+		{"From", "10:00", true},
+		{"Shift", "11:00", true},
+		{"Shift", "18:00", false},
+		{"Night", "23:00", true},
+		{"Night", "12:00", false},
+	} {
+		vals := url.Values{}
+		for k, v := range base {
+			vals[k] = v
+		}
+		vals.Set(c.field, c.posted)
+		rec := postValues(t, h, vals)
+		if got := rec.Code == http.StatusSeeOther; got != c.ok {
+			t.Errorf("%s=%s: status %d, want accepted %t", c.field, c.posted, rec.Code, c.ok)
+		}
 	}
 }
 
