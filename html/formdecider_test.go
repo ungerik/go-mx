@@ -2920,6 +2920,12 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		G float64
 		M float64 `form:"min=1"`
 		H int     `form:"max=0x10,min=1/2"`
+		R int     `form:"min=1,required"`
+		O int     `form:"min=1"`
+		D float64 `form:"min=0.3,max=99.9"`
+		S float32 `form:"max=0.1"`
+		E float64 `form:"min=1e400"`
+		T float32 `form:"min=1e39"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2939,8 +2945,22 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		// A bound a browser would not read is no bound.
 		{"H", "99", ""},
 		{"F", "3", `"3" is greater than 2.5`},
+		{"P", "", ""},
 		{"P", "-1", `"-1" is less than 0`},
 		{"X", "9999", ""},
+		// A blank stores 0 in a number that is no pointer: a required one
+		// rejects it, and the range is checked on it; a nil pointer is not.
+		{"R", "", "required"},
+		{"O", "", `"0" is less than 1`},
+		// A float compares at its own precision, as a browser compares
+		// doubles, so a value on its decimal bound is in range.
+		{"D", "99.9", ""},
+		{"D", "0.3", ""},
+		{"D", "99.91", `"99.91" is greater than 99.9`},
+		{"S", "0.1", ""},
+		// A bound past the range of a double is no bound, as in a browser.
+		{"E", "5", ""},
+		{"T", "1", `"1" is less than 1e39`},
 	} {
 		err := parseFieldValue(t, f, b.field, b.raw)
 		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
@@ -3139,6 +3159,210 @@ func TestReflectFormHandler_RepeatableTimesSkipped(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || saved == nil || len(saved.Days) != 1 || saved.Days[0] != day {
 		t.Errorf("unchanged POST: status %d, saved %+v", rec.Code, saved)
 	}
+}
+
+// A blank sensitive field keeps a stored value, but with none stored a
+// required one is still rejected, and unchecking every box of a
+// sensitive checkbox set clears it rather than keeping the stored members.
+func TestReflectFormHandler_SensitiveBlankEdges(t *testing.T) {
+	type signup struct {
+		Password string `form:"required,sensitive"`
+	}
+	saved := false
+	h := mx.ReflectFormHandler(nil, func(context.Context, *signup) error { saved = true; return nil }, FieldDecider)
+	if rec := postValues(t, h, url.Values{mx.PresentSentinelName("Password"): {"1"}, "Password": {""}}); rec.Code != http.StatusOK || saved {
+		t.Errorf("a blank required sensitive field with nothing stored: status %d, saved %t", rec.Code, saved)
+	}
+
+	type record struct {
+		Colors map[checkedColor]struct{} `form:"sensitive"`
+	}
+	var kept *record
+	sets := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Colors: map[checkedColor]struct{}{"red": {}}}, nil
+		},
+		func(_ context.Context, r *record) error { kept = r; return nil },
+		FieldDecider,
+	)
+	if rec := postValues(t, sets, url.Values{mx.PresentSentinelName("Colors"): {"1"}}); rec.Code != http.StatusSeeOther || kept == nil || len(kept.Colors) != 0 {
+		t.Errorf("unchecking every box of a sensitive set: status %d, saved %+v", rec.Code, kept)
+	}
+}
+
+// A sensitive date never shows its value, so an unchanged save, which
+// posts it blank, keeps the stored date.
+func TestReflectFormHandler_SensitiveDateKeepsStored(t *testing.T) {
+	type record struct {
+		Born string    `form:"widget=date,sensitive"`
+		At   time.Time `form:"widget=date,sensitive"`
+	}
+	at := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{"2000-01-02", at}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "2000-01-02") || strings.Contains(body, "2026-07-06") {
+		t.Errorf("a sensitive date shows its value: %s", body)
+	}
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Born != "2000-01-02" || !saved.At.Equal(at) {
+		t.Errorf("unchanged save: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A select shows its stored option, so choosing "(none)" on a sensitive
+// one clears it rather than keeping the stored value.
+func TestReflectFormHandler_SensitiveSelectNoneClears(t *testing.T) {
+	type record struct {
+		Color colorEnum `form:"sensitive"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Color: "green"}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	if rec := postValues(t, h, url.Values{mx.PresentSentinelName("Color"): {"1"}, "Color": {""}}); rec.Code != http.StatusSeeOther || saved == nil || saved.Color != "" {
+		t.Errorf("status %d, saved %+v; want (none) to clear", rec.Code, saved)
+	}
+}
+
+// A blank sensitive input keeps the stored value, so a sensitive pointer
+// gets the clear control to be set back to nil.
+func TestReflectFormHandler_SensitivePointerClears(t *testing.T) {
+	type record struct {
+		Token *string    `form:"sensitive"`
+		At    *time.Time `form:"widget=date,sensitive"`
+		Plain *string
+	}
+	stored := func() *record {
+		return &record{Token: new("secret"), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Plain: new("p")}
+	}
+	for field, want := range map[string]bool{"Token": true, "At": true, "Plain": false} {
+		if got := strings.Contains(renderFieldHTML(t, stored(), field), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
+			t.Errorf("%s: clear control %t, want %t", field, got, want)
+		}
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return stored(), nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	vals := url.Values{}
+	for _, f := range []string{"Token", "At"} {
+		vals.Set(mx.PresentSentinelName(mx.FieldPath(f)), "1")
+		vals.Set(mx.ClearSentinelName(mx.FieldPath(f)), "1")
+	}
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Token != nil || saved.At != nil {
+		t.Errorf("status %d, saved %+v; want both cleared", rec.Code, saved)
+	}
+}
+
+// zonedStamp wraps a time.Time.
+type zonedStamp struct{ time.Time }
+
+// The input shows a stored time's wall clock without its zone, so the
+// submission is read in the stored time's location and an unchanged save
+// keeps the instant; a new record reads UTC.
+func TestReflectFormHandler_ZonedTimeKeepsInstant(t *testing.T) {
+	type record struct {
+		At    time.Time  `form:"widget=datetime"`
+		Day   time.Time  `form:"widget=date"`
+		Stamp zonedStamp `form:"widget=datetime"`
+	}
+	cest := time.FixedZone("CEST", 2*60*60)
+	edt := time.FixedZone("EDT", -4*60*60)
+	at := time.Date(2026, 6, 14, 10, 30, 0, 0, cest)
+	day := time.Date(2026, 6, 14, 0, 0, 0, 0, edt)
+	for name, loaded := range map[string]record{
+		"zoned": {At: at, Day: day, Stamp: zonedStamp{at}},
+		"new":   {},
+	} {
+		var saved *record
+		h := mx.ReflectFormHandler(
+			func(context.Context) (*record, error) { r := loaded; return &r, nil },
+			func(_ context.Context, r *record) error { saved = r; return nil },
+			FieldDecider,
+		)
+		get := httptest.NewRecorder()
+		h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+		vals := submittedValues(get.Body.String())
+		if name == "new" {
+			vals.Set("At", "2026-06-14T10:30")
+		}
+		rec := postValues(t, h, vals)
+		if rec.Code != http.StatusSeeOther || saved == nil {
+			t.Fatalf("%s: status %d, body %s", name, rec.Code, rec.Body.String())
+		}
+		switch name {
+		case "zoned":
+			if !saved.At.Equal(at) || !saved.Day.Equal(day) || !saved.Stamp.Equal(at) {
+				t.Errorf("zoned: saved %v %v %v, want %v %v %v", saved.At, saved.Day, saved.Stamp.Time, at, day, at)
+			}
+		case "new":
+			if want := time.Date(2026, 6, 14, 10, 30, 0, 0, time.UTC); !saved.At.Equal(want) {
+				t.Errorf("new: saved %v, want %v", saved.At, want)
+			}
+		}
+	}
+}
+
+// A hidden number, such as a per-row key, round-trips as a number.
+func TestReflectFormHandler_HiddenNumberRoundTrip(t *testing.T) {
+	type line struct {
+		ID   int `form:"hidden"`
+		Desc string
+	}
+	type record struct {
+		Version int    `form:"hidden"`
+		Lines   []line `form:"repeatable"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Version: 7, Lines: []line{{42, "a"}}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Version != 7 || saved.Lines[0].ID != 42 {
+		t.Errorf("status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// A password widget is sensitive by itself: it never shows the stored
+// password, and a blank submission keeps it.
+func TestReflectFormHandler_PasswordWidgetIsSensitive(t *testing.T) {
+	type record struct {
+		PW string `form:"widget=password"`
+	}
+	if out := renderFieldHTML(t, &record{PW: "hunter2"}, "PW"); strings.Contains(out, "hunter2") {
+		t.Errorf("a password widget shows its value: %s", out)
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{PW: "hunter2"}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	if rec := postValues(t, h, url.Values{mx.PresentSentinelName("PW"): {"1"}, "PW": {""}}); rec.Code != http.StatusSeeOther || saved == nil || saved.PW != "hunter2" {
+		t.Errorf("status %d, saved %+v; want the stored password kept", rec.Code, saved)
+	}
+}
+
+// postValues posts vals to h as a urlencoded form.
+func postValues(t *testing.T, h http.HandlerFunc, vals url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	return rec
 }
 
 // checkedColor is an enum that validates itself.

@@ -75,7 +75,7 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 		))
 	}
 	// A readonly field is never written, so it offers no clear control.
-	if isNullable(value) && !tag.Required && !tag.Readonly {
+	if (isNullable(value) || isSensitivePointer(value, kind, tag)) && !tag.Required && !tag.Readonly {
 		parts = append(parts, clearSentinelInput(path))
 	}
 	if len(errs) > 0 {
@@ -433,6 +433,11 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			// for a type defined as time.Time, which has no UnmarshalText.
 			return setTime(value, raw, mx.FormTag{Sensitive: tag.Sensitive})
 		}
+		if kind == mx.FieldKindHidden && isPlainNumber(derefType(value.Type())) {
+			// A hidden number, such as a per-row key, binds as a number
+			// does; setScalar takes only text.
+			return guardBind(value, raw, tag, func() error { return setNumeric(value, raw) })
+		}
 		return guardBind(value, raw, tag, func() error { return setScalar(value, raw) })
 	case mx.FieldKindNumber:
 		raw := form.Get(string(path))
@@ -444,6 +449,12 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return guardBind(value, raw, tag, func() error {
 			if err := setNumeric(value, raw); err != nil {
 				return err
+			}
+			// A number that is no pointer stores 0 for a blank, which a
+			// required one rejects, as a required select rejects its empty
+			// option; the browser does too, so only a tampered POST sends it.
+			if raw == "" && tag.Required && value.Kind() != reflect.Pointer {
+				return errors.New("required")
 			}
 			// The range applies on the server too, not only in the browser.
 			// The number stays bound, as a date outside its range does.
@@ -590,15 +601,22 @@ const maxNumberLen = 64
 // checkNumberRange returns a validation error when value, the number just
 // bound from raw, lies outside the tag's form:"min=…,max=…". The bound
 // value is compared, never raw itself, so whatever text the parser read is
-// checked as it is stored. The comparison is exact, so an int64 bound above
-// 2^53 holds. A bound that is no valid HTML floating-point number is
-// ignored, as a browser ignores it.
+// checked as it is stored, including the 0 a blank stores in a number that
+// is no pointer (a nil pointer is no number to check). An integer is
+// compared exactly, so an int64 bound above 2^53 holds. A bound that is no
+// valid HTML floating-point number is ignored, as a browser ignores it.
 func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
-	if raw == "" || (tag.Min == "" && tag.Max == "") {
+	if tag.Min == "" && tag.Max == "" {
 		return nil
 	}
 	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return nil
+		}
 		value = value.Elem()
+	}
+	if raw == "" {
+		raw = displayValue(value, tag) // the 0 the re-render shows
 	}
 	n := new(big.Rat)
 	switch value.Kind() {
@@ -607,7 +625,7 @@ func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		n.SetUint64(value.Uint())
 	case reflect.Float32, reflect.Float64:
-		n.SetFloat64(value.Float()) // finite: setNumeric rejects the rest
+		return checkFloatRange(value.Float(), value.Type().Bits(), raw, tag)
 	default:
 		return nil
 	}
@@ -618,6 +636,34 @@ func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
 		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
 	}
 	return nil
+}
+
+// checkFloatRange compares a float at its own precision, as a browser
+// compares doubles: compared exactly, the binary value of 99.9 is above
+// the decimal 99.9, so a value on its bound would be rejected. f is finite,
+// as setNumeric rejects the rest.
+func checkFloatRange(f float64, bits int, raw string, tag mx.FormTag) error {
+	if lowest, ok := floatBound(tag.Min, bits); ok && f < lowest {
+		return fmt.Errorf("%q is less than %s", raw, tag.Min)
+	}
+	if highest, ok := floatBound(tag.Max, bits); ok && f > highest {
+		return fmt.Errorf("%q is greater than %s", raw, tag.Max)
+	}
+	return nil
+}
+
+// floatBound reads a min or max as a browser does, rounded as the field's
+// own values are, to a float of the given bits.
+func floatBound(bound string, bits int) (float64, bool) {
+	if !htmlNumber.MatchString(bound) {
+		return 0, false
+	}
+	// Like a browser, a bound past the range of a double is no bound.
+	if _, err := strconv.ParseFloat(bound, 64); err != nil {
+		return 0, false
+	}
+	f, _ := strconv.ParseFloat(bound, bits) // past a float32's range: an infinity
+	return f, true
 }
 
 // htmlNumber matches a valid HTML floating-point number, the only form a
@@ -777,8 +823,10 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	}
 	var t time.Time
 	var parseErr error
+	zoned := false
 	for _, layout := range layouts {
 		if t, parseErr = time.Parse(layout, raw); parseErr == nil {
+			zoned = layout == time.RFC3339
 			break
 		}
 	}
@@ -786,6 +834,15 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 	// below 24, and a time.Time with a larger one cannot be marshaled again.
 	if _, offset := t.Zone(); parseErr == nil && (offset <= -24*60*60 || offset >= 24*60*60) {
 		parseErr = mx.DateTimeFormatError(tag, raw)
+	}
+	// The input shows a stored time's wall clock in its own location (see
+	// [mx.DateTimeInput]), so a submission without a zone is read in that
+	// location, and an unchanged save keeps the instant. Without a stored
+	// time, as on a new record, it is read as UTC.
+	if parseErr == nil && !zoned {
+		if loc := storedLocation(value); loc != nil {
+			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
+		}
 	}
 	// The range applies on the server too, not only in the browser. A value
 	// outside it is still bound, as rejected text is (see [setTimeText]), so
@@ -822,6 +879,40 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 		return parseErr
 	}
 	return fmt.Errorf("cannot assign time to %s", value.Type())
+}
+
+// storedLocation returns the location of the time value holds: a
+// time.Time, a type defined as it, or a struct whose first field is one or
+// points to one, as a wrapper such as a nullable time is. It returns nil
+// for a zero time or a value holding none.
+func storedLocation(value reflect.Value) *time.Location {
+	timeType := reflect.TypeFor[time.Time]()
+	if value.Kind() != reflect.Struct {
+		return nil
+	}
+	var t time.Time
+	switch {
+	case value.Type().ConvertibleTo(timeType):
+		t = value.Convert(timeType).Interface().(time.Time)
+	case value.NumField() > 0 && value.Field(0).CanInterface():
+		switch f := value.Field(0).Interface().(type) {
+		case time.Time:
+			t = f
+		case *time.Time:
+			if f == nil {
+				return nil
+			}
+			t = *f
+		default:
+			return nil
+		}
+	default:
+		return nil
+	}
+	if t.IsZero() {
+		return nil
+	}
+	return t.Location()
 }
 
 // checkOwnTextRange checks form:"min=…,max=…" for a value that
@@ -968,12 +1059,13 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	parsed := reflect.New(value.Type())
 	if _, ok := parsed.Interface().(encoding.TextUnmarshaler); ok {
 		err := parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text))
-		if full, ok := withSeconds(tag, text); err != nil && ok {
+		if err != nil && strings.Count(text, ":") == 1 {
 			// A type whose text always carries seconds, as civil.Time's
-			// does, reads the value in the layout with seconds, which the
-			// shortest form leaves out when they are zero.
+			// does, reads the value with the ":00" that the shortest form
+			// leaves out for zero seconds (in which a time has one colon,
+			// a date none).
 			parsed = reflect.New(value.Type())
-			if parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(full)) == nil {
+			if parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text+":00")) == nil {
 				err = nil
 			}
 		}
@@ -989,22 +1081,6 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) error {
 	}
 	value.Set(parsed.Elem())
 	return nil
-}
-
-// withSeconds writes text, a value in its shortest form, in the input
-// type's layout with seconds. ok is false for a date, which has no seconds,
-// and for text that carries seconds already.
-func withSeconds(tag mx.FormTag, text string) (string, bool) {
-	layout := mx.DateTimeInputLayout(tag)
-	short, cut := strings.CutSuffix(layout, ":05")
-	if !cut {
-		return "", false
-	}
-	t, err := time.Parse(short, text)
-	if err != nil {
-		return "", false
-	}
-	return t.Format(layout), true
 }
 
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {
@@ -1310,6 +1386,32 @@ func isNullable(value reflect.Value) bool {
 		if _, ok := value.Addr().Interface().(mx.Nullable); ok {
 			return true
 		}
+	}
+	return false
+}
+
+// isPlainNumber reports whether t is an integer or float type that reads
+// no text of its own.
+func isPlainNumber(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return !reflect.PointerTo(t).Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
+	}
+	return false
+}
+
+// isSensitivePointer reports whether value is a form:"sensitive" pointer
+// whose input keeps the stored value when left blank, as a text, number or
+// date input does: the clear control is the only way to set it to nil.
+func isSensitivePointer(value reflect.Value, kind mx.FieldKind, tag mx.FormTag) bool {
+	if !tag.Sensitive || !value.IsValid() || value.Kind() != reflect.Pointer {
+		return false
+	}
+	switch kind {
+	case mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindNumber, mx.FieldKindDateTime, mx.FieldKindCatchAll:
+		return true
 	}
 	return false
 }

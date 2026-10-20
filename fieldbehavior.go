@@ -74,8 +74,9 @@ const (
 
 	// FieldKindDateTime covers time.Time (and pointer/Nullable
 	// variants of it), a type defined as time.Time and a struct
-	// embedding it as its only field without text methods of its own
-	// ([DetectField] rule 14, no registration needed), plus any field tagged
+	// embedding it as its only field whose text is RFC 3339, as it is
+	// without text methods of its own ([DetectField] rule 14, no
+	// registration needed), plus any field tagged
 	// form:"widget=date|datetime|time" or hinted so by
 	// [FormWidgetHint].
 	// A string-kind field with one of these widgets holds its value

@@ -47,12 +47,14 @@ type FormTag struct {
 	Min, Max, Step string
 
 	// Required forces the value to be non-empty / not-null at submit
-	// time. Type-aware: it is a no-op for bool and numeric kinds.
+	// time. Type-aware: a number rejects a blank submission, a bool is
+	// never empty.
 	Required bool
 
 	// Sensitive suppresses value round-tripping (passwords, secrets):
 	// the input never echoes its value on re-render, and a blank
-	// submission keeps the stored value, as with a password field.
+	// submission keeps the stored value, as with a password field. A
+	// widget=password field is sensitive without the option.
 	Sensitive bool
 
 	// Nested asks the walker to recurse into a named struct field

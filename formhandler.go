@@ -321,6 +321,12 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 		}
 		// __clear: explicit null intent for nullable fields.
 		if sentinelSet(form, ClearSentinelName(visit.Path)) {
+			// The forms offer no clear control on a required field, so a
+			// clear there is a tampered POST; it is rejected, not saved.
+			if visit.Tag.Required {
+				out[visit.Path] = append(out[visit.Path], errors.New("required"))
+				continue
+			}
 			if err := setFieldNull(visit.Value); err != nil {
 				out[visit.Path] = append(out[visit.Path], err)
 			}
@@ -341,17 +347,30 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 				errors.New("required"))
 			continue
 		}
-		if chainErrs := validateBound(visit.Kind, visit.Value); len(chainErrs) > 0 {
-			out[visit.Path] = append(out[visit.Path], chainErrs...)
-		}
-		// Decider-supplied Validate runs after the chain (additive).
-		if beh.Validate != nil {
-			if err := beh.Validate(visit.Path, visit.Field, visit.Value); err != nil {
-				out[visit.Path] = append(out[visit.Path], err)
-			}
+		if errs := validateField(visit, beh, visit.Path); len(errs) > 0 {
+			out[visit.Path] = append(out[visit.Path], errs...)
 		}
 	}
 	return out
+}
+
+// validateField runs the validation chain (see [validateBound]) and then
+// the decider-supplied Validate on a bound field value, at the top level
+// and in a repeatable row alike. The errors of a form:"sensitive" field
+// read "not a valid value": a type's own message may quote the value,
+// which after a blank submission is the stored one.
+func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath) []error {
+	errs := validateBound(visit.Kind, visit.Value)
+	if beh.Validate != nil {
+		if err := beh.Validate(path, visit.Field, visit.Value); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if visit.Tag.Sensitive && len(errs) > 0 {
+		// Validation results shown to the user carry no callstack.
+		return []error{errors.New("not a valid value")}
+	}
+	return errs
 }
 
 // validateBound runs the validation chain on a bound field value, at the
@@ -377,16 +396,22 @@ func validateBound(kind FieldKind, value reflect.Value) []error {
 // alone: a form:"sensitive" field never shows its value, so leaving it
 // blank means "unchanged", as with a password field (a nullable one is
 // cleared with its clear control). A checkbox, checkbox set, hidden or file
-// field has no such blank.
+// field has no such blank, and a select shows its stored option. Since the input stays empty, a value typed
+// into it before an add-row or remove-row click is not shown again and
+// must be typed again before saving.
 func keepsStored(tag FormTag, kind FieldKind, form map[string][]string, path FieldPath) bool {
 	if !tag.Sensitive {
 		return false
 	}
 	switch kind {
-	case FieldKindBool, FieldKindEnumSet, FieldKindHidden, FieldKindFile:
+	case FieldKindBool, FieldKindEnumSet, FieldKindHidden, FieldKindFile, FieldKindEnum:
+		// A select shows its stored option, so its blank "(none)" is a
+		// choice; the rest have no blank.
 		return false
 	}
-	return !anyNonEmpty(form[string(path)])
+	// Blank as the parser reads it: the first submitted value.
+	vals := form[string(path)]
+	return len(vals) == 0 || vals[0] == ""
 }
 
 // formErrorText is the form-level message for an error onSubmit returned
@@ -548,30 +573,40 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 		components []Component
 	}
 	var (
-		root     []Component
-		sections []*sectionEntry
-		byName   = map[string]*sectionEntry{}
+		messages    []Component
+		rowCommands bool // a repeatable field renders its row buttons
+		root        []Component
+		sections    []*sectionEntry
+		byName      = map[string]*sectionEntry{}
 	)
 	if formMsg != "" {
-		root = append(root, formMessageComponent(formMsg))
+		messages = append(messages, formMessageComponent(formMsg))
 	}
-	// A hidden field shows no error of its own, so its errors become
+	// A hidden field, a hidden cell in a repeatable row or a repeatable
+	// field itself shows no error of its own, so its errors become
 	// form-level messages instead of failing the save silently.
-	for visit := range ReflectFormFields(target) {
-		if visit.Kind == FieldKindHidden {
-			for _, err := range fieldErrs[visit.Path] {
-				root = append(root, formMessageComponent(err.Error()))
-			}
+	hiddenErrors := func(errs []error) {
+		for _, err := range errs {
+			messages = append(messages, formMessageComponent(err.Error()))
 		}
 	}
 	for visit := range ReflectFormFields(target) {
 		var wrapped Component
 		if visit.Kind == FieldKindRepeatable {
+			rowCommands = rowCommands || !visit.Tag.Readonly
+			// An error of the repeatable field itself, such as an onSubmit
+			// FieldErrors entry asking for at least one row, has no input
+			// to show it either.
+			hiddenErrors(fieldErrs[visit.Path])
+			hiddenErrors(hiddenRowErrors(visit, fieldErrs))
 			// The repeatable field owns its own row markup, __present
 			// sentinels and add/remove buttons; the core handler only
 			// places it into the right section.
 			wrapped = renderRepeatable(visit, d, fieldErrs, origins)
 		} else {
+			if visit.Kind == FieldKindHidden {
+				hiddenErrors(fieldErrs[visit.Path])
+			}
 			beh := d(visit.Path, visit.Field, visit.Value)
 			if beh.Render == nil {
 				continue
@@ -599,7 +634,13 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 		s.components = append(s.components, wrapped)
 	}
 
-	children := make([]any, 0, len(root)+len(sections)+1)
+	children := make([]any, 0, len(messages)+len(root)+len(sections)+2)
+	if rowCommands {
+		children = append(children, defaultSubmitButton())
+	}
+	for _, c := range messages {
+		children = append(children, c)
+	}
 	for _, c := range root {
 		children = append(children, c)
 	}
@@ -641,6 +682,20 @@ func submitButton(label string) Component {
 	return NewElement("button",
 		Attribute{Name: "type", Value: "submit"},
 		Text(label),
+	)
+}
+
+// defaultSubmitButton is the form's first submit button when rows render
+// their "Remove" buttons before the Save button: pressing Enter in an
+// input clicks the first submit button, which would remove a row instead
+// of saving. It is out of sight and out of the tab order rather than
+// display:none, which some browsers skip for that implicit submission.
+func defaultSubmitButton() Component {
+	return NewElement("button",
+		Attribute{Name: "type", Value: "submit"},
+		Attribute{Name: "tabindex", Value: "-1"},
+		Attribute{Name: "aria-hidden", Value: "true"},
+		Attribute{Name: "style", Value: "position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%)"},
 	)
 }
 

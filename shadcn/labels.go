@@ -92,7 +92,8 @@ type Labels struct {
 	FormNoSelection string
 	// FormValuesNotAvailable is the note a reflected enum-set renders when
 	// stored members are absent from the per-request option list. Those
-	// members are kept on save and are not echoed into the note.
+	// members are not kept on save (the boxes shown are the whole set
+	// saved) and are not echoed into the note.
 	FormValuesNotAvailable string
 	// FormExpectedFormat introduces the format, such as YYYY-MM-DD, under a
 	// reflected date or time field whose stored text the date picker cannot

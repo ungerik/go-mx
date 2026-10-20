@@ -259,6 +259,42 @@ and set without another `Cn` pass.
 **Priority:** P4
 **Depends on:** None
 
+### The selected day is not in its button's accessible name
+
+**What:** In select mode, add the selected state to the focused day button's
+accessible name, as react-day-picker's `labelDayButton` appends ", selected"
+(and prefixes "Today, "), from a localizable `Labels` caption that
+`calendarSelect` moves along with the selection.
+
+**Why:** The selection sits on the parent gridcell's `aria-selected`, while
+focus and the name are on the button, whose label is only the date. Screen
+readers often do not announce an ancestor's `aria-selected`, so arrowing onto
+the picked day, or picking a day in a calendar without `CalendarText`, may give
+no spoken confirmation.
+
+**Context:** `CalendarWith` and `calendarScript` in `shadcn/calendar.go`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The static calendar marks only the selected day `aria-pressed`
+
+**What:** Decide how a static (display-only) calendar conveys its selected
+day: `aria-pressed="false"` on every other enabled day button, or the state in
+the selected button's name or `aria-current` instead of `aria-pressed`.
+
+**Why:** Only the selected day's button carries `aria-pressed="true"`, so
+assistive tech announces one toggle button among 41 plain buttons, and
+"pressed" is an odd meaning for the date a display-only grid shows.
+
+**Context:** The static branch of `CalendarWith` in `shadcn/calendar.go`; the
+select mode uses the gridcell's `aria-selected`.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### The remaining DatePicker recipes
 
 **What:** Gallery examples for upstream's Basic (in a `Field` with a

@@ -393,3 +393,25 @@ func TestDateTimeInputLayout(t *testing.T) {
 		}
 	}
 }
+
+// panickyDay's Format panics on text it never accepted, which a rejected
+// submission, bound as posted, is.
+type panickyDay string
+
+func (d panickyDay) Format(layout string) string {
+	t, err := time.Parse(time.DateOnly, string(d))
+	if err != nil {
+		panic(err)
+	}
+	return t.Format(layout)
+}
+
+// A Format that panics shows the stored text as it is in the text input
+// instead of failing the page.
+func TestDateTimeInput_FormatPanicShowsStoredText(t *testing.T) {
+	d := panickyDay("14.06.2026")
+	in := DateTimeInput(reflect.ValueOf(&d).Elem(), FormTag{Widget: "date"})
+	if !in.TextFallback() || in.Value != "14.06.2026" || !in.Invalid {
+		t.Errorf("DateTimeInput = %+v", in)
+	}
+}

@@ -256,7 +256,11 @@ named string type whose `Format` writes the input's layout and whose
 struct reads its own text back, so text of its own that the picker cannot show
 renders in a text input that saves unchanged. A `form:"sensitive"` date never
 shows its value, like a sensitive text input; as with a password field, a
-sensitive field left blank keeps its stored value. A registered single-value struct
+sensitive input left blank keeps its stored value (a select, which shows its
+stored option, does not, and a nullable or pointer one is cleared with its clear
+control). A `widget=password` field is sensitive by itself. A posted date or time
+without a zone is read in the location of the stored time, so an unchanged save
+keeps the instant. A registered single-value struct
 that holds no time, such as a money type, is a plain text input through its
 `MarshalText`/`UnmarshalText`.
 

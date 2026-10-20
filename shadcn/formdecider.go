@@ -73,9 +73,10 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 	case mx.FieldKindDateTime:
 		// Stored text the parser rejects marks the input invalid before any
 		// submit; the Field root follows, so the label matches the control.
-		invalid := len(errs) > 0 || (mx.DateTimeInput(value, tag).Invalid && !tag.Readonly)
+		in := mx.DateTimeInput(value, tag)
+		invalid := len(errs) > 0 || (in.Invalid && !tag.Readonly)
 		return shadcnFieldMarked(path, field, tag, errs, invalid,
-			shadcnDateTime(path, value, tag, errs),
+			shadcnDateTime(path, in, tag, errs),
 		)
 	case mx.FieldKindTextarea:
 		return shadcnField(path, field, tag, errs,
@@ -371,8 +372,7 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 // shadcnDateTime renders the input [mx.DateTimeInput] decides. When the
 // stored text is no value the picker can hold, the input is a text input
 // followed by a [FieldDescription] naming the format to enter.
-func shadcnDateTime(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	in := mx.DateTimeInput(value, tag)
+func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, errs []error) mx.Component {
 	a := []mx.Attrib{
 		html.Type(in.Type),
 		html.Name(string(path)),
@@ -594,8 +594,19 @@ func isNullable(field reflect.StructField, tag mx.FormTag) bool {
 		return false
 	}
 	t := field.Type
-	return t.Implements(reflect.TypeFor[mx.Nullable]()) ||
-		reflect.PointerTo(t).Implements(reflect.TypeFor[mx.Nullable]())
+	if t.Implements(reflect.TypeFor[mx.Nullable]()) || reflect.PointerTo(t).Implements(reflect.TypeFor[mx.Nullable]()) {
+		return true
+	}
+	// A form:"sensitive" text, number or date input keeps the stored value
+	// when left blank, so a pointer one is set to nil with the clear
+	// control, as in the html renderer.
+	if tag.Sensitive && t.Kind() == reflect.Pointer {
+		switch kind, _ := mx.DetectField(mx.FieldPath(field.Name), field, reflect.New(t).Elem()); kind {
+		case mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindNumber, mx.FieldKindDateTime, mx.FieldKindCatchAll:
+			return true
+		}
+	}
+	return false
 }
 
 func isTrueBool(v reflect.Value) bool {

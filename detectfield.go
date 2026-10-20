@@ -35,8 +35,8 @@ import (
 // 12. bool / *bool → FieldKindBool
 // 13. int*/uint*/float* and pointer variants → FieldKindNumber
 // 14. time.Time, a type defined as it, or a struct embedding it as its only
-//     field without text methods of its own → FieldKindDateTime (other
-//     single-value structs → catch-all)
+//     field whose text is RFC 3339 (as it is without text methods of its
+//     own) → FieldKindDateTime (other single-value structs → catch-all)
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
@@ -64,7 +64,19 @@ import (
 //     ([OptionsProvider], [NamedOptionsProvider],
 //     [NamedOptionsContextProvider]) as equivalent to the
 //     Enums()/EnumStrings() convention.
+//
+// A field whose widget is "password", by its tag or by [FormWidgetHint],
+// is form:"sensitive" too: a password input never shows its value, so the
+// stored one stays out of the page and a blank submission keeps it.
 func DetectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
+	kind, tag := detectField(path, field, value)
+	if tag.Widget == "password" {
+		tag.Sensitive = true
+	}
+	return kind, tag
+}
+
+func detectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
 	tag := ParseFormTag(field)
 
 	// 1. explicit skip
@@ -80,12 +92,13 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// 2.5. repeatable slice-of-struct. The tag only takes effect on a
 	// direct slice field whose element is a plain struct or a single
 	// pointer to one ([]T or []*T) that is not registered as a
-	// single-value type (so []time.Time is not turned into rows). We
-	// dereference at most one pointer level on purpose — not via
-	// derefType, which would also strip an interface element (panicking
-	// on Elem()) or multiple pointer levels that the row render/parse
-	// paths cannot bind. On any other shape the tag is ignored and
-	// detection falls through to the structural rules below.
+	// single-value type. A slice of times (time.Time, a type defined as it
+	// or a struct embedding only one) is skipped, as no rule renders it;
+	// on any other shape the tag is ignored and detection falls through to
+	// the structural rules below. We dereference at most one pointer level
+	// on purpose — not via derefType, which would also strip an interface
+	// element (panicking on Elem()) or multiple pointer levels that the row
+	// render/parse paths cannot bind.
 	if tag.Repeatable && field.Type.Kind() == reflect.Slice {
 		et := field.Type.Elem()
 		if et.Kind() == reflect.Pointer {

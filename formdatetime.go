@@ -310,15 +310,23 @@ type dateFormatter interface {
 // timeTextInput is [DateTimeInput] for a value held as text in v, a
 // dereferenced string-kind value.
 func timeTextInput(v reflect.Value, inputType string) (typ, val string) {
+	tt := timeTexts[inputType]
+	stored := v.String()
+	// A method that panics, as a Format may on text its type never
+	// accepted (rejected text is bound as posted), leaves the stored text
+	// to show as it is.
+	defer func() {
+		if recover() != nil {
+			typ, val = tt.input(inputType, stored, stored)
+		}
+	}()
 	if IsNull(safeInterface(v)) {
 		return inputType, ""
 	}
-	tt := timeTexts[inputType]
-	stored := v.String()
 	formatted := stored
 	if f, ok := formatterOf(v); ok {
 		formatted = f.Format(tt.layouts[0])
-	} else if text, ok := marshalText(v); ok {
+	} else if text, ok := callMarshalText(v); ok {
 		formatted = text
 	}
 	return tt.input(inputType, formatted, stored)
@@ -357,11 +365,12 @@ func marshaledText(v reflect.Value) (text string, ok bool) {
 	} else if v.IsZero() {
 		return "", false
 	}
-	return marshalText(v)
+	return callMarshalText(v)
 }
 
-// marshalText calls the MarshalText method of v, or of its address.
-func marshalText(v reflect.Value) (string, bool) {
+// callMarshalText calls the MarshalText method of v, or of its address,
+// with none of the guards of [marshaledText].
+func callMarshalText(v reflect.Value) (string, bool) {
 	m, ok := safeInterface(v).(encoding.TextMarshaler)
 	if !ok && v.CanAddr() {
 		m, ok = v.Addr().Interface().(encoding.TextMarshaler)

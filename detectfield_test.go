@@ -92,6 +92,24 @@ func TestDetectField_BasicKinds(t *testing.T) {
 	}
 }
 
+// A password widget never shows its value, so it is sensitive by itself.
+func TestDetectField_PasswordIsSensitive(t *testing.T) {
+	type form struct {
+		PW   string `form:"widget=password"`
+		Name string
+	}
+	typ := reflect.TypeFor[form]()
+	for _, c := range []struct {
+		field string
+		want  bool
+	}{{"PW", true}, {"Name", false}} {
+		f, _ := typ.FieldByName(c.field)
+		if _, tag := DetectField(FieldPath(c.field), f, reflect.New(f.Type).Elem()); tag.Sensitive != c.want {
+			t.Errorf("%s: Sensitive %t, want %t", c.field, tag.Sensitive, c.want)
+		}
+	}
+}
+
 func TestDetectField_NumStream(t *testing.T) {
 	s := &detectStruct{}
 	got, _ := detectKind(t, s, "NumStream")

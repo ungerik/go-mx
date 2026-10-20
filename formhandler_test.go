@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -760,8 +761,9 @@ func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
 	})
 
 	t.Run("RevealInternalServerErrors shows the error", func(t *testing.T) {
+		prev := RevealInternalServerErrors
 		RevealInternalServerErrors = true
-		t.Cleanup(func() { RevealInternalServerErrors = false })
+		t.Cleanup(func() { RevealInternalServerErrors = prev })
 		h := ReflectFormHandlerRedirecting(ReflectFormConfig{}, load,
 			func(ctx context.Context, s *fieldErrorsStruct) (string, error) {
 				return "", errors.New("boom")
@@ -998,11 +1000,236 @@ func TestReflectFormHandler_SensitiveBlankKeepsStored(t *testing.T) {
 	if saved.Opt {
 		t.Error("a sensitive checkbox could not be unchecked")
 	}
+	// Blank as the parser reads it: only the first value counts.
+	form["Password"] = []string{"", "x"}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Password != "secret" {
+		t.Errorf("a blank first value must keep the stored value: status %d, saved %+v", rec.Code, saved)
+	}
 	form.Set("Password", "new")
 	form.Set("PIN", "42")
 	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Password != "new" || saved.PIN != 42 {
 		t.Errorf("a new value must replace the stored one: status %d, saved %+v", rec.Code, saved)
 	}
+}
+
+// A stored sensitive value follows its row through a remove-row click,
+// so a row left blank on the next save keeps its own stored value.
+func TestReflectFormHandler_SensitiveCellFollowsRow(t *testing.T) {
+	var saved *sensitiveRecord
+	h := ReflectFormHandler(
+		func(context.Context) (*sensitiveRecord, error) {
+			return &sensitiveRecord{Lines: []sensitiveLine{{"a"}, {"b"}}}, nil
+		},
+		func(_ context.Context, r *sensitiveRecord) error { saved = r; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Token": ""})
+	addRow(form, "Lines", 1, map[string]string{"Token": ""})
+	form.Set(sentinelCommand, DeleteRowCommand("Lines-0"))
+	removed := postForm(t, h, form)
+	if removed.Code != http.StatusOK {
+		t.Fatalf("remove-row: status %d", removed.Code)
+	}
+	if rec := postForm(t, h, renderedValues(removed.Body.String())); rec.Code != http.StatusSeeOther || len(saved.Lines) != 1 || saved.Lines[0].Token != "b" {
+		t.Errorf("the stored token must follow its row: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// OwnerPart is embedded readonly by inheritedRecord.
+type OwnerPart struct {
+	Owner string
+}
+
+type auditInfo struct {
+	By string
+}
+
+type inheritedRecord struct {
+	OwnerPart `form:"readonly"`
+	Audit     auditInfo `form:"section=Audit,readonly"`
+}
+
+// A field readonly through its embedded struct or its section is never
+// written by a POST: not by a tampered value, a blank or a forged clear.
+func TestReflectFormHandler_InheritedReadonlyIgnoresPost(t *testing.T) {
+	var saved *inheritedRecord
+	h := ReflectFormHandler(
+		func(context.Context) (*inheritedRecord, error) {
+			return &inheritedRecord{OwnerPart{"o"}, auditInfo{"alice"}}, nil
+		},
+		func(_ context.Context, r *inheritedRecord) error { saved = r; return nil },
+		newTestDecider(),
+	)
+	for _, raw := range []string{"mallory", ""} {
+		form := url.Values{}
+		for _, p := range []FieldPath{"Owner", FieldPath("Audit").Append("By")} {
+			form.Set(PresentSentinelName(p), "1")
+			form.Set(string(p), raw)
+			form.Set(ClearSentinelName(p), "1")
+		}
+		if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Owner != "o" || saved.Audit.By != "alice" {
+			t.Errorf("posting %q wrote an inherited readonly field: status %d, saved %+v", raw, rec.Code, saved)
+		}
+	}
+}
+
+// A hidden cell in a repeatable row, such as a per-row key, shows no error
+// of its own either, so its error becomes a form-level message.
+func TestReflectFormHandler_HiddenRowCellErrorShown(t *testing.T) {
+	type line struct {
+		Key  string `form:"hidden"`
+		Desc string
+	}
+	type record struct {
+		Lines []line `form:"repeatable"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Lines: []line{{"k", "a"}}}, nil },
+		func(context.Context, *record) error {
+			return FieldErrors{FieldPath("Lines").Append("0").Append("Key"): errors.New("the row changed meanwhile")}
+		},
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">the row changed meanwhile</p>`) {
+		t.Errorf("status %d, body %s; want the hidden cell's error as a form-level message", rec.Code, rec.Body.String())
+	}
+}
+
+type requiredNullLine struct {
+	Note nullableStr `form:"required"`
+}
+
+type requiredNullRecord struct {
+	Note  nullableStr        `form:"required"`
+	Lines []requiredNullLine `form:"repeatable"`
+}
+
+// The forms offer no clear control on a required field, so a POST that
+// clears one is tampered: it is rejected as "required", not saved as null,
+// at the top level and in a row.
+func TestReflectFormHandler_ForgedClearKeepsRequired(t *testing.T) {
+	saved := false
+	h := ReflectFormHandler(
+		func(context.Context) (*requiredNullRecord, error) {
+			return &requiredNullRecord{Note: nullableStr{v: "n"}, Lines: []requiredNullLine{{nullableStr{v: "r"}}}}, nil
+		},
+		func(context.Context, *requiredNullRecord) error { saved = true; return nil },
+		newTestDecider(),
+	)
+	top := url.Values{}
+	top.Set(PresentSentinelName("Note"), "1")
+	top.Set("Note", "n")
+	top.Set(ClearSentinelName("Note"), "1")
+	row := url.Values{}
+	addRow(row, "Lines", 0, map[string]string{"Note": "r"})
+	row.Set(ClearSentinelName("Lines-0-Note"), "1")
+	for name, form := range map[string]url.Values{"top level": top, "row": row} {
+		if rec := postForm(t, h, form); rec.Code != http.StatusOK || saved || !strings.Contains(rec.Body.String(), "required") {
+			t.Errorf("%s: a forged clear on a required field: status %d, saved %t", name, rec.Code, saved)
+		}
+	}
+}
+
+// apiKey validates itself with a message that quotes its value, as
+// go-enum's generated Validate does.
+type apiKey string
+
+func (k apiKey) Validate() error {
+	if !strings.HasPrefix(string(k), "sk_") {
+		return fmt.Errorf("invalid key %q", string(k))
+	}
+	return nil
+}
+
+type keyLine struct {
+	Key apiKey `form:"sensitive"`
+}
+
+type keyRecord struct {
+	Key   apiKey    `form:"sensitive"`
+	Lines []keyLine `form:"repeatable"`
+}
+
+// A blank sensitive field keeps the stored value, which its validation
+// then checks; the error must not quote that value.
+func TestReflectFormHandler_SensitiveValidationHidesValue(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) {
+			return &keyRecord{Key: "legacy-SECRET", Lines: []keyLine{{"row-SECRET"}}}, nil
+		},
+		func(context.Context, *keyRecord) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "")
+	addRow(form, "Lines", 0, map[string]string{"Key": ""})
+	// The test decider shows values; only the errors are checked here.
+	rec := postForm(t, h, form)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || strings.Contains(body, "invalid key") || strings.Count(body, ">not a valid value<") != 2 {
+		t.Errorf("status %d, body %s; want two masked errors", rec.Code, body)
+	}
+}
+
+// An error of a repeatable field itself, such as one asking for at least
+// one row, has no input to show it, so it becomes a form-level message.
+func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) { return &keyRecord{Key: "sk_1"}, nil },
+		func(context.Context, *keyRecord) error {
+			return FieldErrors{"Lines": errors.New("add at least one line")}
+		},
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Lines"), "1")
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">add at least one line</p>`) {
+		t.Errorf("status %d, body %s; want the repeatable field's error as a form-level message", rec.Code, rec.Body.String())
+	}
+}
+
+// Pressing Enter in an input clicks the form's first submit button, so a
+// form whose rows render "Remove" buttons before Save starts with a default
+// button that saves; a form without row buttons has none.
+func TestReflectFormHandler_DefaultButtonSaves(t *testing.T) {
+	firstButton := regexp.MustCompile(`<button[^>]*>`)
+	for _, c := range []struct {
+		name   string
+		target any
+		want   bool
+	}{
+		{"rows", &keyRecord{Key: "sk_1", Lines: []keyLine{{"sk_2"}}}, true},
+		{"readonly rows", &lockedSheet{Lines: []approvalLine{{"a", "alice"}}}, false},
+		{"no rows", &sampleStruct{Name: "n"}, false},
+	} {
+		var body string
+		switch target := c.target.(type) {
+		case *keyRecord:
+			body = getBody(t, ReflectFormHandler(func(context.Context) (*keyRecord, error) { return target, nil },
+				func(context.Context, *keyRecord) error { return nil }, newTestDecider()))
+		case *lockedSheet:
+			body = getBody(t, ReflectFormHandler(func(context.Context) (*lockedSheet, error) { return target, nil },
+				func(context.Context, *lockedSheet) error { return nil }, newTestDecider()))
+		case *sampleStruct:
+			body = getBody(t, ReflectFormHandler(func(context.Context) (*sampleStruct, error) { return target, nil },
+				func(context.Context, *sampleStruct) error { return nil }, newTestDecider()))
+		}
+		first := firstButton.FindString(body)
+		if got := strings.Contains(first, `tabindex="-1"`) && !strings.Contains(first, "name="); got != c.want {
+			t.Errorf("%s: first button %s, want default button %t", c.name, first, c.want)
+		}
+	}
+}
+
+func getBody(t *testing.T, h http.Handler) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	return rec.Body.String()
 }
 
 // A hidden field shows no error of its own, so its error becomes a

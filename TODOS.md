@@ -325,21 +325,62 @@ as a shadcn `Labels` field passed down or a `ReflectFormConfig` option.
 **Priority:** P4
 **Depends on:** None
 
-### Date and time inputs drop the stored time zone
+### Date format hints and date errors are English only
 
-**What:** Bind a submitted date or time into a `time.Time` (or a type that
-wraps it) in the location of the value it replaces, instead of UTC.
+**What:** Let a localized form translate the format it asks for and the
+messages of a rejected date or time.
 
-**Why:** A `time.Time` stored as 2026-07-06T09:00+02:00 shows 09:00 in the
-input, which has no zone, and an unchanged save stores 09:00 UTC: the time
-moves by the offset on every save. Types that wrap `time.Time` behave the same
-way since they render and bind like it.
+**Why:** The format in the placeholder and hint of a date field's text
+fallback (`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `HH:MM`) and the errors of a
+rejected or out-of-range date ("is not a date in the format …", "earlier
+than …") are fixed English. A German shadcn form shows "Erwartetes Format:
+YYYY-MM-DD", a translated `form:"placeholder=JJJJ-MM-TT"` disagrees with the
+hint, and after a submit the only statement that the value is invalid is the
+English field error.
 
-**Context:** `setTime` in `html/formdecider.go` parses with `time.Parse`, which
-gives UTC; `time.ParseInLocation` with the loaded value's `Location()` keeps the
-wall clock in its zone. It changes what existing `time.Time` fields store, so it
-was left out of the string-kind date work. Fields holding text are not
-affected: their text has no zone, and text with one falls back to a text input.
+**Context:** `timeTexts` and `DateTimeFormatError` in `formdatetime.go`,
+`CheckDateTimeRange`, and the hint in `shadcn/formdecider.go` (`Labels`
+captions already exist). A typed error the shadcn renderer can map to
+`Labels`, and one displayed format string used by both the placeholder and the
+hint, would cover it. The parser's layouts stay internal.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### `aria-describedby` on a field leaves out its errors and help
+
+**What:** Give each field's help text and error messages ids and reference
+them all from the control's `aria-describedby` (or `aria-errormessage`), in
+the html and shadcn renderers.
+
+**Why:** A date field's text fallback references only its format hint, and
+other fields reference nothing. After a failed submit, a screen reader user
+who tabs to the field hears "invalid" but not the error, and `role="alert"`
+on server-rendered markup is not announced on a full-page load.
+
+**Context:** `renderField` in `html/formdecider.go` and `shadcnFieldMarked` /
+`appendFieldErrors` in `shadcn/formdecider.go`. It changes the markup of every
+field, so the gallery output changes too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### No limit on the number of submitted repeatable rows
+
+**What:** Add a row limit (a `ReflectFormConfig.MaxRows` with a default, or a
+`form:"maxrows=N"` tag) that rejects a POST with more rows before binding and
+hides the add-row button at the limit.
+
+**Why:** Rows are bounded only by Go's form limits (10,000 urlencoded values,
+1,000 multipart parts). One 218 KB urlencoded POST with 9,990 `__row__`
+markers renders a 6 MB page and allocates about 127 MB, and wider row structs
+scale linearly.
+
+**Context:** `repeatableRowIndices` and `parseRepeatable` in `repeatable.go`;
+`applyRepeatableCommand` for the add-row side. Predates the date widget work;
+found in its review.
 
 **Effort:** S
 **Priority:** P2
@@ -417,6 +458,31 @@ idea. For `Path`, either implement it with the existing `JoinAbsPath` and
 **Depends on:** None
 
 ## Completed
+
+### Date and time inputs drop the stored time zone
+
+**What:** Bind a submitted date or time into a `time.Time` (or a type that
+wraps it) in the location of the value it replaces, instead of UTC.
+
+**Why:** A `time.Time` stored as 2026-07-06T09:00+02:00 shows 09:00 in the
+input, which has no zone, and an unchanged save stores 09:00 UTC: the time
+moves by the offset on every save. Types that wrap `time.Time` behave the same
+way since they render and bind like it.
+
+**Context:** `setTime` in `html/formdecider.go` parses with `time.Parse`, which
+gives UTC; `time.ParseInLocation` with the loaded value's `Location()` keeps the
+wall clock in its zone. It changes what existing `time.Time` fields store, so it
+was left out of the string-kind date work. Fields holding text are not
+affected: their text has no zone, and text with one falls back to a text input.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+**Completed:** 2026-10-20 — `setTime` reads a submission without a zone in the
+location of the stored time (`storedLocation`), for `time.Time`, types defined
+as it and wrappers, so an unchanged save keeps the instant; a new record still
+reads UTC.
+
 
 ### Server-side `min`/`max` for `time.Time` date fields
 

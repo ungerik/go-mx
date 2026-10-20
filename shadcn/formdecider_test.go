@@ -1020,9 +1020,6 @@ func TestShadcn_HintedInputType(t *testing.T) {
 // definedTime is defined as time.Time, without its methods.
 type definedTime time.Time
 
-// shadcn renders the wrapper kinds and the readonly text input like the
-// html renderer: a defined time in the picker, a readonly fallback without
-// the invalid look or the format hint.
 // looseDay writes 2026-7-6, a spelling the date input cannot show, and
 // reads it back.
 type looseDay struct {
@@ -1137,6 +1134,24 @@ func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
 	}
 }
 
+// A blank sensitive input keeps the stored value, so a sensitive pointer
+// offers the clear control, as a nullable field does.
+func TestShadcn_SensitivePointerHasClearControl(t *testing.T) {
+	type form struct {
+		Token *string `form:"sensitive"`
+		Plain *string
+		Flag  *bool `form:"sensitive"`
+		// A select shows its stored option and clears with "(none)".
+		Color *colorEnum `form:"sensitive"`
+	}
+	f := &form{Token: new("secret"), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
+	for field, want := range map[string]bool{"Token": true, "Plain": false, "Flag": false, "Color": false} {
+		if got := strings.Contains(renderShadcn(t, f, field, nil), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
+			t.Errorf("%s: clear control %t, want %t", field, got, want)
+		}
+	}
+}
+
 // A readonly nullable field is never written, so it offers no clear control.
 func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
 	type form struct {
@@ -1152,6 +1167,9 @@ func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
 	}
 }
 
+// shadcn renders the wrapper kinds and the readonly text input like the
+// html renderer: a defined time in the picker, a readonly fallback without
+// the invalid look or the format hint.
 func TestShadcn_DateKindsRender(t *testing.T) {
 	type form struct {
 		At      definedTime `form:"widget=datetime"`

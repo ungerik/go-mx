@@ -39,9 +39,11 @@ import (
 // "o<index>"), also
 // through the re-renders of add-row and remove-row clicks, and a rebuilt
 // row starts as a copy of that loaded row before the submission is
-// applied: a readonly cell keeps its loaded value, a cell whose submission
-// is rejected keeps the stored value, as a top-level field does, and a
-// cell the client did not send is left as loaded. An added row has no
+// applied: a readonly cell keeps its loaded value, a rejected cell
+// behaves as the same top-level field does (it keeps the stored value, or
+// keeps the posted text where the field does, as an out-of-range number or
+// date and rejected date text), and a cell the client did not send is left
+// as loaded. An added row has no
 // origin and starts at the zero value. An origin is a position in the
 // slice load returns on that POST, so if the stored rows changed since
 // the GET, the values follow the row now at that position: key such rows
@@ -229,6 +231,27 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 	return NewElement("div", append(attribs, cells...)...)
 }
 
+// hiddenRowErrors returns the errors of the hidden cells in a repeatable
+// field's rows, such as a per-row key: like a hidden field at the top
+// level, such a cell shows no error of its own.
+func hiddenRowErrors(visit FieldVisit, fieldErrs map[FieldPath][]error) []error {
+	slice := visit.Value
+	structType := repeatableStructType(slice.Type())
+	if len(fieldErrs) == 0 || structType == nil || slice.Kind() != reflect.Slice {
+		return nil
+	}
+	var errs []error
+	for i := range slice.Len() {
+		rowPath := visit.Path.Append(strconv.Itoa(i))
+		for cv := range ReflectFormFields(rowStructValue(slice.Index(i), structType).Addr().Interface()) {
+			if cv.Kind == FieldKindHidden {
+				errs = append(errs, fieldErrs[rowPath.Append(string(cv.Path))]...)
+			}
+		}
+	}
+	return errs
+}
+
 func repeatableAddButton(fieldPath FieldPath) Component {
 	return repeatableCommandButton(AddRowCommand(fieldPath), "Add row")
 }
@@ -372,6 +395,11 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 		return
 	}
 	if sentinelSet(form, ClearSentinelName(srcCell)) {
+		// As at the top level, a clear on a required cell is tampered.
+		if cv.Tag.Required {
+			out[dstCell] = append(out[dstCell], errors.New("required"))
+			return
+		}
 		if err := setFieldNull(cv.Value); err != nil {
 			out[dstCell] = append(out[dstCell], err)
 		}
@@ -388,13 +416,8 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 		out[dstCell] = append(out[dstCell], errors.New("required"))
 		return
 	}
-	if chainErrs := validateBound(cv.Kind, cv.Value); len(chainErrs) > 0 {
-		out[dstCell] = append(out[dstCell], chainErrs...)
-	}
-	if beh.Validate != nil {
-		if err := beh.Validate(dstCell, cv.Field, cv.Value); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-		}
+	if errs := validateField(cv, beh, dstCell); len(errs) > 0 {
+		out[dstCell] = append(out[dstCell], errs...)
 	}
 }
 
