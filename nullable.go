@@ -3,6 +3,8 @@ package mx
 import (
 	"database/sql/driver"
 	"reflect"
+	"strconv"
+	"time"
 )
 
 // Nullable is implemented by types that can report whether they hold a NULL
@@ -43,6 +45,47 @@ func IsNull(value any) bool {
 		return v.IsNil()
 	}
 	return false
+}
+
+// DriverValueText returns the text a reflected form writes for a struct
+// implementing database/sql/driver.Valuer, such as sql.NullInt64, which has
+// no text methods: the driver value it holds, a time in RFC 3339 as the
+// forms write every time. The html form parser reads that text back with
+// the type's Scan method. A null is "". ok is false for any other value,
+// for a driver value of another type and when Value fails. Renderers
+// prefer a type's own MarshalText.
+func DriverValueText(value reflect.Value) (text string, ok bool) {
+	if value.Kind() != reflect.Struct {
+		return "", false
+	}
+	valuer, isValuer := safeInterface(value).(driver.Valuer)
+	if !isValuer && value.CanAddr() {
+		valuer, isValuer = safeInterface(value.Addr()).(driver.Valuer)
+	}
+	if !isValuer {
+		return "", false
+	}
+	dv, err := valuer.Value()
+	if err != nil {
+		return "", false
+	}
+	switch x := dv.(type) {
+	case nil:
+		return "", true
+	case string:
+		return x, true
+	case []byte:
+		return string(x), true
+	case int64:
+		return strconv.FormatInt(x, 10), true
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64), true
+	case bool:
+		return strconv.FormatBool(x), true
+	case time.Time:
+		return x.Format(time.RFC3339Nano), true
+	}
+	return "", false
 }
 
 func canBeNil(k reflect.Kind) bool {

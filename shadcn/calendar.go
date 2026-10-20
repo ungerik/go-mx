@@ -182,14 +182,13 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	startOffset := (int(first.Weekday()) - int(opts.WeekStart) + 7) % 7
 	gridStart := first.AddDate(0, 0, -startOffset)
 	hasSel := !selected.IsZero()
-	selY, selM, selD := selected.Date()
 	sameDay := func(a, b time.Time) bool {
 		ay, am, ad := a.Date()
 		by, bm, bd := b.Date()
 		return ay == by && am == bm && ad == bd
 	}
 	isSelected := func(day time.Time) bool {
-		return hasSel && day.Year() == selY && day.Month() == selM && day.Day() == selD
+		return hasSel && sameDay(day, selected)
 	}
 	// The grid's days, with Disabled asked once per day: a booking calendar's
 	// predicate may look up availability.

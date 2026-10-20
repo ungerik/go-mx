@@ -2,6 +2,7 @@ package shadcn
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"html"
@@ -115,6 +116,42 @@ func TestShadcn_EnumSetUsesCheckboxGrid(t *testing.T) {
 	}
 	if !strings.Contains(out, "grid-cols-2") {
 		t.Errorf("expected grid layout: %q", out)
+	}
+}
+
+// Each box of a set has the id its label names, also for a value that is
+// no valid id, so the boxes have an accessible name and a click on the
+// label toggles its box.
+func TestShadcn_EnumSetLabelsNameTheirBoxes(t *testing.T) {
+	out := renderShadcn(t, &formSample{Features: map[colorEnum]struct{}{"red": {}}}, "Features", nil)
+	for _, value := range []string{"red", "blue"} {
+		id := mx.KeyedIDValue(mx.FieldPath("Features"), value)
+		if !strings.Contains(out, `id="`+id+`"`) || !strings.Contains(out, `for="`+id+`"`) {
+			t.Errorf("want the box and the label of %q tied by id %q: %s", value, id, out)
+		}
+	}
+	type spaced struct {
+		Tags []string `form:"options=test-shadcn-spaced"`
+	}
+	out = renderShadcn(t, &spaced{}, "Tags", nil)
+	id := mx.KeyedIDValue(mx.FieldPath("Tags"), "two words")
+	if strings.Contains(id, " ") || !strings.Contains(out, `id="`+id+`"`) || !strings.Contains(out, `for="`+id+`"`) {
+		t.Errorf("a value with a space needs a valid id, got %q in %s", id, out)
+	}
+}
+
+// A database/sql type shows the value it holds, the text the html parser
+// scans back, not a Go struct dump.
+func TestShadcn_SQLNullShowsDriverValue(t *testing.T) {
+	type record struct {
+		Count sql.NullInt64
+	}
+	out := renderShadcn(t, &record{Count: sql.NullInt64{Int64: 7, Valid: true}}, "Count", nil)
+	if !strings.Contains(out, `value="7"`) {
+		t.Errorf("want value=\"7\": %s", out)
+	}
+	if out = renderShadcn(t, &record{Count: sql.NullInt64{Int64: 7}}, "Count", nil); strings.Contains(out, "value=") {
+		t.Errorf("a null shows no value: %s", out)
 	}
 }
 
@@ -263,6 +300,9 @@ func init() {
 			{Name: "Tag B", Value: "b"},
 		}, nil
 	})
+	mx.RegisterNamedOptions("test-shadcn-spaced", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{{Name: "Two words", Value: "two words"}}, nil
+	})
 }
 
 func TestShadcn_SelectWithRegistryOptions(t *testing.T) {
@@ -311,7 +351,7 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := b.String()
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -381,7 +421,7 @@ func TestShadcn_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `(current value not available)`) {
+	if !strings.Contains(out, `(current value not available and is removed when you save)`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
@@ -1164,18 +1204,34 @@ func TestShadcn_SensitivePointerHasClearControl(t *testing.T) {
 // while it is empty, as in the html renderer.
 func TestShadcn_SensitiveStoredAndClear(t *testing.T) {
 	type form struct {
-		Key    string `form:"required,sensitive"`
-		Secret string `form:"sensitive"`
+		Key    string    `form:"required,sensitive"`
+		N      int       `form:"required,sensitive"`
+		At     time.Time `form:"widget=date,required,sensitive"`
+		Note   string    `form:"widget=textarea,required,sensitive"`
+		Secret string    `form:"sensitive"`
 	}
-	if got := inputStartTag(renderShadcn(t, &form{Key: "sk_1"}, "Key", nil)); strings.Contains(got, "required") {
-		t.Errorf("a stored sensitive input demands a value: %s", got)
-	}
-	if got := inputStartTag(renderShadcn(t, &form{}, "Key", nil)); !strings.Contains(got, "required") {
-		t.Errorf("with nothing stored the input must be required: %s", got)
+	storedForm := &form{Key: "sk_1", N: 3, At: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Note: "n"}
+	for _, field := range []string{"Key", "N", "At", "Note"} {
+		storedOut, emptyOut := renderShadcn(t, storedForm, field, nil), renderShadcn(t, &form{}, field, nil)
+		control := func(out string) string {
+			i := strings.Index(out, `name="`+field+`"`)
+			start := strings.LastIndex(out[:i], "<")
+			return out[start : i+strings.Index(out[i:], ">")+1]
+		}
+		if got := control(storedOut); strings.Contains(got, "required") {
+			t.Errorf("%s: a stored sensitive input demands a value: %s", field, got)
+		}
+		if got := control(emptyOut); !strings.Contains(got, "required") {
+			t.Errorf("%s: with nothing stored the input must be required: %s", field, got)
+		}
+		if strings.Contains(storedOut, mx.ClearSentinelName(mx.FieldPath(field))) {
+			t.Errorf("%s: a required field offers a clear control: %s", field, storedOut)
+		}
 	}
 	stored := renderShadcn(t, &form{Secret: "s"}, "Secret", nil)
 	empty := renderShadcn(t, &form{}, "Secret", nil)
-	clearBox := `id="` + mx.ClearSentinelName("Secret") + `" name="` + mx.ClearSentinelName("Secret") + `" value="1"`
+	// The box's name says which field it clears.
+	clearBox := `id="` + mx.ClearSentinelName("Secret") + `" name="` + mx.ClearSentinelName("Secret") + `" value="1" aria-label="clear Secret"`
 	if !strings.Contains(stored, clearBox+` type="checkbox"`) || !strings.Contains(empty, clearBox+` checked="checked"`) {
 		t.Errorf("clear control: stored %s, empty %s", stored, empty)
 	}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -940,6 +941,47 @@ func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 		t.Errorf("a valid body under a semicolon query: status %d, saved %t", rec.Code, saved)
 	}
 	saved = false
+	// The query's values join r.Form, which a decider may read.
+	var fromQuery string
+	qh := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return nil },
+		func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+			beh := newTestDecider()(path, field, value)
+			beh.Parse = func(_ FieldPath, _ reflect.StructField, _ reflect.Value, r *http.Request) error {
+				fromQuery = r.Form.Get("src")
+				return nil
+			}
+			return beh
+		},
+	)
+	req = httptest.NewRequest(http.MethodPost, "/edit?src=list;tab=2&x=1", strings.NewReader("__present__Name=1&Name=n"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	qh.ServeHTTP(httptest.NewRecorder(), req)
+	req = httptest.NewRequest(http.MethodPost, "/edit?src=list", strings.NewReader("__present__Name=1&Name=n"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	qh.ServeHTTP(httptest.NewRecorder(), req)
+	if fromQuery != "list" {
+		t.Errorf("the query value reached r.Form as %q", fromQuery)
+	}
+	// A malformed body is rejected, also when the query has the same error.
+	for _, target := range []string{"/edit?id=1;tab=2", "/edit"} {
+		req = httptest.NewRequest(http.MethodPost, target, strings.NewReader("__present__Name=1&Name=a;b"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec = httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest || saved {
+			t.Errorf("a malformed body to %s: status %d, saved %t", target, rec.Code, saved)
+		}
+	}
+	// A urlencoded body past net/http's 10 MB answers 413.
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader("Name="+strings.Repeat("x", maxFormBody+1)))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge || saved {
+		t.Errorf("a urlencoded body past 10 MB: status %d, saved %t", rec.Code, saved)
+	}
 
 	// A multipart body past the part limit answers 413.
 	var body bytes.Buffer
@@ -1173,11 +1215,139 @@ func TestReflectFormHandler_NothingRenderedIsLeftAlone(t *testing.T) {
 	if strings.Contains(body, PresentSentinelName("Skipped")) {
 		t.Errorf("a field rendered as nothing has a sentinel: %s", body)
 	}
-	form := url.Values{}
-	form.Set(PresentSentinelName("Name"), "1")
-	form.Set("Name", "m")
-	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved.Skipped != "keep" {
+	// Posted as rendered, a required field rendered as nothing is neither
+	// written nor demanded.
+	type required struct {
+		Name    string
+		Skipped string `form:"required"`
+	}
+	var kept *required
+	req := ReflectFormHandler(
+		func(context.Context) (*required, error) { return &required{Name: "n"}, nil },
+		func(_ context.Context, r *required) error { kept = r; return nil },
+		hiddenKeyDecider(),
+	)
+	if rec := postForm(t, h, renderedValues(body)); rec.Code != http.StatusSeeOther || saved.Skipped != "keep" {
 		t.Errorf("status %d, saved %+v", rec.Code, saved)
+	}
+	if rec := postForm(t, req, renderedValues(getBody(t, req))); rec.Code != http.StatusSeeOther || kept == nil {
+		t.Errorf("a required field rendered as nothing blocks the save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+// Each error shows once: inline where an input shows it, above the form
+// otherwise, and one generic message for any number of internal ones.
+func TestReflectFormHandler_ErrorsShowOnce(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*hiddenKeyRecord, error) {
+			return &hiddenKeyRecord{Name: "n", Lines: []hiddenKeyLine{{"k1", "a"}, {"k2", "b"}}}, nil
+		},
+		func(context.Context, *hiddenKeyRecord) error {
+			return FieldErrors{
+				"Name": errors.New("name taken"),
+				FieldPath("Lines").Append("0").Append("Desc"): errors.New("desc too long"),
+				"Lines": errors.New("too many lines"),
+				FieldPath("Lines").Append("0").Append("Key"): errors.New("pq: row locked"),
+				FieldPath("Lines").Append("1").Append("Key"): errors.New("pq: row gone"),
+			}
+		},
+		hiddenKeyDecider(),
+	)
+	body := postForm(t, h, renderedValues(getBody(t, h))).Body.String()
+	for _, msg := range []string{"name taken", "desc too long", "too many lines", FormErrorMessage} {
+		if n := strings.Count(body, ">"+msg+"<"); n != 1 {
+			t.Errorf("%q shows %d times: %s", msg, n, body)
+		}
+	}
+}
+
+// A field the decider does not parse is not written, not even cleared by a
+// forged sentinel; a forged clear on a value without a null is an error;
+// a nil FieldErrors joined with another error is that error, not success.
+func TestReflectFormHandler_ClearAndFieldErrorsEdges(t *testing.T) {
+	type record struct {
+		Name    string
+		Secret  string      `form:"sensitive"`
+		Skipped nullableStr `form:"sensitive"`
+	}
+	saved := false
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{"n", "s", nullableStr{v: "keep"}}, nil },
+		func(context.Context, *record) error { saved = true; return nil },
+		func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+			if field.Name == "Skipped" {
+				return FieldBehavior{}
+			}
+			return newTestDecider()(path, field, value)
+		},
+	)
+	var got *record
+	form := url.Values{}
+	form.Set(PresentSentinelName("Skipped"), "1")
+	form.Set(ClearSentinelName("Skipped"), "1")
+	keepH := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{"n", "s", nullableStr{v: "keep"}}, nil },
+		func(_ context.Context, r *record) error { got = r; return nil },
+		func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+			if field.Name == "Skipped" {
+				return FieldBehavior{}
+			}
+			return newTestDecider()(path, field, value)
+		},
+	)
+	if rec := postForm(t, keepH, form); rec.Code != http.StatusSeeOther || got.Skipped.IsNull() || got.Skipped.v != "keep" {
+		t.Errorf("a forged clear on an unparsed field: status %d, saved %+v", rec.Code, got)
+	}
+	form = url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	form.Set(ClearSentinelName("Name"), "1")
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || saved || !strings.Contains(rec.Body.String(), "field is not nullable") {
+		t.Errorf("a forged clear on a plain string: status %d, saved %t", rec.Code, saved)
+	}
+	joined := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error {
+			return errors.Join(FormMessage("the plan is full"), FieldErrors{"Name": nil})
+		},
+		newTestDecider(),
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	if rec := postForm(t, joined, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), ">the plan is full<") {
+		t.Errorf("a nil FieldErrors joined with an error: status %d", rec.Code)
+	}
+	if msg := (FieldErrors{"Name": nil}).Error(); msg != "" {
+		t.Errorf("FieldErrors of nil entries reads %q", msg)
+	}
+	if FormMaxMemory(context.Background()) != DefaultMaxMemory {
+		t.Error("FormMaxMemory outside a handler must be DefaultMaxMemory")
+	}
+}
+
+// The server removes a multipart body's temporary files, also of an upload
+// past MaxMemory, which the parser keeps on disk.
+func TestReflectFormHandler_MultipartTempFilesRemoved(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("TMPDIR", dir)
+	h := ReflectFormHandlerWith(ReflectFormConfig{MaxMemory: 64},
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return nil }, newTestDecider())
+	srv := httptest.NewServer(h)
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField(PresentSentinelName("Name"), "1")
+	part, _ := mw.CreateFormFile("Doc", "doc.bin")
+	_, _ = part.Write(bytes.Repeat([]byte("x"), 4096))
+	_ = mw.Close()
+	resp, err := http.Post(srv.URL, mw.FormDataContentType(), &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	srv.Close() // waits for the handler, so the server's cleanup has run
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("multipart temp files left behind: %v", entries)
 	}
 }
 
@@ -1293,7 +1463,9 @@ type pwPolicy string
 
 func (p pwPolicy) Validate() error {
 	if len(p) < 12 {
-		return FormMessage("must be at least 12 characters")
+		// Joined with a message that quotes the value: only the
+		// FormMessage may show.
+		return errors.Join(FormMessage("must be at least 12 characters"), fmt.Errorf("%q is too short", string(p)))
 	}
 	return nil
 }
@@ -1312,7 +1484,7 @@ func TestReflectFormHandler_SensitiveMessagesAndNilFieldErrors(t *testing.T) {
 	form := url.Values{}
 	form.Set(PresentSentinelName("PW"), "1")
 	form.Set("PW", "short")
-	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, ">must be at least 12 characters<") || strings.Contains(body, "not a valid value") {
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, ">must be at least 12 characters<") || strings.Contains(body, "too short") || strings.Contains(body, "not a valid value") {
 		t.Errorf("a sensitive FormMessage must show as it is: %s", body)
 	}
 	saved := false
@@ -1341,7 +1513,7 @@ func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
 	)
 	form := url.Values{}
 	form.Set(PresentSentinelName("Lines"), "1")
-	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<legend>Lines</legend><input type="hidden" name="__present__Lines" value="1"/><p role="alert" data-error="Lines">add at least one line</p>`) {
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<legend>Lines</legend><input type="hidden" name="__present__Lines" value="1"/><p class="form-error" role="alert" data-error="Lines">add at least one line</p>`) {
 		t.Errorf("status %d, body %s; want the repeatable field's error after its legend", rec.Code, rec.Body.String())
 	}
 }

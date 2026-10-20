@@ -74,14 +74,19 @@ type Labels struct {
 	Spinner string
 
 	// FormClear is the caption of the checkbox that a reflected form renders
-	// for a nullable field to clear it (see [FormDecider]).
+	// for a nullable or optional form:"sensitive" field to clear it (see
+	// [FieldDecider]).
 	FormClear string
 	// FormValueNotAvailable is the caption of the disabled placeholder option
 	// a reflected select renders when the field's current value is not in the
 	// per-request option list. It is deliberately generic — the filtered-out
 	// value must not be echoed into the markup — so it carries no data and is
-	// safe to translate.
+	// safe to translate. A required select rejects the blank the placeholder
+	// submits, and a readonly one is never saved.
 	FormValueNotAvailable string
+	// FormValueNotAvailableRemoved is that caption on an optional select,
+	// which a save clears, since the disabled placeholder submits nothing.
+	FormValueNotAvailableRemoved string
 	// FormChooseOption is the caption of the disabled placeholder a required
 	// reflected select renders when the field has no current value, so the
 	// browser does not submit the first real option.
@@ -122,29 +127,30 @@ var DefaultLabels = englishLabels
 // partial [DefaultLabels] assignment can never strip a control of its
 // accessible name.
 var englishLabels = Labels{
-	BreadcrumbNav:          "breadcrumb",
-	BreadcrumbEllipsis:     "More",
-	CalendarPrevious:       "Go to the previous month",
-	CalendarNext:           "Go to the next month",
-	CarouselPrevious:       "Previous slide",
-	CarouselNext:           "Next slide",
-	DialogClose:            "Close",
-	NavigationMenuNav:      "Main",
-	PaginationNav:          "pagination",
-	PaginationPrevious:     "Previous",
-	PaginationNext:         "Next",
-	PaginationPreviousPage: "Go to previous page",
-	PaginationNextPage:     "Go to next page",
-	PaginationEllipsis:     "More pages",
-	SidebarTrigger:         "Toggle Sidebar",
-	Spinner:                "Loading",
-	FormClear:              "clear",
-	FormValueNotAvailable:  "(current value not available)",
-	FormChooseOption:       "Choose…",
-	FormNoSelection:        "(none)",
-	FormValuesNotAvailable: "(some current values are not available and are removed when you save)",
-	FormExpectedFormat:     "Expected format:",
-	FormInvalidFormat:      "Not in the expected format:",
+	BreadcrumbNav:                "breadcrumb",
+	BreadcrumbEllipsis:           "More",
+	CalendarPrevious:             "Go to the previous month",
+	CalendarNext:                 "Go to the next month",
+	CarouselPrevious:             "Previous slide",
+	CarouselNext:                 "Next slide",
+	DialogClose:                  "Close",
+	NavigationMenuNav:            "Main",
+	PaginationNav:                "pagination",
+	PaginationPrevious:           "Previous",
+	PaginationNext:               "Next",
+	PaginationPreviousPage:       "Go to previous page",
+	PaginationNextPage:           "Go to next page",
+	PaginationEllipsis:           "More pages",
+	SidebarTrigger:               "Toggle Sidebar",
+	Spinner:                      "Loading",
+	FormClear:                    "clear",
+	FormValueNotAvailable:        "(current value not available)",
+	FormValueNotAvailableRemoved: "(current value not available and is removed when you save)",
+	FormChooseOption:             "Choose…",
+	FormNoSelection:              "(none)",
+	FormValuesNotAvailable:       "(some current values are not available and are removed when you save)",
+	FormExpectedFormat:           "Expected format:",
+	FormInvalidFormat:            "Not in the expected format:",
 }
 
 // ctxKeyLabels is the unexported render-context key under which
@@ -185,29 +191,30 @@ func LabelsFromContext(ctx context.Context) Labels {
 // fails if a new field is not added here.
 func (l Labels) orDefaults() Labels {
 	return Labels{
-		BreadcrumbNav:          cmp.Or(l.BreadcrumbNav, DefaultLabels.BreadcrumbNav, englishLabels.BreadcrumbNav),
-		BreadcrumbEllipsis:     cmp.Or(l.BreadcrumbEllipsis, DefaultLabels.BreadcrumbEllipsis, englishLabels.BreadcrumbEllipsis),
-		CalendarPrevious:       cmp.Or(l.CalendarPrevious, DefaultLabels.CalendarPrevious, englishLabels.CalendarPrevious),
-		CalendarNext:           cmp.Or(l.CalendarNext, DefaultLabels.CalendarNext, englishLabels.CalendarNext),
-		CarouselPrevious:       cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
-		CarouselNext:           cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
-		DialogClose:            cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),
-		NavigationMenuNav:      cmp.Or(l.NavigationMenuNav, DefaultLabels.NavigationMenuNav, englishLabels.NavigationMenuNav),
-		PaginationNav:          cmp.Or(l.PaginationNav, DefaultLabels.PaginationNav, englishLabels.PaginationNav),
-		PaginationPrevious:     cmp.Or(l.PaginationPrevious, DefaultLabels.PaginationPrevious, englishLabels.PaginationPrevious),
-		PaginationNext:         cmp.Or(l.PaginationNext, DefaultLabels.PaginationNext, englishLabels.PaginationNext),
-		PaginationPreviousPage: cmp.Or(l.PaginationPreviousPage, DefaultLabels.PaginationPreviousPage, englishLabels.PaginationPreviousPage),
-		PaginationNextPage:     cmp.Or(l.PaginationNextPage, DefaultLabels.PaginationNextPage, englishLabels.PaginationNextPage),
-		PaginationEllipsis:     cmp.Or(l.PaginationEllipsis, DefaultLabels.PaginationEllipsis, englishLabels.PaginationEllipsis),
-		SidebarTrigger:         cmp.Or(l.SidebarTrigger, DefaultLabels.SidebarTrigger, englishLabels.SidebarTrigger),
-		Spinner:                cmp.Or(l.Spinner, DefaultLabels.Spinner, englishLabels.Spinner),
-		FormClear:              cmp.Or(l.FormClear, DefaultLabels.FormClear, englishLabels.FormClear),
-		FormValueNotAvailable:  cmp.Or(l.FormValueNotAvailable, DefaultLabels.FormValueNotAvailable, englishLabels.FormValueNotAvailable),
-		FormChooseOption:       cmp.Or(l.FormChooseOption, DefaultLabels.FormChooseOption, englishLabels.FormChooseOption),
-		FormNoSelection:        cmp.Or(l.FormNoSelection, DefaultLabels.FormNoSelection, englishLabels.FormNoSelection),
-		FormValuesNotAvailable: cmp.Or(l.FormValuesNotAvailable, DefaultLabels.FormValuesNotAvailable, englishLabels.FormValuesNotAvailable),
-		FormExpectedFormat:     cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
-		FormInvalidFormat:      cmp.Or(l.FormInvalidFormat, DefaultLabels.FormInvalidFormat, englishLabels.FormInvalidFormat),
+		BreadcrumbNav:                cmp.Or(l.BreadcrumbNav, DefaultLabels.BreadcrumbNav, englishLabels.BreadcrumbNav),
+		BreadcrumbEllipsis:           cmp.Or(l.BreadcrumbEllipsis, DefaultLabels.BreadcrumbEllipsis, englishLabels.BreadcrumbEllipsis),
+		CalendarPrevious:             cmp.Or(l.CalendarPrevious, DefaultLabels.CalendarPrevious, englishLabels.CalendarPrevious),
+		CalendarNext:                 cmp.Or(l.CalendarNext, DefaultLabels.CalendarNext, englishLabels.CalendarNext),
+		CarouselPrevious:             cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
+		CarouselNext:                 cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
+		DialogClose:                  cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),
+		NavigationMenuNav:            cmp.Or(l.NavigationMenuNav, DefaultLabels.NavigationMenuNav, englishLabels.NavigationMenuNav),
+		PaginationNav:                cmp.Or(l.PaginationNav, DefaultLabels.PaginationNav, englishLabels.PaginationNav),
+		PaginationPrevious:           cmp.Or(l.PaginationPrevious, DefaultLabels.PaginationPrevious, englishLabels.PaginationPrevious),
+		PaginationNext:               cmp.Or(l.PaginationNext, DefaultLabels.PaginationNext, englishLabels.PaginationNext),
+		PaginationPreviousPage:       cmp.Or(l.PaginationPreviousPage, DefaultLabels.PaginationPreviousPage, englishLabels.PaginationPreviousPage),
+		PaginationNextPage:           cmp.Or(l.PaginationNextPage, DefaultLabels.PaginationNextPage, englishLabels.PaginationNextPage),
+		PaginationEllipsis:           cmp.Or(l.PaginationEllipsis, DefaultLabels.PaginationEllipsis, englishLabels.PaginationEllipsis),
+		SidebarTrigger:               cmp.Or(l.SidebarTrigger, DefaultLabels.SidebarTrigger, englishLabels.SidebarTrigger),
+		Spinner:                      cmp.Or(l.Spinner, DefaultLabels.Spinner, englishLabels.Spinner),
+		FormClear:                    cmp.Or(l.FormClear, DefaultLabels.FormClear, englishLabels.FormClear),
+		FormValueNotAvailable:        cmp.Or(l.FormValueNotAvailable, DefaultLabels.FormValueNotAvailable, englishLabels.FormValueNotAvailable),
+		FormValueNotAvailableRemoved: cmp.Or(l.FormValueNotAvailableRemoved, DefaultLabels.FormValueNotAvailableRemoved, englishLabels.FormValueNotAvailableRemoved),
+		FormChooseOption:             cmp.Or(l.FormChooseOption, DefaultLabels.FormChooseOption, englishLabels.FormChooseOption),
+		FormNoSelection:              cmp.Or(l.FormNoSelection, DefaultLabels.FormNoSelection, englishLabels.FormNoSelection),
+		FormValuesNotAvailable:       cmp.Or(l.FormValuesNotAvailable, DefaultLabels.FormValuesNotAvailable, englishLabels.FormValuesNotAvailable),
+		FormExpectedFormat:           cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
+		FormInvalidFormat:            cmp.Or(l.FormInvalidFormat, DefaultLabels.FormInvalidFormat, englishLabels.FormInvalidFormat),
 	}
 }
 

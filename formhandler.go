@@ -83,12 +83,15 @@ type ReflectFormConfig struct {
 // per-field validation chain via the decider, and either re-renders
 // with inline errors or calls onSubmit. If onSubmit returns a
 // [FieldErrors] the form re-renders with each entry routed to the
-// matching field. On any other error the form re-renders with a
+// matching field; an entry for a path no input shows goes above the form
+// as below, and a FieldErrors of only nil entries is a successful submit.
+// On any other error the form re-renders with a
 // form-level message: a [FormMessage]'s text, or [FormErrorMessage]. On
 // success the handler responds with 303 See Other to cfg.Redirect or
 // r.URL.Path when nil. A body that cannot be parsed is answered with 400,
-// or 413 past the multipart limits or a limit set with
-// [http.MaxBytesReader], never treated as a submission of nothing.
+// or 413 past the multipart limits, net/http's 10 MB for a urlencoded
+// body or a limit set with [http.MaxBytesReader], never treated as a
+// submission of nothing.
 //
 // load must return a record the handler may change: it binds the
 // submission into it, including text a field rejected, which stays there for
@@ -210,22 +213,10 @@ func ReflectFormHandlerRedirecting[T any](
 			render(w, r, target, nil, "", nil)
 
 		case http.MethodPost:
-			r = r.WithContext(context.WithValue(r.Context(), maxMemoryKey{}, maxMem))
 			// A body that fails to parse, such as one past the multipart
 			// part limit, must not read as a submission of nothing: onSubmit
 			// would save the unchanged record and drop the user's edits.
-			mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-			parseErr := r.ParseForm()
-			// ParseForm also reports a URL query it cannot parse, such as
-			// one with a semicolon, after any body error; the body is the
-			// submission, so a bad query alone fails nothing.
-			if _, queryErr := url.ParseQuery(r.URL.RawQuery); parseErr != nil && queryErr != nil && parseErr.Error() == queryErr.Error() {
-				parseErr = nil
-			}
-			if mediaType == "multipart/form-data" {
-				parseErr = r.ParseMultipartForm(maxMem)
-			}
-			if parseErr != nil {
+			if parseErr := parseFormBody(w, r, maxMem); parseErr != nil {
 				status := http.StatusBadRequest
 				var tooLarge *http.MaxBytesError
 				if errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) {
@@ -234,6 +225,9 @@ func ReflectFormHandlerRedirecting[T any](
 				http.Error(w, "could not parse form", status)
 				return
 			}
+			// Attached after the parse: the server removes the temporary
+			// files of the multipart form set on the request it passed in.
+			r = r.WithContext(context.WithValue(r.Context(), maxMemoryKey{}, maxMem))
 			target, err := load(r.Context())
 			if err != nil {
 				respondLoadError(w, err)
@@ -261,7 +255,7 @@ func ReflectFormHandlerRedirecting[T any](
 			redirect, err := onSubmit(r.Context(), target)
 			if fe, ok := errors.AsType[FieldErrors](err); ok {
 				// A nil entry, as from FieldErrors{"Name": validate(x)} with a
-				// valid x, is no error; only nil entries are no error at all.
+				// valid x, is no error.
 				perField := map[FieldPath][]error{}
 				for p, e := range fe {
 					if e != nil {
@@ -272,7 +266,11 @@ func ReflectFormHandlerRedirecting[T any](
 					render(w, r, target, perField, "", origins)
 					return
 				}
-				err = nil
+				// A FieldErrors whose entries are all nil is no error at all,
+				// unless it came wrapped or joined with another error.
+				if _, bare := err.(FieldErrors); bare {
+					err = nil
+				}
 			}
 			if err != nil {
 				render(w, r, target, nil, formErrorText(err), origins)
@@ -340,8 +338,10 @@ func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath) []error 
 	var shown []error
 	masked := false
 	for _, err := range errs {
-		if _, ok := errors.AsType[FormMessage](err); ok {
-			shown = append(shown, err)
+		// Only the message itself: an error wrapping or joined with it may
+		// quote the value.
+		if m, ok := errors.AsType[FormMessage](err); ok {
+			shown = append(shown, m)
 		} else if !masked {
 			// Validation results shown to the user carry no callstack.
 			shown = append(shown, errors.New("not a valid value"))
@@ -388,12 +388,15 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		// decider renders, as in a submit-only form's new(T) or an added
 		// row, is still an error. A field the decider does not render has
 		// no sentinel and shows no error.
-		if beh.Render != nil && cv.Tag.Required && isBlank(cv.Kind, cv.Value) {
+		// A decider that renders the field as nothing leaves it out too.
+		if beh.Render != nil && cv.Tag.Required && isBlank(cv.Kind, cv.Value) && beh.Render(srcCell, cv.Field, cv.Value, nil) != nil {
 			out[dstCell] = append(out[dstCell], errors.New("required"))
 		}
 		return
 	}
-	if sentinelSet(form, ClearSentinelName(srcCell)) {
+	keep := true // a blank sensitive input may keep the stored value
+	// A field the decider does not parse is not written, not even cleared.
+	if beh.Parse != nil && sentinelSet(form, ClearSentinelName(srcCell)) {
 		// The forms offer no clear control on a required field, so a clear
 		// there is a tampered POST; it is rejected, not saved.
 		if cv.Tag.Required {
@@ -407,8 +410,9 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		if cleared {
 			return
 		}
+		keep = false
 	}
-	if beh.Parse != nil && !keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell) {
+	if beh.Parse != nil && !(keep && keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell)) {
 		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
 			out[dstCell] = append(out[dstCell], err)
 			return
@@ -428,39 +432,66 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 // alone: a form:"sensitive" field never shows its value, so leaving it
 // blank means "unchanged", as with a password field. Since the input stays
 // empty, a value typed into it before an add-row or remove-row click is
-// not shown again and must be typed again before saving. A nullable or
-// pointer field is cleared with its clear control. With nothing stored
+// not shown again and must be typed again before saving. An optional one
+// is emptied with its clear control. With nothing stored
 // there is nothing to keep, so a blank is parsed, and a required field or
 // a number's range still rejects it. A checkbox, checkbox set, hidden or
 // file field has no such blank, and a select shows its stored option.
-func keepsStored(tag FormTag, kind FieldKind, value reflect.Value, form map[string][]string, path FieldPath) bool {
-	return tag.Sensitive && kind.KeepsStoredWhenBlank() && !value.IsZero() && firstValue(form, path) == ""
+// A parser reads the first submitted value, as form.Get returns it.
+func keepsStored(tag FormTag, kind FieldKind, value reflect.Value, form url.Values, path FieldPath) bool {
+	return KeepsStoredValue(tag, kind, value) && form.Get(string(path)) == ""
 }
 
-// firstValue is the submitted value as a parser reads it: the first one.
-func firstValue(form map[string][]string, path FieldPath) string {
-	if vals := form[string(path)]; len(vals) > 0 {
-		return vals[0]
-	}
-	return ""
-}
-
-// clearField sets value to null for a __clear sentinel. A form:"sensitive"
-// input that keeps a blank's stored value gets the clear control too, rendered
-// ticked while the value is empty, so text typed into it wins over the tick
-// (cleared is false then), and a value that has no null is set to its zero.
-func clearField(tag FormTag, kind FieldKind, value reflect.Value, form map[string][]string, path FieldPath) (cleared bool, err error) {
+// clearField applies a __clear sentinel: it sets value to null, and cleared
+// reports that nothing is left to parse. A form:"sensitive" input that keeps
+// a blank's stored value gets the clear control too, rendered ticked while
+// the value is empty. Text typed into it wins over the tick, and a value
+// that has no null is cleared by parsing the blank, so its range, required
+// check and validation apply; cleared is false for both.
+func clearField(tag FormTag, kind FieldKind, value reflect.Value, form url.Values, path FieldPath) (cleared bool, err error) {
 	sensitive := tag.Sensitive && kind.KeepsStoredWhenBlank()
-	if sensitive && firstValue(form, path) != "" {
+	if sensitive && form.Get(string(path)) != "" {
 		return false, nil
 	}
 	if err := setFieldNull(value); err != nil {
-		if !sensitive || !value.CanSet() {
-			return true, err
+		if sensitive {
+			return false, nil
 		}
-		value.SetZero()
+		return true, err
 	}
 	return true, nil
+}
+
+// maxFormBody is the size net/http's ParseForm reads of a urlencoded body;
+// past it the request answers 413, as one past the multipart limits does.
+const maxFormBody = 10 << 20
+
+// parseFormBody parses the request body into r.PostForm, r.Form and, for a
+// multipart body, r.MultipartForm. Only the body is the submission, so it
+// is parsed on its own: a URL query that cannot be parsed, such as one with
+// a semicolon, fails nothing, and its readable values join r.Form.
+func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem int64) error {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaType != ContentTypeMultipartFormData && r.Body != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, maxFormBody)
+	}
+	body := *r
+	bodyURL := *r.URL
+	bodyURL.RawQuery = ""
+	body.URL = &bodyURL
+	err := body.ParseForm()
+	if mediaType == ContentTypeMultipartFormData {
+		err = body.ParseMultipartForm(maxMem)
+	}
+	r.Form, r.PostForm, r.MultipartForm = body.Form, body.PostForm, body.MultipartForm
+	if r.Form == nil {
+		r.Form = url.Values{}
+	}
+	query, _ := url.ParseQuery(r.URL.RawQuery)
+	for name, values := range query {
+		r.Form[name] = append(r.Form[name], values...)
+	}
+	return err
 }
 
 type maxMemoryKey struct{}
@@ -671,7 +702,7 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 				continue
 			}
 			// A hidden input shows no error of its own.
-			if visit.Kind != FieldKindHidden {
+			if _, hasErrs := fieldErrs[visit.Path]; hasErrs && visit.Kind != FieldKindHidden {
 				consumed[visit.Path] = true
 			}
 			hasFile = hasFile || visit.Kind == FieldKindFile
@@ -741,9 +772,9 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	// input needs multipart, whose limit is 1,000 parts: every field takes
 	// two (its value and __present sentinel), so 100 rows of 5 cells would
 	// already be rejected.
-	enctype := "application/x-www-form-urlencoded"
+	enctype := ContentTypeWWWFormURLEncoded
 	if hasFile {
-		enctype = "multipart/form-data"
+		enctype = ContentTypeMultipartFormData
 	}
 	formAttribs := []any{
 		Attribute{Name: "method", Value: "post"},

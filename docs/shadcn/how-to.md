@@ -218,9 +218,10 @@ A few components render text the caller never passes: the close button inside
 captions, the breadcrumb and pagination ellipsis screen-reader text, and the
 default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`, the
 `Calendar` month buttons, `CarouselPrevious`, `CarouselNext`, `SidebarTrigger`
-and `Spinner`. Reflected forms add the clear checkbox on a nullable field, the
+and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
+sensitive field, the
 disabled placeholder a select shows when the current value is not in its option
-list, the "Choose…" and "(none)" options on a select with no empty choice, the
+list (saying that saving removes it where it does), the "Choose…" and "(none)" options on a select with no empty choice, the
 note an enum-set shows when stored members are hidden by the current list, and
 the "Expected format:" hint under a date or time field whose stored text the
 picker cannot show ("Not in the expected format:" when that text is invalid).
@@ -234,29 +235,30 @@ so the language is chosen per request — not per call site.
 
    ```go
    var germanLabels = shadcn.Labels{
-       BreadcrumbNav:          "Brotkrümelnavigation",
-       BreadcrumbEllipsis:     "Mehr Einträge",
-       CalendarPrevious:       "Zum vorherigen Monat",
-       CalendarNext:           "Zum nächsten Monat",
-       CarouselPrevious:       "Vorheriges Bild",
-       CarouselNext:           "Nächstes Bild",
-       DialogClose:            "Schließen",
-       NavigationMenuNav:      "Hauptnavigation",
-       PaginationNav:          "Seitennummerierung",
-       PaginationPrevious:     "Zurück",
-       PaginationNext:         "Weiter",
-       PaginationPreviousPage: "Zur vorherigen Seite",
-       PaginationNextPage:     "Zur nächsten Seite",
-       PaginationEllipsis:     "Mehr Seiten",
-       SidebarTrigger:         "Seitenleiste umschalten",
-       Spinner:                "Lädt",
-       FormClear:              "leeren",
-       FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
-       FormChooseOption:       "Auswählen…",
-       FormNoSelection:        "(keine)",
-       FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
-       FormExpectedFormat:     "Erwartetes Format:",
-       FormInvalidFormat:      "Nicht im erwarteten Format:",
+       BreadcrumbNav:                "Brotkrümelnavigation",
+       BreadcrumbEllipsis:           "Mehr Einträge",
+       CalendarPrevious:             "Zum vorherigen Monat",
+       CalendarNext:                 "Zum nächsten Monat",
+       CarouselPrevious:             "Vorheriges Bild",
+       CarouselNext:                 "Nächstes Bild",
+       DialogClose:                  "Schließen",
+       NavigationMenuNav:            "Hauptnavigation",
+       PaginationNav:                "Seitennummerierung",
+       PaginationPrevious:           "Zurück",
+       PaginationNext:               "Weiter",
+       PaginationPreviousPage:       "Zur vorherigen Seite",
+       PaginationNextPage:           "Zur nächsten Seite",
+       PaginationEllipsis:           "Mehr Seiten",
+       SidebarTrigger:               "Seitenleiste umschalten",
+       Spinner:                      "Lädt",
+       FormClear:                    "leeren",
+       FormValueNotAvailable:        "(aktueller Wert nicht verfügbar)",
+       FormValueNotAvailableRemoved: "(aktueller Wert nicht verfügbar und wird beim Speichern entfernt)",
+       FormChooseOption:             "Auswählen…",
+       FormNoSelection:              "(keine)",
+       FormValuesNotAvailable:       "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
+       FormExpectedFormat:           "Erwartetes Format:",
+       FormInvalidFormat:            "Nicht im erwarteten Format:",
    }
    ```
 

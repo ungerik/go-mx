@@ -436,7 +436,7 @@ func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	}
 
 	out := render("gone")
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -456,6 +456,37 @@ func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	out = render(`</option><script>x</script>`)
 	if strings.Contains(out, "script") {
 		t.Errorf("out-of-list value leaked into markup: %q", out)
+	}
+}
+
+// A save submits nothing for the disabled placeholder: an optional select
+// is cleared, so its caption says so, while a required one rejects the
+// blank and a readonly one is never saved.
+func TestFieldDecider_SelectPlaceholderSaysRemoval(t *testing.T) {
+	type draftForm struct {
+		Optional string `form:"options=test-html-partners"`
+		Required string `form:"options=test-html-partners,required"`
+		Readonly string `form:"options=test-html-partners,readonly"`
+	}
+	target := &draftForm{Optional: "gone", Required: "gone", Readonly: "gone"}
+	v := reflect.ValueOf(target).Elem()
+	ctx := context.WithValue(context.Background(), partnersCtxKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	for name, want := range map[string]string{
+		"Optional": "(current value not available and is removed when you save)",
+		"Required": "(current value not available)",
+		"Readonly": "(current value not available)",
+	} {
+		field, _ := v.Type().FieldByName(name)
+		value := v.FieldByName(name)
+		comp := FieldDecider(mx.FieldPath(name), field, value).Render(mx.FieldPath(name), field, value, nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("%s: render: %v", name, err)
+		}
+		if !strings.Contains(b.String(), `selected="selected">`+want+`</option>`) {
+			t.Errorf("%s: want the caption %q in %q", name, want, b.String())
+		}
 	}
 }
 
@@ -482,7 +513,7 @@ func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
 	if strings.Contains(out, "secret-123") {
 		t.Errorf("sensitive value leaked into placeholder: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
 		t.Errorf("sensitive out-of-list value must use the generic placeholder so the first option is not submitted: %q", out)
 	}
 }
@@ -508,7 +539,7 @@ func TestFieldDecider_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available and is removed when you save)</option>`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
@@ -847,6 +878,13 @@ func TestFieldDecider_EnumSetDropsMembersMissingFromOptionList(t *testing.T) {
 	}
 	if strings.Count(out, `type="checkbox"`) != 2 {
 		t.Errorf("only the listed options are checkboxes: %q", out)
+	}
+	// A readonly set is never saved and keeps them, so it shows no note.
+	type readonlyForm struct {
+		Tags []string `form:"options=test-html-tags,readonly"`
+	}
+	if out := renderFieldHTML(t, &readonlyForm{Tags: []string{"kept", "b"}}, "Tags"); strings.Contains(out, "not available") {
+		t.Errorf("a readonly set must not announce a removal: %q", out)
 	}
 
 	parse := func(f *tagForm, submitted ...string) error {
@@ -1412,7 +1450,7 @@ func TestReflectFormHandler_EmptyOptionListStillRenders(t *testing.T) {
 	if strings.Contains(body, "gone") {
 		t.Errorf("stored value must not be echoed: %q", body)
 	}
-	if !strings.Contains(body, "(current value not available)") {
+	if !strings.Contains(body, "(current value not available and is removed when you save)") {
 		t.Errorf("stored value must show the generic placeholder: %q", body)
 	}
 }
@@ -2820,8 +2858,10 @@ func TestFieldDecider_DateStructOwnTextRange(t *testing.T) {
 }
 
 // The bounds have no zone, so the wall clock of a zoned submission is
-// compared: a crafted RFC 3339 offset cannot move a date across min or max.
-// A time range may wrap past midnight, as a browser's time input allows.
+// compared, as the form will show it: on a new record the posted one, else
+// in the stored time's zone. A crafted RFC 3339 offset cannot move a date
+// across min or max. A time range may wrap past midnight, as a browser's
+// time input allows.
 func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 	type form struct {
 		At      time.Time   `form:"min=2024-01-01T00:00,max=2024-12-31T23:59"`
@@ -2830,7 +2870,6 @@ func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 		Wrapped wrappedTime `form:"widget=date,max=2026-12-31"`
 		Opaque  opaqueDate  `form:"widget=date,min=2026-01-01"`
 	}
-	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
 		{"At", "2023-12-31T13:00:00-12:00", `"2023-12-31T13:00:00-12:00" is earlier than 2024-01-01T00:00`},
 		{"At", "2025-01-01T09:00:00+14:00", `"2025-01-01T09:00:00+14:00" is later than 2024-12-31T23:59`},
@@ -2851,10 +2890,21 @@ func TestFieldDecider_DateRangeWallClockAndOvernight(t *testing.T) {
 		// A value whose MarshalText fails cannot be checked against min.
 		{"Opaque", "sometime", `"sometime" is not a date in the format YYYY-MM-DD`},
 	} {
+		f := &form{} // each case binds into a new record
 		err := parseFieldValue(t, f, b.field, b.raw)
 		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
 			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
 		}
+	}
+	// With a stored time, a posted offset is converted into its zone, and
+	// that wall clock is what the form shows and what is checked: 11:00 at
+	// -12:00 is 23:00 in the stored UTC, past max.
+	type stored struct {
+		At time.Time `form:"max=2026-01-01T12:00"`
+	}
+	f := &stored{At: time.Date(2025, 6, 1, 9, 0, 0, 0, time.UTC)}
+	if err := parseFieldValue(t, f, "At", "2026-01-01T11:00:00-12:00"); fmt.Sprint(err) != `"2026-01-01T11:00:00-12:00" is later than 2026-01-01T12:00` {
+		t.Errorf("a posted offset converted past max: error %v, stored %v", err, f.At)
 	}
 }
 
@@ -2931,6 +2981,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		T float32 `form:"min=1e39"`
 		I float64 `form:"max=+5,min=Inf"`
 		Z int     `form:"sensitive,min=1000"`
+		Y int     `form:"sensitive,max=9999"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -2959,6 +3010,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		{"O", "", `"0" is less than 1`},
 		// A sensitive number's range error names the bound, not the value.
 		{"Z", "5", "must be at least 1000"},
+		{"Y", "123456", "must be at most 9999"},
 		// A float compares at its own precision, as a browser compares
 		// doubles, so a value on its decimal bound is in range.
 		{"D", "99.9", ""},
@@ -3419,6 +3471,201 @@ func TestReflectFormHandler_ShownZone(t *testing.T) {
 	}
 }
 
+// A changed date or time in a named zone is read at that zone's offset for
+// the new date, for a time.Time and a wrapper alike; a time widget keeps the
+// stored date and zone when unchanged, and a clock in its DST gap moves
+// forward. A typed sensitive time is read in the stored zone too.
+func TestReflectFormHandler_NamedZoneAcrossDST(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A wrapper's text has only an offset, which time.Parse turns into the
+	// named zone only when it matches time.Local; a southern zone matches
+	// neither a European machine nor a UTC one.
+	sydney, err := time.LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type record struct {
+		At     time.Time  `form:"widget=datetime"`
+		Stamp  zonedStamp `form:"widget=datetime"`
+		Far    zonedStamp `form:"widget=datetime"`
+		Day    zonedStamp `form:"widget=date"`
+		Clock  time.Time  `form:"widget=time"`
+		Gap    time.Time  `form:"widget=time"`
+		Secret time.Time  `form:"widget=datetime,sensitive"`
+	}
+	june := time.Date(2026, 6, 14, 10, 0, 0, 0, berlin)
+	loaded := record{
+		At: june, Stamp: zonedStamp{june}, Far: zonedStamp{time.Date(2026, 6, 14, 10, 0, 0, 0, sydney)},
+		Day:   zonedStamp{time.Date(2026, 6, 14, 0, 0, 0, 0, berlin)},
+		Clock: time.Date(2026, 6, 14, 9, 0, 0, 0, berlin), Gap: time.Date(2026, 3, 29, 9, 0, 0, 0, berlin), Secret: june,
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := loaded; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	vals := submittedValues(get.Body.String())
+	vals.Set("At", "2026-12-14T10:00")
+	vals.Set("Stamp", "2026-12-14T10:00")
+	vals.Set("Far", "2026-12-14T10:00")
+	vals.Set("Day", "2026-12-14")
+	vals.Set("Gap", "02:30")
+	vals.Set("Secret", "2026-06-14T09:00")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	december := time.Date(2026, 12, 14, 10, 0, 0, 0, berlin)
+	if !saved.At.Equal(december) || !saved.Stamp.Equal(december) {
+		t.Errorf("At %v, Stamp %v, want %v", saved.At, saved.Stamp.Time, december)
+	}
+	if want := time.Date(2026, 12, 14, 10, 0, 0, 0, sydney); !saved.Far.Equal(want) {
+		t.Errorf("Far saved as %v, want %v (summer time in Sydney)", saved.Far.Time, want)
+	}
+	if got := saved.Day.In(berlin).Format(time.DateOnly); got != "2026-12-14" {
+		t.Errorf("Day saved as %v, want 2026-12-14 in Berlin", saved.Day.Time)
+	}
+	if !saved.Clock.Equal(loaded.Clock) || saved.Clock.Location() != berlin {
+		t.Errorf("unchanged Clock saved as %v, want %v", saved.Clock, loaded.Clock)
+	}
+	if want := time.Date(2026, 3, 29, 3, 30, 0, 0, berlin); !saved.Gap.Equal(want) {
+		t.Errorf("Gap saved as %v, want %v", saved.Gap, want)
+	}
+	if want := time.Date(2026, 6, 14, 9, 0, 0, 0, berlin); !saved.Secret.Equal(want) {
+		t.Errorf("Secret saved as %v, want %v", saved.Secret, want)
+	}
+}
+
+// A nil hidden *bool stays nil, and a file cell a loaded row renders in a
+// section behind a pointer makes the form multipart.
+func TestReflectFormHandler_HiddenNilBoolAndRowFile(t *testing.T) {
+	type record struct {
+		Flag *bool `form:"hidden"`
+		Name string
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Name: "x"}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Flag != nil {
+		t.Errorf("status %d, saved %+v; want Flag nil", rec.Code, saved)
+	}
+	type attach struct {
+		Doc []byte `form:"widget=file"`
+	}
+	type line struct {
+		Desc   string
+		Attach *attach `form:"section=Files"`
+	}
+	type rows struct {
+		Lines []line `form:"repeatable"`
+	}
+	rh := mx.ReflectFormHandler(
+		func(context.Context) (*rows, error) { return &rows{Lines: []line{{Desc: "a", Attach: &attach{}}}}, nil },
+		func(context.Context, *rows) error { return nil },
+		FieldDecider,
+	)
+	rget := httptest.NewRecorder()
+	rh(rget, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := rget.Body.String(); !strings.Contains(body, `type="file"`) || !strings.Contains(body, `enctype="multipart/form-data"`) {
+		t.Errorf("a row's file input needs a multipart form: %s", body)
+	}
+}
+
+// A database/sql type has no text methods: it renders the driver value it
+// holds and is read back with Scan, hidden or as a catch-all text input.
+// An unchanged submission keeps the stored value exactly, so a valid empty
+// string stays valid and a time keeps its named zone.
+func TestReflectFormHandler_SQLNullRoundTrip(t *testing.T) {
+	type record struct {
+		ID    sql.NullInt64   `form:"hidden"`
+		Note  sql.NullString  `form:"hidden"`
+		Gone  sql.NullString  `form:"hidden"`
+		At    sql.NullTime    `form:"hidden"`
+		Flag  sql.NullBool    `form:"hidden"`
+		Rate  sql.NullFloat64 `form:"hidden"`
+		Count sql.NullInt64
+	}
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := record{
+		ID:   sql.NullInt64{Int64: 42, Valid: true},
+		Note: sql.NullString{Valid: true},
+		// The first 02:30 of the hour Berlin's clocks repeat when they go back.
+		At:    sql.NullTime{Time: time.Date(2026, 10, 25, 0, 30, 0, 0, time.UTC).In(berlin), Valid: true},
+		Flag:  sql.NullBool{Bool: true, Valid: true},
+		Rate:  sql.NullFloat64{Float64: 1.5, Valid: true},
+		Count: sql.NullInt64{Int64: 7, Valid: true},
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{
+		`name="ID" value="42"`,
+		`name="At" value="2026-10-25T02:30:00+02:00"`,
+		`name="Flag" value="true"`,
+		`name="Rate" value="1.5"`,
+		`name="Count" id="Count" value="7"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("want %s in %s", want, body)
+		}
+	}
+
+	vals := submittedValues(body)
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("unchanged: status %d: %s", rec.Code, rec.Body)
+	}
+	if saved.ID != stored.ID || saved.Note != stored.Note || saved.Gone != stored.Gone ||
+		saved.Flag != stored.Flag || saved.Rate != stored.Rate || saved.Count != stored.Count {
+		t.Errorf("unchanged submission changed the record: %+v", saved)
+	}
+	// Read back from its text, the time would be in a fixed +02:00 zone.
+	if saved.At.Time.Location() != berlin || !saved.At.Time.Equal(stored.At.Time) {
+		t.Errorf("At = %v, want %v in Europe/Berlin", saved.At.Time, stored.At.Time)
+	}
+
+	saved = nil
+	vals.Set("ID", "43")
+	vals.Set("Gone", "back")
+	vals.Set("At", "2026-01-02T03:04:05Z")
+	vals.Set("Flag", "false")
+	vals.Set("Count", "")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("changed: status %d: %s", rec.Code, rec.Body)
+	}
+	if saved.ID != (sql.NullInt64{Int64: 43, Valid: true}) || saved.Gone != (sql.NullString{String: "back", Valid: true}) ||
+		saved.Flag != (sql.NullBool{Valid: true}) || saved.Count.Valid {
+		t.Errorf("changed submission: %+v", saved)
+	}
+	if want := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC); !saved.At.Valid || !saved.At.Time.Equal(want) {
+		t.Errorf("At = %+v, want %v", saved.At, want)
+	}
+
+	saved = nil
+	vals.Set("ID", "abc")
+	if rec := postValues(t, h, vals); rec.Code == http.StatusSeeOther || saved != nil {
+		t.Errorf("text that does not scan must not save: status %d", rec.Code)
+	}
+}
+
 // A time posted with an offset keeps its instant through a re-render, and a
 // zoned row time keeps its instant through an add-row click.
 func TestReflectFormHandler_ZonesThroughRerender(t *testing.T) {
@@ -3449,7 +3696,7 @@ func TestReflectFormHandler_ZonesThroughRerender(t *testing.T) {
 	}
 }
 
-// A posted time with an explicit offset keeps it rather than taking the
+// A posted time with an explicit offset keeps its instant, shown in the
 // stored time's location.
 func TestReflectFormHandler_PostedOffsetWins(t *testing.T) {
 	type record struct {
@@ -3589,6 +3836,70 @@ func TestReflectFormHandler_SensitiveNumberNothingStored(t *testing.T) {
 			t.Errorf("%s: status %d, saved %t", name, rec.Code, saved)
 		}
 	}
+
+	// The same as the browser posts it: the clear box of an empty optional
+	// input is ticked, and a tick parses the blank, so the range applies,
+	// also in a row added with add-row; text typed over the tick wins.
+	type optional struct {
+		PIN   int    `form:"sensitive,min=1000"`
+		Lines []line `form:"repeatable"`
+	}
+	var kept *optional
+	oh := mx.ReflectFormHandler(nil, func(_ context.Context, r *optional) error { kept = r; return nil }, FieldDecider)
+	get := httptest.NewRecorder()
+	oh(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	vals := submittedValues(get.Body.String())
+	if vals.Get(mx.ClearSentinelName("PIN")) != "1" {
+		t.Fatalf("the clear box of an empty sensitive number must be ticked: %v", vals)
+	}
+	vals.Set("__cmd__", mx.AddRowCommand("Lines"))
+	added := submittedValues(postValues(t, oh, vals).Body.String())
+	if rec := postValues(t, oh, added); rec.Code != http.StatusOK || kept != nil {
+		t.Errorf("a ticked blank below min saved: status %d, saved %+v", rec.Code, kept)
+	}
+	added.Set("PIN", "5")
+	added.Set("Lines-0-PIN", "1500")
+	if rec := postValues(t, oh, added); rec.Code != http.StatusOK || kept != nil {
+		t.Errorf("5 over the tick: status %d, saved %+v", rec.Code, kept)
+	}
+	added.Set("PIN", "1500")
+	if rec := postValues(t, oh, added); rec.Code != http.StatusSeeOther || kept == nil || kept.PIN != 1500 || kept.Lines[0].PIN != 1500 {
+		t.Errorf("1500 over the tick: status %d, saved %+v", rec.Code, kept)
+	}
+}
+
+// A sensitive row cell keeps, replaces or clears only its own row's
+// stored value.
+func TestReflectFormHandler_SensitiveRowCellActions(t *testing.T) {
+	type line struct {
+		Token string `form:"sensitive"`
+	}
+	type record struct {
+		Lines []line `form:"repeatable"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Lines: []line{{"a"}, {"b"}}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	for _, c := range []struct {
+		name, typed string
+		tick        bool
+		want        string
+	}{{"blank", "", false, "a"}, {"typed", "new", false, "new"}, {"tick", "", true, ""}, {"typed+tick", "new", true, "new"}} {
+		saved = nil
+		vals := submittedValues(get.Body.String())
+		vals.Set("Lines-0-Token", c.typed)
+		if c.tick {
+			vals.Set(mx.ClearSentinelName("Lines-0-Token"), "1")
+		}
+		if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Lines[0].Token != c.want || saved.Lines[1].Token != "b" {
+			t.Errorf("%s: status %d, saved %+v; want row 0 %q and row 1 kept", c.name, rec.Code, saved, c.want)
+		}
+	}
 }
 
 // A stored sensitive value renders no value, and a blank keeps it, so the
@@ -3607,6 +3918,9 @@ func TestReflectFormHandler_RequiredSensitiveStored(t *testing.T) {
 		if got := inputTag(t, renderFieldHTML(t, &record{}, field), field); !strings.Contains(got, "required") {
 			t.Errorf("%s: with nothing stored the input must be required: %s", field, got)
 		}
+	}
+	if out := renderFieldHTML(t, stored, "Key"); strings.Contains(out, mx.ClearSentinelName("Key")) {
+		t.Errorf("a required sensitive field offers a clear control: %s", out)
 	}
 	var saved *record
 	h := mx.ReflectFormHandler(
@@ -3652,8 +3966,8 @@ func TestReflectFormHandler_SensitiveClear(t *testing.T) {
 		return out[start : i+strings.Index(out[i:], ">")+1]
 	}
 	stored := func() *record { return &record{Secret: "s", Token: new("t")} }
-	if out := renderFieldHTML(t, stored(), "Secret"); box(out, "Secret") == "" || strings.Contains(box(out, "Secret"), "checked") {
-		t.Errorf("a stored optional sensitive string needs an unticked clear control: %s", out)
+	if out := renderFieldHTML(t, stored(), "Secret"); box(out, "Secret") == "" || strings.Contains(box(out, "Secret"), "checked") || !strings.Contains(box(out, "Secret"), `aria-label="clear Secret"`) {
+		t.Errorf("a stored optional sensitive string needs an unticked clear control named after it: %s", out)
 	}
 	if out := renderFieldHTML(t, &record{}, "Secret"); !strings.Contains(box(out, "Secret"), "checked") {
 		t.Errorf("an empty sensitive string's clear control must be ticked: %s", out)
@@ -3707,15 +4021,79 @@ func TestReflectFormHandler_UploadLimit(t *testing.T) {
 		mw := multipart.NewWriter(&body)
 		_ = mw.WriteField(mx.PresentSentinelName("Doc"), "1")
 		part, _ := mw.CreateFormFile("Doc", "doc.bin")
-		_, _ = part.Write(bytes.Repeat([]byte("x"), c.size))
+		_, _ = part.Write(bytes.Repeat([]byte("xy"), c.size)[:c.size])
 		_ = mw.Close()
 		req := httptest.NewRequest(http.MethodPost, "/", &body)
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		rec := httptest.NewRecorder()
 		h(rec, req)
-		if rec.Code != c.want || (c.want == http.StatusSeeOther && (saved == nil || len(saved.Doc) != c.size)) {
+		if rec.Code != c.want || (c.want == http.StatusSeeOther && (saved == nil || !bytes.Equal(saved.Doc, bytes.Repeat([]byte("xy"), c.size)[:c.size]))) {
 			t.Errorf("%d-byte upload: status %d, saved %v, body %s", c.size, rec.Code, saved, rec.Body.String())
 		}
+	}
+}
+
+// A file field of type string takes the uploaded file's name, and one of
+// another type is a field error rather than a silent no-op.
+func TestReflectFormHandler_UploadDestinations(t *testing.T) {
+	post := func(h http.HandlerFunc) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		_ = mw.WriteField(mx.PresentSentinelName("Doc"), "1")
+		part, _ := mw.CreateFormFile("Doc", "report.pdf")
+		_, _ = part.Write([]byte("%PDF"))
+		_ = mw.Close()
+		req := httptest.NewRequest(http.MethodPost, "/", &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		rec := httptest.NewRecorder()
+		h(rec, req)
+		return rec
+	}
+	type named struct {
+		Doc string `form:"widget=file"`
+	}
+	var saved *named
+	if rec := post(mx.ReflectFormHandler(func(context.Context) (*named, error) { return &named{}, nil },
+		func(_ context.Context, r *named) error { saved = r; return nil }, FieldDecider)); rec.Code != http.StatusSeeOther || saved == nil || saved.Doc != "report.pdf" {
+		t.Errorf("string file field: status %d, saved %+v", rec.Code, saved)
+	}
+	type numbered struct {
+		Doc int `form:"widget=file"`
+	}
+	if rec := post(mx.ReflectFormHandler(func(context.Context) (*numbered, error) { return &numbered{}, nil },
+		func(context.Context, *numbered) error { return nil }, FieldDecider)); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "file upload requires") {
+		t.Errorf("int file field: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+// keyCode rejects text without its prefix, wrapping a FormMessage in an
+// error that quotes the text.
+type keyCode struct{ v string }
+
+func (c keyCode) MarshalText() ([]byte, error) { return []byte(c.v), nil }
+
+func (c *keyCode) UnmarshalText(b []byte) error {
+	if !strings.HasPrefix(string(b), "sk_") {
+		return fmt.Errorf("%q: %w", b, mx.FormMessage("must start with sk_"))
+	}
+	c.v = string(b)
+	return nil
+}
+
+// A sensitive field shows only the FormMessage of a parse error, not the
+// error that wraps it and quotes the posted value.
+func TestReflectFormHandler_SensitiveWrappedMessage(t *testing.T) {
+	type record struct {
+		Key keyCode `form:"sensitive"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	body := postValues(t, h, url.Values{mx.PresentSentinelName("Key"): {"1"}, "Key": {"leaked-SECRET"}}).Body.String()
+	if !strings.Contains(body, ">must start with sk_<") || strings.Contains(body, "SECRET") {
+		t.Errorf("body %s, want only the message", body)
 	}
 }
 

@@ -172,6 +172,7 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 	}
 	for _, err := range fieldErrs[visit.Path] {
 		children = append(children, NewElement("p",
+			Attribute{Name: "class", Value: "form-error"},
 			Attribute{Name: "role", Value: "alert"},
 			Attribute{Name: "data-error", Value: string(visit.Path)},
 			Text(err.Error()),
@@ -195,7 +196,11 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 				}
 			}
 			structVal := rowStructValue(slice.Index(i), structType)
-			children = append(children, renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed))
+			row, rowFile := renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed)
+			children = append(children, row)
+			// A loaded row can render a file cell a zero row has not, such
+			// as one in a section behind a pointer.
+			hasFile = hasFile || rowFile
 		}
 	}
 	if !readonly {
@@ -212,7 +217,8 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 // [rowOriginMarker]), and a "Remove" button. readonly renders every cell
 // readonly and no button. Each cell path whose errors an input shows is
 // added to consumed; a hidden cell, such as a per-row key, shows none.
-func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) Component {
+// hasFile reports a rendered file cell.
+func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	rowPath := fieldPath.Append(strconv.Itoa(index))
 	var cells []any
 	for cv := range ReflectFormFields(structVal.Addr().Interface()) {
@@ -232,9 +238,10 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 		if comp == nil {
 			continue
 		}
-		if cv.Kind != FieldKindHidden {
+		if _, hasErrs := fieldErrs[cellPath]; hasErrs && cv.Kind != FieldKindHidden {
 			consumed[cellPath] = true
 		}
+		hasFile = hasFile || cv.Kind == FieldKindFile
 		cells = append(cells, wrapWithPresentSentinel(cellPath, comp))
 	}
 	cells = append(cells, NewVoidElement("input",
@@ -247,7 +254,7 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 	}
 
 	attribs := []any{Attribute{Name: "data-row", Value: string(rowPath)}}
-	return NewElement("div", append(attribs, cells...)...)
+	return NewElement("div", append(attribs, cells...)...), hasFile
 }
 
 func repeatableAddButton(fieldPath FieldPath) Component {

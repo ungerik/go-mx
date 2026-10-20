@@ -135,7 +135,7 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 	// how it is emptied, ticked while it is empty so a re-render keeps a
 	// clear the user asked for.
 	if !tag.Readonly && isNullable(field, kind, tag) {
-		parts = append(parts, clearControl(path, tag.Sensitive && kind.KeepsStoredWhenBlank() && isEmptyValue(value)))
+		parts = append(parts, clearControl(path, fieldLabel(field, tag), tag.Sensitive && kind.KeepsStoredWhenBlank() && !mx.KeepsStoredValue(tag, kind, value)))
 	}
 	parts = appendFieldErrors(parts, path, errs)
 	return fieldWrap(invalid, parts...)
@@ -247,6 +247,9 @@ func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
 	case mx.OptionPrefaceUnavailable:
 		return html.Option(html.Value(""), html.Disabled, html.Selected,
 			labelText(func(l Labels) string { return l.FormValueNotAvailable }))
+	case mx.OptionPrefaceUnavailableRemoved:
+		return html.Option(html.Value(""), html.Disabled, html.Selected,
+			labelText(func(l Labels) string { return l.FormValueNotAvailableRemoved }))
 	case mx.OptionPrefaceChoose:
 		return html.Option(html.Value(""), html.Disabled, html.Selected,
 			labelText(func(l Labels) string { return l.FormChooseOption }))
@@ -269,7 +272,11 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 	selected := setMembers(value)
 	contextList := mx.OptionsNeedContext(tag, keyType)
 	items := optionChildren(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
+		// The label names the box by its id, derived from the value, so any
+		// value, also one with spaces, makes a valid id.
+		id := mx.KeyedIDValue(path, opt.Value)
 		attribs := []mx.Attrib{
+			html.ID(id),
 			html.Name(string(path)),
 			html.Value(opt.Value),
 			hx.Trigger("change"),
@@ -283,8 +290,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		return mx.NewElement("div",
 			mx.Attribute{Name: "class", Value: "flex items-center gap-2"},
 			Checkbox(attribs...),
-			LabelFor(string(path)+"-"+opt.Value,
-				mx.Text(optionDisplay(opt))),
+			LabelFor(id, mx.Text(optionDisplay(opt))),
 		)
 	}, func(options []mx.NamedOption) mx.Component {
 		members := make([]string, 0, len(selected))
@@ -490,20 +496,28 @@ func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
 	return a
 }
 
-func clearControl(path mx.FieldPath, checked bool) mx.Component {
+func clearControl(path mx.FieldPath, label string, checked bool) mx.Component {
 	box := []mx.Attrib{
 		html.ID(mx.ClearSentinelName(path)),
 		html.Name(mx.ClearSentinelName(path)),
 		html.Value("1"),
+		// The visible word comes first in the name, which says which field
+		// a form full of clear boxes, as in repeatable rows, clears.
+		labelAttrib{name: "aria-label", get: func(l Labels) string { return strings.TrimSpace(l.FormClear + " " + label) }},
 	}
 	if checked {
 		box = append(box, html.Checked)
 	}
-	return LabelFor(mx.ClearSentinelName(path),
-		Checkbox(box...),
-		mx.NewElement("span",
-			mx.Attribute{Name: "class", Value: "ml-2 text-sm"},
-			labelText(func(l Labels) string { return l.FormClear }),
+	// The Field stretches its children; the wrapper takes that, so only the
+	// box and its word are clickable, not the strip below the input.
+	return html.Div(
+		LabelFor(mx.ClearSentinelName(path),
+			html.Class("w-fit"),
+			Checkbox(box...),
+			mx.NewElement("span",
+				mx.Attribute{Name: "class", Value: "ml-2 text-sm"},
+				labelText(func(l Labels) string { return l.FormClear }),
+			),
 		),
 	)
 }
@@ -570,6 +584,11 @@ func displayValue(v reflect.Value) (text string) {
 			}
 		}
 	}
+	// A database/sql type such as sql.NullInt64 writes the value it holds,
+	// which the html parser's Scan reads back.
+	if text, ok := mx.DriverValueText(x); ok {
+		return text
+	}
 	switch x.Kind() {
 	case reflect.String:
 		return x.String()
@@ -618,18 +637,10 @@ func isNullable(field reflect.StructField, kind mx.FieldKind, tag mx.FormTag) bo
 // that holds a stored value shows none, and a blank keeps the stored
 // value, so the browser must not demand one (see the html renderer).
 func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
-	if tag.Sensitive && tag.Required && kind.KeepsStoredWhenBlank() && !isEmptyValue(value) {
+	if tag.Required && mx.KeepsStoredValue(tag, kind, value) {
 		tag.Required = false
 	}
 	return tag
-}
-
-// isEmptyValue reports whether value holds nothing: the zero value or null.
-func isEmptyValue(value reflect.Value) bool {
-	if !value.IsValid() || value.IsZero() {
-		return true
-	}
-	return value.CanInterface() && mx.IsNull(value.Interface())
 }
 
 func isTrueBool(v reflect.Value) bool {

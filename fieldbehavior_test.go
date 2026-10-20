@@ -2,6 +2,7 @@ package mx
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"reflect"
 	"strings"
@@ -18,6 +19,40 @@ func TestFieldErrors_Error(t *testing.T) {
 	want := "invalid address\nmust be hex"
 	if got != want {
 		t.Errorf("FieldErrors.Error() =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// KeepsStoredValue is the one rule the form handler and both renderers
+// share: only a sensitive value of a kind with a "keep" blank that is
+// neither zero nor null is kept. sql.NullString{String: "x"} is null but
+// not zero, so nothing is kept, the clear control renders ticked and a
+// blank is parsed.
+func TestKeepsStoredValue(t *testing.T) {
+	sensitive := FormTag{Sensitive: true}
+	for _, tc := range []struct {
+		name  string
+		tag   FormTag
+		kind  FieldKind
+		value any
+		want  bool
+	}{
+		{"stored text", sensitive, FieldKindString, "secret", true},
+		{"stored number", sensitive, FieldKindNumber, 7, true},
+		{"empty text", sensitive, FieldKindString, "", false},
+		{"null but not zero", sensitive, FieldKindString, sql.NullString{String: "x"}, false},
+		{"valid null type", sensitive, FieldKindString, sql.NullString{String: "x", Valid: true}, true},
+		{"nil pointer", sensitive, FieldKindNumber, (*int)(nil), false},
+		{"not sensitive", FormTag{}, FieldKindString, "secret", false},
+		{"checkbox has its own blank", sensitive, FieldKindBool, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := KeepsStoredValue(tc.tag, tc.kind, reflect.ValueOf(tc.value)); got != tc.want {
+				t.Errorf("KeepsStoredValue = %v, want %v", got, tc.want)
+			}
+		})
+	}
+	if KeepsStoredValue(sensitive, FieldKindString, reflect.Value{}) {
+		t.Error("an invalid value keeps nothing")
 	}
 }
 

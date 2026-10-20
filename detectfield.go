@@ -282,7 +282,7 @@ func isTimeLike(t reflect.Type) bool {
 	if t.ConvertibleTo(timeType) {
 		return true
 	}
-	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == timeType && textIsRFC3339(t)
+	return embedsOnlyTime(t) && textIsRFC3339(t)
 }
 
 // embedsOnlyTime reports whether the struct type t holds nothing but an

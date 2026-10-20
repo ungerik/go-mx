@@ -162,6 +162,7 @@ package variable read by every render, like `mx.AsComponent`.
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
+| `FormValueNotAvailableRemoved`                  | the same option where saving clears it |
 | `FormChooseOption`                              | required select with no current value  |
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |

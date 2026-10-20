@@ -123,7 +123,6 @@ const (
 	FieldKindCatchAll
 )
 
-// String returns the kind's name (handy in error messages and tests).
 // KeepsStoredWhenBlank reports whether a form:"sensitive" field of this
 // kind keeps its stored value when submitted blank: a text, number or date
 // input never shows a sensitive value, so its blank means "unchanged", and
@@ -137,6 +136,20 @@ func (k FieldKind) KeepsStoredWhenBlank() bool {
 	return false
 }
 
+// KeepsStoredValue reports whether a form:"sensitive" field of kind holds a
+// stored value that a blank submission keeps (see
+// [FieldKind.KeepsStoredWhenBlank]): one that is neither the zero value nor
+// null. Renderers drop HTML required from its input and render its clear
+// control unticked. With nothing stored there is nothing to keep: the form
+// handler parses a blank, and the clear control renders ticked.
+func KeepsStoredValue(tag FormTag, kind FieldKind, value reflect.Value) bool {
+	if !tag.Sensitive || !kind.KeepsStoredWhenBlank() || !value.IsValid() || value.IsZero() {
+		return false
+	}
+	return !(value.CanInterface() && IsNull(value.Interface()))
+}
+
+// String returns the kind's name (handy in error messages and tests).
 func (k FieldKind) String() string {
 	switch k {
 	case FieldKindSkip:
@@ -193,17 +206,22 @@ type FormWidgetHint interface {
 // range as one consistent unit.
 type FieldBehavior struct {
 	// Render emits the widget HTML plus the hidden __present sentinel
-	// for this field (and the __clear sentinel when the field is
-	// nullable). errs holds any validation errors to display inline;
-	// it is nil on a fresh GET and may be non-nil after a failed POST.
+	// for this field (and the __clear sentinel when the field is nullable
+	// or an optional form:"sensitive" input, see
+	// [FieldKind.KeepsStoredWhenBlank]). errs holds any validation errors
+	// to display inline; it is nil on a fresh GET and may be non-nil after
+	// a failed POST. A nil Component leaves the field out of the form.
 	Render func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component
 
 	// Parse reads the submitted value out of r and writes it into
 	// value (which is addressable). The handler skips this call when
 	// the field's __present sentinel is absent — never touching a
-	// loaded record's field that the form did not render. When the
-	// __clear sentinel is set, Parse calls NullSetter.SetNull on the
-	// addressable value (no further parsing). Otherwise Parse decodes
+	// loaded record's field that the form did not render — and applies
+	// the __clear sentinel itself: it sets a null with NullSetter.SetNull
+	// (or a nil pointer) without calling Parse, while text typed into a
+	// sensitive input wins over the clear and a sensitive value without a
+	// null is cleared by parsing the blank. A blank sensitive input that
+	// keeps the stored value is not parsed either. Otherwise Parse decodes
 	// the submitted value.
 	Parse func(path FieldPath, field reflect.StructField, value reflect.Value, r *http.Request) error
 
@@ -239,7 +257,10 @@ type FieldVisit struct {
 // onSubmit callback may return to surface per-field errors inline.
 // Keys are field paths (the same value passed to render/parse for
 // each field); values are the messages to render under each field.
-// FieldErrors implements the error interface via errors.Join.
+// FieldErrors implements the error interface via errors.Join. A nil entry
+// is no error, so a FieldErrors whose entries are all nil is a successful
+// submit; an entry for a path no input shows, such as a hidden field's,
+// is shown above the form.
 type FieldErrors map[FieldPath]error
 
 // Error joins every entry's message in deterministic (path-sorted)
@@ -250,13 +271,18 @@ func (e FieldErrors) Error() string {
 		return ""
 	}
 	paths := make([]string, 0, len(e))
-	for p := range e {
-		paths = append(paths, string(p))
+	for p, err := range e {
+		if err != nil {
+			paths = append(paths, string(p))
+		}
 	}
 	sort.Strings(paths)
 	parts := make([]error, 0, len(paths))
 	for _, p := range paths {
 		parts = append(parts, e[FieldPath(p)])
+	}
+	if len(parts) == 0 {
+		return ""
 	}
 	return errors.Join(parts...).Error()
 }
@@ -268,7 +294,9 @@ func (e FieldErrors) Unwrap() []error {
 	}
 	parts := make([]error, 0, len(e))
 	for _, err := range e {
-		parts = append(parts, err)
+		if err != nil {
+			parts = append(parts, err)
+		}
 	}
 	return parts
 }

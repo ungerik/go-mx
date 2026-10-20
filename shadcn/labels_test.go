@@ -28,29 +28,30 @@ func renderWith(t *testing.T, ctx context.Context, c mx.Component) string {
 // silently fall back to the English DefaultLabels instead of failing loudly,
 // which is what TestLabelsFieldsAllCovered checks.
 var germanLabels = Labels{
-	BreadcrumbNav:          "Brotkrümelnavigation",
-	BreadcrumbEllipsis:     "Mehr Einträge",
-	CalendarPrevious:       "Zum vorherigen Monat",
-	CalendarNext:           "Zum nächsten Monat",
-	CarouselPrevious:       "Vorheriges Bild",
-	CarouselNext:           "Nächstes Bild",
-	DialogClose:            "Schließen",
-	NavigationMenuNav:      "Hauptnavigation",
-	PaginationNav:          "Seitennummerierung",
-	PaginationPrevious:     "Zurück",
-	PaginationNext:         "Weiter",
-	PaginationPreviousPage: "Zur vorherigen Seite",
-	PaginationNextPage:     "Zur nächsten Seite",
-	PaginationEllipsis:     "Mehr Seiten",
-	SidebarTrigger:         "Seitenleiste umschalten",
-	Spinner:                "Lädt",
-	FormClear:              "leeren",
-	FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
-	FormChooseOption:       "Auswählen…",
-	FormNoSelection:        "(keine)",
-	FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
-	FormExpectedFormat:     "Erwartetes Format:",
-	FormInvalidFormat:      "Nicht im erwarteten Format:",
+	BreadcrumbNav:                "Brotkrümelnavigation",
+	BreadcrumbEllipsis:           "Mehr Einträge",
+	CalendarPrevious:             "Zum vorherigen Monat",
+	CalendarNext:                 "Zum nächsten Monat",
+	CarouselPrevious:             "Vorheriges Bild",
+	CarouselNext:                 "Nächstes Bild",
+	DialogClose:                  "Schließen",
+	NavigationMenuNav:            "Hauptnavigation",
+	PaginationNav:                "Seitennummerierung",
+	PaginationPrevious:           "Zurück",
+	PaginationNext:               "Weiter",
+	PaginationPreviousPage:       "Zur vorherigen Seite",
+	PaginationNextPage:           "Zur nächsten Seite",
+	PaginationEllipsis:           "Mehr Seiten",
+	SidebarTrigger:               "Seitenleiste umschalten",
+	Spinner:                      "Lädt",
+	FormClear:                    "leeren",
+	FormValueNotAvailable:        "(aktueller Wert nicht verfügbar)",
+	FormValueNotAvailableRemoved: "(aktueller Wert nicht verfügbar und wird beim Speichern entfernt)",
+	FormChooseOption:             "Auswählen…",
+	FormNoSelection:              "(keine)",
+	FormValuesNotAvailable:       "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
+	FormExpectedFormat:           "Erwartetes Format:",
+	FormInvalidFormat:            "Nicht im erwarteten Format:",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -148,15 +149,24 @@ var labelCases = []labelCase{
 		// The reflected-form strings are built-in labels too: the caller
 		// never passes them, so before Labels they were English-only in an
 		// otherwise translated form.
-		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), false) },
+		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), "Optional", false) },
 		fields:  []string{"FormClear"},
 		english: []string{`text-sm">clear<`},
 		german:  []string{`text-sm">leeren<`},
 	}, {
-		name: "FormSelectOutOfListPlaceholder", comp: outOfListSelect,
+		name: "FormSelectOutOfListPlaceholder", comp: requiredOutOfListSelect,
 		fields:  []string{"FormValueNotAvailable"},
 		english: []string{`selected="selected">(current value not available)<`},
 		german:  []string{`selected="selected">(aktueller Wert nicht verfügbar)<`},
+		wrapCtx: func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, shadcnPartnersKey{},
+				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+		},
+	}, {
+		name: "FormSelectOutOfListRemoved", comp: outOfListSelect,
+		fields:  []string{"FormValueNotAvailableRemoved"},
+		english: []string{`selected="selected">(current value not available and is removed when you save)<`},
+		german:  []string{`selected="selected">(aktueller Wert nicht verfügbar und wird beim Speichern entfernt)<`},
 		wrapCtx: func(ctx context.Context) context.Context {
 			return context.WithValue(ctx, shadcnPartnersKey{},
 				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
@@ -184,7 +194,7 @@ var labelCases = []labelCase{
 		comp:    enumSetWithHiddenMember,
 		fields:  []string{"FormValuesNotAvailable"},
 		english: []string{">(some current values are not available and are removed when you save)<"},
-		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
+		german:  []string{">(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)<"},
 	}, {
 		name:    "FormExpectedFormat",
 		comp:    dateStructWithOwnText,
@@ -240,6 +250,17 @@ func outOfListSelect() mx.Component {
 	f, _ := v.Type().FieldByName("Partner")
 	beh := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0))
 	return beh.Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+}
+
+func requiredOutOfListSelect() mx.Component {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners,required"`
+	}
+	s := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	return FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
 }
 
 func requiredEmptySelect() mx.Component {

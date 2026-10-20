@@ -99,10 +99,10 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		// The browser counts the default step of 60 seconds from min, or
 		// from the value attribute when there is no valid min.
 		tt := timeTexts[spec.Type]
-		t, hasValue := tt.parse(spec.Value)
-		lowest, hasMin := tt.parse(tag.Min)
-		if hasValue && hasMin && t.Sub(lowest)%time.Minute != 0 {
-			spec.Step = "1"
+		if lowest, hasMin := tt.parse(tag.Min); hasMin {
+			if t, hasValue := tt.parse(spec.Value); hasValue && t.Sub(lowest)%time.Minute != 0 {
+				spec.Step = "1"
+			}
 		}
 	}
 	return spec
@@ -140,12 +140,41 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
 			spec.Value = t.Format(tt.layouts[0])
 			spec.Time = t
+			// The text keeps only the offset; the wrapped time, where it is
+			// the same time shown the same way, keeps its named zone and so
+			// the offset of another date.
+			if held, ok := innerTime(v); ok && held.Equal(t) && held.Format(time.RFC3339) == t.Format(time.RFC3339) {
+				spec.Time = held
+			}
 			return spec
 		}
 		spec.Type, spec.Value = tt.input(inputType, text, text)
 		spec.Invalid = spec.TextFallback() && (tag.Min != "" || tag.Max != "")
 	}
 	return spec
+}
+
+// innerTime returns the time.Time a wrapper holds as its first field, also
+// through pointers and further wrappers, as a nullable time embedding
+// sql.NullTime does.
+func innerTime(v reflect.Value) (time.Time, bool) {
+	// A few levels cover every wrapper seen in practice and bound the walk.
+	for range 4 {
+		for v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				return time.Time{}, false
+			}
+			v = v.Elem()
+		}
+		if t, ok := timeOf(v); ok {
+			return t, true
+		}
+		if v.Kind() != reflect.Struct || v.NumField() == 0 {
+			return time.Time{}, false
+		}
+		v = v.Field(0)
+	}
+	return time.Time{}, false
 }
 
 // DateTimeInputLayout returns the layout, with seconds, of the input type
