@@ -377,10 +377,15 @@ func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 		subject = ""
 	}
 	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
-	if inputType == "time" {
+	switch inputType {
+	case "time":
 		// A time input has no date, and its bounds are read on the zero
 		// date: a posted time put on the stored date compares its clock.
 		t = time.Date(0, 1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	case "date":
+		// A date input has no clock: a date read in a zone whose clocks
+		// skip midnight starts at 01:00, which is still that day.
+		t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	}
 	lowest, hasMin := tt.parse(tag.Min)
 	highest, hasMax := tt.parse(tag.Max)

@@ -460,3 +460,19 @@ func TestDateTimeInput_FormatPanicShowsStoredText(t *testing.T) {
 		t.Errorf("DateTimeInput = %+v", in)
 	}
 }
+
+// A date input has no clock, so a date read in a zone whose clocks skip
+// midnight, where the day starts at 01:00, is still on its max day.
+func TestCheckDateTimeRange_DateIgnoresClock(t *testing.T) {
+	havana, err := time.LoadLocation("America/Havana")
+	if err != nil {
+		t.Skip(err)
+	}
+	tag := FormTag{Widget: "date", Min: "2026-03-08", Max: "2026-03-08"}
+	if err := CheckDateTimeRange(tag, "2026-03-08", time.Date(2026, 3, 8, 1, 0, 0, 0, havana)); err != nil {
+		t.Errorf("the max day starting at 01:00: %v", err)
+	}
+	if err := CheckDateTimeRange(tag, "2026-03-09", time.Date(2026, 3, 9, 0, 0, 0, 0, havana)); err == nil {
+		t.Error("the day after max must be rejected")
+	}
+}

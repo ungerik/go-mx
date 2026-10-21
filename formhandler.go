@@ -110,7 +110,8 @@ type ReflectFormConfig struct {
 // or 413 past the multipart limits, net/http's 10 MB for a urlencoded
 // body or a limit set with [http.MaxBytesReader], never treated as a
 // submission of nothing, also when a middleware parsed it first and
-// ignored the error. A middleware that reads a multipart form must parse
+// ignored the error; a body that is no form (urlencoded or multipart) is
+// answered with 415. A middleware that reads a multipart form must parse
 // all of it (r.ParseMultipartForm or r.FormValue): after r.ParseForm alone
 // the handler cannot tell an unread multipart body from a half-read one
 // and answers 400.
@@ -246,7 +247,10 @@ func ReflectFormHandlerRedirecting[T any](
 			if parseErr := parseFormBody(w, r, maxMem, maxUpload); parseErr != nil {
 				status := http.StatusBadRequest
 				var tooLarge *http.MaxBytesError
-				if errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) || parseErr.Error() == errPostTooLarge {
+				switch {
+				case errors.Is(parseErr, errNotAForm):
+					status = http.StatusUnsupportedMediaType
+				case errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) || parseErr.Error() == errPostTooLarge:
 					status = http.StatusRequestEntityTooLarge
 				}
 				http.Error(w, "could not parse form", status)
@@ -518,6 +522,11 @@ func clearField(tag FormTag, kind FieldKind, value reflect.Value, form url.Value
 // a body past the multipart limits does.
 const errPostTooLarge = "http: POST too large"
 
+// errNotAForm answers a POST whose body is no form, such as JSON or one
+// without a content type: parsing it reads nothing, and onSubmit would run
+// on a submission of nothing.
+var errNotAForm = errors.New("the body is not a form")
+
 // errPreParseFailed answers a body a middleware parsed before the handler
 // and failed to read (see [preParseFailed]).
 var errPreParseFailed = errors.New("the form body was parsed before the handler and could not be read")
@@ -549,6 +558,9 @@ func preParseFailed(r *http.Request, mediaType string) bool {
 // positive, is too large.
 func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem, maxUpload int64) error {
 	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaType != ContentTypeWWWFormURLEncoded && mediaType != ContentTypeMultipartFormData {
+		return errNotAForm
+	}
 	if mediaType == ContentTypeMultipartFormData && maxUpload > 0 && r.Body != nil {
 		r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	}

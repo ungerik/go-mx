@@ -224,7 +224,9 @@ form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
 its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
 parsed is answered with 400 (413 past the multipart limits, net/http's
 10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
-`onSubmit`, also when a middleware parsed it first and ignored the error. A
+`onSubmit`, also when a middleware parsed it first and ignored the error; a
+body that is no form, such as JSON or one without a content type, is answered
+with 415. A
 middleware that reads a multipart form, such as a method override calling
 `r.FormValue`, must parse all of it (`r.ParseMultipartForm` or `r.FormValue`):
 after `r.ParseForm` alone the handler cannot tell an unread multipart body from

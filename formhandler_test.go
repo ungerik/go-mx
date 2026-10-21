@@ -1971,3 +1971,26 @@ func TestReflectFormHandlerRedirecting_NilOnSubmitPanics(t *testing.T) {
 	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
 	_ = ReflectFormHandlerRedirecting[sampleStruct](ReflectFormConfig{}, load, nil)
 }
+
+// A POST whose body is no form, such as JSON or one without a content
+// type, is answered with 415 and never reaches onSubmit as a submission
+// of nothing.
+func TestReflectFormHandler_NonFormBodyRejected(t *testing.T) {
+	saved := false
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{Name: "stored"}, nil },
+		func(context.Context, *sampleStruct) error { saved = true; return nil },
+		newTestDecider(),
+	)
+	for _, contentType := range []string{"application/json", "text/plain", ""} {
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"Name":"x"}`))
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnsupportedMediaType || saved {
+			t.Errorf("content type %q: status %d, saved %t", contentType, rec.Code, saved)
+		}
+	}
+}

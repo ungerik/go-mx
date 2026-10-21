@@ -568,6 +568,32 @@ before `UnmarshalText`. Found in the date widget branch's review; deferred.
 **Priority:** P3
 **Depends on:** None
 
+### A forged row origin pairs one row's readonly values with another's key
+
+**What:** Tie a rebuilt repeatable row's origin to its hidden key cells: a
+row whose `__row__` marker names a loaded row but whose submitted hidden
+cells (such as a per-row `ID`) differ from that row's starts as a new row,
+or rows are matched by a declared key (`form:"hidden,key"`) that must be one
+of the loaded keys.
+
+**Why:** A rebuilt row starts as a copy of the loaded row its marker names,
+so its readonly and sensitive cells are kept, while its hidden key is parsed
+from the POST; both are client-controlled and nothing checks that they
+belong together. A tampered POST naming row 0 with row 1's key saves row 0's
+readonly price (or stored secret) under row 1's key, and an `onSubmit` that
+updates by key writes it to the wrong record.
+
+**Context:** `parseRepeatable` and `rowOrigin` in `repeatable.go`. Keeping
+the loaded hidden cells instead would break a hidden optimistic-locking
+`UpdatedAt` per row, which must come from the client, and comparing parsed
+values needs `Equal` for times (a round-tripped time has another location).
+Until then, an `onSubmit` must restore readonly row values by key itself.
+Found by the date widget branch's adversarial review.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
 ### A `database/sql` text holding a NUL byte cannot be saved
 
 **What:** Decide the `Scan` path of a `database/sql` field by its type, not by
@@ -581,9 +607,17 @@ text, so `setScalar` skips `Scan` and every save of a `sql.NullString` holding
 database/sql.Scanner", though the type implements `Scanner`; a newly typed
 valid value cannot be saved either.
 
+A tab or line break in such text is not caught at all: the attribute
+escaper turns them into spaces and browsers strip line breaks from text
+inputs, so an unchanged save rewrites `"a\tb"` as `"a  b"` and `"k1\nk2"`
+as `"k1 k2"`; excluding them in `inputText` would make such values
+unsaveable through the same `isScanner` path, so both need the type-based
+`Scan` decision, and multi-line text a textarea.
+
 **Context:** `isScanner` and `setScalar` in `html/formdecider.go`;
-`DriverValueText` in `nullable.go`. Skipped in the date widget branch's
-review as rare.
+`DriverValueText` and `inputText` in `nullable.go`. Skipped in the date
+widget branch's review as rare; the tab and line break case came from its
+adversarial review.
 
 **Effort:** S
 **Priority:** P4
