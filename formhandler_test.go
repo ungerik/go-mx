@@ -893,6 +893,44 @@ func TestRepeatable_AddedRowRequiredWithoutSentinel(t *testing.T) {
 	}
 }
 
+// A required int enum sent blank is rejected whatever the decider's parser
+// does with the blank: one that stores the zero, as an empty select does,
+// must not get a 0 that is no constant saved, also not in a row.
+func TestReflectFormHandler_RequiredIntEnumBlankWithZeroingParser(t *testing.T) {
+	type line struct {
+		Prio prioEnum `form:"required"`
+	}
+	type record struct {
+		Prio  prioEnum `form:"required"`
+		Lines []line   `form:"repeatable"`
+	}
+	base := newTestDecider()
+	zeroing := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		parse := beh.Parse
+		beh.Parse = func(path FieldPath, field reflect.StructField, value reflect.Value, r *http.Request) error {
+			if r.PostForm.Get(string(path)) == "" {
+				value.SetZero()
+				return nil
+			}
+			return parse(path, field, value, r)
+		}
+		return beh
+	}
+	for _, c := range []struct{ name, top, row string }{{"blank top", "", "1"}, {"blank row", "1", ""}} {
+		var saved *record
+		handler := ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, zeroing)
+		form := url.Values{}
+		form.Set(PresentSentinelName("Prio"), "1")
+		form.Set("Prio", c.top)
+		addRow(form, "Lines", 0, map[string]string{"Prio": c.row})
+		form.Set(RowSentinelName("Lines-0"), "new")
+		if rec := postForm(t, handler, form); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), ">required<") {
+			t.Errorf("%s: status %d, saved %+v; want a required error", c.name, rec.Code, saved)
+		}
+	}
+}
+
 type enumLine struct {
 	Color strictEnum
 	Set   map[strictEnum]struct{}
@@ -995,6 +1033,67 @@ func TestReflectFormHandler_MaxUploadSize(t *testing.T) {
 // maxFormBody is the size net/http's ParseForm reads of a urlencoded body
 // that no http.MaxBytesReader limits.
 const maxFormBody = 10 << 20
+
+// A middleware that parses the body before the handler, such as one
+// reading a method override with r.FormValue, ignores its parse error. The
+// handler must not save what the failed parse left: nothing of a body past
+// a limit, or the tail of a multipart body the middleware stopped reading.
+func TestReflectFormHandler_MiddlewareParseFailureRejected(t *testing.T) {
+	var saved *sampleStruct
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{Name: "stored"}, nil },
+		func(_ context.Context, s *sampleStruct) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	override := func(limit int64) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if limit > 0 {
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
+			}
+			_ = r.FormValue("_method")
+			h.ServeHTTP(w, r)
+		})
+	}
+
+	urlencoded := func() *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("__present__Name=1&Name=edited&__present__Age=1&Age=7"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		return req
+	}
+	saved = nil
+	rec := httptest.NewRecorder()
+	override(10).ServeHTTP(rec, urlencoded())
+	if rec.Code == http.StatusSeeOther || saved != nil {
+		t.Errorf("a urlencoded body the middleware failed to read: status %d, saved %+v", rec.Code, saved)
+	}
+	// Control: a body the middleware read in full saves.
+	rec = httptest.NewRecorder()
+	override(0).ServeHTTP(rec, urlencoded())
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "edited" {
+		t.Errorf("a urlencoded body the middleware parsed: status %d, saved %+v", rec.Code, saved)
+	}
+
+	// Past net/http's 1,000 multipart parts, the middleware's parse stops
+	// midway; the handler must not read on and save only the tail.
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField(PresentSentinelName("Name"), "1")
+	_ = mw.WriteField("Name", "edited")
+	for i := range 1100 {
+		_ = mw.WriteField("pad"+strconv.Itoa(i), "x")
+	}
+	_ = mw.WriteField(PresentSentinelName("Age"), "1")
+	_ = mw.WriteField("Age", "7")
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	saved = nil
+	rec = httptest.NewRecorder()
+	override(0).ServeHTTP(rec, req)
+	if rec.Code == http.StatusSeeOther || saved != nil {
+		t.Errorf("a multipart body the middleware stopped reading: status %d, saved %+v", rec.Code, saved)
+	}
+}
 
 func TestReflectFormHandler_UnparseableBodyRejected(t *testing.T) {
 	saved := false
@@ -1486,6 +1585,32 @@ func TestReflectFormHandler_MultipartTempFilesRemoved(t *testing.T) {
 	}
 }
 
+// A multipart form a middleware parsed before the handler stays the
+// middleware's: the handler must not remove the uploads it still reads.
+func TestReflectFormHandler_PreParsedMultipartFilesKept(t *testing.T) {
+	h := ReflectFormHandlerWith(ReflectFormConfig{MaxMemory: 64},
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return nil }, newTestDecider())
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField(PresentSentinelName("Name"), "1")
+	part, _ := mw.CreateFormFile("Doc", "doc.bin")
+	_, _ = part.Write(bytes.Repeat([]byte("x"), 4096)) // past MaxMemory: on disk
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if err := req.ParseMultipartForm(64); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = req.MultipartForm.RemoveAll() })
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	f, err := req.MultipartForm.File["Doc"][0].Open()
+	if err != nil {
+		t.Fatalf("the middleware's upload was removed by the handler: %v", err)
+	}
+	f.Close()
+}
+
 // A form posts urlencoded, whose limit is 10,000 values, unless a file
 // input, also in a row, needs multipart.
 func TestReflectFormHandler_Enctype(t *testing.T) {
@@ -1509,11 +1634,30 @@ func TestReflectFormHandler_Enctype(t *testing.T) {
 			func(context.Context, *withFile) error { return nil }, newTestDecider())), "multipart/form-data"},
 		{"file in an empty repeatable", getBody(t, ReflectFormHandler(func(context.Context) (*withRowFile, error) { return &withRowFile{}, nil },
 			func(context.Context, *withRowFile) error { return nil }, newTestDecider())), "multipart/form-data"},
+		// A decider rendering its own upload widget, on a field the
+		// detection does not see as a file, declares that it needs one.
+		{"decider upload", getBody(t, ReflectFormHandler(func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+			func(context.Context, *sampleStruct) error { return nil }, multipartName)), "multipart/form-data"},
+		{"decider upload in an empty repeatable", getBody(t, ReflectFormHandler(func(context.Context) (*invoice, error) { return &invoice{}, nil },
+			func(context.Context, *invoice) error { return nil }, multipartDesc)), "multipart/form-data"},
 	} {
 		if !strings.Contains(c.body, `enctype="`+c.want+`"`) {
 			t.Errorf("%s: %s, want enctype %s", c.name, c.body, c.want)
 		}
 	}
+}
+
+// multipartName and multipartDesc mark a single field as an upload widget.
+func multipartName(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+	beh := newTestDecider()(path, field, value)
+	beh.Multipart = path == "Name"
+	return beh
+}
+
+func multipartDesc(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+	beh := newTestDecider()(path, field, value)
+	beh.Multipart = strings.HasSuffix(string(path), "-Desc")
+	return beh
 }
 
 type requiredNullLine struct {

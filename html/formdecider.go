@@ -33,7 +33,7 @@ import (
 // the kinds they don't customize and falling through for the rest.
 var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
 	kind, tag := mx.DetectField(path, field, value)
-	return mx.FieldBehavior{
+	beh := mx.FieldBehavior{
 		Render: func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
 			return renderField(path, field, value, kind, tag, errs)
 		},
@@ -41,6 +41,23 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 			return parseField(path, field, value, kind, tag, r)
 		},
 	}
+	if rendersAlways(kind) {
+		beh.MarkRenderNonNil()
+	}
+	return beh
+}
+
+// rendersAlways reports whether renderField returns a Component for every
+// field of kind, so the form handler need not render one on a POST to see
+// that it is in the form.
+func rendersAlways(kind mx.FieldKind) bool {
+	switch kind {
+	case mx.FieldKindHidden, mx.FieldKindString, mx.FieldKindTextarea, mx.FieldKindNumber,
+		mx.FieldKindBool, mx.FieldKindDateTime, mx.FieldKindFile, mx.FieldKindEnum,
+		mx.FieldKindEnumSet, mx.FieldKindCatchAll:
+		return true
+	}
+	return false
 }
 
 // renderField produces the HTML for one form field: an optional
@@ -244,6 +261,9 @@ func checkboxInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 }
 
 func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
+	if err := mx.DateTimeTagError(value, tag); err != nil {
+		return mx.NewErrElement(err)
+	}
 	in := mx.DateTimeInput(value, tag)
 	attribs := []mx.Attrib{
 		Type(in.Type),
@@ -256,9 +276,10 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	// A text input shows stored text the picker cannot hold: it has no
 	// date range and it says which format to enter. Text the parser rejects
 	// is invalid from the start, because saving it unchanged fails. A
-	// readonly field is never saved, so it asks for nothing.
+	// readonly field is never saved, so it asks for nothing, and neither
+	// does a type that reads only its own spelling (no Format).
 	textFallback := in.TextFallback()
-	askFormat := textFallback && !tag.Readonly
+	askFormat := textFallback && !tag.Readonly && in.Format != ""
 	if askFormat {
 		attribs = append(attribs,
 			Placeholder(cmp.Or(tag.Placeholder, in.Format)),
@@ -350,6 +371,15 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
+	// Saving drops a value the list does not offer, which the note after
+	// the select says, also to a screen reader. The start tag is written
+	// before a context list resolves, so a select that can drop its value
+	// always refers to the note, which is empty and hidden when it drops
+	// nothing.
+	removable := !tag.Required && !tag.Readonly
+	if removable {
+		attribs = append(attribs, mx.NewAttrib("aria-describedby", optionNoteID(path)))
+	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
 	removed := false
 	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
@@ -369,15 +399,40 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		// The options decide whether saving drops the value, also those a
 		// context list resolves while the select renders, before this.
 		mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-			if !removed {
+			if !removable {
 				return nil
 			}
-			return mx.NewElement("p",
-				mx.Attribute{Name: "class", Value: "form-help"},
-				mx.Text("The current value is removed when you save."),
-			).Render(ctx, w)
+			text := ""
+			if removed {
+				text = "The current value is removed when you save."
+			}
+			return optionNote(path, text).Render(ctx, w)
 		}),
 	}
+}
+
+// optionNote is the note a select or checkbox set describes itself by
+// (see [optionNoteID]): text, or, for "", an empty hidden element, so the
+// reference written before a context list resolved stays valid.
+func optionNote(path mx.FieldPath, text string) mx.Component {
+	if text == "" {
+		return mx.NewElement("p",
+			mx.Attribute{Name: "id", Value: optionNoteID(path)},
+			Hidden,
+		)
+	}
+	return mx.NewElement("p",
+		mx.Attribute{Name: "class", Value: "form-help"},
+		mx.Attribute{Name: "id", Value: optionNoteID(path)},
+		mx.Text(text),
+	)
+}
+
+// optionNoteID is the id of the note under a select or checkbox set whose
+// stored value the option list does not offer. The lowercase suffix cannot
+// collide with a field path, whose segments are exported Go field names.
+func optionNoteID(path mx.FieldPath) string {
+	return string(path) + "-note"
 }
 
 // selectPrefaceOption renders the leading option [mx.SelectPreface] chose.
@@ -420,21 +475,22 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 	}, func(options []mx.NamedOption) mx.Component {
 		preface := mx.EnumSetPreface(setMemberValues(value), tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
-			return nil
+			return optionNote(path, "")
 		}
 		note := "(some current values are not available)"
 		if preface.RemovesValue(tag) {
 			note = "(some current values are not available and are removed when you save)"
 		}
-		return mx.NewElement("p",
-			mx.Attribute{Name: "class", Value: "form-help"},
-			mx.Text(note),
-		)
+		return optionNote(path, note)
 	})
+	// The group is described by the note on members the list does not
+	// offer, which is empty and hidden when there are none (see
+	// optionNote).
 	group := []any{mx.Attribute{Name: "role", Value: "group"}}
 	if fieldLabel(field, tag) != "" {
 		group = append(group, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
+	group = append(group, mx.Attribute{Name: "aria-describedby", Value: optionNoteID(path)})
 	if len(errs) > 0 {
 		group = append(group, mx.Attribute{Name: "aria-invalid", Value: "true"})
 	}
@@ -537,7 +593,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 				// undone by the list changing before POST.
 				options, err := mx.CollectOptions(r.Context(), reflect.Value{}, tag, keyType)
 				if err != nil {
-					return err
+					return optionListError(err)
 				}
 				if err := rejectUnlistedOptions(options, vals); err != nil {
 					return err
@@ -547,6 +603,12 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		})
 	case mx.FieldKindFile:
 		if r.MultipartForm == nil {
+			// A urlencoded body carries only a chosen file's name: the
+			// form missed its multipart enctype, and saving would drop the
+			// upload. A blank input keeps the stored file.
+			if r.PostForm.Get(string(path)) != "" {
+				return errors.New("the file was not uploaded: the form must be sent as multipart/form-data")
+			}
 			return nil
 		}
 		files, ok := r.MultipartForm.File[string(path)]
@@ -602,9 +664,24 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 	}
 	options, err := mx.CollectOptions(ctx, value, tag, t)
 	if err != nil {
-		return err
+		return optionListError(err)
 	}
 	return rejectUnlistedOptions(options, vals)
+}
+
+// optionListError is the field error for a context option list that failed
+// while a POST was parsed. Like an onSubmit error, its text may carry
+// internal details and a call stack, so it is shown only when
+// [mx.RevealInternalServerErrors] is set: otherwise the field shows a
+// [mx.FormMessage] the list returned, or [mx.FormErrorMessage].
+func optionListError(err error) error {
+	if m, ok := errors.AsType[mx.FormMessage](err); ok {
+		return m
+	}
+	if mx.RevealInternalServerErrors {
+		return err
+	}
+	return errors.New(mx.FormErrorMessage)
 }
 
 // rejectUnlistedOptions is the membership check itself, split out so an
@@ -653,6 +730,10 @@ func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() erro
 
 // maxNumberLen is the longest text a number field takes.
 const maxNumberLen = 64
+
+// maxDateTimeLen is the longest text a date, datetime or time field takes,
+// longer than any input sends or a date type spells a date.
+const maxDateTimeLen = 64
 
 // checkNumberRange returns a validation error when value, the number just
 // bound from raw, lies outside the tag's form:"min=…,max=…". The bound
@@ -911,19 +992,25 @@ func driverValueOf(value reflect.Value) any {
 }
 
 // scanError is the validation error for raw, text a database/sql type does
-// not scan: it names what to enter, judged by the stored driver value.
+// not scan: it names what to enter, judged by the stored driver value. Text
+// longer than any number or time is not quoted, so a submission of any size
+// is not echoed into the page.
 func scanError(raw string, stored any) error {
+	subject := fmt.Sprintf("%q is", raw)
+	if len(raw) > maxNumberLen {
+		subject = "the text is"
+	}
 	switch stored.(type) {
 	case int64:
-		return fmt.Errorf("%q is not a whole number", raw)
+		return fmt.Errorf("%s not a whole number", subject)
 	case float64:
-		return fmt.Errorf("%q is not a number", raw)
+		return fmt.Errorf("%s not a number", subject)
 	case bool:
-		return fmt.Errorf("%q is not true or false", raw)
+		return fmt.Errorf("%s not true or false", subject)
 	case time.Time:
-		return fmt.Errorf("%q is not a time in RFC 3339 format, such as 2026-01-02T15:04:05Z", raw)
+		return fmt.Errorf("%s not a time in RFC 3339 format, such as 2026-01-02T15:04:05Z", subject)
 	}
-	return fmt.Errorf("%q is not a valid value", raw)
+	return fmt.Errorf("%s not a valid value", subject)
 }
 
 func setNumeric(value reflect.Value, raw string) error {
@@ -984,6 +1071,12 @@ func setBool(value reflect.Value, raw string) error {
 }
 
 func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
+	// Text longer than any date or time input sends is no date. It is
+	// rejected before it is bound, so the re-render does not echo a
+	// submission of any size, and the field keeps its stored value.
+	if len(raw) > maxDateTimeLen {
+		return mx.DateTimeFormatError(tag, raw)
+	}
 	if value.Kind() == reflect.Pointer {
 		if raw == "" {
 			value.SetZero()
@@ -1612,13 +1705,31 @@ func isPlainNumber(t reflect.Type) bool {
 
 // browserTag is the tag the input renders with: a form:"sensitive" input
 // that holds a stored value shows none, and a blank keeps the stored
-// value, so the browser must not demand one. The server still rejects a
-// blank required field when nothing is stored.
+// value, so the browser must not demand one; neither must a file input
+// whose field holds a file. The server still rejects a blank required
+// field when nothing is stored.
 func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
-	if tag.Required && mx.KeepsStoredValue(tag, kind, value) {
+	if tag.Required && (mx.KeepsStoredValue(tag, kind, value) || kind == mx.FieldKindFile && hasStoredFile(value)) {
 		tag.Required = false
 	}
 	return tag
+}
+
+// hasStoredFile reports whether a file field's value holds a file: bytes or
+// a file name. A file input left empty keeps it, so a required one demands
+// no new upload; the handler still rejects a blank with nothing stored.
+func hasStoredFile(value reflect.Value) bool {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return false
+		}
+		value = value.Elem()
+	}
+	switch value.Kind() {
+	case reflect.String, reflect.Slice:
+		return value.Len() > 0
+	}
+	return false
 }
 
 func isTrueBool(value reflect.Value) bool {

@@ -108,18 +108,27 @@ func repeatableCommandField(cmd string) (field FieldPath, ok bool) {
 // instead of silently discarding the save.
 //
 // A readonly repeatable field takes no row commands, also when a readonly
-// section passes readonly down to it, which the walk accounts for.
-func isRepeatableCommand(target any, cmd string) bool {
+// section passes readonly down to it, which the walk accounts for, and
+// neither does one the decider d leaves out of the form.
+func isRepeatableCommand(target any, d FieldDecider, cmd string) bool {
 	field, ok := repeatableCommandField(cmd)
 	if !ok {
 		return false
 	}
 	for visit := range ReflectFormFields(target) {
 		if visit.Path == field {
-			return visit.Kind == FieldKindRepeatable && !visit.Tag.Readonly
+			return visit.Kind == FieldKindRepeatable && !visit.Tag.Readonly && repeatableInForm(visit, d)
 		}
 	}
 	return false
+}
+
+// repeatableInForm reports whether the decider d puts the repeatable field
+// of visit into the form. The field renders its rows itself, so the
+// Component its Render returns is not used: a nil Render leaves the field
+// out, and the handler then neither renders nor writes its rows.
+func repeatableInForm(visit FieldVisit, d FieldDecider) bool {
+	return d(visit.Path, visit.Field, visit.Value).Render != nil
 }
 
 // requestFormValues returns the parsed non-file form values, preferring
@@ -147,9 +156,15 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 	if structType == nil {
 		return nil, false
 	}
-	// A row added later renders the cells of a zero row.
+	// A row added later renders the cells of a zero row, at the index
+	// after the loaded rows.
+	added := 0
+	if slice.Kind() == reflect.Slice {
+		added = slice.Len()
+	}
+	addedRow := visit.Path.Append(strconv.Itoa(added))
 	for cv := range ReflectFormFields(reflect.New(structType).Interface()) {
-		hasFile = hasFile || cv.Kind == FieldKindFile
+		hasFile = hasFile || cv.Kind == FieldKindFile || d(addedRow.Append(string(cv.Path)), cv.Field, cv.Value).Multipart
 	}
 
 	label := visit.Field.Name
@@ -241,7 +256,7 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 		if _, hasErrs := fieldErrs[cellPath]; hasErrs && cv.Kind != FieldKindHidden {
 			consumed[cellPath] = true
 		}
-		hasFile = hasFile || cv.Kind == FieldKindFile
+		hasFile = hasFile || cv.Kind == FieldKindFile || beh.Multipart
 		cells = append(cells, wrapWithPresentSentinel(cellPath, comp))
 	}
 	cells = append(cells, NewVoidElement("input",

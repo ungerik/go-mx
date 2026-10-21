@@ -487,8 +487,12 @@ func TestFieldDecider_SelectPlaceholderSaysRemoval(t *testing.T) {
 		if !strings.Contains(out, `selected="selected">(current value not available)</option>`) {
 			t.Errorf("%s: want the short caption in %q", name, out)
 		}
-		if got := strings.Contains(out, `<p class="form-help">The current value is removed when you save.</p>`); got != removed {
+		if got := strings.Contains(out, `<p class="form-help" id="`+name+`-note">The current value is removed when you save.</p>`); got != removed {
 			t.Errorf("%s: removal note shown %t, want %t: %q", name, got, removed, out)
+		}
+		// The select is described by the note, so a screen reader hears it.
+		if got := strings.Contains(out, `aria-describedby="`+name+`-note"`); got != removed {
+			t.Errorf("%s: described by the removal note %t, want %t: %q", name, got, removed, out)
 		}
 	}
 }
@@ -500,7 +504,7 @@ func TestFieldDecider_EnumSetLabelNamesGroup(t *testing.T) {
 		Tags []string `form:"options=test-html-tags"`
 	}
 	out := renderFieldHTML(t, &tagForm{}, "Tags")
-	if !strings.Contains(out, `<label id="Tags-label">Tags:</label><div role="group" aria-labelledby="Tags-label">`) {
+	if !strings.Contains(out, `<label id="Tags-label">Tags:</label><div role="group" aria-labelledby="Tags-label" aria-describedby="Tags-note">`) {
 		t.Errorf("want the group named by its label: %s", out)
 	}
 }
@@ -1368,8 +1372,10 @@ func TestFieldDecider_EnumSetParseReturnsProviderError(t *testing.T) {
 	}
 	v := reflect.ValueOf(f).Elem()
 	field, _ := v.Type().FieldByName("Tags")
+	// The provider's text stays out of the page (see
+	// TestFieldDecider_OptionListParseErrorNotShown); the failure does not.
 	err := FieldDecider("Tags", field, v.Field(0)).Parse("Tags", field, v.Field(0), r)
-	if err == nil || !strings.Contains(err.Error(), "no partners in context") {
+	if err == nil || err.Error() != mx.FormErrorMessage {
 		t.Fatalf("provider error = %v", err)
 	}
 	if len(f.Tags) != 1 || f.Tags[0] != "kept" {
@@ -3021,6 +3027,8 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		I float64 `form:"max=+5,min=Inf"`
 		Z int     `form:"sensitive,min=1000"`
 		Y int     `form:"sensitive,max=9999"`
+		U uint    `form:"min=1,max=10"`
+		Q float32 `form:"min=0.7"`
 	}
 	f := &form{}
 	for _, b := range []struct{ field, raw, wantErr string }{
@@ -3060,6 +3068,14 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		{"E", "5", ""},
 		{"I", "99", ""},
 		{"T", "1", `"1" is less than 1e39`},
+		// An unsigned number is held to its range like a signed one.
+		{"U", "11", `"11" is greater than 10`},
+		{"U", "0", `"0" is less than 1`},
+		{"U", "10", ""},
+		// A float32 min is read at float32 precision too: float32(0.7)
+		// lies below the decimal 0.7, yet on its bound.
+		{"Q", "0.7", ""},
+		{"Q", "0.69", `"0.69" is less than 0.7`},
 	} {
 		err := parseFieldValue(t, f, b.field, b.raw)
 		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
@@ -3763,6 +3779,30 @@ func (c *prefixedCode) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// A database/sql number renders as a text input without min or max, so the
+// server is all that holds it to its range, also behind a pointer and for
+// a float.
+func TestFieldDecider_ScannedRangePointerAndFloat(t *testing.T) {
+	type form struct {
+		Ptr  *sql.NullInt64  `form:"min=0,max=10"`
+		Rate sql.NullFloat64 `form:"min=0,max=1.5"`
+	}
+	f := &form{}
+	for _, b := range []struct{ field, raw, wantErr string }{
+		{"Ptr", "11", `"11" is greater than 10`},
+		{"Ptr", "-1", `"-1" is less than 0`},
+		{"Ptr", "7", ""},
+		{"Rate", "1.6", `"1.6" is greater than 1.5`},
+		{"Rate", "-0.1", `"-0.1" is less than 0`},
+		{"Rate", "1.5", ""},
+	} {
+		err := parseFieldValue(t, f, b.field, b.raw)
+		if got := fmt.Sprint(err); (b.wantErr == "" && err != nil) || (b.wantErr != "" && got != b.wantErr) {
+			t.Errorf("bind %s %q: error %v, want %q", b.field, b.raw, err, b.wantErr)
+		}
+	}
+}
+
 // A database/sql type is held to the rules of what it holds: a number to
 // those of a number field, text it must scan as []byte to that, and an
 // error names what to enter. A type with its own text methods or String,
@@ -4339,6 +4379,35 @@ func TestReflectFormHandler_SensitiveClear(t *testing.T) {
 	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Secret != "new" || saved.Token == nil || *saved.Token != "t" {
 		t.Errorf("typed text with the tick: status %d, saved %+v", rec.Code, saved)
 	}
+
+	// It wins on a nullable input too, where the clear itself would
+	// succeed and drop the typed text.
+	saved = nil
+	vals = submittedValues(get.Body.String())
+	vals.Set(mx.ClearSentinelName("Token"), "1")
+	vals.Set("Token", "new")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Token == nil || *saved.Token != "new" {
+		t.Errorf("typed text with the tick on a pointer: status %d, saved %+v", rec.Code, saved)
+	}
+
+	// With nothing stored the tick is rendered set, so a first value the
+	// user types is always posted with it and must be saved.
+	saved = nil
+	empty := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	first := httptest.NewRecorder()
+	empty(first, httptest.NewRequest(http.MethodGet, "/", nil))
+	vals = submittedValues(first.Body.String())
+	if vals.Get(mx.ClearSentinelName("Token")) == "" {
+		t.Fatalf("an empty sensitive pointer must render its clear control ticked: %s", first.Body.String())
+	}
+	vals.Set("Token", "first")
+	if rec := postValues(t, empty, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Token == nil || *saved.Token != "first" {
+		t.Errorf("a first value typed next to the preset tick: status %d, saved %+v", rec.Code, saved)
+	}
 }
 
 // An upload larger than the handler's MaxMemory is a field error rather
@@ -4536,6 +4605,45 @@ func TestReflectFormHandler_RowEnumValidation(t *testing.T) {
 	saved = nil
 	if rec := post("red", "blue"); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), "not a color") {
 		t.Errorf("an invalid set member in a row: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// A required int enum's blank "(none)" is rejected, at the top level and in
+// a row. A blank binds the zero, which the handler's required check counts
+// as a number, not as empty, and the validation chain skips for a blank
+// enum, so the parser's required check is what keeps a 0 that is no
+// constant from being saved.
+func TestReflectFormHandler_RequiredIntEnumRejectsBlank(t *testing.T) {
+	type line struct {
+		Color colorCode `form:"required"`
+	}
+	type record struct {
+		Color colorCode `form:"required"`
+		Lines []line    `form:"repeatable"`
+	}
+	for _, c := range []struct {
+		name, top, row string
+		wantSaved      bool
+	}{{"both chosen", "red", "blue", true}, {"blank top", "", "blue", false}, {"blank row", "red", "", false}} {
+		var saved *record
+		h := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+		vals := url.Values{}
+		vals.Set(mx.PresentSentinelName("Color"), "1")
+		vals.Set("Color", c.top)
+		vals.Set(mx.PresentSentinelName("Lines"), "1")
+		vals.Set(mx.RowSentinelName("Lines-0"), "new")
+		vals.Set(mx.PresentSentinelName("Lines-0-Color"), "1")
+		vals.Set("Lines-0-Color", c.row)
+		rec := postValues(t, h, vals)
+		if c.wantSaved {
+			if rec.Code != http.StatusSeeOther || saved == nil || saved.Color != colorRed || len(saved.Lines) != 1 || saved.Lines[0].Color != colorBlue {
+				t.Errorf("%s: status %d, saved %+v, body %s", c.name, rec.Code, saved, rec.Body.String())
+			}
+			continue
+		}
+		if rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), ">required<") {
+			t.Errorf("%s: a blank required int enum must not save: status %d, saved %+v, body %s", c.name, rec.Code, saved, rec.Body.String())
+		}
 	}
 }
 
@@ -4762,13 +4870,14 @@ func TestReflectFormHandler_IntKindDateRoundTrip(t *testing.T) {
 // goes into new pointees, and the stored record changes only by onSubmit.
 func TestFieldDecider_DateBindKeepsSharedPointees(t *testing.T) {
 	type form struct {
-		Text *string        `form:"widget=date"`
-		Time *time.Time     `form:"widget=date,min=2026-01-01"`
-		Ptr  ptrWrappedTime `form:"widget=date"`
+		Text  *string        `form:"widget=date"`
+		Time  *time.Time     `form:"widget=date,min=2026-01-01"`
+		Ptr   ptrWrappedTime `form:"widget=date"`
+		Named optDate        `form:"widget=date"`
 	}
 	july := time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)
-	storedText, storedTime, storedPtr := "2026-07-06", july, july
-	f := &form{Text: &storedText, Time: &storedTime, Ptr: ptrWrappedTime{&storedPtr}}
+	storedText, storedTime, storedPtr, storedNamed := "2026-07-06", july, july, july
+	f := &form{Text: &storedText, Time: &storedTime, Ptr: ptrWrappedTime{&storedPtr}, Named: optDate{&storedNamed}}
 	for _, b := range []struct {
 		field, raw string
 		wantErr    bool
@@ -4779,18 +4888,42 @@ func TestFieldDecider_DateBindKeepsSharedPointees(t *testing.T) {
 		{"Time", "2026-08-05", false},
 		{"Ptr", "06.07.2026", true},
 		{"Ptr", "2026-08-05", false},
+		{"Named", "2026-08-05", false},
 	} {
 		if err := parseFieldValue(t, f, b.field, b.raw); (err != nil) != b.wantErr {
 			t.Errorf("bind %s %q: error %v, want error %t", b.field, b.raw, err, b.wantErr)
 		}
 	}
-	if storedText != "2026-07-06" || !storedTime.Equal(july) || !storedPtr.Equal(july) {
-		t.Errorf("stored pointees changed: %q %v %v", storedText, storedTime, storedPtr)
+	if storedText != "2026-07-06" || !storedTime.Equal(july) || !storedPtr.Equal(july) || !storedNamed.Equal(july) {
+		t.Errorf("stored pointees changed: %q %v %v %v", storedText, storedTime, storedPtr, storedNamed)
 	}
 	aug := time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)
-	if *f.Text != "2026-08-05" || !f.Time.Equal(aug) || f.Ptr.Time == nil || !f.Ptr.Equal(aug) {
-		t.Errorf("the form must hold the bound values: %q %v %v", *f.Text, f.Time, f.Ptr.Time)
+	if *f.Text != "2026-08-05" || !f.Time.Equal(aug) || f.Ptr.Time == nil || !f.Ptr.Equal(aug) || f.Named.At == nil || !f.Named.At.Equal(aug) {
+		t.Errorf("the form must hold the bound values: %q %v %v %v", *f.Text, f.Time, f.Ptr.Time, f.Named.At)
 	}
+}
+
+// optDate is a date struct holding its time in a named pointer field, which
+// its UnmarshalText writes through.
+type optDate struct{ At *time.Time }
+
+func (o optDate) MarshalText() ([]byte, error) {
+	if o.At == nil {
+		return nil, nil
+	}
+	return []byte(o.At.Format(time.DateOnly)), nil
+}
+
+func (o *optDate) UnmarshalText(b []byte) error {
+	t, err := time.Parse(time.DateOnly, string(b))
+	if err != nil {
+		return err
+	}
+	if o.At == nil {
+		o.At = new(time.Time)
+	}
+	*o.At = t
+	return nil
 }
 
 // A sensitive field's errors name the format and the bound but never echo
@@ -4903,5 +5036,174 @@ func TestReflectFormHandler_RegisteredMoneyIsText(t *testing.T) {
 	handler(rec, req)
 	if rec.Code != http.StatusSeeOther || saved == nil || saved.Total != (money{1250, "EUR"}) {
 		t.Errorf("unchanged POST: status %d, saved %+v; want 303 and 12.50 EUR kept", rec.Code, saved)
+	}
+}
+
+// Text no date input sends, past any input's length, is rejected without
+// being echoed: neither the error nor the re-rendered input repeats it, as
+// %q would grow a control byte to four. A database/sql number's error
+// leaves such text out too.
+func TestReflectFormHandler_LongDateTextNotEchoed(t *testing.T) {
+	type record struct {
+		Due   string    `form:"widget=date"`
+		At    time.Time `form:"widget=date"`
+		Count sql.NullInt64
+	}
+	long := strings.Repeat("\x01", 200)
+	for _, field := range []string{"Due", "At", "Count"} {
+		var saved *record
+		h := mx.ReflectFormHandler(
+			func(context.Context) (*record, error) { return &record{Due: "2026-07-06"}, nil },
+			func(_ context.Context, r *record) error { saved = r; return nil },
+			FieldDecider,
+		)
+		vals := url.Values{}
+		vals.Set(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+		vals.Set(field, long)
+		rec := postValues(t, h, vals)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK || saved != nil {
+			t.Errorf("%s: status %d, saved %+v; want a rejection", field, rec.Code, saved)
+		}
+		if strings.Contains(body, `\x01\x01`) || strings.Contains(body, "\x01\x01") || strings.Contains(body, "&#x1;&#x1;") || strings.Contains(body, "&#1;&#1;") {
+			t.Errorf("%s: the long text was echoed: %s", field, body)
+		}
+	}
+	// The stored text stays in the input after the rejection.
+	type textOnly struct {
+		Due string `form:"widget=date"`
+	}
+	f := &textOnly{Due: "2026-07-06"}
+	if err := parseFieldValue(t, f, "Due", long); err == nil || f.Due != "2026-07-06" {
+		t.Errorf("a long date text: error %v, Due %q; want an error and the stored date kept", err, f.Due)
+	}
+}
+
+// A context option list that fails while a POST is parsed puts no internal
+// error into the page: like an onSubmit error, its text is shown only when
+// mx.RevealInternalServerErrors is set.
+func TestFieldDecider_OptionListParseErrorNotShown(t *testing.T) {
+	type form struct {
+		Partner string   `form:"options=test-html-partners"`
+		Tags    []string `form:"options=test-html-partners"`
+	}
+	// The partners list reads the request context, which has none here.
+	for _, field := range []string{"Partner", "Tags"} {
+		err := parseFieldValue(t, &form{}, field, "a")
+		if err == nil || err.Error() != mx.FormErrorMessage {
+			t.Errorf("%s: error %v, want the generic %q", field, err, mx.FormErrorMessage)
+		}
+	}
+	prev := mx.RevealInternalServerErrors
+	mx.RevealInternalServerErrors = true
+	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
+	if err := parseFieldValue(t, &form{}, "Partner", "a"); err == nil || !strings.Contains(err.Error(), "no partners in context") {
+		t.Errorf("a revealed option-list error: %v", err)
+	}
+}
+
+// deDate is a date struct that writes and reads only its own German
+// spelling, 02.01.2006, not the ISO text a date input sends.
+type deDate struct{ Y, M, D int }
+
+func (d deDate) MarshalText() ([]byte, error) {
+	if d == (deDate{}) {
+		return nil, nil
+	}
+	return []byte(fmt.Sprintf("%02d.%02d.%04d", d.D, d.M, d.Y)), nil
+}
+
+func (d *deDate) UnmarshalText(b []byte) error {
+	t, err := time.Parse("02.01.2006", string(b))
+	if err != nil {
+		return err
+	}
+	*d = deDate{t.Year(), int(t.Month()), t.Day()}
+	return nil
+}
+
+// A date type that reads only its own spelling cannot take what a date
+// input sends, so it renders as a text input that asks for no ISO format,
+// stored or empty, and saves its own spelling. A min or max cannot be
+// checked on such text, so the form fails on GET instead of rejecting
+// every save.
+func TestReflectFormHandler_OwnSpellingDateType(t *testing.T) {
+	type record struct {
+		Due  deDate `form:"widget=date"`
+		Next deDate `form:"widget=date"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Due: deDate{2026, 7, 6}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{
+		`<input type="text" name="Due" id="Due" value="06.07.2026"/>`,
+		`<input type="text" name="Next" id="Next"/>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("want %s in %s", want, body)
+		}
+	}
+	if strings.Contains(body, "YYYY-MM-DD") || strings.Contains(body, "aria-invalid") {
+		t.Errorf("an own-spelling date type must not ask for ISO text: %s", body)
+	}
+	vals := submittedValues(body)
+	vals.Set("Next", "01.08.2026")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Due != (deDate{2026, 7, 6}) || saved.Next != (deDate{2026, 8, 1}) {
+		t.Errorf("own spelling: status %d, saved %+v", rec.Code, saved)
+	}
+
+	type bounded struct {
+		Due deDate `form:"widget=date,min=2026-01-01"`
+	}
+	bh := mx.ReflectFormHandler(
+		func(context.Context) (*bounded, error) { return &bounded{Due: deDate{2026, 7, 6}}, nil },
+		func(context.Context, *bounded) error { return nil },
+		FieldDecider,
+	)
+	prev := mx.RevealInternalServerErrors
+	mx.RevealInternalServerErrors = true
+	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
+	rec := httptest.NewRecorder()
+	bh(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "min") {
+		t.Errorf("a bound on an own-spelling date type: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A file field posted urlencoded, as by a form that missed the multipart
+// enctype, carries only the file's name: that is an error, not a save that
+// silently drops the upload. A blank file input keeps the stored file.
+func TestFieldDecider_FileFieldNotMultipart(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file"`
+	}
+	f := &form{Doc: []byte("stored")}
+	if err := parseFieldValue(t, f, "Doc", "scan.pdf"); err == nil || string(f.Doc) != "stored" {
+		t.Errorf("a file name posted urlencoded: error %v, Doc %q", err, f.Doc)
+	}
+	if err := parseFieldValue(t, f, "Doc", ""); err != nil || string(f.Doc) != "stored" {
+		t.Errorf("a blank file input posted urlencoded: error %v, Doc %q", err, f.Doc)
+	}
+}
+
+// A file input left empty keeps the stored file, so a required file field
+// that holds one does not make the browser demand a new upload on every
+// save; with nothing stored it does.
+func TestFieldDecider_StoredRequiredFileNotDemanded(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file,required"`
+	}
+	stored := renderFieldHTML(t, &form{Doc: []byte("pdf")}, "Doc")
+	if strings.Contains(stored, "required") {
+		t.Errorf("a stored file must not make the input required: %s", stored)
+	}
+	if empty := renderFieldHTML(t, &form{}, "Doc"); !strings.Contains(empty, `required="required"`) {
+		t.Errorf("an empty required file input must be required: %s", empty)
 	}
 }

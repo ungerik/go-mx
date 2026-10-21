@@ -1259,6 +1259,19 @@ func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
 // shadcn renders the wrapper kinds and the readonly text input like the
 // html renderer: a defined time in the picker, a readonly fallback without
 // the invalid look or the format hint.
+// After a submit, the field error says the text is not in the format, so
+// the hint only names the format, as in the html renderer.
+func TestShadcn_FormatHintAfterError(t *testing.T) {
+	type form struct {
+		Due string `form:"widget=date"`
+	}
+	out := renderShadcn(t, &form{Due: "06.07.2026"}, "Due",
+		[]error{errors.New(`"06.07.2026" is not a date in the format YYYY-MM-DD`)})
+	if !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") || strings.Contains(out, "Not in the expected format") {
+		t.Errorf("hint after an error: %s", out)
+	}
+}
+
 func TestShadcn_DateKindsRender(t *testing.T) {
 	type form struct {
 		At      definedTime `form:"widget=datetime"`
@@ -1307,5 +1320,129 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 	}
 	if strings.Contains(out, "Expected format") || strings.Contains(out, "data-invalid") {
 		t.Errorf("a readonly text input needs no format hint and is never marked invalid: %s", out)
+	}
+}
+
+// The built-in renderers vouch that a field they render is in the form, so
+// a POST binds without rendering it, while a skipped field stays unmarked.
+// A decider hiding a field with a Render that returns nil drops the mark,
+// so a forged __present sentinel still cannot write the field.
+func TestShadcn_RenderMarkAndHiddenField(t *testing.T) {
+	type account struct {
+		Name string
+		Role string
+		Skip string `form:"-"`
+	}
+	v := reflect.ValueOf(&account{}).Elem()
+	for _, c := range []struct {
+		field string
+		want  bool
+	}{{"Name", true}, {"Skip", false}} {
+		f, _ := v.Type().FieldByName(c.field)
+		if got := FieldDecider(mx.FieldPath(c.field), f, v.FieldByName(c.field)).RenderNonNil(); got != c.want {
+			t.Errorf("%s: RenderNonNil %t, want %t", c.field, got, c.want)
+		}
+	}
+	var saved *account
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*account, error) { return &account{Name: "n", Role: "member"}, nil },
+		func(_ context.Context, a *account) error { saved = a; return nil },
+		func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+			beh := FieldDecider(path, field, value)
+			if path == "Role" { // hidden from this user by rendering nothing
+				beh.Render = func(mx.FieldPath, reflect.StructField, reflect.Value, []error) mx.Component { return nil }
+			}
+			return beh
+		},
+	)
+	form := url.Values{
+		mx.PresentSentinelName("Name"): {"1"}, "Name": {"m"},
+		mx.PresentSentinelName("Role"): {"1"}, "Role": {"admin"},
+		mx.PresentSentinelName("Skip"): {"1"}, "Skip": {"forged"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "m" || saved.Role != "member" || saved.Skip != "" {
+		t.Errorf("status %d, saved %+v; want Name written, Role and Skip kept", rec.Code, saved)
+	}
+}
+
+// deDay is a date type that reads only its own German spelling.
+type deDay struct{ Y, M, D int }
+
+func (d deDay) MarshalText() ([]byte, error) {
+	if d == (deDay{}) {
+		return nil, nil
+	}
+	return []byte(fmt.Sprintf("%02d.%02d.%04d", d.D, d.M, d.Y)), nil
+}
+
+func (d *deDay) UnmarshalText(b []byte) error {
+	t, err := time.Parse("02.01.2006", string(b))
+	if err != nil {
+		return err
+	}
+	*d = deDay{t.Year(), int(t.Month()), t.Day()}
+	return nil
+}
+
+// As in the html renderer, a date type that reads only its own spelling
+// renders its text in a text input that asks for no ISO format.
+func TestShadcn_OwnSpellingDateType(t *testing.T) {
+	type form struct {
+		Due deDay `form:"widget=date"`
+	}
+	out := renderShadcn(t, &form{Due: deDay{2026, 7, 6}}, "Due", nil)
+	if !strings.Contains(out, `type="text" name="Due" id="Due" hx-trigger="change" value="06.07.2026"`) || strings.Contains(out, "YYYY-MM-DD") || strings.Contains(out, `aria-invalid="true"`) {
+		t.Errorf("own-spelling date: %s", out)
+	}
+}
+
+// As in the html renderer, a required file field holding a file does not
+// make the browser demand a new upload.
+func TestShadcn_StoredRequiredFileNotDemanded(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file,required"`
+	}
+	if out := renderShadcn(t, &form{Doc: []byte("pdf")}, "Doc", nil); strings.Contains(out, `required="required"`) {
+		t.Errorf("a stored file must not make the input required: %s", out)
+	}
+	if out := renderShadcn(t, &form{}, "Doc", nil); !strings.Contains(out, `required="required"`) {
+		t.Errorf("an empty required file input must be required: %s", out)
+	}
+}
+
+// The note that saving drops a value the list no longer offers describes
+// the select or checkbox set, so a screen reader hears it. Without a
+// removal the reference points at an empty hidden note, never at nothing.
+func TestShadcn_RemovalNoteDescribesControl(t *testing.T) {
+	type draftForm struct {
+		Partner string   `form:"options=test-shadcn-partners"`
+		Tags    []string `form:"options=test-shadcn-partners"`
+	}
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	render := func(f *draftForm, name string) string {
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName(name)
+		comp := FieldDecider(mx.FieldPath(name), field, v.FieldByName(name)).Render(mx.FieldPath(name), field, v.FieldByName(name), nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+	gone := &draftForm{Partner: "gone", Tags: []string{"gone"}}
+	for _, name := range []string{"Partner", "Tags"} {
+		out := render(gone, name)
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !regexp.MustCompile(`id="`+name+`-note"[^>]*>[^<]*\S`).MatchString(out) {
+			t.Errorf("%s: the removal note must describe the control: %s", name, out)
+		}
+		out = render(&draftForm{Partner: "p1", Tags: []string{"p1"}}, name)
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
+			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
+		}
 	}
 }

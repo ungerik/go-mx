@@ -370,6 +370,18 @@ func TestCalendarText(t *testing.T) {
 // does not allow on a button. The static calendar has no keyboard handling,
 // so it is a plain table that marks the selected day only by its look. The
 // month buttons are named in both.
+// The select-mode grid is named by MonthLabel, so a localized date picker
+// announces its month in the page's language.
+func TestCalendarSelectModeGridLocalized(t *testing.T) {
+	out := render(t, CalendarWith(CalendarOptions{
+		Name:       "due",
+		MonthLabel: func(time.Time) string { return "Juni 2026" },
+	}, time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{}))
+	if !strings.Contains(out, `role="grid" aria-label="Juni 2026"`) || strings.Contains(out, "June 2026") {
+		t.Errorf("the grid must be named by MonthLabel: %s", out)
+	}
+}
+
 func TestCalendarGridSemantics(t *testing.T) {
 	month := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
 	selected := time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC)

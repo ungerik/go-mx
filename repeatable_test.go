@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -186,6 +187,83 @@ func TestRepeatable_MissingFieldPresentLeavesSliceUntouched(t *testing.T) {
 	want := []lineItem{{Desc: "a"}, {Desc: "b"}}
 	if !reflect.DeepEqual(got.Lines, want) {
 		t.Errorf("Lines=%+v, want untouched %+v (no __present should not wipe)", got.Lines, want)
+	}
+}
+
+// A decider hides a repeatable field like any other, with a nil Render for
+// its path: the form shows no rows, and a forged __present marker, row or
+// row command cannot rewrite or empty the loaded rows.
+func TestRepeatable_DeciderHiddenFieldNotWritten(t *testing.T) {
+	base := newTestDecider()
+	hide := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		if path == "Lines" {
+			return FieldBehavior{}
+		}
+		return base(path, field, value)
+	}
+	loaded := []lineItem{{Desc: "keep", Qty: 1}}
+	var got *invoice
+	h := ReflectFormHandler(
+		func(context.Context) (*invoice, error) {
+			return &invoice{Title: "t", Lines: slices.Clone(loaded)}, nil
+		},
+		func(_ context.Context, in *invoice) error { got = in; return nil },
+		hide,
+	)
+	if body := getBody(t, h); strings.Contains(body, "Lines") {
+		t.Errorf("a hidden repeatable must not render: %s", body)
+	}
+	for name, form := range map[string]url.Values{
+		"emptied": {PresentSentinelName("Lines"): {"1"}},
+		"rewritten": {
+			PresentSentinelName("Lines"): {"1"}, RowSentinelName("Lines-0"): {"o0"},
+			PresentSentinelName("Lines-0-Desc"): {"1"}, "Lines-0-Desc": {"changed"},
+		},
+		"row command": {
+			PresentSentinelName("Lines"): {"1"}, sentinelCommand: {AddRowCommand("Lines")},
+		},
+	} {
+		got = nil
+		rec := postForm(t, h, form)
+		if rec.Code != http.StatusSeeOther || got == nil || !reflect.DeepEqual(got.Lines, loaded) {
+			t.Errorf("%s: status %d, saved %+v; want the loaded rows kept", name, rec.Code, got)
+		}
+	}
+}
+
+// A cell the client did not send is neither written nor in error, so a POST
+// of bare row markers must not cost a decider call or render per cell.
+func TestRepeatable_UnsentCellsAreNotRendered(t *testing.T) {
+	type row struct {
+		Note string
+		Qty  int
+	}
+	type sheet struct {
+		Rows []row `form:"repeatable"`
+	}
+	calls := 0
+	base := newTestDecider()
+	d := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		if path != "Rows" {
+			calls++
+		}
+		return base(path, field, value)
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*sheet, error) { return &sheet{}, nil },
+		func(context.Context, *sheet) error { return nil },
+		d,
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Rows"), "1")
+	for i := range 1000 {
+		form.Set(RowSentinelName(FieldPath("Rows").Append(strconv.Itoa(i))), "new")
+	}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if calls != 0 {
+		t.Errorf("the decider was asked %d times about 2000 unsent cells", calls)
 	}
 }
 

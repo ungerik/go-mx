@@ -521,3 +521,19 @@ func TestLabelsPartialFallsBackPerField(t *testing.T) {
 		t.Errorf("an untranslated field must fall back to DefaultLabels: %s", out)
 	}
 }
+
+// A translation that sets only the clear caption keeps the box's accessible
+// name in its language and containing the visible caption, rather than the
+// English "clear %s" next to "leeren".
+func TestLabelsClearFieldFollowsCaption(t *testing.T) {
+	ctx := ContextWithLabels(context.Background(), Labels{FormClear: "leeren"})
+	out := renderWith(t, ctx, clearControl(mx.FieldPath("Token"), "Token", false))
+	if !strings.Contains(out, `text-sm">leeren<`) || !strings.Contains(out, `aria-label="leeren Token"`) {
+		t.Errorf("the accessible name must follow the translated caption: %s", out)
+	}
+	// An explicit FormClearField wins.
+	ctx = ContextWithLabels(context.Background(), Labels{FormClear: "leeren", FormClearField: "%s leeren"})
+	if out := renderWith(t, ctx, clearControl(mx.FieldPath("Token"), "Token", false)); !strings.Contains(out, `aria-label="Token leeren"`) {
+		t.Errorf("FormClearField must win: %s", out)
+	}
+}

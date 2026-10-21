@@ -299,6 +299,30 @@ select mode uses the gridcell's `aria-selected`.
 **Priority:** P4
 **Depends on:** None
 
+### No test runs the select-mode calendar script
+
+**What:** A smoke test that loads a rendered select-mode calendar in a
+browser or JS engine, clicks a day, presses ArrowRight and End past a
+disabled day, and checks the hidden input's value, the `input`/`change`
+events, the `CalendarText` caption, the `data-selected`, `aria-selected`
+and `tabindex` moves, the focused `data-date` (also in RTL) and the
+surrounding popover closing.
+
+**Why:** The Go tests only check that `calendarScript` is emitted once and
+that the `onclick`/`onkeydown` hooks are there, so a broken selector or an
+off-by-one in the key handling passes CI; today the gallery DatePicker is
+checked by hand.
+
+**Context:** `calendarScript`, `calendarSelect` and `calendarKey` in
+`shadcn/calendar.go`. The repo has no JS test harness; a headless Chrome run
+against the generated gallery page
+(`docs/shadcn/gallery/components/date-picker/`) needs no new dependency in
+the Go modules. Found in the date widget branch's pre-landing review.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ### The remaining DatePicker recipes
 
 **What:** Gallery examples for upstream's Basic (in a `Field` with a
@@ -630,7 +654,8 @@ Order within the phase is by dependency, then complexity.
   not a primitive).
 - [x] **Calendar** · Cx 5 · deps: Button
   Single-month grid generated server-side with Go's `time` package; selected
-  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
+  day marked with `data-selected` (plus `aria-pressed` on a static calendar,
+  `aria-selected` on the gridcell in select mode). `Calendar(month, selected, …)`. Prev/Next are
   plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
 - [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
   Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as

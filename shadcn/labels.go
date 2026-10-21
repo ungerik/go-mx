@@ -80,7 +80,8 @@ type Labels struct {
 	// FormClearField is the box's aria-label, with %s standing for the
 	// field label: "clear %s" gives "clear Token", and a language that puts
 	// the verb last writes "%s leeren". It holds FormClear's word, so the
-	// accessible name contains the visible caption.
+	// accessible name contains the visible caption. Left empty in Labels
+	// that set FormClear, it is FormClear followed by the field label.
 	FormClearField string
 	// FormValueNotAvailable is the caption of the disabled placeholder option
 	// a reflected select renders when the field's current value is not in the
@@ -219,7 +220,7 @@ func (l Labels) orDefaults() Labels {
 		SidebarTrigger:                 cmp.Or(l.SidebarTrigger, DefaultLabels.SidebarTrigger, englishLabels.SidebarTrigger),
 		Spinner:                        cmp.Or(l.Spinner, DefaultLabels.Spinner, englishLabels.Spinner),
 		FormClear:                      cmp.Or(l.FormClear, DefaultLabels.FormClear, englishLabels.FormClear),
-		FormClearField:                 cmp.Or(l.FormClearField, DefaultLabels.FormClearField, englishLabels.FormClearField),
+		FormClearField:                 clearFieldLabel(l),
 		FormValueNotAvailable:          cmp.Or(l.FormValueNotAvailable, DefaultLabels.FormValueNotAvailable, englishLabels.FormValueNotAvailable),
 		FormValueRemovedOnSave:         cmp.Or(l.FormValueRemovedOnSave, DefaultLabels.FormValueRemovedOnSave, englishLabels.FormValueRemovedOnSave),
 		FormChooseOption:               cmp.Or(l.FormChooseOption, DefaultLabels.FormChooseOption, englishLabels.FormChooseOption),
@@ -229,6 +230,22 @@ func (l Labels) orDefaults() Labels {
 		FormExpectedFormat:             cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
 		FormInvalidFormat:              cmp.Or(l.FormInvalidFormat, DefaultLabels.FormInvalidFormat, englishLabels.FormInvalidFormat),
 	}
+}
+
+// clearFieldLabel resolves FormClearField from the first of l, DefaultLabels
+// and the English labels that sets it or FormClear: one that sets only the
+// caption gets FormClear followed by the field label, so the box's
+// accessible name keeps the caption's language and contains it.
+func clearFieldLabel(l Labels) string {
+	for _, src := range []Labels{l, DefaultLabels, englishLabels} {
+		switch {
+		case src.FormClearField != "":
+			return src.FormClearField
+		case src.FormClear != "":
+			return src.FormClear + " %s"
+		}
+	}
+	return ""
 }
 
 // labelText returns a [mx.Component] that renders the Labels field selected by

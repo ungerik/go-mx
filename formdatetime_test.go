@@ -145,6 +145,16 @@ func (c clockTime) Format(layout string) string {
 	return t.Format(layout)
 }
 
+// spelledClock is a time-of-day type with an underlying string that has
+// both methods: Format re-spells a stored "9.05" in the input's layout,
+// while MarshalText writes the type's own spelling, which no time input
+// reads.
+type spelledClock string
+
+func (c spelledClock) Format(layout string) string { return clockTime(c).Format(layout) }
+
+func (c spelledClock) MarshalText() ([]byte, error) { return []byte(c), nil }
+
 // zonedText stores a date but writes it with a time and zone, text no
 // date input reads.
 type zonedText string
@@ -202,6 +212,9 @@ func TestDateTimeInput(t *testing.T) {
 		{"time drops zero seconds", reflect.ValueOf("09:05:00"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
 		{"time seconds", reflect.ValueOf("09:05:07"), clock, DateTimeInputSpec{"time", "09:05:07", "HH:MM", "", false, time.Time{}}},
 		{"time Format", reflect.ValueOf(clockTime("9.05")), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
+		// Format is asked before MarshalText, whose own spelling the input
+		// could only show as invalid text.
+		{"Format before MarshalText", reflect.ValueOf(spelledClock("9.05")), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
 		{"time one-digit hour", reflect.ValueOf("9:05"), clock, DateTimeInputSpec{"text", "9:05", "HH:MM", "", true, time.Time{}}},
 		{"time out of range", reflect.ValueOf("25:00"), clock, DateTimeInputSpec{"text", "25:00", "HH:MM", "", true, time.Time{}}},
 

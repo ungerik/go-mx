@@ -49,11 +49,17 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 		}
 		return base.Render(path, field, value, errs)
 	}
-	return mx.FieldBehavior{
+	beh := mx.FieldBehavior{
 		Render:   render,
 		Parse:    base.Parse,
 		Validate: base.Validate,
 	}
+	// render returns a shadcn Component or base's, so a base Render that
+	// never returns nil makes this one never return nil either.
+	if base.RenderNonNil() {
+		beh.MarkRenderNonNil()
+	}
+	return beh
 }
 
 func renderShadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
@@ -76,6 +82,9 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 	case mx.FieldKindDateTime:
 		// Stored text the parser rejects marks the input invalid before any
 		// submit; the Field root follows, so the label matches the control.
+		if err := mx.DateTimeTagError(value, tag); err != nil {
+			return mx.NewErrElement(err)
+		}
 		in := mx.DateTimeInput(value, tag)
 		invalid := len(errs) > 0 || (in.Invalid && !tag.Readonly)
 		return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
@@ -95,7 +104,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		)
 	case mx.FieldKindFile:
 		return shadcnField(path, field, value, kind, tag, errs,
-			Input(fileAttribs(path, tag, errs)...),
+			Input(fileAttribs(path, inputTag, errs)...),
 		)
 	}
 	return nil
@@ -229,6 +238,12 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
+	// As in the html renderer, a select that can drop its value refers to
+	// the note saying so, which is empty and hidden when it drops nothing.
+	removable := !tag.Required && !tag.Readonly
+	if removable {
+		attribs = append(attribs, mx.NewAttrib("aria-describedby", optionNoteID(path)))
+	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
 	removed := false
 	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
@@ -248,12 +263,30 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		// The options decide whether saving drops the value, also those a
 		// context list resolves while the select renders, before this.
 		mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-			if !removed {
+			if !removable {
 				return nil
 			}
-			return FieldDescription(labelText(func(l Labels) string { return l.FormValueRemovedOnSave })).Render(ctx, w)
+			if !removed {
+				return hiddenOptionNote(path).Render(ctx, w)
+			}
+			return FieldDescription(html.ID(optionNoteID(path)),
+				labelText(func(l Labels) string { return l.FormValueRemovedOnSave })).Render(ctx, w)
 		}),
 	}
+}
+
+// hiddenOptionNote stands in for the note on values the option list does
+// not offer when there are none: empty and hidden, it keeps the
+// aria-describedby written before a context list resolved valid.
+func hiddenOptionNote(path mx.FieldPath) mx.Component {
+	return mx.NewElement("p", html.ID(optionNoteID(path)), html.Hidden)
+}
+
+// optionNoteID is the id of the note under a select or checkbox set whose
+// stored value the option list does not offer. The lowercase suffix cannot
+// collide with a field path, whose segments are exported Go field names.
+func optionNoteID(path mx.FieldPath) string {
+	return string(path) + "-note"
 }
 
 // selectPrefaceOption renders the leading option [mx.SelectPreface] chose.
@@ -313,15 +346,17 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		}
 		preface := mx.EnumSetPreface(members, tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
-			return nil
+			return hiddenOptionNote(path)
 		}
 		if !preface.RemovesValue(tag) {
-			return FieldDescription(html.Class("col-span-2"),
+			return FieldDescription(html.Class("col-span-2"), html.ID(optionNoteID(path)),
 				labelText(func(l Labels) string { return l.FormValuesNotAvailableReadonly }))
 		}
-		return FieldDescription(html.Class("col-span-2"),
+		return FieldDescription(html.Class("col-span-2"), html.ID(optionNoteID(path)),
 			labelText(func(l Labels) string { return l.FormValuesNotAvailable }))
 	})
+	// The group is described by the note on members the list does not
+	// offer, which is empty and hidden when there are none.
 	wrapAttribs := []any{
 		mx.Attribute{Name: "role", Value: "group"},
 		mx.Attribute{Name: "class", Value: "grid grid-cols-2 gap-2"},
@@ -329,6 +364,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 	if fieldLabel(field, tag) != "" {
 		wrapAttribs = append(wrapAttribs, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
+	wrapAttribs = append(wrapAttribs, mx.Attribute{Name: "aria-describedby", Value: optionNoteID(path)})
 	if len(errs) > 0 {
 		wrapAttribs = append(wrapAttribs, mx.NewAttrib("aria-invalid", "true"))
 	}
@@ -415,9 +451,10 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 	if in.Value != "" {
 		a = append(a, html.Value(in.Value))
 	}
-	// A readonly field is never saved, so its text input asks for nothing.
+	// A readonly field is never saved, so its text input asks for nothing,
+	// and neither does a type that reads only its own spelling (no Format).
 	textFallback := in.TextFallback()
-	askFormat := textFallback && !tag.Readonly
+	askFormat := textFallback && !tag.Readonly && in.Format != ""
 	if askFormat {
 		a = append(a,
 			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
@@ -664,12 +701,30 @@ func isNullable(field reflect.StructField, kind mx.FieldKind, tag mx.FormTag) bo
 
 // browserTag is the tag an input renders with: a form:"sensitive" input
 // that holds a stored value shows none, and a blank keeps the stored
-// value, so the browser must not demand one (see the html renderer).
+// value, so the browser must not demand one, nor for a file input whose
+// field holds a file (see the html renderer).
 func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
-	if tag.Required && mx.KeepsStoredValue(tag, kind, value) {
+	if tag.Required && (mx.KeepsStoredValue(tag, kind, value) || kind == mx.FieldKindFile && hasStoredFile(value)) {
 		tag.Required = false
 	}
 	return tag
+}
+
+// hasStoredFile reports whether a file field's value holds a file: bytes or
+// a file name. A file input left empty keeps it, so a required one demands
+// no new upload; the handler still rejects a blank with nothing stored.
+func hasStoredFile(value reflect.Value) bool {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return false
+		}
+		value = value.Elem()
+	}
+	switch value.Kind() {
+	case reflect.String, reflect.Slice:
+		return value.Len() > 0
+	}
+	return false
 }
 
 func isTrueBool(v reflect.Value) bool {

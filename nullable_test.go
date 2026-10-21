@@ -112,6 +112,8 @@ func TestDriverValueText(t *testing.T) {
 		{"null", sql.NullInt64{Int64: 42}, "", true},
 		{"string", sql.NullString{String: "a b", Valid: true}, "a b", true},
 		{"float", sql.NullFloat64{Float64: 1.5, Valid: true}, "1.5", true},
+		// Plain decimal, as a user types it, never an exponent.
+		{"large float", sql.NullFloat64{Float64: 2500000, Valid: true}, "2500000", true},
 		{"bool", sql.NullBool{Bool: true, Valid: true}, "true", true},
 		{"byte as int64", sql.NullByte{Byte: 7, Valid: true}, "7", true},
 		{"time", sql.NullTime{Time: at, Valid: true}, "2026-03-29T03:30:00.000000005+02:00", true},

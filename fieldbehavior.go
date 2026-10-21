@@ -215,7 +215,8 @@ type FieldBehavior struct {
 	// a failed POST. A nil Render, or a nil Component, leaves the field
 	// out of the form, and the handler never writes it, so a decider can
 	// hide a field from some users. The handler calls Render on a POST to
-	// tell, with the stored value and no errors.
+	// tell, with the stored value and no errors. A form:"repeatable" field
+	// renders its rows itself and is left out only by a nil Render.
 	Render func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component
 
 	// Parse reads the submitted value out of r and writes it into
@@ -236,6 +237,42 @@ type FieldBehavior struct {
 	// includes it in the inline error list; the decider may
 	// concatenate multiple errors via errors.Join.
 	Validate func(path FieldPath, field reflect.StructField, value reflect.Value) error
+
+	// Multipart reports that the field's input needs a multipart/form-data
+	// body, as a file input does. The form handler posts a form urlencoded
+	// unless a rendered field is a [FieldKindFile] or sets Multipart, so a
+	// decider rendering its own upload widget for another kind sets it.
+	Multipart bool
+
+	// renderNonNil is the code of the Render that MarkRenderNonNil marked,
+	// or 0.
+	renderNonNil uintptr
+}
+
+// MarkRenderNonNil records that b.Render never returns a nil Component, so
+// the form handler does not render a submitted field on a POST to learn
+// whether the decider leaves it out (see Render): binding a form then costs
+// no markup. The mark covers this Render only. A decider that wraps b and
+// assigns another Render, as one hiding a field does, drops it, unless it
+// marks its own Render too.
+func (b *FieldBehavior) MarkRenderNonNil() {
+	b.renderNonNil = funcCode(b.Render)
+}
+
+// RenderNonNil reports whether b.Render is the Render that
+// [FieldBehavior.MarkRenderNonNil] marked.
+func (b FieldBehavior) RenderNonNil() bool {
+	return b.renderNonNil != 0 && b.renderNonNil == funcCode(b.Render)
+}
+
+// funcCode returns the code pointer of the function f, or 0 for nil. It
+// tells two function literals apart, though not two closures of one
+// literal.
+func funcCode(f func(FieldPath, reflect.StructField, reflect.Value, []error) Component) uintptr {
+	if f == nil {
+		return 0
+	}
+	return reflect.ValueOf(f).Pointer()
 }
 
 // FieldDecider returns the [FieldBehavior] to use for a single field.

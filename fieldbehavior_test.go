@@ -73,6 +73,38 @@ func TestFieldErrors_UnwrapAllowsErrorsIs(t *testing.T) {
 	}
 }
 
+// A nil entry is no error, so Unwrap leaves it out: a caller ranging over
+// the parts never gets a nil error.
+func TestFieldErrors_UnwrapDropsNil(t *testing.T) {
+	e := errors.New("bad")
+	got := FieldErrors{"A": nil, "B": e}.Unwrap()
+	if len(got) != 1 || got[0] != e {
+		t.Errorf("Unwrap() = %v, want only the non-nil entry", got)
+	}
+}
+
+// The mark covers the Render it was set for: a decider that wraps a marked
+// behavior and assigns another Render, as one hiding a field does, drops it.
+func TestFieldBehavior_MarkRenderNonNil(t *testing.T) {
+	beh := FieldBehavior{Render: func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return Text("x") }}
+	if beh.RenderNonNil() {
+		t.Error("an unmarked Render reports the mark")
+	}
+	beh.MarkRenderNonNil()
+	if !beh.RenderNonNil() {
+		t.Error("a marked Render lacks the mark")
+	}
+	beh.Render = func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return nil }
+	if beh.RenderNonNil() {
+		t.Error("a replaced Render keeps the mark")
+	}
+	beh.Render = nil
+	beh.MarkRenderNonNil()
+	if beh.RenderNonNil() {
+		t.Error("a nil Render reports the mark")
+	}
+}
+
 func TestDeciderFromContext_Unconfigured(t *testing.T) {
 	d := DeciderFromContext(context.Background())
 	if d == nil {

@@ -497,12 +497,14 @@ rendered** (an allowlist that defends against mass-assignment), runs the
 validation chain, and either re-renders with inline errors or 303-redirects on
 success. `FieldDecider` handles the full `mx.FieldKind` dispatch — strings,
 numbers, bools, dates, files, enums, enum sets — plus the `__clear` sentinel for
-nullable fields. The layered renderers in [`hx`](../hx) and
+nullable fields and for optional `sensitive` text, number and date fields,
+where it renders ticked while nothing is stored. The layered renderers in [`hx`](../hx) and
 [`shadcn`](../shadcn) wrap this decider, customizing the kinds they care about
 and delegating the rest.
 
 Tag keys (comma-separated inside `form:"…"`): `required`, `readonly`,
-`sensitive` (never echo the value back), `hidden`, `-` (skip),
+`sensitive` (never echo the value back; left blank, a text, number or date
+input keeps the stored value; `widget=password` implies it), `hidden`, `-` (skip),
 `placeholder=…`, `help=…`, `pattern=…`, `min=…`, `max=…`, `step=…`,
 `label=…`, `widget=…` (`textarea`, `email`, `url`, `tel`, `password`, `date`,
 `time`, `radio`, `file`, …).

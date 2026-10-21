@@ -19,7 +19,10 @@ type DateTimeInputSpec struct {
 
 	// Format is how a value of the widget's input type is written:
 	// "YYYY-MM-DD", "YYYY-MM-DDTHH:MM" or "HH:MM". Renderers show it as
-	// the format to enter on a "text" input.
+	// the format to enter on a "text" input. It is "" for a type with text
+	// methods that reads only its own spelling, such as 02.01.2006, not
+	// what the input sends: that type renders as a "text" input of its own
+	// text, which asks for no format.
 	Format string
 
 	// Step is the step attribute; "" renders none. It is the tag's step, or
@@ -135,6 +138,15 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		}
 		return spec
 	}
+	if hasTextMethods(v.Type()) && !readsInputText(v.Type(), tt) {
+		// The type reads only its own spelling: the input's picker would
+		// send text it rejects, and the input's format is not its own.
+		spec.Type, spec.Format = "text", ""
+		if text, ok := marshaledText(v); ok {
+			spec.Value = text
+		}
+		return spec
+	}
 	if text, ok := marshaledText(v); ok {
 		// RFC 3339 is the text of an embedded time.Time.
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
@@ -155,6 +167,65 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		spec.Invalid = spec.TextFallback() && (tag.Min != "" || tag.Max != "")
 	}
 	return spec
+}
+
+// DateTimeTagError reports a tag that the type of a date or time field's
+// value cannot honor: a form:"min=…,max=…" on a type that reads only its
+// own spelling (see [DateTimeInputSpec].Format), on whose text no bound can
+// be checked. Renderers render it as an error, so such a form fails when it
+// is shown rather than rejecting every save.
+func DateTimeTagError(value reflect.Value, tag FormTag) error {
+	if tag.Min == "" && tag.Max == "" || !value.IsValid() {
+		return nil
+	}
+	t := value.Type()
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	tt := timeTexts[dateTimeInputType(tag)]
+	if t.Kind() == reflect.String || (t.Kind() == reflect.Struct && isTimeLike(t)) || !hasTextMethods(t) || readsInputText(t, tt) {
+		return nil
+	}
+	return fmt.Errorf("form:\"min=…,max=…\" cannot be checked on %s, which reads only its own text, not %s text", t, tt.format)
+}
+
+// hasTextMethods reports whether a pointer to t has both MarshalText and
+// UnmarshalText.
+func hasTextMethods(t reflect.Type) bool {
+	p := reflect.PointerTo(t)
+	return p.Implements(reflect.TypeFor[encoding.TextMarshaler]()) && p.Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
+}
+
+// readsInputText reports whether the UnmarshalText of t reads what an
+// input of tt sends, as a parser hands it on: a value in one of tt's
+// layouts, or the RFC 3339 that a wrapped time reads. A nil embedded
+// *time.Time gets a time first, as a parser gives it one. A type that
+// reads only its own spelling, such as 02.01.2006, does not.
+func readsInputText(t reflect.Type, tt timeText) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	sample := time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
+	texts := []string{sample.Format(time.RFC3339Nano)}
+	for _, layout := range tt.layouts {
+		texts = append(texts, sample.Format(layout))
+	}
+	for _, text := range texts {
+		dst := reflect.New(t)
+		if t.Kind() == reflect.Struct {
+			for i := range t.NumField() {
+				if f := dst.Elem().Field(i); t.Field(i).Anonymous && f.Type() == reflect.TypeFor[*time.Time]() && f.CanSet() {
+					f.Set(reflect.ValueOf(new(time.Time)))
+				}
+			}
+		}
+		if dst.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(text)) == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // innerTime returns the time.Time a wrapper holds as its first field, also
@@ -226,13 +297,20 @@ func ParseDateTimeInput(tag FormTag, raw string) (string, error) {
 	return tt.shortest(t), nil
 }
 
+// maxQuotedDateTimeLen is the longest submitted text a date or time error
+// quotes: longer than any text a date, datetime or time input sends, or a
+// date type's own spelling. Longer text is no date, and quoting it would
+// echo a submission of any size into the page, %q growing a control byte
+// to four.
+const maxQuotedDateTimeLen = 64
+
 // DateTimeFormatError is the validation error for raw, a submission that is
 // no value of the tag's input type: it names the expected format. A
 // form:"sensitive" field's error leaves raw out, so the value is not echoed
-// into the page.
+// into the page, and so does one for text longer than any input sends.
 func DateTimeFormatError(tag FormTag, raw string) error {
 	tt := timeTexts[dateTimeInputType(tag)]
-	if tag.Sensitive {
+	if tag.Sensitive || len(raw) > maxQuotedDateTimeLen {
 		return fmt.Errorf("not %s in the format %s", tt.noun, tt.format)
 	}
 	return fmt.Errorf("%q is not %s in the format %s", raw, tt.noun, tt.format)
@@ -246,12 +324,13 @@ func DateTimeFormatError(tag FormTag, raw string) error {
 // clock is compared, whatever its zone, and for a time input only the
 // clock, whatever date t carries. A time input's range may wrap past
 // midnight, such as min=22:00,max=06:00: then a time from min on or up to
-// max is in range. A form:"sensitive" field's error leaves raw out.
+// max is in range. A form:"sensitive" field's error leaves raw out, as
+// does one for text longer than any input sends.
 func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 	inputType := dateTimeInputType(tag)
 	tt := timeTexts[inputType]
 	subject := fmt.Sprintf("%q is ", raw)
-	if tag.Sensitive {
+	if tag.Sensitive || len(raw) > maxQuotedDateTimeLen {
 		subject = ""
 	}
 	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)

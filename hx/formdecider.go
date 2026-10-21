@@ -25,10 +25,16 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 	if base.Render == nil {
 		return base
 	}
+	// withHXAttribs keeps a Component non-nil, so a Render html marked as
+	// never returning nil stays so.
+	marked := base.RenderNonNil()
 	originalRender := base.Render
 	base.Render = func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
 		rendered := originalRender(path, field, value, errs)
 		return withHXAttribs(rendered)
+	}
+	if marked {
+		base.MarkRenderNonNil()
 	}
 	return base
 }

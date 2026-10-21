@@ -376,7 +376,8 @@ hides the add-row button at the limit.
 **Why:** Rows are bounded only by Go's form limits (10,000 urlencoded values,
 1,000 multipart parts). One 218 KB urlencoded POST with 9,990 `__row__`
 markers renders a 6 MB page and allocates about 127 MB, and wider row structs
-scale linearly.
+scale linearly. A row with a required cell answers such a POST with every row
+in error: 9,000 markers against `cmd/example-form` gave a 49 MB page in 1.5 s.
 
 **Context:** `repeatableRowIndices` and `parseRepeatable` in `repeatable.go`;
 `applyRepeatableCommand` for the add-row side. Predates the date widget work;
