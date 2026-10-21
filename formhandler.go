@@ -600,10 +600,31 @@ func formErrorText(err error) string {
 }
 
 // isBlank reports whether a bound value counts as no value for a required
-// check: [isEffectivelyEmpty], or the zero of an enum of any kind, the value
-// an empty select stores, which isEffectivelyEmpty never sees in a number.
+// check: [isEffectivelyEmpty], or the zero of an enum of any kind that is
+// none of its constants, the value an empty select stores, which
+// isEffectivelyEmpty never sees in a number. A zero that is a constant,
+// such as a Low = iota, is a choice.
 func isBlank(kind FieldKind, value reflect.Value) bool {
-	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
+	if isEffectivelyEmpty(value) {
+		return true
+	}
+	return kind == FieldKindEnum && value.IsZero() && !zeroIsEnumConstant(value.Type())
+}
+
+// zeroIsEnumConstant reports whether the zero value of t is one of the
+// constants its Enums method lists.
+func zeroIsEnumConstant(t reflect.Type) bool {
+	m := reflect.New(t).MethodByName("Enums")
+	if !m.IsValid() || m.Type().NumIn() != 0 || m.Type().NumOut() != 1 || m.Type().Out(0).Kind() != reflect.Slice {
+		return false
+	}
+	constants := m.Call(nil)[0]
+	for i := range constants.Len() {
+		if constants.Index(i).IsZero() {
+			return true
+		}
+	}
+	return false
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a

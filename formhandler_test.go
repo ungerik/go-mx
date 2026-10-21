@@ -1587,13 +1587,17 @@ func TestReflectFormHandler_MultipartTempFilesRemoved(t *testing.T) {
 
 // A multipart form a middleware parsed before the handler stays the
 // middleware's: the handler must not remove the uploads it still reads.
+// A multipart form the middleware parsed in full is no failed parse, so
+// its submission is saved, not answered with 400.
 func TestReflectFormHandler_PreParsedMultipartFilesKept(t *testing.T) {
+	var saved *sampleStruct
 	h := ReflectFormHandlerWith(ReflectFormConfig{MaxMemory: 64},
 		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
-		func(context.Context, *sampleStruct) error { return nil }, newTestDecider())
+		func(_ context.Context, s *sampleStruct) error { saved = s; return nil }, newTestDecider())
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	_ = mw.WriteField(PresentSentinelName("Name"), "1")
+	_ = mw.WriteField("Name", "edited")
 	part, _ := mw.CreateFormFile("Doc", "doc.bin")
 	_, _ = part.Write(bytes.Repeat([]byte("x"), 4096)) // past MaxMemory: on disk
 	_ = mw.Close()
@@ -1603,12 +1607,59 @@ func TestReflectFormHandler_PreParsedMultipartFilesKept(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = req.MultipartForm.RemoveAll() })
-	h.ServeHTTP(httptest.NewRecorder(), req)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "edited" {
+		t.Errorf("a multipart form the middleware parsed in full: status %d, saved %+v; want it saved", rec.Code, saved)
+	}
 	f, err := req.MultipartForm.File["Doc"][0].Open()
 	if err != nil {
 		t.Fatalf("the middleware's upload was removed by the handler: %v", err)
 	}
 	f.Close()
+}
+
+// Binding a POST renders no markup for a field whose decider marks its
+// Render as never nil (FieldBehavior.MarkRenderNonNil): only an unmarked
+// Render, such as one a hiding wrapper assigns, is called to tell whether
+// the field is in the form.
+func TestReflectFormHandler_MarkedRenderNotCalledOnBind(t *testing.T) {
+	for _, marked := range []bool{true, false} {
+		renders := 0
+		base := newTestDecider()
+		d := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+			beh := base(path, field, value)
+			inner := beh.Render
+			beh.Render = func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component {
+				renders++
+				return inner(path, field, value, errs)
+			}
+			if marked {
+				beh.MarkRenderNonNil()
+			}
+			return beh
+		}
+		var saved *sampleStruct
+		h := ReflectFormHandler(
+			func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+			func(_ context.Context, s *sampleStruct) error { saved = s; return nil },
+			d,
+		)
+		form := url.Values{}
+		form.Set(PresentSentinelName("Name"), "1")
+		form.Set("Name", "n")
+		form.Set(PresentSentinelName("Age"), "1")
+		form.Set("Age", "7")
+		if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "n" || saved.Age != 7 {
+			t.Fatalf("marked %t: status %d, saved %+v", marked, rec.Code, saved)
+		}
+		if marked && renders != 0 {
+			t.Errorf("a marked Render was called %d times to bind a POST", renders)
+		}
+		if !marked && renders == 0 {
+			t.Error("an unmarked Render must be asked whether its field is in the form")
+		}
+	}
 }
 
 // A form posts urlencoded, whose limit is 10,000 values, unless a file

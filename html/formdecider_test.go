@@ -355,6 +355,9 @@ func init() {
 	}
 	mx.RegisterNamedOptions("test-html-partners", partnersFromCtx)
 	mx.RegisterNamedOptions("test-html-handler-partners", partnersFromCtx)
+	mx.RegisterNamedOptions("test-html-partners-message", func(context.Context) ([]mx.NamedOption, error) {
+		return nil, fmt.Errorf("partner lookup: %w", mx.FormMessage("The partner list is unavailable, try again later."))
+	})
 	mx.RegisterNamedOptions("test-html-tags", func(context.Context) ([]mx.NamedOption, error) {
 		return []mx.NamedOption{
 			{Name: "Tag A", Value: "a"},
@@ -4647,6 +4650,80 @@ func TestReflectFormHandler_RequiredIntEnumRejectsBlank(t *testing.T) {
 	}
 }
 
+// levelCode is an int enum whose first constant is its zero value, as the
+// usual iota pattern gives: the zero is one of its values, not a blank.
+type levelCode int
+
+const (
+	levelLow levelCode = iota
+	levelHigh
+)
+
+func (levelCode) Enums() []levelCode { return []levelCode{levelLow, levelHigh} }
+
+func (l levelCode) MarshalText() ([]byte, error) {
+	switch l {
+	case levelLow:
+		return []byte("low"), nil
+	case levelHigh:
+		return []byte("high"), nil
+	}
+	return nil, fmt.Errorf("bad level %d", int(l))
+}
+
+func (l *levelCode) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "low":
+		*l = levelLow
+	case "high":
+		*l = levelHigh
+	default:
+		return fmt.Errorf("bad level %q", text)
+	}
+	return nil
+}
+
+// A required int enum whose zero value is one of its constants saves that
+// constant when it is chosen, at the top level and in a row: only a blank
+// select is "required", not the zero a chosen option binds.
+func TestReflectFormHandler_RequiredZeroEnumConstantSaves(t *testing.T) {
+	type line struct {
+		Level levelCode `form:"required"`
+	}
+	type record struct {
+		Level levelCode `form:"required"`
+		Lines []line    `form:"repeatable"`
+	}
+	for _, c := range []struct {
+		name, top, row string
+		wantSaved      bool
+	}{{"zero chosen", "low", "low", true}, {"blank top", "", "low", false}, {"blank row", "low", "", false}} {
+		var saved *record
+		h := mx.ReflectFormHandler(
+			func(context.Context) (*record, error) { return &record{Level: levelHigh}, nil },
+			func(_ context.Context, r *record) error { saved = r; return nil },
+			FieldDecider,
+		)
+		vals := url.Values{}
+		vals.Set(mx.PresentSentinelName("Level"), "1")
+		vals.Set("Level", c.top)
+		vals.Set(mx.PresentSentinelName("Lines"), "1")
+		vals.Set(mx.RowSentinelName("Lines-0"), "new")
+		vals.Set(mx.PresentSentinelName("Lines-0-Level"), "1")
+		vals.Set("Lines-0-Level", c.row)
+		rec := postValues(t, h, vals)
+		if c.wantSaved {
+			if rec.Code != http.StatusSeeOther || saved == nil || saved.Level != levelLow || len(saved.Lines) != 1 || saved.Lines[0].Level != levelLow {
+				t.Errorf("%s: the zero constant must save: status %d, saved %+v, body %s", c.name, rec.Code, saved, rec.Body.String())
+			}
+			continue
+		}
+		if rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), ">required<") {
+			t.Errorf("%s: a blank required enum must not save: status %d, saved %+v, body %s", c.name, rec.Code, saved, rec.Body.String())
+		}
+	}
+}
+
 // After a submit, the field error says the text is not in the format, so
 // the hint only names the format.
 func TestFieldDecider_FormatHintAfterError(t *testing.T) {
@@ -5092,6 +5169,18 @@ func TestFieldDecider_OptionListParseErrorNotShown(t *testing.T) {
 		err := parseFieldValue(t, &form{}, field, "a")
 		if err == nil || err.Error() != mx.FormErrorMessage {
 			t.Errorf("%s: error %v, want the generic %q", field, err, mx.FormErrorMessage)
+		}
+	}
+	// A list that fails with a mx.FormMessage, also wrapped, means its text
+	// for the user, so the field shows it instead of the generic message.
+	type messageForm struct {
+		Partner string   `form:"options=test-html-partners-message"`
+		Tags    []string `form:"options=test-html-partners-message"`
+	}
+	for _, field := range []string{"Partner", "Tags"} {
+		err := parseFieldValue(t, &messageForm{}, field, "a")
+		if err == nil || err.Error() != "The partner list is unavailable, try again later." {
+			t.Errorf("%s: error %v, want the list's FormMessage", field, err)
 		}
 	}
 	prev := mx.RevealInternalServerErrors

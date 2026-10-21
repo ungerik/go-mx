@@ -1389,14 +1389,24 @@ func (d *deDay) UnmarshalText(b []byte) error {
 }
 
 // As in the html renderer, a date type that reads only its own spelling
-// renders its text in a text input that asks for no ISO format.
+// renders its text in a text input that asks for no ISO format. A min or
+// max cannot be checked on such text, so, also behind a pointer, the field
+// fails to render instead of every save failing.
 func TestShadcn_OwnSpellingDateType(t *testing.T) {
 	type form struct {
-		Due deDay `form:"widget=date"`
+		Due   deDay  `form:"widget=date"`
+		Since *deDay `form:"widget=date,min=2026-01-01"`
 	}
 	out := renderShadcn(t, &form{Due: deDay{2026, 7, 6}}, "Due", nil)
 	if !strings.Contains(out, `type="text" name="Due" id="Due" hx-trigger="change" value="06.07.2026"`) || strings.Contains(out, "YYYY-MM-DD") || strings.Contains(out, `aria-invalid="true"`) {
 		t.Errorf("own-spelling date: %s", out)
+	}
+	v := reflect.ValueOf(&form{Since: &deDay{2026, 7, 6}}).Elem()
+	field, _ := v.Type().FieldByName("Since")
+	comp := FieldDecider("Since", field, v.FieldByName("Since")).Render("Since", field, v.FieldByName("Since"), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err == nil || !strings.Contains(err.Error(), "min=") {
+		t.Errorf("a bound on an own-spelling date type: render error %v, want the tag error; out %s", err, b.String())
 	}
 }
 
