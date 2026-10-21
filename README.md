@@ -224,7 +224,11 @@ form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
 its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
 parsed is answered with 400 (413 past the multipart limits, net/http's
 10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
-`onSubmit`.
+`onSubmit`, also when a middleware parsed it first and ignored the error. A
+middleware that reads a multipart form, such as a method override calling
+`r.FormValue`, must parse all of it (`r.ParseMultipartForm` or `r.FormValue`):
+after `r.ParseForm` alone the handler cannot tell an unread multipart body from
+a half-read one and answers 400.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
@@ -244,7 +248,11 @@ they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
 POST the submitted value is stored in that same form, through `UnmarshalText`
 when the type has it, and an empty value stores the zero value, which
 `required` rejects. `form:"min=…,max=…"` is checked on the server for every
-date and time field, as it is for numbers. Whole seconds are the finest step: fractional seconds are
+date and time field, as it is for numbers. A date type whose `UnmarshalText`
+reads only its own spelling, such as `02.01.2006`, cannot take what a date
+input sends: it renders as a text input of its own text with no format hint
+(a `form:"placeholder=…"` names its format), and a `min` or `max` on it fails
+the form when it is shown (`mx.DateTimeTagError`). Whole seconds are the finest step: fractional seconds are
 not supported, and neither is a `form:"step=…"` under one second. An input cannot show stored text in another spelling
 (`06.07.2026`), an invalid value or a time with a zone, and a blank one would
 clear it on the next save, so such text renders in a text input instead,

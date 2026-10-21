@@ -40,6 +40,14 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 	}
 
 	render := func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
+		// A render probe asks only whether the field is in the form, which
+		// base answers for every kind shadcn renders, without markup.
+		if mx.IsRenderProbe(errs) {
+			if base.Render == nil {
+				return nil
+			}
+			return base.Render(path, field, value, errs)
+		}
 		if comp := renderShadcnField(path, field, value, kind, tag, errs); comp != nil {
 			return comp
 		}
@@ -49,16 +57,10 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 		}
 		return base.Render(path, field, value, errs)
 	}
-	beh := mx.FieldBehavior{
-		Render:   render,
-		Parse:    base.Parse,
-		Validate: base.Validate,
-	}
-	// render returns a shadcn Component or base's, so a base Render that
-	// never returns nil makes this one never return nil either.
-	if base.RenderNonNil() {
-		beh.MarkRenderNonNil()
-	}
+	// Parsing, validation and Multipart stay base's; only Render is
+	// shadcn's.
+	beh := base
+	beh.Render = render
 	return beh
 }
 
@@ -254,7 +256,7 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
 		return html.Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		preface := mx.SelectPreface(selected, tag, contextList, options)
+		preface := mx.SelectPreface(mx.SelectedOption(value, selected, options), tag, contextList, options)
 		removed = preface.RemovesValue(tag)
 		return selectPrefaceOption(preface)
 	})
@@ -455,11 +457,13 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 	// and neither does a type that reads only its own spelling (no Format).
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly && in.Format != ""
+	// A caller's placeholder is the only hint for a type that reads only
+	// its own spelling.
+	if placeholder := cmp.Or(tag.Placeholder, in.Format); textFallback && !tag.Readonly && placeholder != "" {
+		a = append(a, html.Placeholder(placeholder))
+	}
 	if askFormat {
-		a = append(a,
-			html.Placeholder(cmp.Or(tag.Placeholder, in.Format)),
-			mx.NewAttrib("aria-describedby", formatHintID(path)),
-		)
+		a = append(a, mx.NewAttrib("aria-describedby", formatHintID(path)))
 	}
 	if !textFallback {
 		if tag.Min != "" {

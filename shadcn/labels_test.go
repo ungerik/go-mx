@@ -537,3 +537,25 @@ func TestLabelsClearFieldFollowsCaption(t *testing.T) {
 		t.Errorf("FormClearField must win: %s", out)
 	}
 }
+
+// A program-wide translation in DefaultLabels names the clear box in its
+// language too, with no Labels in the context: FormClearField is resolved
+// apart from the cmp.Or chain of the other labels, so DefaultLabels must
+// stay one of its steps.
+func TestLabelsClearFieldFromDefaultLabels(t *testing.T) {
+	saved := DefaultLabels
+	t.Cleanup(func() { DefaultLabels = saved })
+	for _, c := range []struct {
+		defaults Labels
+		want     string
+	}{
+		{Labels{FormClear: "leeren", FormClearField: "%s leeren"}, `aria-label="Token leeren"`},
+		{Labels{FormClear: "leeren"}, `aria-label="leeren Token"`},
+	} {
+		DefaultLabels = c.defaults
+		out := renderWith(t, context.Background(), clearControl(mx.FieldPath("Token"), "Token", false))
+		if !strings.Contains(out, `text-sm">leeren<`) || !strings.Contains(out, c.want) {
+			t.Errorf("DefaultLabels %+v: want %s in %s", c.defaults, c.want, out)
+		}
+	}
+}

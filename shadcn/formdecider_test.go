@@ -1323,49 +1323,72 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 	}
 }
 
-// The built-in renderers vouch that a field they render is in the form, so
-// a POST binds without rendering it, while a skipped field stays unmarked.
-// A decider hiding a field with a Render that returns nil drops the mark,
-// so a forged __present sentinel still cannot write the field.
-func TestShadcn_RenderMarkAndHiddenField(t *testing.T) {
-	type account struct {
-		Name string
-		Role string
-		Skip string `form:"-"`
-	}
-	v := reflect.ValueOf(&account{}).Elem()
-	for _, c := range []struct {
-		field string
-		want  bool
-	}{{"Name", true}, {"Skip", false}} {
-		f, _ := v.Type().FieldByName(c.field)
-		if got := FieldDecider(mx.FieldPath(c.field), f, v.FieldByName(c.field)).RenderNonNil(); got != c.want {
-			t.Errorf("%s: RenderNonNil %t, want %t", c.field, got, c.want)
+// hideIf wraps a decider so that it leaves out the fields pred names with a
+// Render that returns nil, the way a decider hides a field from some users.
+func hideIf(pred func(mx.FieldPath) bool, base mx.FieldDecider) mx.FieldDecider {
+	return func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+		beh := base(path, field, value)
+		if beh.Render == nil || !pred(path) {
+			return beh
 		}
+		beh.Render = func(mx.FieldPath, reflect.StructField, reflect.Value, []error) mx.Component { return nil }
+		return beh
+	}
+}
+
+// The built-in chain answers a render probe without building markup for a
+// field it renders. Wrappers hiding fields,
+// also nested ones, are asked too, so a forged __present sentinel cannot
+// write a field any of them hides.
+func TestShadcn_RenderProbeAndHiddenFields(t *testing.T) {
+	type account struct {
+		Name     string
+		Role     string
+		Internal string
+		Skip     string `form:"-"`
+	}
+	// What the built-in chain answers each probe with, by field.
+	answers := map[mx.FieldPath]mx.Component{}
+	recorded := func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+		beh := FieldDecider(path, field, value)
+		if render := beh.Render; render != nil {
+			beh.Render = func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
+				comp := render(path, field, value, errs)
+				if mx.IsRenderProbe(errs) {
+					answers[path] = comp
+				}
+				return comp
+			}
+		}
+		return beh
 	}
 	var saved *account
 	h := mx.ReflectFormHandler(
-		func(context.Context) (*account, error) { return &account{Name: "n", Role: "member"}, nil },
+		func(context.Context) (*account, error) { return &account{Name: "n", Role: "member", Internal: "i"}, nil },
 		func(_ context.Context, a *account) error { saved = a; return nil },
-		func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
-			beh := FieldDecider(path, field, value)
-			if path == "Role" { // hidden from this user by rendering nothing
-				beh.Render = func(mx.FieldPath, reflect.StructField, reflect.Value, []error) mx.Component { return nil }
-			}
-			return beh
-		},
+		hideIf(func(p mx.FieldPath) bool { return p == "Role" },
+			hideIf(func(p mx.FieldPath) bool { return p == "Internal" }, recorded)),
 	)
 	form := url.Values{
 		mx.PresentSentinelName("Name"): {"1"}, "Name": {"m"},
 		mx.PresentSentinelName("Role"): {"1"}, "Role": {"admin"},
+		mx.PresentSentinelName("Internal"): {"1"}, "Internal": {"forged"},
 		mx.PresentSentinelName("Skip"): {"1"}, "Skip": {"forged"},
 	}
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h(rec, req)
-	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "m" || saved.Role != "member" || saved.Skip != "" {
-		t.Errorf("status %d, saved %+v; want Name written, Role and Skip kept", rec.Code, saved)
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "m" || saved.Role != "member" || saved.Internal != "i" || saved.Skip != "" {
+		t.Errorf("status %d, saved %+v; want Name written, Role, Internal and Skip kept", rec.Code, saved)
+	}
+	if c, ok := answers["Name"].(mx.Components); !ok || len(c) != 0 {
+		t.Errorf("a rendered field's probe must be answered without markup, got %#v", answers["Name"])
+	}
+	// A form:"-" field is never visited, so a forged sentinel reaches
+	// no decider at all.
+	if _, asked := answers["Skip"]; asked {
+		t.Error("a skipped field must not be asked")
 	}
 }
 
@@ -1422,6 +1445,13 @@ func TestShadcn_StoredRequiredFileNotDemanded(t *testing.T) {
 	if out := renderShadcn(t, &form{}, "Doc", nil); !strings.Contains(out, `required="required"`) {
 		t.Errorf("an empty required file input must be required: %s", out)
 	}
+	// A field may store the file's name instead of its bytes.
+	type named struct {
+		Doc string `form:"widget=file,required"`
+	}
+	if out := renderShadcn(t, &named{Doc: "scan.pdf"}, "Doc", nil); strings.Contains(out, `required="required"`) {
+		t.Errorf("a stored file name must not make the input required: %s", out)
+	}
 }
 
 // The note that saving drops a value the list no longer offers describes
@@ -1454,5 +1484,25 @@ func TestShadcn_RemovalNoteDescribesControl(t *testing.T) {
 		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
 			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
 		}
+	}
+}
+
+// As in the html renderer, an enum zero that is none of its options shows
+// as no selection, not as an unavailable value that saving removes.
+func TestShadcn_UnlistedZeroIsNoSelection(t *testing.T) {
+	type form struct {
+		Partner int64 `form:"options=test-shadcn-partners"`
+	}
+	v := reflect.ValueOf(&form{}).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider("Partner", field, v.Field(0)).Render("Partner", field, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{{Name: "Partner One", Value: "1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, "not available") || strings.Contains(out, "removed when you save") || !strings.Contains(out, `selected="selected">(none)</option>`) {
+		t.Errorf("an unlisted zero key: %s", out)
 	}
 }

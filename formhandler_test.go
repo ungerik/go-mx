@@ -1619,51 +1619,44 @@ func TestReflectFormHandler_PreParsedMultipartFilesKept(t *testing.T) {
 	f.Close()
 }
 
-// Binding a POST renders no markup for a field whose decider marks its
-// Render as never nil (FieldBehavior.MarkRenderNonNil): only an unmarked
-// Render, such as one a hiding wrapper assigns, is called to tell whether
-// the field is in the form.
-func TestReflectFormHandler_MarkedRenderNotCalledOnBind(t *testing.T) {
-	for _, marked := range []bool{true, false} {
-		renders := 0
-		base := newTestDecider()
-		d := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
-			beh := base(path, field, value)
-			inner := beh.Render
-			beh.Render = func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component {
+// Binding a POST asks Render only with a render probe, never for the
+// field's markup, and asks it for every sent field, so a decider can still
+// leave one out.
+func TestReflectFormHandler_BindAsksRenderProbe(t *testing.T) {
+	probes, renders := 0, 0
+	base := newTestDecider()
+	d := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		inner := beh.Render
+		beh.Render = func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component {
+			if IsRenderProbe(errs) {
+				probes++
+			} else {
 				renders++
-				return inner(path, field, value, errs)
 			}
-			if marked {
-				beh.MarkRenderNonNil()
-			}
-			return beh
+			return inner(path, field, value, errs)
 		}
-		var saved *sampleStruct
-		h := ReflectFormHandler(
-			func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
-			func(_ context.Context, s *sampleStruct) error { saved = s; return nil },
-			d,
-		)
-		form := url.Values{}
-		form.Set(PresentSentinelName("Name"), "1")
-		form.Set("Name", "n")
-		form.Set(PresentSentinelName("Age"), "1")
-		form.Set("Age", "7")
-		if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "n" || saved.Age != 7 {
-			t.Fatalf("marked %t: status %d, saved %+v", marked, rec.Code, saved)
-		}
-		if marked && renders != 0 {
-			t.Errorf("a marked Render was called %d times to bind a POST", renders)
-		}
-		if !marked && renders == 0 {
-			t.Error("an unmarked Render must be asked whether its field is in the form")
-		}
+		return beh
+	}
+	var saved *sampleStruct
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(_ context.Context, s *sampleStruct) error { saved = s; return nil },
+		d,
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	form.Set(PresentSentinelName("Age"), "1")
+	form.Set("Age", "7")
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "n" || saved.Age != 7 {
+		t.Fatalf("status %d, saved %+v", rec.Code, saved)
+	}
+	if probes != 2 || renders != 0 {
+		t.Errorf("binding two sent fields: %d probes, %d renders; want 2 probes and no render", probes, renders)
 	}
 }
 
-// A form posts urlencoded, whose limit is 10,000 values, unless a file
-// input, also in a row, needs multipart.
 func TestReflectFormHandler_Enctype(t *testing.T) {
 	type fileLine struct {
 		Doc []byte `form:"widget=file"`

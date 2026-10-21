@@ -290,22 +290,26 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 
 ## mx reflected forms
 
-### A readonly file field shows "No file chosen"
+### A file field holding a file shows "No file chosen"
 
-**What:** Show a readonly file field's stored value, such as its filename,
-instead of only a disabled file picker.
+**What:** Show that a file field holds a file, such as its filename, next to
+the file picker, readonly or editable, and on an editable one that leaving
+it empty keeps the stored file; link the note with `aria-describedby`.
 
-**Why:** A readonly file input renders disabled, and the browser labels it
-"No file chosen" even when a file is stored, so the field tells the user
-there is no file.
+**Why:** The browser labels a file input "No file chosen" even when a file is
+stored. A readonly one tells the user there is no file; an editable one,
+which keeps the stored file on an empty submit and so is no longer
+HTML-`required` when it holds one, gives no sign of it, so the user uploads
+again or thinks the file is gone.
 
 **Context:** `fileInput` in `html/formdecider.go` and `fileAttribs` in
-`shadcn/formdecider.go`. A string field holds a filename to show; a `[]byte`
-field has none, so it would need a caption, which needs localizable text
-(shadcn `Labels`).
+`shadcn/formdecider.go`; `hasStoredFile` tells whether one is stored. A
+string field holds a filename to show; a `[]byte` field has none, so it
+would need a caption, which needs localizable text (shadcn `Labels`). The
+editable case was found in the date widget branch's review.
 
 **Effort:** S
-**Priority:** P4
+**Priority:** P3
 **Depends on:** None
 
 ### A readonly repeatable field with no rows renders an empty box
@@ -354,8 +358,10 @@ hint, would cover it. The parser's layouts stay internal.
 them all from the control's `aria-describedby` (or `aria-errormessage`), in
 the html and shadcn renderers.
 
-**Why:** A date field's text fallback references only its format hint, and
-other fields reference nothing. After a failed submit, a screen reader user
+**Why:** A date field's text fallback references only its format hint, a
+select or checkbox set only its note on options the list no longer offers
+(`optionNoteID`), and other fields reference nothing; the error and help ids
+must join those in the same attribute. After a failed submit, a screen reader user
 who tabs to the field hears "invalid" but not the error, and `role="alert"`
 on server-rendered markup is not announced on a full-page load.
 
@@ -541,6 +547,104 @@ the binders of those kinds would need a null for a blank.
 
 **Effort:** M
 **Priority:** P3
+**Depends on:** None
+
+### A text-held date type that reads only its own spelling cannot be saved
+
+**What:** Let a string-kind date type whose `UnmarshalText` reads only its own
+spelling (a `type DEDate string` that takes `02.01.2006`) render as a text
+input of its own text and bind through `UnmarshalText` of the raw text, as a
+non-string own-spelling type does.
+
+**Why:** Such a field shows its stored text as "Not in the expected format:
+YYYY-MM-DD"; posting it back fails in `mx.ParseDateTimeInput`, and posting
+ISO text passes that but is rejected by the type, so nothing can be saved.
+
+**Context:** `readsOwnSpellingOnly` in `formdatetime.go` exempts every string
+kind; `setTimeText` in `html/formdecider.go` calls `mx.ParseDateTimeInput`
+before `UnmarshalText`. Found in the date widget branch's review; deferred.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A `database/sql` text holding a NUL byte cannot be saved
+
+**What:** Decide the `Scan` path of a `database/sql` field by its type, not by
+whether its stored text fits an input, and show stored text an input cannot
+hold (a NUL byte, invalid UTF-8) as an invalid text input the user can
+replace, with an error naming the cause.
+
+**Why:** `isScanner` returns `mx.DriverValueText`'s ok, which is false for such
+text, so `setScalar` skips `Scan` and every save of a `sql.NullString` holding
+`"a\x00b"` fails with "implement encoding.TextUnmarshaler or
+database/sql.Scanner", though the type implements `Scanner`; a newly typed
+valid value cannot be saved either.
+
+**Context:** `isScanner` and `setScalar` in `html/formdecider.go`;
+`DriverValueText` in `nullable.go`. Skipped in the date widget branch's
+review as rare.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### An unsent required enum whose stored zero is an option reads as blank
+
+**What:** On a POST that leaves out a required enum's `__present` sentinel,
+count a stored zero that is one of its options (a `Low = iota`, an option
+`"0"`) as a value, not as blank.
+
+**Why:** The handler then reports "required" under a select that shows the
+option selected, and the save fails. A browser always sends the sentinel, so
+only partial or programmatic POSTs hit it.
+
+**Context:** `isBlank` in `formhandler.go` (the unsent path of `parseField`);
+the sent path decides from the submitted text (`sentBlank`). Knowing whether
+the zero is listed needs the field's options (`mx.CollectOptions`). Skipped
+in the date widget branch's review.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Form rules duplicated across `mx`, `html` and `shadcn`
+
+**What:** Keep each reflected-form rule in one place in `mx`: when an input
+drops HTML `required` (`browserTag` and `hasStoredFile`, copied in `html`
+and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
+`html`, a copy of `mx`'s), which error text a page may show
+(`optionListError` in `html` repeats `formErrorText`'s policy, for example
+as an `mx.FormError(err) error`), and the 64-byte date text limit
+(`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
+`validateBound`, which has a single caller, `validateField`.
+
+**Why:** Each copy can drift from the others: `hasStoredFile` already differs
+from the handler's `isEffectivelyEmpty` on a non-nil `*string` holding "".
+
+**Context:** Advisory findings of the date widget branch's review, skipped to
+land it; each is a small refactor with an exported helper in `mx`.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Backtick HTML literals in tests lack the `/*html*/` prefix
+
+**What:** Prefix the backtick HTML literals in the reflected-form and calendar
+tests with `/*html*/`, on its own line where the literal follows another
+argument.
+
+**Why:** AGENTS.md asks for the prefix on every backtick HTML literal; the
+date widget branch added about 100 without it (`html/formdecider_test.go`,
+`shadcn/formdecider_test.go`, `shadcn/calendar_test.go`,
+`formhandler_test.go`), and `main` already had a few.
+
+**Context:** Mechanical, but it reflows many table rows. Skipped in the date
+widget branch's review.
+
+**Effort:** S
+**Priority:** P4
 **Depends on:** None
 
 ## mx dead code

@@ -110,7 +110,10 @@ type ReflectFormConfig struct {
 // or 413 past the multipart limits, net/http's 10 MB for a urlencoded
 // body or a limit set with [http.MaxBytesReader], never treated as a
 // submission of nothing, also when a middleware parsed it first and
-// ignored the error.
+// ignored the error. A middleware that reads a multipart form must parse
+// all of it (r.ParseMultipartForm or r.FormValue): after r.ParseForm alone
+// the handler cannot tell an unread multipart body from a half-read one
+// and answers 400.
 //
 // load must return a record the handler may change: it binds the
 // submission into it, including text a field rejected, which stays there for
@@ -354,8 +357,8 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 // read "not a valid value": a type's own message may quote the value,
 // which after a blank submission is the stored one. A [FormMessage], such
 // as a password rule, is meant for the user and shows as it is.
-func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath) []error {
-	errs := validateBound(visit.Kind, visit.Value)
+func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath, blank bool) []error {
+	errs := validateBound(visit.Kind, visit.Value, blank)
 	if beh.Validate != nil {
 		if err := beh.Validate(path, visit.Field, visit.Value); err != nil {
 			errs = append(errs, err)
@@ -381,15 +384,17 @@ func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath) []error 
 }
 
 // validateBound runs the validation chain on a bound field value, at the
-// top level and in a repeatable row alike. A blank optional enum is "no
-// choice", not an invalid constant: go-enum Validate rejects the zero
-// string, which would make the leading "(none)" option impossible to save
-// (a decider Validate still runs: that hook is the caller's, not the
-// type's enum check). The elements of an enum set carry the enum's
-// Validate, not the map or slice holding them, so a set is validated
-// element by element unless it validates itself.
-func validateBound(kind FieldKind, value reflect.Value) []error {
-	if kind == FieldKindEnum && isBlank(kind, value) {
+// top level and in a repeatable row alike. A blank optional enum, one
+// submitted empty ([sentBlank]), is "no choice", not an invalid constant:
+// go-enum Validate rejects the zero string, which would make the leading
+// "(none)" option impossible to save (a decider Validate still runs: that
+// hook is the caller's, not the type's enum check). An enum zero bound
+// from text that was not empty, such as a forged "0", is validated. The
+// elements of an enum set carry the enum's Validate, not the map or slice
+// holding them, so a set is validated element by element unless it
+// validates itself.
+func validateBound(kind FieldKind, value reflect.Value, blank bool) []error {
+	if kind == FieldKindEnum && blank {
 		return nil
 	}
 	chainErrs := RunValidationChain(value)
@@ -454,25 +459,23 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 			return
 		}
 	}
-	if cv.Tag.Required && isBlank(cv.Kind, cv.Value) {
+	blank := sentBlank(cv, form, srcCell)
+	if cv.Tag.Required && blank {
 		// Validation results shown to the user carry no callstack.
 		out[dstCell] = append(out[dstCell], errors.New("required"))
 		return
 	}
-	if errs := validateField(cv, beh, dstCell); len(errs) > 0 {
+	if errs := validateField(cv, beh, dstCell, blank); len(errs) > 0 {
 		out[dstCell] = append(out[dstCell], errs...)
 	}
 }
 
 // fieldInForm reports whether the decider's behavior beh puts the field of
 // cv at path into the form: a nil Render, or one that returns nil, leaves
-// it out. A Render marked with [FieldBehavior.MarkRenderNonNil] is not
-// called.
+// it out. Render is asked with a probe ([IsRenderProbe]), which the
+// built-in deciders answer without building markup.
 func fieldInForm(beh FieldBehavior, path FieldPath, cv FieldVisit) bool {
-	if beh.Render == nil {
-		return false
-	}
-	return beh.RenderNonNil() || beh.Render(path, cv.Field, cv.Value, nil) != nil
+	return beh.Render != nil && beh.Render(path, cv.Field, cv.Value, renderProbe()) != nil
 }
 
 // keepsStored reports whether a submission leaves a field's stored value
@@ -599,32 +602,25 @@ func formErrorText(err error) string {
 	return FormErrorMessage
 }
 
-// isBlank reports whether a bound value counts as no value for a required
-// check: [isEffectivelyEmpty], or the zero of an enum of any kind that is
-// none of its constants, the value an empty select stores, which
-// isEffectivelyEmpty never sees in a number. A zero that is a constant,
-// such as a Low = iota, is a choice.
+// isBlank reports whether a value not sent counts as no value for a
+// required check: [isEffectivelyEmpty], or the zero of an enum of any kind,
+// the value an empty select stores, which isEffectivelyEmpty never sees in
+// a number.
 func isBlank(kind FieldKind, value reflect.Value) bool {
-	if isEffectivelyEmpty(value) {
-		return true
-	}
-	return kind == FieldKindEnum && value.IsZero() && !zeroIsEnumConstant(value.Type())
+	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
 }
 
-// zeroIsEnumConstant reports whether the zero value of t is one of the
-// constants its Enums method lists.
-func zeroIsEnumConstant(t reflect.Type) bool {
-	m := reflect.New(t).MethodByName("Enums")
-	if !m.IsValid() || m.Type().NumIn() != 0 || m.Type().NumOut() != 1 || m.Type().Out(0).Kind() != reflect.Slice {
-		return false
+// sentBlank reports whether a sent field bound to no value, for the
+// required check and the validation chain: [isEffectivelyEmpty], or an
+// enum whose bound zero came from a blank submission, as a parser that
+// stores the zero for an empty select leaves it. An enum zero bound from
+// text, such as a Low = iota or an option "0", is a value, which the
+// validation chain then checks.
+func sentBlank(cv FieldVisit, form url.Values, path FieldPath) bool {
+	if isEffectivelyEmpty(cv.Value) {
+		return true
 	}
-	constants := m.Call(nil)[0]
-	for i := range constants.Len() {
-		if constants.Index(i).IsZero() {
-			return true
-		}
-	}
-	return false
+	return cv.Kind == FieldKindEnum && cv.Value.IsZero() && form.Get(string(path)) == ""
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a
@@ -700,6 +696,17 @@ func setFieldNull(value reflect.Value) error {
 	return errors.New("field is not nullable")
 }
 
+// zeroableIsZero calls z.IsZero; a method that panics, as the promoted
+// IsZero of a nil embedded *time.Time does, holds no value.
+func zeroableIsZero(z Zeroable) (zero bool) {
+	defer func() {
+		if recover() != nil {
+			zero = true
+		}
+	}()
+	return z.IsZero()
+}
+
 // isEffectivelyEmpty reports whether value should be treated as
 // "empty" for purposes of a Required check. Numeric and bool fields
 // are never empty (a value is always submitted via __present).
@@ -722,7 +729,7 @@ func isEffectivelyEmpty(value reflect.Value) bool {
 		return value.Len() == 0
 	case reflect.Array, reflect.Struct:
 		if z, ok := safeInterface(value).(Zeroable); ok {
-			return z.IsZero()
+			return zeroableIsZero(z)
 		}
 		return value.IsZero()
 	case reflect.Pointer, reflect.Interface:
@@ -760,7 +767,8 @@ func selfSubmitAction(r *http.Request) string {
 // buildFormComponent constructs the top-level form Component.
 //
 // The handler emits the surrounding <form> element with method=post, an
-// enctype of multipart/form-data when a file field renders and
+// enctype of multipart/form-data when a file field, or one whose
+// [FieldBehavior].Multipart is set, renders and
 // application/x-www-form-urlencoded otherwise, and the given action (by default the URL
 // that served the form — see [selfSubmitAction] — or the caller's
 // [ReflectFormConfig.Action] when set), then asks the decider to render

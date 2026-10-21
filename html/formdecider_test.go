@@ -5296,3 +5296,272 @@ func TestFieldDecider_StoredRequiredFileNotDemanded(t *testing.T) {
 		t.Errorf("an empty required file input must be required: %s", empty)
 	}
 }
+
+func init() {
+	mx.RegisterNamedOptions("test-html-floors", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{{Name: "Ground", Value: "0"}, {Name: "First", Value: "1"}}, nil
+	})
+}
+
+// floorNo reads and writes its digits as text; its zero, the ground
+// floor, is an option of every list below.
+type floorNo int
+
+func (f floorNo) MarshalText() ([]byte, error) { return []byte(strconv.Itoa(int(f))), nil }
+
+func (f *floorNo) UnmarshalText(b []byte) error {
+	n, err := strconv.Atoi(string(b))
+	*f = floorNo(n)
+	return err
+}
+
+// namedFloor lists its options itself, the zero among them.
+type namedFloor int
+
+func (namedFloor) NamedOptions() []mx.NamedOption {
+	return []mx.NamedOption{{Name: "Ground", Value: "0"}, {Name: "First", Value: "1"}}
+}
+func (f namedFloor) MarshalText() ([]byte, error)  { return floorNo(f).MarshalText() }
+func (f *namedFloor) UnmarshalText(b []byte) error { return (*floorNo)(f).UnmarshalText(b) }
+
+// stringsFloor is an enum by EnumStrings alone, without Enums.
+type stringsFloor int
+
+func (stringsFloor) EnumStrings() []string            { return []string{"0", "1"} }
+func (f stringsFloor) MarshalText() ([]byte, error)  { return floorNo(f).MarshalText() }
+func (f *stringsFloor) UnmarshalText(b []byte) error { return (*floorNo)(f).UnmarshalText(b) }
+
+// A required select whose zero value is one of its options saves that
+// option whatever lists it: a form:"options=…" provider, NamedOptions or
+// EnumStrings, not only an Enums method.
+func TestReflectFormHandler_RequiredZeroOptionSaves(t *testing.T) {
+	type record struct {
+		Tagged  floorNo      `form:"required,options=test-html-floors"`
+		Named   namedFloor   `form:"required"`
+		Strings stringsFloor `form:"required"`
+	}
+	for _, field := range []string{"Tagged", "Named", "Strings"} {
+		var saved *record
+		h := mx.ReflectFormHandler(
+			func(context.Context) (*record, error) { return &record{Tagged: 1, Named: 1, Strings: 1}, nil },
+			func(_ context.Context, r *record) error { saved = r; return nil },
+			FieldDecider,
+		)
+		vals := url.Values{}
+		vals.Set(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+		vals.Set(field, "0")
+		if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+			t.Errorf("%s: choosing the listed option 0: status %d, saved %+v, body %s", field, rec.Code, saved, rec.Body.String())
+		}
+	}
+}
+
+// A date type that reads only its own spelling is a text input also when
+// null or sensitive, where a date picker would send text it rejects, and a
+// caller's placeholder is its hint.
+func TestReflectFormHandler_OwnSpellingDateNullAndSensitive(t *testing.T) {
+	type record struct {
+		Due    *deDate `form:"widget=date,placeholder=TT.MM.JJJJ"`
+		Secret deDate  `form:"widget=date,sensitive"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Secret: deDate{2026, 7, 6}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{
+		`<input type="text" name="Due" id="Due" placeholder="TT.MM.JJJJ"/>`,
+		`<input type="text" name="Secret" id="Secret"/>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("want %s in %s", want, body)
+		}
+	}
+	vals := submittedValues(body)
+	vals.Set("Due", "01.08.2026")
+	vals.Set("Secret", "02.08.2026")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Due == nil || *saved.Due != (deDate{2026, 8, 1}) || saved.Secret != (deDate{2026, 8, 2}) {
+		t.Errorf("own spelling, null and sensitive: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// An optional select or checkbox set refers to its option note before a
+// context list resolves, so with nothing removed the note still exists,
+// empty and hidden: the aria-describedby never points at nothing.
+func TestFieldDecider_OptionNoteReferenceNeverDangles(t *testing.T) {
+	type draftForm struct {
+		Partner string   `form:"options=test-html-partners"`
+		Tags    []string `form:"options=test-html-partners"`
+	}
+	ctx := context.WithValue(context.Background(), partnersCtxKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	v := reflect.ValueOf(&draftForm{Partner: "p1", Tags: []string{"p1"}}).Elem()
+	for _, name := range []string{"Partner", "Tags"} {
+		field, _ := v.Type().FieldByName(name)
+		value := v.FieldByName(name)
+		comp := FieldDecider(mx.FieldPath(name), field, value).Render(mx.FieldPath(name), field, value, nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatalf("%s: render: %v", name, err)
+		}
+		out := b.String()
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
+			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
+		}
+	}
+}
+
+// A file field may store only the uploaded file's name (a string
+// destination binds the file name). Holding a name, the required input
+// must not make the browser demand a new upload on every save.
+func TestFieldDecider_StoredRequiredFileNameNotDemanded(t *testing.T) {
+	type form struct {
+		Doc string `form:"widget=file,required"`
+	}
+	if stored := renderFieldHTML(t, &form{Doc: "scan.pdf"}, "Doc"); strings.Contains(stored, "required") {
+		t.Errorf("a stored file name must not make the input required: %s", stored)
+	}
+	if empty := renderFieldHTML(t, &form{}, "Doc"); !strings.Contains(empty, `required="required"`) {
+		t.Errorf("an empty required file input must be required: %s", empty)
+	}
+}
+
+// rtPrio is an int enum whose zero is none of its constants, bound from its
+// digits, so a forged "0" binds to the zero.
+type rtPrio int
+
+func (rtPrio) Enums() []rtPrio { return []rtPrio{1, 2} }
+
+func (p rtPrio) Validate() error {
+	if p != 1 && p != 2 {
+		return errors.New("not a priority")
+	}
+	return nil
+}
+
+func (p rtPrio) MarshalText() ([]byte, error) { return []byte(strconv.Itoa(int(p))), nil }
+
+func (p *rtPrio) UnmarshalText(b []byte) error {
+	n, err := strconv.Atoi(string(b))
+	if err != nil {
+		return err
+	}
+	*p = rtPrio(n)
+	return nil
+}
+
+// A forged non-empty value that binds a required enum to a zero that is no
+// constant is no blank choice: it is validated and rejected, not saved,
+// also in a row.
+func TestReflectFormHandler_RequiredEnumForgedZeroRejected(t *testing.T) {
+	type line struct {
+		Prio rtPrio `form:"required"`
+	}
+	type record struct {
+		Prio  rtPrio `form:"required"`
+		Lines []line `form:"repeatable"`
+	}
+	for _, raw := range []string{"0", "00", "-0"} {
+		for _, row := range []bool{false, true} {
+			var saved *record
+			h := mx.ReflectFormHandler(
+				func(context.Context) (*record, error) { return &record{Prio: 2}, nil },
+				func(_ context.Context, r *record) error { saved = r; return nil },
+				FieldDecider,
+			)
+			vals := url.Values{}
+			vals.Set(mx.PresentSentinelName("Prio"), "1")
+			vals.Set("Prio", raw)
+			if row {
+				vals.Set("Prio", "2")
+				vals.Set(mx.PresentSentinelName("Lines"), "1")
+				vals.Set(mx.RowSentinelName("Lines-0"), "new")
+				vals.Set(mx.PresentSentinelName("Lines-0-Prio"), "1")
+				vals.Set("Lines-0-Prio", raw)
+			}
+			if rec := postValues(t, h, vals); saved != nil || rec.Code != http.StatusOK {
+				t.Errorf("%q (row %t): status %d, saved %+v", raw, row, rec.Code, saved)
+			}
+		}
+	}
+}
+
+// A required date wrapper whose embedded time pointer is nil holds no
+// value: the required check names it instead of panicking in the promoted
+// IsZero of the nil pointer.
+func TestReflectFormHandler_RequiredNilWrappedTimeIsBlank(t *testing.T) {
+	type record struct {
+		At ptrWrappedTime `form:"widget=date,required"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	vals := url.Values{}
+	vals.Set(mx.PresentSentinelName("At"), "1")
+	vals.Set("At", "")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), ">required<") {
+		t.Errorf("a blank required wrapper: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// A sensitive own-spelling date's error names no format: the input's
+// YYYY-MM-DD is text the type rejects. A type that reads the input's text
+// but only dates of its own range is no own-spelling type.
+func TestFieldDecider_OwnSpellingDateErrors(t *testing.T) {
+	type form struct {
+		Secret deDate     `form:"widget=date,sensitive"`
+		Future futureDate `form:"widget=date"`
+	}
+	f := &form{Secret: deDate{2026, 7, 6}}
+	err := parseFieldValue(t, f, "Secret", "2026-08-02")
+	if err == nil || strings.Contains(err.Error(), "YYYY-MM-DD") || strings.Contains(err.Error(), "2026") {
+		t.Errorf("a sensitive own-spelling date's error: %v", err)
+	}
+	if in := mx.DateTimeInput(reflect.ValueOf(futureDate{}), mx.FormTag{Widget: "date"}); in.Type != "date" || in.Format != "YYYY-MM-DD" {
+		t.Errorf("a range-holding ISO date type must keep the date input: %+v", in)
+	}
+}
+
+// futureDate reads ISO dates but takes none before 2020.
+type futureDate struct{ t time.Time }
+
+func (d futureDate) MarshalText() ([]byte, error) {
+	if d.t.IsZero() {
+		return nil, nil
+	}
+	return []byte(d.t.Format(time.DateOnly)), nil
+}
+
+func (d *futureDate) UnmarshalText(b []byte) error {
+	t, err := time.Parse(time.DateOnly, string(b))
+	if err != nil {
+		return err
+	}
+	if t.Year() < 2020 {
+		return errors.New("before 2020")
+	}
+	d.t = t
+	return nil
+}
+
+// An enum whose zero is none of its options holds no choice at its zero,
+// as on a new record: the select offers "(none)" or "Choose…", not an
+// unavailable value with a note that saving removes it.
+func TestFieldDecider_UnlistedZeroIsNoSelection(t *testing.T) {
+	type form struct {
+		Optional colorCode
+		Required colorCode `form:"required"`
+	}
+	f := &form{}
+	optional := renderFieldHTML(t, f, "Optional")
+	if !strings.Contains(optional, `<option value="" selected="selected">(none)</option>`) || strings.Contains(optional, "not available") || strings.Contains(optional, "removed when you save") {
+		t.Errorf("an optional unlisted zero: %s", optional)
+	}
+	required := renderFieldHTML(t, f, "Required")
+	if !strings.Contains(required, `selected="selected">Choose…</option>`) || strings.Contains(required, "not available") {
+		t.Errorf("a required unlisted zero: %s", required)
+	}
+}

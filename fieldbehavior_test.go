@@ -83,25 +83,16 @@ func TestFieldErrors_UnwrapDropsNil(t *testing.T) {
 	}
 }
 
-// The mark covers the Render it was set for: a decider that wraps a marked
-// behavior and assigns another Render, as one hiding a field does, drops it.
-func TestFieldBehavior_MarkRenderNonNil(t *testing.T) {
-	beh := FieldBehavior{Render: func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return Text("x") }}
-	if beh.RenderNonNil() {
-		t.Error("an unmarked Render reports the mark")
+// A render probe is recognized as one, and nothing else is: not a caller's
+// error with the same text, not the probe joined with another error.
+func TestIsRenderProbe(t *testing.T) {
+	if !IsRenderProbe(renderProbe()) {
+		t.Error("the handler's probe is not recognized")
 	}
-	beh.MarkRenderNonNil()
-	if !beh.RenderNonNil() {
-		t.Error("a marked Render lacks the mark")
-	}
-	beh.Render = func(FieldPath, reflect.StructField, reflect.Value, []error) Component { return nil }
-	if beh.RenderNonNil() {
-		t.Error("a replaced Render keeps the mark")
-	}
-	beh.Render = nil
-	beh.MarkRenderNonNil()
-	if beh.RenderNonNil() {
-		t.Error("a nil Render reports the mark")
+	for _, errs := range [][]error{nil, {}, {errors.New("mx: render probe")}, append(renderProbe(), errors.New("x"))} {
+		if IsRenderProbe(errs) {
+			t.Errorf("%v must not be a render probe", errs)
+		}
 	}
 }
 

@@ -149,7 +149,8 @@ func requestFormValues(r *http.Request) map[string][]string {
 // for renders the loaded slice, whose origins are the row indices. The
 // field's own errors, such as an onSubmit one asking for at least one row,
 // show after the legend. Each path whose errors an input shows is added to
-// consumed. hasFile reports a file cell, which needs a multipart body.
+// consumed. hasFile reports a file cell, or one whose FieldBehavior sets
+// Multipart, which needs a multipart body.
 func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	slice := visit.Value
 	structType := repeatableStructType(slice.Type())
@@ -232,7 +233,8 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 // [rowOriginMarker]), and a "Remove" button. readonly renders every cell
 // readonly and no button. Each cell path whose errors an input shows is
 // added to consumed; a hidden cell, such as a per-row key, shows none.
-// hasFile reports a rendered file cell.
+// hasFile reports a rendered file cell, or one whose FieldBehavior sets
+// Multipart.
 func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	rowPath := fieldPath.Append(strconv.Itoa(index))
 	var cells []any

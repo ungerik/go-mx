@@ -36,7 +36,8 @@ type DateTimeInputSpec struct {
 	// [ParseDateTimeInput]. A non-string type with MarshalText, such as a
 	// date struct, has its UnmarshalText read its own text back, so it is
 	// invalid only when the tag sets a min or max, which cannot be checked
-	// on text the input type cannot show.
+	// on text the input type cannot show; one that reads only its own
+	// spelling is never invalid (see [DateTimeTagError]).
 	Invalid bool
 
 	// Time is the time the input shows for a time.Time or a type wrapping
@@ -93,7 +94,10 @@ func (s DateTimeInputSpec) TextFallback() bool {
 // Any other type with a MarshalText method, such as a date struct, is shown
 // by its text under the same rules; its zero or null value renders no value,
 // and so does a value whose methods panic, such as a nil embedded pointer.
-// Every other value renders no value.
+// A type whose UnmarshalText reads only its own spelling, such as
+// 02.01.2006, not what the input sends, always renders as a "text" input
+// of its own text with no Format, also when null or sensitive; a min or
+// max on it is a [DateTimeTagError]. Every other value renders no value.
 func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 	spec := dateTimeInput(value, tag)
 	if tag.Step != "" {
@@ -116,6 +120,13 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 	inputType := dateTimeInputType(tag)
 	tt := timeTexts[inputType]
 	spec := DateTimeInputSpec{Type: inputType, Format: tt.format}
+	// A type that reads only its own spelling gets a text input whatever it
+	// holds, also when null or sensitive: the input's picker would send
+	// text it rejects, and the input's format is not its own.
+	ownSpelling := value.IsValid() && readsOwnSpellingOnly(value.Type(), tt)
+	if ownSpelling {
+		spec.Type, spec.Format = "text", ""
+	}
 	if tag.Sensitive || !value.IsValid() {
 		return spec
 	}
@@ -126,6 +137,12 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		}
 		v = v.Elem()
 	}
+	if ownSpelling {
+		if text, ok := marshaledText(v); ok {
+			spec.Value = text
+		}
+		return spec
+	}
 	if v.Kind() == reflect.String {
 		spec.Type, spec.Value = timeTextInput(v, inputType)
 		spec.Invalid = spec.TextFallback()
@@ -135,15 +152,6 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		if !t.IsZero() {
 			spec.Value = t.Format(tt.layouts[0])
 			spec.Time = t
-		}
-		return spec
-	}
-	if hasTextMethods(v.Type()) && !readsInputText(v.Type(), tt) {
-		// The type reads only its own spelling: the input's picker would
-		// send text it rejects, and the input's format is not its own.
-		spec.Type, spec.Format = "text", ""
-		if text, ok := marshaledText(v); ok {
-			spec.Value = text
 		}
 		return spec
 	}
@@ -178,22 +186,29 @@ func DateTimeTagError(value reflect.Value, tag FormTag) error {
 	if tag.Min == "" && tag.Max == "" || !value.IsValid() {
 		return nil
 	}
+	tt := timeTexts[dateTimeInputType(tag)]
+	if !readsOwnSpellingOnly(value.Type(), tt) {
+		return nil
+	}
 	t := value.Type()
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	tt := timeTexts[dateTimeInputType(tag)]
-	if t.Kind() == reflect.String || (t.Kind() == reflect.Struct && isTimeLike(t)) || !hasTextMethods(t) || readsInputText(t, tt) {
-		return nil
-	}
 	return fmt.Errorf("form:\"min=…,max=…\" cannot be checked on %s, which reads only its own text, not %s text", t, tt.format)
 }
 
-// hasTextMethods reports whether a pointer to t has both MarshalText and
-// UnmarshalText.
-func hasTextMethods(t reflect.Type) bool {
-	p := reflect.PointerTo(t)
-	return p.Implements(reflect.TypeFor[encoding.TextMarshaler]()) && p.Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
+// readsOwnSpellingOnly reports whether t, through pointers, is a type with
+// text methods that reads only its own spelling, such as 02.01.2006, not
+// what an input of tt sends: no string kind, which holds the input's text,
+// and no time.Time or wrapper of one.
+func readsOwnSpellingOnly(t reflect.Type, tt timeText) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.String || (t.Kind() == reflect.Struct && isTimeLike(t)) {
+		return false
+	}
+	return ImplementsTextMarshaler(t) && ImplementsTextUnmarshaler(t) && !readsInputText(t, tt)
 }
 
 // readsInputText reports whether the UnmarshalText of t reads what an
@@ -207,10 +222,19 @@ func readsInputText(t reflect.Type, tt timeText) (ok bool) {
 			ok = false
 		}
 	}()
-	sample := time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
-	texts := []string{sample.Format(time.RFC3339Nano)}
-	for _, layout := range tt.layouts {
-		texts = append(texts, sample.Format(layout))
+	// Several instants, so a type that reads the input's text but holds
+	// dates to a range of its own, such as none in the past, still reads
+	// one of them.
+	var texts []string
+	for _, sample := range []time.Time{
+		time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC),
+		time.Now().UTC().AddDate(1, 0, 0).Truncate(time.Second),
+		time.Date(2099, 12, 31, 23, 59, 59, 0, time.UTC),
+	} {
+		texts = append(texts, sample.Format(time.RFC3339Nano))
+		for _, layout := range tt.layouts {
+			texts = append(texts, sample.Format(layout))
+		}
 	}
 	for _, text := range texts {
 		dst := reflect.New(t)

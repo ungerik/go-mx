@@ -1,5 +1,7 @@
 package mx
 
+import "reflect"
+
 // OptionPreface is the extra control a reflected option field renders
 // ahead of its option list. The zero value, [OptionPrefaceNone], renders
 // nothing.
@@ -99,6 +101,24 @@ func SelectPreface(selected string, tag FormTag, contextList bool, options []Nam
 		return OptionPrefaceClear
 	}
 	return OptionPrefaceNone
+}
+
+// SelectedOption returns the option value a single-value select shows for
+// value, whose text is selected: selected itself, or "" for the zero value
+// when the list offers no option for it. An enum whose zero is none of its
+// options, such as an iota+1 constant or an int64 key from a list, holds no
+// choice at its zero: it shows the leading "(none)" or "Choose…" option, as
+// an empty select stores it, not an unavailable value that saving removes.
+func SelectedOption(value reflect.Value, selected string, options []NamedOption) string {
+	if selected == "" || !value.IsValid() || !value.IsZero() {
+		return selected
+	}
+	for _, opt := range options {
+		if opt.Value == selected {
+			return selected
+		}
+	}
+	return ""
 }
 
 // EnumSetPreface decides the note an enum-set checkbox group renders
