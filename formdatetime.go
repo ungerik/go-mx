@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -208,8 +209,26 @@ func readsOwnSpellingOnly(t reflect.Type, tt timeText) bool {
 	if t.Kind() == reflect.String || (t.Kind() == reflect.Struct && isTimeLike(t)) {
 		return false
 	}
-	return ImplementsTextMarshaler(t) && ImplementsTextUnmarshaler(t) && !readsInputText(t, tt)
+	// The answer depends only on the type and the input type, and finding
+	// it takes up to nine UnmarshalText calls, so it is found once.
+	key := ownSpellingKey{t, tt.format}
+	if own, ok := ownSpellingTypes.Load(key); ok {
+		return own.(bool)
+	}
+	own := ImplementsTextMarshaler(t) && ImplementsTextUnmarshaler(t) && !readsInputText(t, tt)
+	ownSpellingTypes.Store(key, own)
+	return own
 }
+
+// ownSpellingKey keys [ownSpellingTypes]: a type and the format of an input
+// type.
+type ownSpellingKey struct {
+	t      reflect.Type
+	format string
+}
+
+// ownSpellingTypes caches [readsOwnSpellingOnly] by type and input format.
+var ownSpellingTypes sync.Map
 
 // readsInputText reports whether the UnmarshalText of t reads what an
 // input of tt sends, as a parser hands it on: a value in one of tt's

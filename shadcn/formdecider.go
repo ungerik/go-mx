@@ -256,7 +256,10 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
 		return html.Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		preface := mx.SelectPreface(mx.SelectedOption(value, selected, options), tag, contextList, options)
+		// Runs before the options render, so they and the preface see the
+		// same selection (see the html renderer).
+		selected = mx.SelectedOption(value, selected, options)
+		preface := mx.SelectPreface(selected, tag, contextList, options)
 		removed = preface.RemovesValue(tag)
 		return selectPrefaceOption(preface)
 	})
@@ -454,7 +457,8 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 		a = append(a, html.Value(in.Value))
 	}
 	// A readonly field is never saved, so its text input asks for nothing,
-	// and neither does a type that reads only its own spelling (no Format).
+	// and a type that reads only its own spelling (no Format) asks for no
+	// format: only a caller's placeholder hints at it.
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly && in.Format != ""
 	// A caller's placeholder is the only hint for a type that reads only

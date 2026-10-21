@@ -459,7 +459,7 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 			return
 		}
 	}
-	blank := sentBlank(cv, form, srcCell)
+	blank := sentBlank(cv, form, srcCell, beh.Parse != nil && !(keep && keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell)))
 	if cv.Tag.Required && blank {
 		// Validation results shown to the user carry no callstack.
 		out[dstCell] = append(out[dstCell], errors.New("required"))
@@ -610,17 +610,18 @@ func isBlank(kind FieldKind, value reflect.Value) bool {
 	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
 }
 
-// sentBlank reports whether a sent field bound to no value, for the
-// required check and the validation chain: [isEffectivelyEmpty], or an
-// enum whose bound zero came from a blank submission, as a parser that
-// stores the zero for an empty select leaves it. An enum zero bound from
-// text, such as a Low = iota or an option "0", is a value, which the
-// validation chain then checks.
-func sentBlank(cv FieldVisit, form url.Values, path FieldPath) bool {
-	if isEffectivelyEmpty(cv.Value) {
-		return true
+// sentBlank reports whether a sent field holds no value, for the required
+// check and the validation chain. An enum the decider parsed is blank when
+// its submitted text was empty and it bound no value, as a parser that
+// stores the zero for an empty select leaves it; text that bound a zero,
+// such as a Low = iota or an option "0", is a value, which the validation
+// chain then checks. Any other field, also an enum the decider did not
+// parse from the submission, is blank when [isEffectivelyEmpty].
+func sentBlank(cv FieldVisit, form url.Values, path FieldPath, parsed bool) bool {
+	if cv.Kind == FieldKindEnum && parsed {
+		return form.Get(string(path)) == "" && (cv.Value.IsZero() || isEffectivelyEmpty(cv.Value))
 	}
-	return cv.Kind == FieldKindEnum && cv.Value.IsZero() && form.Get(string(path)) == ""
+	return isEffectivelyEmpty(cv.Value)
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a
@@ -696,17 +697,6 @@ func setFieldNull(value reflect.Value) error {
 	return errors.New("field is not nullable")
 }
 
-// zeroableIsZero calls z.IsZero; a method that panics, as the promoted
-// IsZero of a nil embedded *time.Time does, holds no value.
-func zeroableIsZero(z Zeroable) (zero bool) {
-	defer func() {
-		if recover() != nil {
-			zero = true
-		}
-	}()
-	return z.IsZero()
-}
-
 // isEffectivelyEmpty reports whether value should be treated as
 // "empty" for purposes of a Required check. Numeric and bool fields
 // are never empty (a value is always submitted via __present).
@@ -715,7 +705,14 @@ func zeroableIsZero(z Zeroable) (zero bool) {
 // submission stores the zero value of a fixed-size ID such as uuid.UUID
 // or of a time.Time, so a length check alone would accept a blank ID as
 // uuid.Nil(). A [Zeroable] type decides that itself, as time.Time does.
-func isEffectivelyEmpty(value reflect.Value) bool {
+func isEffectivelyEmpty(value reflect.Value) (empty bool) {
+	// A method that panics, as one promoted through a nil embedded pointer
+	// does (IsNull, IsZero), holds no value.
+	defer func() {
+		if recover() != nil {
+			empty = true
+		}
+	}()
 	if !value.IsValid() {
 		return true
 	}
@@ -729,7 +726,7 @@ func isEffectivelyEmpty(value reflect.Value) bool {
 		return value.Len() == 0
 	case reflect.Array, reflect.Struct:
 		if z, ok := safeInterface(value).(Zeroable); ok {
-			return zeroableIsZero(z)
+			return z.IsZero()
 		}
 		return value.IsZero()
 	case reflect.Pointer, reflect.Interface:

@@ -617,7 +617,9 @@ and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
 (`optionListError` in `html` repeats `formErrorText`'s policy, for example
 as an `mx.FormError(err) error`), and the 64-byte date text limit
 (`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
-`validateBound`, which has a single caller, `validateField`.
+`validateBound`, which has a single caller, `validateField`, and fold
+`mx.SelectedOption` into `mx.SelectPreface` (both renderers call one with
+the other's result).
 
 **Why:** Each copy can drift from the others: `hasStoredFile` already differs
 from the handler's `isEffectivelyEmpty` on a non-nil `*string` holding "".
@@ -627,6 +629,25 @@ land it; each is a small refactor with an exported helper in `mx`.
 
 **Effort:** S
 **Priority:** P4
+**Depends on:** None
+
+### A static enum without a validator accepts any submitted value
+
+**What:** Check a submitted single-value enum against its static options
+(`Enums`, `EnumStrings`, `NamedOptions`, `Options`) on the server when the
+type has no `Validate`/`Valid` method, as a context option list already is.
+
+**Why:** Only a type's own validator rejects a value its list does not
+offer: a forged `"42"`, or a forged `"0"` for a required enum whose zero is
+no constant, binds and saves. The branch's own enums (go-enum) validate
+themselves; a hand-written `Enums()` type does not.
+
+**Context:** `validateBound` in `formhandler.go` runs the validation chain;
+`validateOptionMembership` in `html/formdecider.go` checks context lists
+only. Predates the date widget branch; found in its last review pass.
+
+**Effort:** S
+**Priority:** P2
 **Depends on:** None
 
 ### Backtick HTML literals in tests lack the `/*html*/` prefix

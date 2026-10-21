@@ -1657,6 +1657,9 @@ func TestReflectFormHandler_BindAsksRenderProbe(t *testing.T) {
 	}
 }
 
+// A form posts urlencoded, whose limit is 10,000 values, unless a file
+// input, also in a row, or a decider setting FieldBehavior.Multipart needs
+// multipart.
 func TestReflectFormHandler_Enctype(t *testing.T) {
 	type fileLine struct {
 		Doc []byte `form:"widget=file"`

@@ -37,7 +37,7 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 		Render: func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
 			// A probe asks only whether the field is in the form.
 			if mx.IsRenderProbe(errs) && rendersAlways(kind) {
-				return mx.Components{}
+				return inForm
 			}
 			return renderField(path, field, value, kind, tag, errs)
 		},
@@ -46,6 +46,9 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 		},
 	}
 }
+
+// inForm answers a render probe for a field in the form, boxed once.
+var inForm mx.Component = mx.Components{}
 
 // rendersAlways reports whether renderField returns a Component for every
 // field of kind, so a render probe ([mx.IsRenderProbe]) is answered without
@@ -276,8 +279,9 @@ func datetimeInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	// A text input shows stored text the picker cannot hold: it has no
 	// date range and it says which format to enter. Text the parser rejects
 	// is invalid from the start, because saving it unchanged fails. A
-	// readonly field is never saved, so it asks for nothing, and neither
-	// does a type that reads only its own spelling (no Format).
+	// readonly field is never saved, so it asks for nothing, and a type
+	// that reads only its own spelling (no Format) asks for no format: only
+	// a caller's placeholder hints at it.
 	textFallback := in.TextFallback()
 	askFormat := textFallback && !tag.Readonly && in.Format != ""
 	// A caller's placeholder is the only hint for a type that reads only
@@ -392,7 +396,11 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
 		return Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
-		preface := mx.SelectPreface(mx.SelectedOption(value, selected, options), tag, contextList, options)
+		// Runs before the options render, so they and the preface see the
+		// same selection: an unlisted zero selects the list's own empty
+		// option, if it has one, or the preface's.
+		selected = mx.SelectedOption(value, selected, options)
+		preface := mx.SelectPreface(selected, tag, contextList, options)
 		removed = preface.RemovesValue(tag)
 		return selectPrefaceOption(preface)
 	})

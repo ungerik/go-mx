@@ -74,8 +74,8 @@ func (p OptionPreface) RemovesValue(tag FormTag) bool {
 // [OptionPrefaceClear].
 //
 // When the list has no empty-valued option, a select with no current value
-// yields [OptionPrefaceChoose] (required) or [OptionPrefaceEmpty]
-// (optional). An optional select that already has a listed value yields
+// yields [OptionPrefaceChoose] (required, unless readonly) or
+// [OptionPrefaceEmpty] (optional or readonly). An optional select that already has a listed value yields
 // [OptionPrefaceClear]. A list that already contains an empty option is
 // left alone.
 func SelectPreface(selected string, tag FormTag, contextList bool, options []NamedOption) OptionPreface {
@@ -92,7 +92,8 @@ func SelectPreface(selected string, tag FormTag, contextList bool, options []Nam
 		return OptionPrefaceNone
 	}
 	if selected == "" {
-		if tag.Required {
+		// A readonly select is never submitted, so it prompts no choice.
+		if tag.Required && !tag.Readonly {
 			return OptionPrefaceChoose
 		}
 		return OptionPrefaceEmpty

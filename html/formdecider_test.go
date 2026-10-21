@@ -5565,3 +5565,183 @@ func TestFieldDecider_UnlistedZeroIsNoSelection(t *testing.T) {
 		t.Errorf("a required unlisted zero: %s", required)
 	}
 }
+
+// ownerKey is a key whose list brings its own empty option, not first.
+type ownerKey int
+
+func (ownerKey) NamedOptions() []mx.NamedOption {
+	return []mx.NamedOption{{Name: "Alice", Value: "1"}, {Name: "Bob", Value: "2"}, {Name: "Unassigned", Value: ""}}
+}
+func (k ownerKey) MarshalText() ([]byte, error)  { return floorNo(k).MarshalText() }
+func (k *ownerKey) UnmarshalText(b []byte) error { return (*floorNo)(k).UnmarshalText(b) }
+
+// A select shows exactly one selection, the same one its options and its
+// leading option agree on: an unlisted zero selects the list's own empty
+// option wherever it stands (else a browser submits the first one), a
+// listed zero selects itself, and a readonly required select prompts no
+// choice.
+func TestFieldDecider_SelectShowsOneSelection(t *testing.T) {
+	type form struct {
+		Owner    ownerKey
+		Required ownerKey   `form:"required"`
+		Floor    namedFloor `form:"required"`
+		Level    levelCode  `form:"required"`
+		Locked   colorCode  `form:"required,readonly"`
+	}
+	for name, want := range map[string]string{
+		"Owner":    `<option value="" selected="selected">Unassigned</option>`,
+		"Required": `<option value="" selected="selected">Unassigned</option>`,
+		"Floor":    `<option value="0" selected="selected">Ground</option>`,
+		"Level":    `selected="selected">low</option>`,
+		"Locked":   `<option value="" selected="selected">(none)</option>`,
+	} {
+		out := renderFieldHTML(t, &form{}, name)
+		if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, want) || strings.Contains(out, "Choose…") {
+			t.Errorf("%s: %d selected, want %s: %s", name, n, want, out)
+		}
+	}
+}
+
+// A decider that renders a field but does not parse it leaves the stored
+// value, so the required check judges that value, not the absent text: a
+// zero constant such as Low is a value.
+func TestReflectFormHandler_RenderOnlyRequiredEnumSaves(t *testing.T) {
+	type record struct {
+		Level levelCode `form:"required"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+			beh := FieldDecider(path, field, value)
+			beh.Parse = nil // shown, never written
+			return beh
+		},
+	)
+	vals := url.Values{}
+	vals.Set(mx.PresentSentinelName("Level"), "1")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Errorf("a render-only required Low: status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// A decider that shows a field only next to its errors leaves it out of a
+// form without errors, so the render probe, which holds no errors, finds
+// it out of the form too and a forged sentinel cannot write it.
+func TestReflectFormHandler_ErrorOnlyFieldNotWritten(t *testing.T) {
+	type record struct {
+		Name string
+		Note string
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Name: "n", Note: "kept"}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+			beh := FieldDecider(path, field, value)
+			if path == "Note" {
+				render := beh.Render
+				beh.Render = func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
+					if len(errs) == 0 {
+						return nil
+					}
+					return render(path, field, value, errs)
+				}
+			}
+			return beh
+		},
+	)
+	vals := url.Values{}
+	vals.Set(mx.PresentSentinelName("Name"), "1")
+	vals.Set("Name", "m")
+	vals.Set(mx.PresentSentinelName("Note"), "1")
+	vals.Set("Note", "forged")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusSeeOther || saved == nil || saved.Note != "kept" {
+		t.Errorf("status %d, saved %+v; want Note kept", rec.Code, saved)
+	}
+}
+
+// nullStampCore is a nullable time whose IsNull has a value receiver, so a
+// nil pointer to it panics when the method is promoted.
+type nullStampCore struct{ t time.Time }
+
+func (c nullStampCore) IsNull() bool { return c.t.IsZero() }
+
+// nullStamp embeds a pointer to it and has text methods of its own.
+type nullStamp struct{ *nullStampCore }
+
+func (s nullStamp) MarshalText() ([]byte, error) {
+	if s.nullStampCore == nil {
+		return nil, nil
+	}
+	return []byte(s.t.Format(time.DateOnly)), nil
+}
+
+func (s *nullStamp) UnmarshalText(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+	t, err := time.Parse(time.DateOnly, string(b))
+	if err != nil {
+		return err
+	}
+	s.nullStampCore = &nullStampCore{t}
+	return nil
+}
+
+// A required value whose promoted IsNull panics on a nil embedded pointer
+// holds no value: the required check names it instead of crashing.
+func TestReflectFormHandler_RequiredPanickingIsNullIsBlank(t *testing.T) {
+	type record struct {
+		At nullStamp `form:"required"`
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	vals := url.Values{}
+	vals.Set(mx.PresentSentinelName("At"), "1")
+	vals.Set("At", "")
+	if rec := postValues(t, h, vals); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), ">required<") {
+		t.Errorf("status %d, saved %+v, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// An over-long own-spelling date's error names no ISO format either.
+func TestFieldDecider_OverlongOwnSpellingDateNamesNoISOFormat(t *testing.T) {
+	type form struct {
+		Due deDate `form:"widget=date"`
+	}
+	if err := parseFieldValue(t, &form{}, "Due", strings.Repeat("1", 65)); err == nil || strings.Contains(err.Error(), "YYYY-MM-DD") {
+		t.Errorf("an over-long own-spelling date: %v", err)
+	}
+}
+
+// upcomingDate reads ISO dates only within the next five years.
+type upcomingDate struct{ t time.Time }
+
+func (d upcomingDate) MarshalText() ([]byte, error) {
+	if d.t.IsZero() {
+		return nil, nil
+	}
+	return []byte(d.t.Format(time.DateOnly)), nil
+}
+
+func (d *upcomingDate) UnmarshalText(b []byte) error {
+	t, err := time.Parse(time.DateOnly, string(b))
+	if err != nil {
+		return err
+	}
+	if now := time.Now(); t.Before(now.AddDate(0, 0, -1)) || t.After(now.AddDate(5, 0, 0)) {
+		return errors.New("not within the next five years")
+	}
+	d.t = t
+	return nil
+}
+
+// A date type that reads ISO text only near the present still reads what
+// the input sends, so it keeps the date input.
+func TestDateTimeInput_NowRelativeDateTypeKeepsDateInput(t *testing.T) {
+	if in := mx.DateTimeInput(reflect.ValueOf(upcomingDate{}), mx.FormTag{Widget: "date"}); in.Type != "date" || in.Format != "YYYY-MM-DD" {
+		t.Errorf("an ISO date type with a window from now: %+v", in)
+	}
+}

@@ -252,20 +252,22 @@ type FieldBehavior struct {
 // errRenderProbe is the error a render probe carries (see [IsRenderProbe]).
 var errRenderProbe = errors.New("mx: render probe")
 
-// renderProbe returns the errs of a render probe, a new slice per call so
-// no Render can change another's.
+// renderProbe returns the errs of a render probe: empty, as on a GET, so a
+// Render whose answer depends on its errors answers as it would there, with
+// the probe marker in its capacity. A new slice per call, so no Render can
+// change another's.
 func renderProbe() []error {
-	return []error{errRenderProbe}
+	return []error{errRenderProbe}[:0]
 }
 
 // IsRenderProbe reports whether errs is the probe the form handler passes
 // to [FieldBehavior].Render on a POST, which asks only whether the field is
 // in the form: a Render may answer it with any non-nil Component, without
 // building its markup, or with nil to leave the field out, as it would on
-// a GET. Every decider in a chain still runs, so a wrapper hiding a field
-// is asked too.
+// a GET. The probe holds no errors. Every decider in a chain still runs, so
+// a wrapper hiding a field is asked too.
 func IsRenderProbe(errs []error) bool {
-	return len(errs) == 1 && errs[0] == errRenderProbe
+	return len(errs) == 0 && cap(errs) > 0 && errs[:1][0] == errRenderProbe
 }
 
 // FieldDecider returns the [FieldBehavior] to use for a single field.

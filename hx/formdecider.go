@@ -28,6 +28,10 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 	originalRender := base.Render
 	base.Render = func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
 		rendered := originalRender(path, field, value, errs)
+		if mx.IsRenderProbe(errs) {
+			// Only whether the field is in the form counts.
+			return rendered
+		}
 		return withHXAttribs(rendered)
 	}
 	return base

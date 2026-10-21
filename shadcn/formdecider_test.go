@@ -1506,3 +1506,37 @@ func TestShadcn_UnlistedZeroIsNoSelection(t *testing.T) {
 		t.Errorf("an unlisted zero key: %s", out)
 	}
 }
+
+// shOwner is a key whose list brings its own empty option, not first.
+type shOwner int64
+
+func (shOwner) NamedOptions() []mx.NamedOption {
+	return []mx.NamedOption{{Name: "Alice", Value: "1"}, {Name: "Unassigned", Value: ""}}
+}
+
+// As in the html renderer, an unlisted zero selects the list's own empty
+// option wherever it stands, so exactly one option is selected.
+func TestShadcn_SelectShowsOneSelection(t *testing.T) {
+	type form struct {
+		Owner shOwner `form:"required"`
+	}
+	out := renderShadcn(t, &form{}, "Owner", nil)
+	if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, `<option value="" selected="selected">Unassigned</option>`) {
+		t.Errorf("%d selected: %s", n, out)
+	}
+}
+
+// A caller's placeholder hints at a date type's own spelling, also when
+// the field is null.
+func TestShadcn_OwnSpellingPlaceholder(t *testing.T) {
+	type form struct {
+		Due  *deDay `form:"widget=date,placeholder=TT.MM.JJJJ"`
+		Next deDay  `form:"widget=date,placeholder=TT.MM.JJJJ"`
+	}
+	for _, name := range []string{"Due", "Next"} {
+		out := renderShadcn(t, &form{Next: deDay{2026, 7, 6}}, name, nil)
+		if !strings.Contains(out, `placeholder="TT.MM.JJJJ"`) || strings.Contains(out, "YYYY-MM-DD") {
+			t.Errorf("%s: own-spelling placeholder: %s", name, out)
+		}
+	}
+}
