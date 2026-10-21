@@ -112,7 +112,8 @@ shadcn.InputID("email", html.Type("email")),
 A handful of components render a user-visible string the caller never passes:
 the screen-reader text of the built-in dialog/sheet close button, the
 pagination captions, the ellipsis "more" texts, the reflected-form clear
-checkbox, select placeholders, and the default `aria-label`s of the
+checkbox, select placeholders, the notes on values a save removes and the
+date and time format hint, and the default `aria-label`s of the
 landmark `<nav>`s and the icon-only buttons. Those strings live in the
 `Labels` struct and are resolved **from the render context**, not baked into
 the element at construction time, so one process can serve several languages
@@ -138,7 +139,10 @@ Fields may be left empty: each one falls back to the corresponding
 `DefaultLabels` field and then to the package's built-in English, so a partial
 translation renders a default for the strings it does not cover instead of
 dropping the label — an empty `aria-label` would take the accessible name away
-entirely. Translate the whole struct to avoid mixed-language output.
+entirely. `FormClearField` is the one exception: left empty in a struct that
+sets `FormClear`, it is that caption followed by the field label, so the box's
+accessible name keeps the caption's language. Translate the whole struct to
+avoid mixed-language output.
 
 The second step matters because `DefaultLabels` is itself assignable: without a
 frozen English last resort, assigning it a struct that sets only some fields
