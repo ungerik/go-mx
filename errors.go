@@ -9,8 +9,10 @@ import (
 var (
 	// RevealInternalServerErrors controls whether [RespondNonContextError] and
 	// [SSEResponse.SendError] include the actual error message in what they
-	// report. It defaults to false, which sends a generic "Internal Server
-	// Error"; set it to true (typically in development) to expose the error text.
+	// report, and whether a reflected form shows the text of an onSubmit
+	// error instead of [FormErrorMessage]. It defaults to false, which sends
+	// a generic "Internal Server Error"; set it to true (typically in
+	// development) to expose the error text.
 	RevealInternalServerErrors = false
 )
 
@@ -22,7 +24,7 @@ var (
 // and [SSEResponse.SendError] (which reports it as an in-band event, because by
 // then the 200 is committed), so the two cannot drift apart. respondLoadError in
 // formhandler.go applies the same policy separately, because it substitutes its
-// own generic message.
+// own generic message, and so does formErrorText for an onSubmit error.
 func nonContextErrorMessage(err error) (message string, report bool) {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return "", false

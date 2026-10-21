@@ -1,5 +1,7 @@
 package mx
 
+import "reflect"
+
 // OptionPreface is the extra control a reflected option field renders
 // ahead of its option list. The zero value, [OptionPrefaceNone], renders
 // nothing.
@@ -37,6 +39,22 @@ const (
 	OptionPrefaceValuesUnavailable
 )
 
+// RemovesValue reports whether saving the field drops the stored value
+// that p says the option list does not offer, which renderers tell the
+// user: an optional select's [OptionPrefaceUnavailable] submits nothing,
+// so the value is cleared, and the checkboxes of
+// [OptionPrefaceValuesUnavailable] are the whole set saved. A required
+// select rejects the blank instead, and a readonly field is never saved.
+func (p OptionPreface) RemovesValue(tag FormTag) bool {
+	switch p {
+	case OptionPrefaceUnavailable:
+		return !tag.Required && !tag.Readonly
+	case OptionPrefaceValuesUnavailable:
+		return !tag.Readonly
+	}
+	return false
+}
+
 // SelectPreface decides what a single-value select renders before its
 // options.
 //
@@ -50,11 +68,14 @@ const (
 // for a context-dependent list and for a required field, including a
 // sensitive one. The placeholder is generic and does not echo the value,
 // and it is selected so the browser does not submit the first real option.
-// An optional static list stays lenient and offers [OptionPrefaceClear].
+// Saving an optional one clears the value, which renderers say below the
+// select ([OptionPreface.RemovesValue]); a required one rejects the blank
+// instead. An optional static list stays lenient and offers
+// [OptionPrefaceClear].
 //
 // When the list has no empty-valued option, a select with no current value
-// yields [OptionPrefaceChoose] (required) or [OptionPrefaceEmpty]
-// (optional). An optional select that already has a listed value yields
+// yields [OptionPrefaceChoose] (required, unless readonly) or
+// [OptionPrefaceEmpty] (optional or readonly). An optional select that already has a listed value yields
 // [OptionPrefaceClear]. A list that already contains an empty option is
 // left alone.
 func SelectPreface(selected string, tag FormTag, contextList bool, options []NamedOption) OptionPreface {
@@ -71,7 +92,8 @@ func SelectPreface(selected string, tag FormTag, contextList bool, options []Nam
 		return OptionPrefaceNone
 	}
 	if selected == "" {
-		if tag.Required {
+		// A readonly select is never submitted, so it prompts no choice.
+		if tag.Required && !tag.Readonly {
 			return OptionPrefaceChoose
 		}
 		return OptionPrefaceEmpty
@@ -82,16 +104,35 @@ func SelectPreface(selected string, tag FormTag, contextList bool, options []Nam
 	return OptionPrefaceNone
 }
 
+// SelectedOption returns the option value a single-value select shows for
+// value, whose text is selected: selected itself, or "" for the zero value
+// when the list offers no option for it. An enum whose zero is none of its
+// options, such as an iota+1 constant or an int64 key from a list, holds no
+// choice at its zero: it shows the leading "(none)" or "Choose…" option, as
+// an empty select stores it, not an unavailable value that saving removes.
+func SelectedOption(value reflect.Value, selected string, options []NamedOption) string {
+	if selected == "" || !value.IsValid() || !value.IsZero() {
+		return selected
+	}
+	for _, opt := range options {
+		if opt.Value == selected {
+			return selected
+		}
+	}
+	return ""
+}
+
 // EnumSetPreface decides the note an enum-set checkbox group renders
 // before its options.
 //
 // Members of a context-dependent list that are missing from it, including
 // when the list is empty, yield [OptionPrefaceValuesUnavailable], unless
-// the field is sensitive. The note does not echo the members. Parse does
-// not keep them: the submitted checkboxes replace the set, and a value
-// outside the list is rejected. Static lists yield [OptionPrefaceNone]:
-// they are the whole domain, and parse replaces the set from the
-// submission.
+// the field is sensitive. The note does not echo the members. Saving
+// removes them ([OptionPreface.RemovesValue]): parse does not keep them, as
+// the submitted checkboxes replace the set and a value outside the list is
+// rejected; a readonly set is never saved and keeps them. Static lists
+// yield [OptionPrefaceNone]: they are the whole domain, and parse replaces
+// the set from the submission.
 func EnumSetPreface(members []string, tag FormTag, contextList bool, options []NamedOption) OptionPreface {
 	if !contextList {
 		return OptionPrefaceNone

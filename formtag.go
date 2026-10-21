@@ -42,15 +42,19 @@ type FormTag struct {
 	Options string
 
 	// Min, Max, Step are numeric / range constraints. Empty when
-	// absent.
+	// absent. On a date or time field the finest step is one second:
+	// fractional seconds are not supported.
 	Min, Max, Step string
 
 	// Required forces the value to be non-empty / not-null at submit
-	// time. Type-aware: it is a no-op for bool and numeric kinds.
+	// time. Type-aware: a number rejects a blank submission, a bool is
+	// never empty.
 	Required bool
 
 	// Sensitive suppresses value round-tripping (passwords, secrets):
-	// the input never echoes its value on re-render.
+	// the input never echoes its value on re-render, and a blank
+	// submission keeps the stored value, as with a password field. A
+	// widget=password field is sensitive without the option.
 	Sensitive bool
 
 	// Nested asks the walker to recurse into a named struct field
@@ -71,7 +75,9 @@ type FormTag struct {
 
 	// Repeatable renders a slice-of-struct field ([]T or []*T) as a
 	// dynamic list of rows and binds the submitted rows back into the
-	// slice. It is a no-op on any other field shape. See repeatable.go.
+	// slice. On a slice of times it skips the field, whose rows would
+	// have no cells; it is a no-op on any other field shape. See
+	// repeatable.go.
 	Repeatable bool
 }
 
@@ -148,6 +154,9 @@ func ParseFormTagString(raw string) FormTag {
 // substring. The grammar is intentionally simple: a value introduced
 // by '=' may be wrapped in '...' or "..." to embed commas (useful for
 // help text and labels). Quotes are stripped from the returned value.
+// Only a quote that starts a value opens one: an apostrophe inside a
+// value, as in label=Owner's email, is a literal and never swallows the
+// options after it.
 func splitFormTag(raw string) []string {
 	var (
 		parts   []string
@@ -163,7 +172,7 @@ func splitFormTag(raw string) []string {
 				continue
 			}
 			current.WriteByte(c)
-		case c == '\'' || c == '"':
+		case (c == '\'' || c == '"') && strings.HasSuffix(strings.TrimRight(current.String(), " "), "="):
 			quote = c
 		case c == ',':
 			parts = append(parts, current.String())

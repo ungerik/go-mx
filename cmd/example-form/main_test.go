@@ -41,7 +41,7 @@ func TestExampleGETRendersAllFields(t *testing.T) {
 		`name="Account-VATNumber"`, // section recursion uses hyphen path
 		`__present__Name`,          // sentinel emitted by handler
 		`method="post"`,
-		`enctype="multipart/form-data"`,
+		`enctype="application/x-www-form-urlencoded"`, // no file field
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q", want)

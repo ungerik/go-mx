@@ -92,6 +92,31 @@ func TestDetectField_BasicKinds(t *testing.T) {
 	}
 }
 
+// hintedSecret declares the password widget for every field of its type.
+type hintedSecret string
+
+func (hintedSecret) FormWidget() string { return "password" }
+
+// A password widget never shows its value, so it is sensitive by itself,
+// whether the tag or a FormWidgetHint names it.
+func TestDetectField_PasswordIsSensitive(t *testing.T) {
+	type form struct {
+		PW     string `form:"widget=password"`
+		Secret hintedSecret
+		Name   string
+	}
+	typ := reflect.TypeFor[form]()
+	for _, c := range []struct {
+		field string
+		want  bool
+	}{{"PW", true}, {"Secret", true}, {"Name", false}} {
+		f, _ := typ.FieldByName(c.field)
+		if _, tag := DetectField(FieldPath(c.field), f, reflect.New(f.Type).Elem()); tag.Sensitive != c.want {
+			t.Errorf("%s: Sensitive %t, want %t", c.field, tag.Sensitive, c.want)
+		}
+	}
+}
+
 func TestDetectField_NumStream(t *testing.T) {
 	s := &detectStruct{}
 	got, _ := detectKind(t, s, "NumStream")
@@ -243,5 +268,183 @@ func TestDetectField_OptionsTagShapeEdges(t *testing.T) {
 				t.Errorf("got %s, want %s", got, c.want)
 			}
 		})
+	}
+}
+
+// hintedDate declares itself a date, so its fields need no widget tag.
+type hintedDate string
+
+func (hintedDate) FormWidget() string { return "date" }
+
+// internalNote declares the skip widget, so its fields are never rendered.
+type internalNote string
+
+func (internalNote) FormWidget() string { return "skip" }
+
+// A FormWidgetHint that decides a field's kind is returned as the tag's
+// Widget, so renderers and parsers read one widget. An explicit widget or
+// options tag still takes precedence, and the hint does not overwrite it.
+func TestDetectField_HintBecomesTagWidget(t *testing.T) {
+	type form struct {
+		Date      hintedDate
+		DatePtr   *hintedDate
+		Email     hintedField
+		AsText    hintedField `form:"widget=text"`
+		AsOptions hintedDate  `form:"options=partners"`
+		Note      internalNote
+	}
+	tests := []struct {
+		field      string
+		wantKind   FieldKind
+		wantWidget string
+	}{
+		{"Date", FieldKindDateTime, "date"},
+		{"DatePtr", FieldKindDateTime, "date"},
+		{"Email", FieldKindString, "email"},
+		{"AsText", FieldKindString, "text"},
+		{"AsOptions", FieldKindEnum, ""},
+		// A skip hint skips the field like form:"widget=skip".
+		{"Note", FieldKindSkip, "skip"},
+	}
+	for _, tt := range tests {
+		kind, tag := detectKind(t, &form{}, tt.field)
+		if kind != tt.wantKind || tag.Widget != tt.wantWidget {
+			t.Errorf("DetectField(%s) = %s with widget %q, want %s with widget %q",
+				tt.field, kind, tag.Widget, tt.wantKind, tt.wantWidget)
+		}
+	}
+}
+
+// ptrHintedDate declares its widget on the pointer receiver.
+type ptrHintedDate string
+
+func (*ptrHintedDate) FormWidget() string { return "date" }
+
+// A pointer-receiver FormWidgetHint reaches the tag like a value-receiver
+// one, whether or not the field value is addressable.
+func TestDetectField_PointerReceiverHint(t *testing.T) {
+	type form struct {
+		Due ptrHintedDate
+	}
+	if kind, tag := detectKind(t, &form{}, "Due"); kind != FieldKindDateTime || tag.Widget != "date" {
+		t.Errorf("addressable: %s with widget %q, want datetime with widget \"date\"", kind, tag.Widget)
+	}
+	v := reflect.ValueOf(form{})
+	field, _ := v.Type().FieldByName("Due")
+	if kind, tag := DetectField("Due", field, v.Field(0)); kind != FieldKindDateTime || tag.Widget != "date" {
+		t.Errorf("not addressable: %s with widget %q, want datetime with widget \"date\"", kind, tag.Widget)
+	}
+}
+
+// registeredMoney is a registered single-value struct that is no time.
+type registeredMoney struct {
+	Cents    int
+	Currency string
+}
+
+// definedStamp is defined as time.Time, without a widget tag.
+type definedStamp time.Time
+
+// soleTime embeds a time.Time as its only field; heldTime holds more.
+type soleTime struct {
+	time.Time
+}
+
+type heldTime struct {
+	time.Time
+	Valid bool
+}
+
+// namedTime holds its time in a named field; timePtr embeds a pointer to a
+// time. Neither renders nor binds like a time.Time without a widget tag.
+type namedTime struct {
+	T time.Time
+}
+
+type timePtr struct {
+	*time.Time
+}
+
+// dateOnlyTime embeds a time but writes only its date.
+type dateOnlyTime struct {
+	time.Time
+}
+
+func (d dateOnlyTime) MarshalText() ([]byte, error) { return []byte(d.Format(time.DateOnly)), nil }
+
+// Rule 14 makes a date/time field only of time-like structs: time.Time, a
+// type defined as it, or a struct whose only field is an embedded time. A
+// registered single-value struct that holds more is a catch-all text input.
+// localStamp and localSole are time-like types no test registers, so the
+// detection below rests on their shape alone.
+type localStamp time.Time
+
+type localSole struct {
+	time.Time
+}
+
+type embedsLocalSole struct {
+	localSole
+}
+
+// A slice of a time-like type tagged repeatable would render rows with no
+// cells, since a time's fields are unexported, and zero every value on
+// save, and no input binds a slice of times, so the field is skipped.
+func TestDetectField_RepeatableTimeLikeSlice(t *testing.T) {
+	type form struct {
+		Stamps []localStamp   `form:"repeatable"`
+		Soles  []localSole    `form:"repeatable"`
+		Dates  []dateOnlyTime `form:"repeatable"`
+	}
+	for _, name := range []string{"Stamps", "Soles", "Dates"} {
+		if kind, _ := detectKind(t, &form{}, name); kind != FieldKindSkip {
+			t.Errorf("DetectField(%s) = %s, want skip", name, kind)
+		}
+	}
+}
+
+// An embedded time-like struct is a date and time field, not fields to
+// inline, for a caller that detects it directly; the walker skips embeds.
+func TestDetectField_EmbeddedTimeLikeNotInline(t *testing.T) {
+	field := reflect.TypeFor[embedsLocalSole]().Field(0)
+	if kind, _ := DetectField("localSole", field, reflect.ValueOf(embedsLocalSole{}).Field(0)); kind != FieldKindDateTime {
+		t.Errorf("DetectField(embedded localSole) = %s, want datetime", kind)
+	}
+}
+
+func TestDetectField_TimeLikeStructs(t *testing.T) {
+	SingleValueTypes.Register(reflect.TypeFor[registeredMoney]())
+	SingleValueTypes.Register(reflect.TypeFor[soleTime]())
+	SingleValueTypes.Register(reflect.TypeFor[heldTime]())
+	SingleValueTypes.Register(reflect.TypeFor[namedTime]())
+	SingleValueTypes.Register(reflect.TypeFor[timePtr]())
+	SingleValueTypes.Register(reflect.TypeFor[dateOnlyTime]())
+	type form struct {
+		When  time.Time
+		Stamp definedStamp
+		Sole  soleTime
+		Held  heldTime
+		Named namedTime
+		Ptr   timePtr
+		Date  dateOnlyTime
+		Money registeredMoney
+	}
+	for _, tt := range []struct {
+		field string
+		want  FieldKind
+	}{
+		{"When", FieldKindDateTime},
+		{"Stamp", FieldKindDateTime},
+		{"Sole", FieldKindDateTime},
+		{"Held", FieldKindCatchAll},
+		{"Named", FieldKindCatchAll},
+		{"Ptr", FieldKindCatchAll},
+		// Its own text methods are not time.Time's RFC 3339.
+		{"Date", FieldKindCatchAll},
+		{"Money", FieldKindCatchAll},
+	} {
+		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {
+			t.Errorf("DetectField(%s) = %s, want %s", tt.field, kind, tt.want)
+		}
 	}
 }

@@ -2,8 +2,15 @@ package shadcn
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"html"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -109,6 +116,46 @@ func TestShadcn_EnumSetUsesCheckboxGrid(t *testing.T) {
 	}
 	if !strings.Contains(out, "grid-cols-2") {
 		t.Errorf("expected grid layout: %q", out)
+	}
+}
+
+// Each box of a set has the id its label names, also for a value that is
+// no valid id, so the boxes have an accessible name and a click on the
+// label toggles its box.
+func TestShadcn_EnumSetLabelsNameTheirBoxes(t *testing.T) {
+	out := renderShadcn(t, &formSample{Features: map[colorEnum]struct{}{"red": {}}}, "Features", nil)
+	// The field label names the group: no control has the path as its id.
+	if !strings.Contains(out, `id="Features-label"`) || strings.Contains(out, `for="Features"`) || !strings.Contains(out, `role="group" class="grid grid-cols-2 gap-2" aria-labelledby="Features-label"`) {
+		t.Errorf("want the group named by its label: %s", out)
+	}
+	for _, value := range []string{"red", "blue"} {
+		id := mx.KeyedIDValue(mx.FieldPath("Features"), value)
+		if !strings.Contains(out, `id="`+id+`"`) || !strings.Contains(out, `for="`+id+`"`) {
+			t.Errorf("want the box and the label of %q tied by id %q: %s", value, id, out)
+		}
+	}
+	type spaced struct {
+		Tags []string `form:"options=test-shadcn-spaced"`
+	}
+	out = renderShadcn(t, &spaced{}, "Tags", nil)
+	id := mx.KeyedIDValue(mx.FieldPath("Tags"), "two words")
+	if strings.Contains(id, " ") || !strings.Contains(out, `id="`+id+`"`) || !strings.Contains(out, `for="`+id+`"`) {
+		t.Errorf("a value with a space needs a valid id, got %q in %s", id, out)
+	}
+}
+
+// A database/sql type shows the value it holds, the text the html parser
+// scans back, not a Go struct dump.
+func TestShadcn_SQLNullShowsDriverValue(t *testing.T) {
+	type record struct {
+		Count sql.NullInt64
+	}
+	out := renderShadcn(t, &record{Count: sql.NullInt64{Int64: 7, Valid: true}}, "Count", nil)
+	if !strings.Contains(out, `value="7"`) {
+		t.Errorf("want value=\"7\": %s", out)
+	}
+	if out = renderShadcn(t, &record{Count: sql.NullInt64{Int64: 7}}, "Count", nil); strings.Contains(out, "value=") {
+		t.Errorf("a null shows no value: %s", out)
 	}
 }
 
@@ -257,6 +304,9 @@ func init() {
 			{Name: "Tag B", Value: "b"},
 		}, nil
 	})
+	mx.RegisterNamedOptions("test-shadcn-spaced", func(context.Context) ([]mx.NamedOption, error) {
+		return []mx.NamedOption{{Name: "Two words", Value: "two words"}}, nil
+	})
 }
 
 func TestShadcn_SelectWithRegistryOptions(t *testing.T) {
@@ -375,7 +425,7 @@ func TestShadcn_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `(current value not available)`) {
+	if !strings.Contains(out, `(current value not available)`) || !strings.Contains(out, `>The current value is removed when you save.<`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
@@ -397,7 +447,7 @@ func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
 	if strings.Contains(out, "kept") {
 		t.Errorf("unlisted member must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, "(some current values are not available)") {
+	if !strings.Contains(out, "(some current values are not available and are removed when you save)") {
 		t.Errorf("missing members must be announced: %q", out)
 	}
 	if strings.Count(out, `data-slot="checkbox"`) != 2 {
@@ -452,7 +502,7 @@ func TestShadcn_EnumSetEmptyListWithMembersRenders(t *testing.T) {
 	if strings.Contains(out, `data-slot="checkbox"`) {
 		t.Errorf("empty list must not render a checkbox: %q", out)
 	}
-	if !strings.Contains(out, "(some current values are not available)") {
+	if !strings.Contains(out, "(some current values are not available and are removed when you save)") {
 		t.Errorf("missing members must be announced: %q", out)
 	}
 }
@@ -614,4 +664,879 @@ func TestShadcn_ZeroValueRendersAsNoValue(t *testing.T) {
 			t.Errorf("the zero time must render as an empty value: %q", out)
 		}
 	})
+}
+
+// time.Time fields render as they did before form:"widget=date" learned
+// string-kind fields, except that min and max now reach the date input as
+// they do in the html renderer. Only the <input> start tag up to its class
+// is compared; the class string is the shadcn Input's own.
+func TestShadcn_TimeWidgets(t *testing.T) {
+	type form struct {
+		Date     time.Time `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+		DateTime time.Time `form:"widget=datetime"`
+		Time     time.Time `form:"widget=time,readonly"`
+		Default  time.Time
+		Nil      *time.Time `form:"widget=date"`
+		Zero     time.Time  `form:"widget=date"`
+	}
+	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
+	f := &form{Date: when, DateTime: when, Time: when, Default: when}
+	renders := []struct{ field, want string }{
+		{"Date", `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+		{"DateTime", `<input data-slot="input" type="datetime-local" name="DateTime" id="DateTime" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Time", `<input data-slot="input" type="time" name="Time" id="Time" hx-trigger="change" value="09:05:07" readonly="readonly" class="`},
+		{"Default", `<input data-slot="input" type="datetime-local" name="Default" id="Default" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Nil", `<input data-slot="input" type="date" name="Nil" id="Nil" hx-trigger="change" class="`},
+		{"Zero", `<input data-slot="input" type="date" name="Zero" id="Zero" hx-trigger="change" class="`},
+	}
+	for _, r := range renders {
+		if got := inputStartTag(renderShadcn(t, f, r.field, nil)); got != r.want {
+			t.Errorf("%s renders\n%s\nwant\n%s", r.field, got, r.want)
+		}
+	}
+}
+
+// testDate mimics a date type with an underlying string, like the
+// date.Date of github.com/domonda/go-types, without depending on it.
+// Format(time.DateOnly) returns a valid date normalized, "" for an empty
+// or zero date, and an invalid value unchanged. Like date.Date it has no
+// UnmarshalText, so binding sets the string itself.
+type testDate string
+
+func (d testDate) Format(layout string) string {
+	for _, l := range []string{time.DateOnly, "02.01.2006"} {
+		if t, err := time.Parse(l, string(d)); err == nil {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format(layout)
+		}
+	}
+	return string(d)
+}
+
+// unmarshaledDate binds through UnmarshalText, which marks what it stores
+// so a test can tell it ran.
+type unmarshaledDate string
+
+func (d *unmarshaledDate) UnmarshalText(text []byte) error {
+	*d = unmarshaledDate("unmarshaled " + string(text))
+	return nil
+}
+
+// dateStrings holds a date as text in each string-kind shape a
+// form:"widget=date" field accepts.
+type dateStrings struct {
+	Str       string          `form:"widget=date"`
+	Ptr       *string         `form:"widget=date"`
+	Date      testDate        `form:"widget=date"`
+	DatePtr   *testDate       `form:"widget=date"`
+	Bounded   string          `form:"widget=date,min=2026-01-01,max=2026-12-31,required"`
+	Unmarshal unmarshaledDate `form:"widget=date"`
+	Localized string          `form:"widget=date,placeholder=JJJJ-MM-TT"`
+}
+
+// The shadcn renderer prefills a date held as text like the html one: the
+// stored date in a date input, or the stored text in a text input when a
+// date input cannot show it.
+func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  dateStrings
+		field string
+		want  string
+	}{
+		// A Format method gives the date as yyyy-mm-dd.
+		{"Format normalizes", dateStrings{Date: "06.07.2026"}, "Date",
+			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" class="`},
+		{"Format through pointer", dateStrings{DatePtr: new(testDate("06.07.2026"))}, "DatePtr",
+			`<input data-slot="input" type="date" name="DatePtr" id="DatePtr" hx-trigger="change" value="2026-07-06" class="`},
+		// Without Format, a yyyy-mm-dd string is shown as stored.
+		{"string", dateStrings{Str: "2026-07-06"}, "Str",
+			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" value="2026-07-06" class="`},
+		{"string pointer", dateStrings{Ptr: new("2026-07-06")}, "Ptr",
+			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" value="2026-07-06" class="`},
+		// No date, no value attribute.
+		{"empty string", dateStrings{}, "Str",
+			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" class="`},
+		{"nil pointer", dateStrings{}, "Ptr",
+			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" class="`},
+		{"Format zero date", dateStrings{Date: "0001-01-01"}, "Date",
+			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" class="`},
+		// Anything else renders as a text input showing the stored text.
+		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
+			`<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true" class="`},
+		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
+			`<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true" class="`},
+		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
+			`<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true" class="`},
+		// The date input carries the range, the text input only required.
+		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
+			`<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
+			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
+		// A placeholder from the tag, say a translated format, replaces the
+		// placeholder; the hint names the format the parser reads.
+		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
+			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true" class="`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := renderShadcn(t, &tt.form, tt.field, nil)
+			if got := inputStartTag(out); got != tt.want {
+				t.Errorf("rendered\n%s\nwant\n%s", got, tt.want)
+			}
+			// A text input is followed by the format to enter.
+			hint := `id="` + tt.field + `-format"`
+			// Every text input here holds text the parser rejects, and the
+			// hint names the parser's format, also under a tag placeholder.
+			if strings.Contains(tt.want, `type="text"`) {
+				if !strings.Contains(out, hint) || !strings.Contains(out, ">Not in the expected format: YYYY-MM-DD</p>") {
+					t.Errorf("the text input lacks the format hint: %s", out)
+				}
+			} else if strings.Contains(out, hint) {
+				t.Errorf("a date input needs no format hint: %s", out)
+			}
+		})
+	}
+}
+
+// shadcn binds through the html parser, so a date held as text binds the
+// same way: an empty submission clears, a yyyy-mm-dd date is stored (via
+// UnmarshalText when the type has one), and any other text is an error
+// with the posted text kept in the field for the re-render.
+func TestShadcn_DateWidgetBindsStringKinds(t *testing.T) {
+	tests := []struct {
+		name    string
+		stored  dateStrings
+		field   string
+		raw     string
+		want    dateStrings
+		wantErr string
+	}{
+		{name: "empty clears pointer", stored: dateStrings{Ptr: new("2026-07-06")}, field: "Ptr", raw: "",
+			want: dateStrings{}},
+		{name: "string", field: "Str", raw: "2026-07-06",
+			want: dateStrings{Str: "2026-07-06"}},
+		{name: "replaces non-canonical date", stored: dateStrings{Date: "06.07.2026"}, field: "Date", raw: "2026-07-06",
+			want: dateStrings{Date: "2026-07-06"}},
+		{name: "UnmarshalText", field: "Unmarshal", raw: "2026-07-06",
+			want: dateStrings{Unmarshal: "unmarshaled 2026-07-06"}},
+		{name: "nil pointer gets the posted text", field: "Ptr", raw: "06.07.2026",
+			want:    dateStrings{Ptr: new("06.07.2026")},
+			wantErr: `"06.07.2026" is not a date in the format YYYY-MM-DD`},
+		{name: "date gets the posted text", stored: dateStrings{Date: "2026-07-06"}, field: "Date", raw: "next week",
+			want:    dateStrings{Date: "next week"},
+			wantErr: `"next week" is not a date in the format YYYY-MM-DD`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.stored
+			values := url.Values{}
+			values.Set(tt.field, tt.raw)
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if err := r.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			v := reflect.ValueOf(&got).Elem()
+			field, _ := v.Type().FieldByName(tt.field)
+			path := mx.FieldPath(tt.field)
+			value := v.FieldByIndex(field.Index)
+			err := FieldDecider(path, field, value).Parse(path, field, value, r)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("bind %q: stored %+v, want %+v", tt.raw, got, tt.want)
+			}
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("bind %q: %v", tt.raw, err)
+			case tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr):
+				t.Errorf("bind %q: error %v, want %s", tt.raw, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// A GET followed by a POST without edits stores exactly the dates the GET
+// showed: a valid but non-canonical date comes back canonical, and a
+// missing one stays missing.
+func TestShadcn_DateStringRoundTrip(t *testing.T) {
+	type record struct {
+		Start  testDate  `form:"widget=date"`
+		End    string    `form:"widget=date"`
+		Review *testDate `form:"widget=date"`
+		Signed *string   `form:"widget=date"`
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Start: "06.07.2026", End: "2026-08-05", Signed: new("2026-07-20")}, nil
+		},
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/record", nil))
+	body := rec.Body.String()
+	shown := submittedValues(body)
+	for _, f := range []struct{ name, value string }{
+		{"Start", "2026-07-06"},
+		{"End", "2026-08-05"},
+		{"Review", ""},
+		{"Signed", "2026-07-20"},
+	} {
+		if !strings.Contains(body, `type="date" name="`+f.name+`"`) {
+			t.Errorf("GET renders %s without a date input: %s", f.name, body)
+		}
+		if got := shown.Get(f.name); got != f.value {
+			t.Errorf("GET shows %s %q, want %q", f.name, got, f.value)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/record", strings.NewReader(shown.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unchanged POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	want := &record{Start: "2026-07-06", End: "2026-08-05", Signed: new("2026-07-20")}
+	if !reflect.DeepEqual(saved, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// inputStartTag returns the first <input> start tag of out up to and
+// including ` class="`, or all of it when it has no class.
+func inputStartTag(out string) string {
+	start := strings.Index(out, "<input")
+	if start < 0 {
+		return ""
+	}
+	tag := out[start:]
+	if end := strings.Index(tag, ` class="`); end >= 0 {
+		return tag[:end+len(` class="`)]
+	}
+	if end := strings.Index(tag, ">"); end >= 0 {
+		return tag[:end+1]
+	}
+	return tag
+}
+
+var (
+	inputTagRe  = regexp.MustCompile(`<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
+	attributeRe = regexp.MustCompile(`([^\s=]+)="([^"]*)"`)
+)
+
+// submittedValues returns what a browser submits for the <input> elements
+// of body: the value of each named input, "" when it has none. An
+// unchecked checkbox or radio button submits nothing.
+func submittedValues(body string) url.Values {
+	values := url.Values{}
+	for _, input := range inputTagRe.FindAllStringSubmatch(body, -1) {
+		attrs := map[string]string{}
+		for _, a := range attributeRe.FindAllStringSubmatch(input[1], -1) {
+			attrs[a[1]] = html.UnescapeString(a[2])
+		}
+		name, ok := attrs["name"]
+		if !ok {
+			continue
+		}
+		if typ := attrs["type"]; typ == "checkbox" || typ == "radio" {
+			if _, checked := attrs["checked"]; !checked {
+				continue
+			}
+		}
+		values.Add(name, attrs["value"])
+	}
+	return values
+}
+
+// The shadcn renderer shows datetime and time text like the html one: the
+// input's own form with zero seconds dropped, or a text input plus the
+// format to enter.
+func TestShadcn_TimeWidgetsPrefillStringKinds(t *testing.T) {
+	type form struct {
+		At    string `form:"widget=datetime"`
+		Clock string `form:"widget=time"`
+	}
+	f := &form{At: "2026-07-06T09:05:00", Clock: "9.05"}
+	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
+		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05" class="`; got != want {
+		t.Errorf("At renders\n%s\nwant\n%s", got, want)
+	}
+	out := renderShadcn(t, f, "Clock", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true" class="`; got != want {
+		t.Errorf("Clock renders\n%s\nwant\n%s", got, want)
+	}
+	if !strings.Contains(out, ">Not in the expected format: HH:MM</p>") {
+		t.Errorf("Clock lacks the format hint: %s", out)
+	}
+	if got, want := inputStartTag(renderShadcn(t, &form{Clock: "09:05:00"}, "Clock", nil)),
+		`<input data-slot="input" type="time" name="Clock" id="Clock" hx-trigger="change" value="09:05" class="`; got != want {
+		t.Errorf("valid Clock renders\n%s\nwant\n%s", got, want)
+	}
+}
+
+// hintedDate declares itself a date, so its fields need no widget tag.
+type hintedDate string
+
+func (hintedDate) FormWidget() string { return "date" }
+
+// A type whose FormWidget declares "date" renders a shadcn date input like
+// a field tagged form:"widget=date", also behind a nil pointer.
+func TestShadcn_HintedDateWidget(t *testing.T) {
+	type form struct {
+		Due    hintedDate
+		DuePtr *hintedDate
+	}
+	f := &form{Due: "2026-07-06"}
+	if got, want := inputStartTag(renderShadcn(t, f, "Due", nil)),
+		`<input data-slot="input" type="date" name="Due" id="Due" hx-trigger="change" value="2026-07-06" class="`; got != want {
+		t.Errorf("Due renders\n%s\nwant\n%s", got, want)
+	}
+	if got, want := inputStartTag(renderShadcn(t, f, "DuePtr", nil)),
+		`<input data-slot="input" type="date" name="DuePtr" id="DuePtr" hx-trigger="change" class="`; got != want {
+		t.Errorf("DuePtr renders\n%s\nwant\n%s", got, want)
+	}
+}
+
+// consent declares the checkbox widget.
+type consent bool
+
+func (consent) FormWidget() string { return "checkbox" }
+
+// A FormWidgetHint picks the bool control like a tag does: "checkbox"
+// renders a Checkbox, not the default Switch.
+func TestShadcn_HintedCheckbox(t *testing.T) {
+	type form struct {
+		Agree consent
+	}
+	out := renderShadcn(t, &form{}, "Agree", nil)
+	if !strings.Contains(out, `data-slot="checkbox"`) || strings.Contains(out, `data-slot="switch"`) {
+		t.Errorf("a checkbox hint must render a Checkbox: %s", out)
+	}
+}
+
+// After a failed bind the date control gets the destructive border like
+// every other shadcn control: aria-invalid on the input, data-invalid on
+// the Field.
+func TestShadcn_DateWidgetMarksErrors(t *testing.T) {
+	out := renderShadcn(t, &dateStrings{Str: "06.07.2026"}, "Str",
+		[]error{stringErr(`"06.07.2026" is not a date in the format YYYY-MM-DD`)})
+	if got := inputStartTag(out); !strings.Contains(got, `aria-invalid="true"`) {
+		t.Errorf("the input lacks aria-invalid: %s", got)
+	}
+	if !strings.Contains(out, `data-invalid="true"`) {
+		t.Errorf("the Field lacks data-invalid: %s", out)
+	}
+	// A date the picker shows, such as one outside the range, is marked
+	// invalid by the error alone.
+	picker := inputStartTag(renderShadcn(t, &dateStrings{Bounded: "1900-01-01"}, "Bounded",
+		[]error{stringErr(`"1900-01-01" is earlier than 2026-01-01`)}))
+	if !strings.Contains(picker, `type="date"`) || !strings.Contains(picker, `aria-invalid="true"`) {
+		t.Errorf("the date input lacks aria-invalid after an error: %s", picker)
+	}
+}
+
+// emailAddress declares the email widget.
+type emailAddress string
+
+func (emailAddress) FormWidget() string { return "email" }
+
+// shadcn reads a FormWidgetHint's input type from the tag DetectField
+// fills, and an explicit widget tag still wins over the hint.
+func TestShadcn_HintedInputType(t *testing.T) {
+	type form struct {
+		Contact emailAddress
+		Code    emailAddress `form:"widget=text"`
+	}
+	f := &form{Contact: "a@example.com", Code: "x"}
+	if got := inputStartTag(renderShadcn(t, f, "Contact", nil)); !strings.Contains(got, `type="email"`) {
+		t.Errorf("the hint must render an email input: %s", got)
+	}
+	if got := inputStartTag(renderShadcn(t, f, "Code", nil)); !strings.Contains(got, `type="text"`) {
+		t.Errorf("widget=text must win over the email hint: %s", got)
+	}
+}
+
+// definedTime is defined as time.Time, without its methods.
+type definedTime time.Time
+
+// looseDay writes 2026-7-6, a spelling the date input cannot show, and
+// reads it back.
+type looseDay struct {
+	Year, Month, Day int
+}
+
+func (d looseDay) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d-%d-%d", d.Year, d.Month, d.Day), nil
+}
+
+func (d *looseDay) UnmarshalText(text []byte) error {
+	t, err := time.Parse("2006-1-2", string(text))
+	if err != nil {
+		return err
+	}
+	*d = looseDay{t.Year(), int(t.Month()), t.Day()}
+	return nil
+}
+
+// price is a struct with text methods, so a field of it is a catch-all
+// text input.
+type price struct {
+	Cents int
+}
+
+func (p price) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%d.%02d", p.Cents/100, p.Cents%100), nil
+}
+
+func (p *price) UnmarshalText(text []byte) error {
+	var units, cents int
+	if _, err := fmt.Sscanf(string(text), "%d.%d", &units, &cents); err != nil {
+		return err
+	}
+	*p = price{units*100 + cents}
+	return nil
+}
+
+// boxedPrice embeds a pointer to a price; its promoted MarshalText panics on
+// a nil one.
+type boxedPrice struct {
+	*price
+}
+
+// A catch-all value renders as a styled text input in a Field, like a
+// string, with its errors marked, not as the unstyled html fallback.
+func TestShadcn_CatchAllIsStyledText(t *testing.T) {
+	type form struct {
+		Total price
+		Box   boxedPrice
+	}
+	f := &form{Total: price{1250}}
+	if got := inputStartTag(renderShadcn(t, f, "Box", nil)); strings.Contains(got, "value=") {
+		t.Errorf("a panicking MarshalText must render no value: %s", got)
+	}
+	out := renderShadcn(t, f, "Total", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Total" id="Total" hx-trigger="change" value="12.50" class="`; got != want {
+		t.Errorf("Total renders\n%s\nwant\n%s", got, want)
+	}
+	if !strings.Contains(out, `data-slot="field"`) {
+		t.Errorf("the input must sit in a Field: %s", out)
+	}
+	errOut := renderShadcn(t, f, "Total", []error{errors.New("bad price")})
+	if !strings.Contains(inputStartTag(errOut), `aria-invalid="true"`) || !strings.Contains(errOut, "bad price") {
+		t.Errorf("errors must mark the input and show: %s", errOut)
+	}
+}
+
+// A readonly file input is disabled and never required.
+func TestShadcn_ReadonlyFileDisabled(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file,required,readonly"`
+	}
+	if got := inputStartTag(renderShadcn(t, &form{}, "Doc", nil)); !strings.Contains(got, `disabled="disabled"`) || strings.Contains(got, `required="required"`) {
+		t.Errorf("a readonly file input renders %s", got)
+	}
+}
+
+// A time shown as text is written as RFC 3339, which its parser reads,
+// also for a type defined as time.Time that has no text methods of its own.
+func TestShadcn_TextTimeIsRFC3339(t *testing.T) {
+	type stamp time.Time
+	type form struct {
+		At    time.Time `form:"widget=text"`
+		Stamp stamp     `form:"widget=text,readonly"`
+	}
+	at := time.Date(2026, 7, 6, 9, 5, 7, 0, time.FixedZone("CEST", 2*60*60))
+	for _, name := range []string{"At", "Stamp"} {
+		if got := inputStartTag(renderShadcn(t, &form{At: at, Stamp: stamp(at)}, name, nil)); !strings.Contains(got, `value="2026-07-06T09:05:07+02:00"`) {
+			t.Errorf("%s renders %s", name, got)
+		}
+		// The zero time, as on a new record, shows an empty input.
+		if got := inputStartTag(renderShadcn(t, &form{}, name, nil)); strings.Contains(got, "value=") {
+			t.Errorf("zero %s renders %s", name, got)
+		}
+	}
+}
+
+// A sensitive number never shows its value; any other number does, or an
+// unchanged save would post it empty.
+func TestShadcn_SensitiveNumberHidesValue(t *testing.T) {
+	type form struct {
+		PIN int `form:"sensitive"`
+		Qty int
+	}
+	if out := renderShadcn(t, &form{PIN: 1234}, "PIN", nil); strings.Contains(out, "1234") {
+		t.Errorf("a sensitive number shows its value: %s", out)
+	}
+	if got := inputStartTag(renderShadcn(t, &form{Qty: 1234}, "Qty", nil)); !strings.Contains(got, `value="1234"`) {
+		t.Errorf("a number renders %s", got)
+	}
+}
+
+// A blank sensitive input keeps the stored value, so a sensitive pointer
+// offers the clear control, as a nullable field does.
+func TestShadcn_SensitivePointerHasClearControl(t *testing.T) {
+	type form struct {
+		Token *string    `form:"sensitive"`
+		N     *int       `form:"sensitive"`
+		At    *time.Time `form:"widget=date,sensitive"`
+		Note  *string    `form:"sensitive,widget=textarea"`
+		Plain *string
+		Flag  *bool `form:"sensitive"`
+		// A select shows its stored option and clears with "(none)".
+		Color *colorEnum `form:"sensitive"`
+	}
+	f := &form{Token: new("secret"), N: new(3), At: new(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)), Note: new("n"), Plain: new("p"), Flag: new(true), Color: new(colorEnum("red"))}
+	for field, want := range map[string]bool{"Token": true, "N": true, "At": true, "Note": true, "Plain": false, "Flag": false, "Color": false} {
+		if got := strings.Contains(renderShadcn(t, f, field, nil), mx.ClearSentinelName(mx.FieldPath(field))); got != want {
+			t.Errorf("%s: clear control %t, want %t", field, got, want)
+		}
+	}
+	// The label names its checkbox, so the box has an accessible name.
+	if out := renderShadcn(t, f, "Token", nil); !strings.Contains(out, `id="`+mx.ClearSentinelName("Token")+`"`) {
+		t.Errorf("the clear checkbox has no id for its label: %s", out)
+	}
+}
+
+// A stored sensitive value does not make the input demand one from the
+// browser, and an optional sensitive input offers the clear control, ticked
+// while it is empty, as in the html renderer.
+func TestShadcn_SensitiveStoredAndClear(t *testing.T) {
+	type form struct {
+		Key    string    `form:"required,sensitive"`
+		N      int       `form:"required,sensitive"`
+		At     time.Time `form:"widget=date,required,sensitive"`
+		Note   string    `form:"widget=textarea,required,sensitive"`
+		Secret string    `form:"sensitive"`
+	}
+	storedForm := &form{Key: "sk_1", N: 3, At: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Note: "n"}
+	for _, field := range []string{"Key", "N", "At", "Note"} {
+		storedOut, emptyOut := renderShadcn(t, storedForm, field, nil), renderShadcn(t, &form{}, field, nil)
+		control := func(out string) string {
+			i := strings.Index(out, `name="`+field+`"`)
+			start := strings.LastIndex(out[:i], "<")
+			return out[start : i+strings.Index(out[i:], ">")+1]
+		}
+		if got := control(storedOut); strings.Contains(got, "required") {
+			t.Errorf("%s: a stored sensitive input demands a value: %s", field, got)
+		}
+		if got := control(emptyOut); !strings.Contains(got, "required") {
+			t.Errorf("%s: with nothing stored the input must be required: %s", field, got)
+		}
+		if strings.Contains(storedOut, mx.ClearSentinelName(mx.FieldPath(field))) {
+			t.Errorf("%s: a required field offers a clear control: %s", field, storedOut)
+		}
+	}
+	stored := renderShadcn(t, &form{Secret: "s"}, "Secret", nil)
+	empty := renderShadcn(t, &form{}, "Secret", nil)
+	// The box's name says which field it clears.
+	clearBox := `id="` + mx.ClearSentinelName("Secret") + `" name="` + mx.ClearSentinelName("Secret") + `" value="1" aria-label="clear Secret"`
+	if !strings.Contains(stored, clearBox+` type="checkbox"`) || !strings.Contains(empty, clearBox+` checked="checked"`) {
+		t.Errorf("clear control: stored %s, empty %s", stored, empty)
+	}
+}
+
+// A readonly nullable field is never written, so it offers no clear control.
+func TestShadcn_ReadonlyNullableHasNoClearControl(t *testing.T) {
+	type form struct {
+		Locked nullableInt `form:"readonly"`
+		Open   nullableInt
+	}
+	f := &form{Locked: nullableInt{v: 1}, Open: nullableInt{v: 2}}
+	if out := renderShadcn(t, f, "Locked", nil); strings.Contains(out, mx.ClearSentinelName("Locked")) {
+		t.Errorf("a readonly field offers a clear control: %s", out)
+	}
+	if out := renderShadcn(t, f, "Open", nil); !strings.Contains(out, mx.ClearSentinelName("Open")) {
+		t.Errorf("a nullable field lacks its clear control: %s", out)
+	}
+}
+
+// shadcn renders the wrapper kinds and the readonly text input like the
+// html renderer: a defined time in the picker, a readonly fallback without
+// the invalid look or the format hint.
+// After a submit, the field error says the text is not in the format, so
+// the hint only names the format, as in the html renderer.
+func TestShadcn_FormatHintAfterError(t *testing.T) {
+	type form struct {
+		Due string `form:"widget=date"`
+	}
+	out := renderShadcn(t, &form{Due: "06.07.2026"}, "Due",
+		[]error{errors.New(`"06.07.2026" is not a date in the format YYYY-MM-DD`)})
+	if !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") || strings.Contains(out, "Not in the expected format") {
+		t.Errorf("hint after an error: %s", out)
+	}
+}
+
+func TestShadcn_DateKindsRender(t *testing.T) {
+	type form struct {
+		At      definedTime `form:"widget=datetime"`
+		Old     string      `form:"widget=date,readonly"`
+		Loose   looseDay    `form:"widget=date"`
+		Bounded looseDay    `form:"widget=date,min=2026-01-01"`
+		Seconds string      `form:"widget=datetime,min=2026-01-01T00:00"`
+	}
+	f := &form{
+		At: definedTime(time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)), Old: "06.07.2026",
+		Loose: looseDay{2026, 7, 6}, Bounded: looseDay{2026, 7, 6}, Seconds: "2026-07-06T09:05:07",
+	}
+	// A date struct reads its own text back, so its text input is not
+	// marked invalid, unless a bound it cannot be checked against is set.
+	if out := renderShadcn(t, f, "Loose", nil); !strings.Contains(out, ">Expected format: YYYY-MM-DD</p>") {
+		t.Errorf("Loose lacks the plain format hint: %s", out)
+	}
+	if got, want := inputStartTag(renderShadcn(t, f, "Loose", nil)),
+		`<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
+		t.Errorf("Loose renders\n%s\nwant\n%s", got, want)
+	}
+	bounded := renderShadcn(t, f, "Bounded", nil)
+	if got := inputStartTag(bounded); !strings.Contains(got, `aria-invalid="true"`) || strings.Contains(got, "min=") {
+		t.Errorf("Bounded renders %s, want an invalid text input without min", got)
+	}
+	// The Field root matches the control, so the label turns destructive too.
+	if !strings.Contains(bounded, `data-invalid="true"`) {
+		t.Errorf("Bounded's Field lacks data-invalid: %s", bounded)
+	}
+	if loose := renderShadcn(t, f, "Loose", nil); strings.Contains(loose, `data-invalid`) {
+		t.Errorf("Loose is not invalid: %s", loose)
+	}
+	// With a min, a value with seconds gets step 1.
+	if got, want := inputStartTag(renderShadcn(t, f, "Seconds", nil)),
+		`<input data-slot="input" type="datetime-local" name="Seconds" id="Seconds" hx-trigger="change" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1" class="`; got != want {
+		t.Errorf("Seconds renders\n%s\nwant\n%s", got, want)
+	}
+	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
+		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05:07" class="`; got != want {
+		t.Errorf("At renders\n%s\nwant\n%s", got, want)
+	}
+	out := renderShadcn(t, f, "Old", nil)
+	if got, want := inputStartTag(out),
+		`<input data-slot="input" type="text" name="Old" id="Old" hx-trigger="change" value="06.07.2026" readonly="readonly" class="`; got != want {
+		t.Errorf("Old renders\n%s\nwant\n%s", got, want)
+	}
+	if strings.Contains(out, "Expected format") || strings.Contains(out, "data-invalid") {
+		t.Errorf("a readonly text input needs no format hint and is never marked invalid: %s", out)
+	}
+}
+
+// hideIf wraps a decider so that it leaves out the fields pred names with a
+// Render that returns nil, the way a decider hides a field from some users.
+func hideIf(pred func(mx.FieldPath) bool, base mx.FieldDecider) mx.FieldDecider {
+	return func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+		beh := base(path, field, value)
+		if beh.Render == nil || !pred(path) {
+			return beh
+		}
+		beh.Render = func(mx.FieldPath, reflect.StructField, reflect.Value, []error) mx.Component { return nil }
+		return beh
+	}
+}
+
+// The built-in chain answers a render probe without building markup for a
+// field it renders. Wrappers hiding fields,
+// also nested ones, are asked too, so a forged __present sentinel cannot
+// write a field any of them hides.
+func TestShadcn_RenderProbeAndHiddenFields(t *testing.T) {
+	type account struct {
+		Name     string
+		Role     string
+		Internal string
+		Skip     string `form:"-"`
+	}
+	// What the built-in chain answers each probe with, by field.
+	answers := map[mx.FieldPath]mx.Component{}
+	recorded := func(path mx.FieldPath, field reflect.StructField, value reflect.Value) mx.FieldBehavior {
+		beh := FieldDecider(path, field, value)
+		if render := beh.Render; render != nil {
+			beh.Render = func(path mx.FieldPath, field reflect.StructField, value reflect.Value, errs []error) mx.Component {
+				comp := render(path, field, value, errs)
+				if mx.IsRenderProbe(errs) {
+					answers[path] = comp
+				}
+				return comp
+			}
+		}
+		return beh
+	}
+	var saved *account
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*account, error) { return &account{Name: "n", Role: "member", Internal: "i"}, nil },
+		func(_ context.Context, a *account) error { saved = a; return nil },
+		hideIf(func(p mx.FieldPath) bool { return p == "Role" },
+			hideIf(func(p mx.FieldPath) bool { return p == "Internal" }, recorded)),
+	)
+	form := url.Values{
+		mx.PresentSentinelName("Name"): {"1"}, "Name": {"m"},
+		mx.PresentSentinelName("Role"): {"1"}, "Role": {"admin"},
+		mx.PresentSentinelName("Internal"): {"1"}, "Internal": {"forged"},
+		mx.PresentSentinelName("Skip"): {"1"}, "Skip": {"forged"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	if rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "m" || saved.Role != "member" || saved.Internal != "i" || saved.Skip != "" {
+		t.Errorf("status %d, saved %+v; want Name written, Role, Internal and Skip kept", rec.Code, saved)
+	}
+	if c, ok := answers["Name"].(mx.Components); !ok || len(c) != 0 {
+		t.Errorf("a rendered field's probe must be answered without markup, got %#v", answers["Name"])
+	}
+	// A form:"-" field is never visited, so a forged sentinel reaches
+	// no decider at all.
+	if _, asked := answers["Skip"]; asked {
+		t.Error("a skipped field must not be asked")
+	}
+}
+
+// deDay is a date type that reads only its own German spelling.
+type deDay struct{ Y, M, D int }
+
+func (d deDay) MarshalText() ([]byte, error) {
+	if d == (deDay{}) {
+		return nil, nil
+	}
+	return []byte(fmt.Sprintf("%02d.%02d.%04d", d.D, d.M, d.Y)), nil
+}
+
+func (d *deDay) UnmarshalText(b []byte) error {
+	t, err := time.Parse("02.01.2006", string(b))
+	if err != nil {
+		return err
+	}
+	*d = deDay{t.Year(), int(t.Month()), t.Day()}
+	return nil
+}
+
+// As in the html renderer, a date type that reads only its own spelling
+// renders its text in a text input that asks for no ISO format. A min or
+// max cannot be checked on such text, so, also behind a pointer, the field
+// fails to render instead of every save failing.
+func TestShadcn_OwnSpellingDateType(t *testing.T) {
+	type form struct {
+		Due   deDay  `form:"widget=date"`
+		Since *deDay `form:"widget=date,min=2026-01-01"`
+	}
+	out := renderShadcn(t, &form{Due: deDay{2026, 7, 6}}, "Due", nil)
+	if !strings.Contains(out, `type="text" name="Due" id="Due" hx-trigger="change" value="06.07.2026"`) || strings.Contains(out, "YYYY-MM-DD") || strings.Contains(out, `aria-invalid="true"`) {
+		t.Errorf("own-spelling date: %s", out)
+	}
+	v := reflect.ValueOf(&form{Since: &deDay{2026, 7, 6}}).Elem()
+	field, _ := v.Type().FieldByName("Since")
+	comp := FieldDecider("Since", field, v.FieldByName("Since")).Render("Since", field, v.FieldByName("Since"), nil)
+	var b strings.Builder
+	if err := comp.Render(context.Background(), mx.NewCheckedWriter(&b)); err == nil || !strings.Contains(err.Error(), "min=") {
+		t.Errorf("a bound on an own-spelling date type: render error %v, want the tag error; out %s", err, b.String())
+	}
+}
+
+// As in the html renderer, a required file field holding a file does not
+// make the browser demand a new upload.
+func TestShadcn_StoredRequiredFileNotDemanded(t *testing.T) {
+	type form struct {
+		Doc []byte `form:"widget=file,required"`
+	}
+	if out := renderShadcn(t, &form{Doc: []byte("pdf")}, "Doc", nil); strings.Contains(out, `required="required"`) {
+		t.Errorf("a stored file must not make the input required: %s", out)
+	}
+	if out := renderShadcn(t, &form{}, "Doc", nil); !strings.Contains(out, `required="required"`) {
+		t.Errorf("an empty required file input must be required: %s", out)
+	}
+	// A field may store the file's name instead of its bytes.
+	type named struct {
+		Doc string `form:"widget=file,required"`
+	}
+	if out := renderShadcn(t, &named{Doc: "scan.pdf"}, "Doc", nil); strings.Contains(out, `required="required"`) {
+		t.Errorf("a stored file name must not make the input required: %s", out)
+	}
+}
+
+// The note that saving drops a value the list no longer offers describes
+// the select or checkbox set, so a screen reader hears it. Without a
+// removal the reference points at an empty hidden note, never at nothing.
+func TestShadcn_RemovalNoteDescribesControl(t *testing.T) {
+	type draftForm struct {
+		Partner string   `form:"options=test-shadcn-partners"`
+		Tags    []string `form:"options=test-shadcn-partners"`
+	}
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	render := func(f *draftForm, name string) string {
+		v := reflect.ValueOf(f).Elem()
+		field, _ := v.Type().FieldByName(name)
+		comp := FieldDecider(mx.FieldPath(name), field, v.FieldByName(name)).Render(mx.FieldPath(name), field, v.FieldByName(name), nil)
+		var b strings.Builder
+		if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+	gone := &draftForm{Partner: "gone", Tags: []string{"gone"}}
+	for _, name := range []string{"Partner", "Tags"} {
+		out := render(gone, name)
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !regexp.MustCompile(`id="`+name+`-note"[^>]*>[^<]*\S`).MatchString(out) {
+			t.Errorf("%s: the removal note must describe the control: %s", name, out)
+		}
+		out = render(&draftForm{Partner: "p1", Tags: []string{"p1"}}, name)
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
+			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
+		}
+	}
+}
+
+// As in the html renderer, an enum zero that is none of its options shows
+// as no selection, not as an unavailable value that saving removes.
+func TestShadcn_UnlistedZeroIsNoSelection(t *testing.T) {
+	type form struct {
+		Partner int64 `form:"options=test-shadcn-partners"`
+	}
+	v := reflect.ValueOf(&form{}).Elem()
+	field, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider("Partner", field, v.Field(0)).Render("Partner", field, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{}, []mx.NamedOption{{Name: "Partner One", Value: "1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, "not available") || strings.Contains(out, "removed when you save") || !strings.Contains(out, `selected="selected">(none)</option>`) {
+		t.Errorf("an unlisted zero key: %s", out)
+	}
+}
+
+// shOwner is a key whose list brings its own empty option, not first.
+type shOwner int64
+
+func (shOwner) NamedOptions() []mx.NamedOption {
+	return []mx.NamedOption{{Name: "Alice", Value: "1"}, {Name: "Unassigned", Value: ""}}
+}
+
+// As in the html renderer, an unlisted zero selects the list's own empty
+// option wherever it stands, so exactly one option is selected.
+func TestShadcn_SelectShowsOneSelection(t *testing.T) {
+	type form struct {
+		Owner shOwner `form:"required"`
+	}
+	out := renderShadcn(t, &form{}, "Owner", nil)
+	if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, `<option value="" selected="selected">Unassigned</option>`) {
+		t.Errorf("%d selected: %s", n, out)
+	}
+}
+
+// A caller's placeholder hints at a date type's own spelling, also when
+// the field is null.
+func TestShadcn_OwnSpellingPlaceholder(t *testing.T) {
+	type form struct {
+		Due  *deDay `form:"widget=date,placeholder=TT.MM.JJJJ"`
+		Next deDay  `form:"widget=date,placeholder=TT.MM.JJJJ"`
+	}
+	for _, name := range []string{"Due", "Next"} {
+		out := renderShadcn(t, &form{Next: deDay{2026, 7, 6}}, name, nil)
+		if !strings.Contains(out, `placeholder="TT.MM.JJJJ"`) || strings.Contains(out, "YYYY-MM-DD") {
+			t.Errorf("%s: own-spelling placeholder: %s", name, out)
+		}
+	}
 }

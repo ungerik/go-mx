@@ -216,11 +216,84 @@ Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
 `(redirect string, err error)`; the returned URL wins, and an empty
 string falls back to `cfg.Redirect` then the request path.
 
+When `onSubmit` fails, the form re-renders with the submitted values. A
+`mx.FieldErrors` puts each message under its field (a path no input shows, such
+as a hidden field's, goes above the form like the next two); a `mx.FormMessage`
+(also wrapped) is shown above the form as its text. Any other error is internal: the
+form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
+its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
+parsed is answered with 400 (413 past the multipart limits, net/http's
+10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
+`onSubmit`, also when a middleware parsed it first and ignored the error; a
+body that is no form, such as JSON or one without a content type, is answered
+with 415. A
+middleware that reads a multipart form, such as a method override calling
+`r.FormValue`, must parse all of it (`r.ParseMultipartForm` or `r.FormValue`):
+after `r.ParseForm` alone the handler cannot tell an unread multipart body from
+a half-read one and answers 400.
+
+The `date`, `datetime` and `time` widgets render the matching input for a
+`time.Time` and also for a field that holds its value as text: a `string`, a
+`*string`, or a named string type such as a date type. A date struct with
+`MarshalText`/`UnmarshalText` works too, and so does a type that wraps
+`time.Time` (defined as it, a struct embedding it as its only field whose text
+is RFC 3339, as it is without text methods of its own, or a nullable time such as
+`null.Time` with its own RFC 3339 text methods), which renders and binds like a
+`time.Time`; untagged, a struct embedding a time with text methods that write
+another form, such as a date-only one,
+is a text input through them (with a date widget it is a date struct). A type can declare its widget once
+with `FormWidget() string` (`mx.FormWidgetHint`) instead of every field
+carrying `form:"widget=date"`. The input shows the stored value: a
+`Format(string) string` method is asked for it, and otherwise text in the
+input's own form is shown. That form has no zone and carries seconds only when
+they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. On
+POST the submitted value is stored in that same form, through `UnmarshalText`
+when the type has it, and an empty value stores the zero value, which
+`required` rejects. `form:"min=…,max=…"` is checked on the server for every
+date and time field, as it is for numbers. A date type whose `UnmarshalText`
+reads only its own spelling, such as `02.01.2006`, cannot take what a date
+input sends: it renders as a text input of its own text with no format hint
+(a `form:"placeholder=…"` names its format), and a `min` or `max` on it fails
+the form when it is shown (`mx.DateTimeTagError`). Whole seconds are the finest step: fractional seconds are
+not supported, and neither is a `form:"step=…"` under one second. An input cannot show stored text in another spelling
+(`06.07.2026`), an invalid value or a time with a zone, and a blank one would
+clear it on the next save, so such text renders in a text input instead,
+marked invalid, with the format to enter as placeholder and hint. Saving it
+unchanged then fails with a field error, so nothing is saved until it is
+corrected, and the form keeps showing the posted text, also in repeatable rows
+after an add-row or remove-row click. SQL-style text such as
+`2026-07-06 09:05:00` (a space instead of the `T`) is such another spelling: a
+named string type whose `Format` writes the input's layout and whose
+`UnmarshalText` stores its own spelling keeps such a column editable. A date
+struct reads its own text back, so text of its own that the picker cannot show
+renders in a text input that saves unchanged. A `form:"sensitive"` date never
+shows its value, like a sensitive text input; as with a password field, a
+sensitive input left blank keeps its stored value (a select, which shows its
+stored option, does not), and an optional one has a clear control to empty it,
+ticked while it is empty. A `widget=password` field is sensitive by
+itself. An unchanged date or time keeps the stored value as it is; a changed one
+is read in the zone the input showed the stored time in. A registered single-value struct
+that holds no time, such as a money type, is a plain text input through its
+`MarshalText`/`UnmarshalText`.
+
 Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
 slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
-can map rows to records.
+can map rows to records; like every hidden value it comes from the client, so
+`onSubmit` must check it against the loaded record before trusting it. A submitted row starts as a copy of the loaded row
+it came from, through add-row and remove-row clicks too: a `form:"readonly"`
+sub-field keeps its loaded value, a rejected cell behaves as the same
+top-level field does (it keeps the stored value, or shows the posted text
+where the field keeps that), and a cell that was not sent stays as loaded; an
+added row starts at the zero value. Rows are matched by position through
+client-controlled markers, so a tampered POST can reorder rows, and the stored
+rows can change between the GET and the POST: restore server-controlled
+columns in `onSubmit` by the row key, and an `onSubmit` that fails must not
+reorder or remove the rows.
+`form:"readonly"` on the repeatable field itself, or on a section, nested or
+embedded struct, makes everything in it readonly, and `form:"-"` on an
+embedded struct omits its fields.
 
 Option-driven fields (selects, radio groups, checkbox sets) resolve their
 option lists via `mx.CollectOptions`: `Enums()`/`EnumStrings()` methods, the
@@ -251,7 +324,8 @@ echoed). A sensitive field uses that same generic placeholder: the value
 stays out of the markup, and an unchanged submit does not fall through to
 the first listed option. Because the placeholder is disabled, an unchanged submit sends no
 value for the field: required fields fail validation until a value is picked
-from the list, while non-required fields are cleared.
+from the list, while non-required fields are cleared, which a note below an
+optional, editable select says.
 
 When the option list has no empty value, a select with no current value
 gets a leading empty option so the browser does not submit the first real
@@ -270,7 +344,9 @@ shown and not echoed, and a save does not keep them: the checked boxes are
 the whole set that is stored, so a value the list stopped offering cannot
 be written back, and unchecking a box that was on the page removes it even
 if the list changes before the POST. The group says that some current
-values are not available, without naming them. A static enum list is the
+values are not available and are removed when you save, without naming
+them (a readonly group, which is never saved, keeps them and says only that
+they are not available). A static enum list is the
 whole domain, so parse replaces the set from the submission. A blank
 optional enum is no choice: the type's `Validate` does not reject it, and
 a decider `Validate` still runs.

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ungerik/go-mx"
 )
@@ -27,25 +28,32 @@ func renderWith(t *testing.T, ctx context.Context, c mx.Component) string {
 // silently fall back to the English DefaultLabels instead of failing loudly,
 // which is what TestLabelsFieldsAllCovered checks.
 var germanLabels = Labels{
-	BreadcrumbNav:          "Brotkrümelnavigation",
-	BreadcrumbEllipsis:     "Mehr Einträge",
-	CarouselPrevious:       "Vorheriges Bild",
-	CarouselNext:           "Nächstes Bild",
-	DialogClose:            "Schließen",
-	NavigationMenuNav:      "Hauptnavigation",
-	PaginationNav:          "Seitennummerierung",
-	PaginationPrevious:     "Zurück",
-	PaginationNext:         "Weiter",
-	PaginationPreviousPage: "Zur vorherigen Seite",
-	PaginationNextPage:     "Zur nächsten Seite",
-	PaginationEllipsis:     "Mehr Seiten",
-	SidebarTrigger:         "Seitenleiste umschalten",
-	Spinner:                "Lädt",
-	FormClear:              "leeren",
-	FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
-	FormChooseOption:       "Auswählen…",
-	FormNoSelection:        "(keine)",
-	FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
+	BreadcrumbNav:                  "Brotkrümelnavigation",
+	BreadcrumbEllipsis:             "Mehr Einträge",
+	CalendarPrevious:               "Zum vorherigen Monat",
+	CalendarNext:                   "Zum nächsten Monat",
+	CarouselPrevious:               "Vorheriges Bild",
+	CarouselNext:                   "Nächstes Bild",
+	DialogClose:                    "Schließen",
+	NavigationMenuNav:              "Hauptnavigation",
+	PaginationNav:                  "Seitennummerierung",
+	PaginationPrevious:             "Zurück",
+	PaginationNext:                 "Weiter",
+	PaginationPreviousPage:         "Zur vorherigen Seite",
+	PaginationNextPage:             "Zur nächsten Seite",
+	PaginationEllipsis:             "Mehr Seiten",
+	SidebarTrigger:                 "Seitenleiste umschalten",
+	Spinner:                        "Lädt",
+	FormClear:                      "leeren",
+	FormClearField:                 "%s leeren",
+	FormValueNotAvailable:          "(aktueller Wert nicht verfügbar)",
+	FormValueRemovedOnSave:         "Der aktuelle Wert wird beim Speichern entfernt.",
+	FormChooseOption:               "Auswählen…",
+	FormNoSelection:                "(keine)",
+	FormValuesNotAvailable:         "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
+	FormValuesNotAvailableReadonly: "(einige aktuelle Werte sind nicht verfügbar)",
+	FormExpectedFormat:             "Erwartetes Format:",
+	FormInvalidFormat:              "Nicht im erwarteten Format:",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -79,6 +87,11 @@ var labelCases = []labelCase{
 		fields:  []string{"BreadcrumbEllipsis"},
 		english: []string{`class="sr-only">More<`},
 		german:  []string{`class="sr-only">Mehr Einträge<`},
+	}, {
+		name: "Calendar", comp: func() mx.Component { return Calendar(time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{}) },
+		fields:  []string{"CalendarPrevious", "CalendarNext"},
+		english: []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`},
+		german:  []string{`aria-label="Zum vorherigen Monat"`, `aria-label="Zum nächsten Monat"`},
 	}, {
 		name: "CarouselPrevious", comp: func() mx.Component { return CarouselPrevious() },
 		fields:  []string{"CarouselPrevious"},
@@ -138,15 +151,24 @@ var labelCases = []labelCase{
 		// The reflected-form strings are built-in labels too: the caller
 		// never passes them, so before Labels they were English-only in an
 		// otherwise translated form.
-		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional")) },
-		fields:  []string{"FormClear"},
-		english: []string{`text-sm">clear<`},
-		german:  []string{`text-sm">leeren<`},
+		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), "Optional", false) },
+		fields:  []string{"FormClear", "FormClearField"},
+		english: []string{`text-sm">clear<`, `aria-label="clear Optional"`},
+		german:  []string{`text-sm">leeren<`, `aria-label="Optional leeren"`},
 	}, {
-		name: "FormSelectOutOfListPlaceholder", comp: outOfListSelect,
+		name: "FormSelectOutOfListPlaceholder", comp: requiredOutOfListSelect,
 		fields:  []string{"FormValueNotAvailable"},
 		english: []string{`selected="selected">(current value not available)<`},
 		german:  []string{`selected="selected">(aktueller Wert nicht verfügbar)<`},
+		wrapCtx: func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, shadcnPartnersKey{},
+				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+		},
+	}, {
+		name: "FormSelectOutOfListRemoved", comp: outOfListSelect,
+		fields:  []string{"FormValueRemovedOnSave"},
+		english: []string{`>The current value is removed when you save.<`},
+		german:  []string{`>Der aktuelle Wert wird beim Speichern entfernt.<`},
 		wrapCtx: func(ctx context.Context) context.Context {
 			return context.WithValue(ctx, shadcnPartnersKey{},
 				[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
@@ -173,9 +195,55 @@ var labelCases = []labelCase{
 		name:    "FormValuesNotAvailable",
 		comp:    enumSetWithHiddenMember,
 		fields:  []string{"FormValuesNotAvailable"},
+		english: []string{">(some current values are not available and are removed when you save)<"},
+		german:  []string{">(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)<"},
+	}, {
+		name:    "FormValuesNotAvailableReadonly",
+		comp:    readonlyEnumSetWithHiddenMember,
+		fields:  []string{"FormValuesNotAvailableReadonly"},
 		english: []string{">(some current values are not available)<"},
 		german:  []string{">(einige aktuelle Werte sind nicht verfügbar)<"},
+	}, {
+		name:    "FormExpectedFormat",
+		comp:    dateStructWithOwnText,
+		fields:  []string{"FormExpectedFormat"},
+		english: []string{">Expected format: YYYY-MM-DD<"},
+		german:  []string{">Erwartetes Format: YYYY-MM-DD<"},
+	}, {
+		name:    "FormInvalidFormat",
+		comp:    dateWithStoredText,
+		fields:  []string{"FormInvalidFormat"},
+		english: []string{">Not in the expected format: YYYY-MM-DD<"},
+		german:  []string{">Nicht im erwarteten Format: YYYY-MM-DD<"},
 	},
+}
+
+// dateStructWithOwnText builds a reflected date field holding a date
+// struct whose own text a date input cannot show but which reads it back,
+// the way to reach the plain FormExpectedFormat hint.
+func dateStructWithOwnText() mx.Component {
+	type draftForm struct {
+		Due looseDay `form:"widget=date"`
+	}
+	s := &draftForm{Due: looseDay{2026, 7, 6}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Due")
+	beh := FieldDecider(mx.FieldPath("Due"), f, v.Field(0))
+	return beh.Render(mx.FieldPath("Due"), f, v.Field(0), nil)
+}
+
+// dateWithStoredText builds a reflected date field whose stored text a date
+// input cannot show and the parser rejects, the way to reach the
+// FormInvalidFormat hint.
+func dateWithStoredText() mx.Component {
+	type draftForm struct {
+		Due string `form:"widget=date"`
+	}
+	s := &draftForm{Due: "06.07.2026"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Due")
+	beh := FieldDecider(mx.FieldPath("Due"), f, v.Field(0))
+	return beh.Render(mx.FieldPath("Due"), f, v.Field(0), nil)
 }
 
 // outOfListSelect builds the reflected select whose current value is missing
@@ -190,6 +258,17 @@ func outOfListSelect() mx.Component {
 	f, _ := v.Type().FieldByName("Partner")
 	beh := FieldDecider(mx.FieldPath("Partner"), f, v.Field(0))
 	return beh.Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
+}
+
+func requiredOutOfListSelect() mx.Component {
+	type draftForm struct {
+		Partner string `form:"options=test-shadcn-partners,required"`
+	}
+	s := &draftForm{Partner: "gone"}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	return FieldDecider(mx.FieldPath("Partner"), f, v.Field(0)).
+		Render(mx.FieldPath("Partner"), f, v.Field(0), nil)
 }
 
 func requiredEmptySelect() mx.Component {
@@ -217,6 +296,17 @@ func optionalEmptySelect() mx.Component {
 func enumSetWithHiddenMember() mx.Component {
 	type tagForm struct {
 		Tags []string `form:"options=test-shadcn-tags"`
+	}
+	s := &tagForm{Tags: []string{"kept", "b"}}
+	v := reflect.ValueOf(s).Elem()
+	f, _ := v.Type().FieldByName("Tags")
+	return FieldDecider(mx.FieldPath("Tags"), f, v.Field(0)).
+		Render(mx.FieldPath("Tags"), f, v.Field(0), nil)
+}
+
+func readonlyEnumSetWithHiddenMember() mx.Component {
+	type tagForm struct {
+		Tags []string `form:"options=test-shadcn-tags,readonly"`
 	}
 	s := &tagForm{Tags: []string{"kept", "b"}}
 	v := reflect.ValueOf(s).Elem()
@@ -429,5 +519,43 @@ func TestLabelsPartialFallsBackPerField(t *testing.T) {
 	out = renderWith(t, ctx, Spinner())
 	if !strings.Contains(out, `aria-label="Loading"`) {
 		t.Errorf("an untranslated field must fall back to DefaultLabels: %s", out)
+	}
+}
+
+// A translation that sets only the clear caption keeps the box's accessible
+// name in its language and containing the visible caption, rather than the
+// English "clear %s" next to "leeren".
+func TestLabelsClearFieldFollowsCaption(t *testing.T) {
+	ctx := ContextWithLabels(context.Background(), Labels{FormClear: "leeren"})
+	out := renderWith(t, ctx, clearControl(mx.FieldPath("Token"), "Token", false))
+	if !strings.Contains(out, `text-sm">leeren<`) || !strings.Contains(out, `aria-label="leeren Token"`) {
+		t.Errorf("the accessible name must follow the translated caption: %s", out)
+	}
+	// An explicit FormClearField wins.
+	ctx = ContextWithLabels(context.Background(), Labels{FormClear: "leeren", FormClearField: "%s leeren"})
+	if out := renderWith(t, ctx, clearControl(mx.FieldPath("Token"), "Token", false)); !strings.Contains(out, `aria-label="Token leeren"`) {
+		t.Errorf("FormClearField must win: %s", out)
+	}
+}
+
+// A program-wide translation in DefaultLabels names the clear box in its
+// language too, with no Labels in the context: FormClearField is resolved
+// apart from the cmp.Or chain of the other labels, so DefaultLabels must
+// stay one of its steps.
+func TestLabelsClearFieldFromDefaultLabels(t *testing.T) {
+	saved := DefaultLabels
+	t.Cleanup(func() { DefaultLabels = saved })
+	for _, c := range []struct {
+		defaults Labels
+		want     string
+	}{
+		{Labels{FormClear: "leeren", FormClearField: "%s leeren"}, `aria-label="Token leeren"`},
+		{Labels{FormClear: "leeren"}, `aria-label="leeren Token"`},
+	} {
+		DefaultLabels = c.defaults
+		out := renderWith(t, context.Background(), clearControl(mx.FieldPath("Token"), "Token", false))
+		if !strings.Contains(out, `text-sm">leeren<`) || !strings.Contains(out, c.want) {
+			t.Errorf("DefaultLabels %+v: want %s in %s", c.defaults, c.want, out)
+		}
 	}
 }

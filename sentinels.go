@@ -22,7 +22,10 @@ const SentinelClear = "__clear__"
 // field's path with the row index appended (e.g. "Lines-0"). The
 // parser scans these markers to discover which rows the client
 // submitted, so removing a row's markup on the client (or via the
-// server-side remove button) drops the row from the bound slice.
+// server-side remove button) drops the row from the bound slice. The
+// marker's value is the row's origin, "o" and the index of the loaded row
+// it came from, or "new" for an added row; a rebuilt row starts as a copy
+// of that loaded row before the submission is applied.
 const SentinelRow = "__row__"
 
 // PresentSentinelName returns the form-input name used to mark path as

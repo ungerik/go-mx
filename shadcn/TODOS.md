@@ -161,6 +161,186 @@ naturally alongside them (port on demand).
 
 ---
 
+## Calendar and DatePicker follow-ups
+
+`CalendarOptions.Name` (select mode), `Today`, `StartMonth`/`EndMonth` and
+`CalendarText` made the DatePicker recipe pick a day. What react-day-picker
+does beyond that is listed here, most useful first.
+
+### A month navigation contract
+
+**What:** Give Previous/Next (and PageUp/PageDown, and later a dropdown
+caption) a built-in way to show another month, for example a
+`CalendarOptions.MonthURL func(time.Time) string` that renders `hx-get` on
+the buttons, swaps the calendar and includes its hidden input.
+
+**Why:** Previous/Next are inert until the caller wires them, so the
+gallery DatePicker can only pick a day of its first month, and a date
+picker inside a form needs a server endpoint for the adjacent month that
+every caller writes again. react-day-picker navigates in the browser.
+
+**Context:** Client-side rendering of other months is not an option: the
+label and Disabled hooks are Go functions the browser cannot call. The
+round-trip needs a URL per month and must carry the picked day
+(`hx-include` of the `calendar-input`) and the focus (the day under focus
+in the new month, for PageUp/PageDown). The arrow keys stop at the edge of
+the six-week grid until then.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** None
+
+### Month and year dropdown caption
+
+**What:** Port `captionLayout="dropdown"`: native `<select>`s for month and
+year in the caption, bounded by StartMonth/EndMonth.
+
+**Why:** The Date of Birth recipe needs it; stepping back decades one month
+at a time is unusable.
+
+**Context:** The selects can render today, but changing one must load that
+month, which is the navigation contract above.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** A month navigation contract
+
+### A date picker widget for reflected forms
+
+**What:** A `form:"widget=datepicker"` that renders a date field as the
+Popover + select-mode Calendar recipe instead of `<input type="date">`.
+
+**Why:** The native date input looks different in every browser and cannot
+use the Disabled or localization hooks.
+
+**Context:** The bind side exists: the hidden input submits `2006-01-02`,
+which `mx.ParseDateTimeInput` already reads for string kinds and `setTime`
+for `time.Time`. The renderer needs the navigation contract to be usable
+past the first month.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** A month navigation contract
+
+### Range and multiple selection
+
+**What:** react-day-picker's `mode="range"` (start, middle and end day
+styling, two hidden inputs) and `mode="multiple"`.
+
+**Why:** The Range Picker recipe and booking flows (check-in/check-out)
+need it.
+
+**Context:** An extension of the select-mode script: a second click ends
+the range, the classes come from upstream's `range_start`/`range_middle`/
+`range_end`. Two months side by side (`numberOfMonths`) usually comes with
+it.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### Class merging per calendar day
+
+**What:** Merge each distinct day class once instead of passing every one of
+the 42 day buttons' class strings through `finish` → `Cn` → `twmerge` on each
+render.
+
+**Why:** Building one calendar takes about 0.5 ms, and a pprof run puts about
+85% of it in `Cn` merging the same few class strings (base, muted, faded,
+today) 42 times; every request that renders a month or a date picker pays it.
+
+**Context:** The per-day merge predates the select mode, which made the class
+string longer (focus ring, inert disabled days, `data-[selected=true]`
+variants), measured at +12% construction time. The day class takes only a
+handful of values, so they can be merged once (`sync.OnceValue` per variant)
+and set without another `Cn` pass.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### The selected day is not in its button's accessible name
+
+**What:** In select mode, add the selected state to the focused day button's
+accessible name, as react-day-picker's `labelDayButton` appends ", selected"
+(and prefixes "Today, "), from a localizable `Labels` caption that
+`calendarSelect` moves along with the selection.
+
+**Why:** The selection sits on the parent gridcell's `aria-selected`, while
+focus and the name are on the button, whose label is only the date. Screen
+readers often do not announce an ancestor's `aria-selected`, so arrowing onto
+the picked day, or picking a day in a calendar without `CalendarText`, may give
+no spoken confirmation.
+
+**Context:** `CalendarWith` and `calendarScript` in `shadcn/calendar.go`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The static calendar's days are buttons that do nothing
+
+**What:** Decide how a static (display-only) calendar renders its days:
+as text in the cell, as react-day-picker does without a mode, or as
+buttons with one roving Tab stop; and how it conveys the selected day,
+`aria-pressed="false"` on the other days or the state in the selected
+day's name or `aria-current` instead of `aria-pressed`.
+
+**Why:** All 42 days are `<button>`s with a focus ring, so each is a Tab
+stop that does nothing, and only the selected day's button carries
+`aria-pressed="true"`, so assistive tech announces one toggle button among
+41 plain buttons; "pressed" is an odd meaning for the date a display-only
+grid shows.
+
+**Context:** The static branch of `CalendarWith` in `shadcn/calendar.go`; the
+select mode uses the gridcell's `aria-selected`.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### No test runs the select-mode calendar script
+
+**What:** A smoke test that loads a rendered select-mode calendar in a
+browser or JS engine, clicks a day, presses ArrowRight and End past a
+disabled day, and checks the hidden input's value, the `input`/`change`
+events, the `CalendarText` caption, the `data-selected`, `aria-selected`
+and `tabindex` moves, the focused `data-date` (also in RTL) and the
+surrounding popover closing.
+
+**Why:** The Go tests only check that `calendarScript` is emitted once and
+that the `onclick`/`onkeydown` hooks are there, so a broken selector or an
+off-by-one in the key handling passes CI; today the gallery DatePicker is
+checked by hand.
+
+**Context:** `calendarScript`, `calendarSelect` and `calendarKey` in
+`shadcn/calendar.go`. The repo has no JS test harness; a headless Chrome run
+against the generated gallery page
+(`docs/shadcn/gallery/components/date-picker/`) needs no new dependency in
+the Go modules. Found in the date widget branch's pre-landing review.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The remaining DatePicker recipes
+
+**What:** Gallery examples for upstream's Basic (in a `Field` with a
+label), Time Picker (next to `Input type="time"`), RTL, Input (an
+`InputGroup` text input with a calendar button) and the old With Presets
+(a `Select` of Today, Tomorrow, In a week).
+
+**Why:** Upstream's date picker page shows eight recipes; the gallery has
+one.
+
+**Context:** Basic, Time Picker and RTL need nothing new. Input needs
+typed text parsed into the calendar, which is a client-side parser or a
+round-trip; Natural Language (chrono-node) is out of scope.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## Hard dependency edges (must respect)
 
 ```
@@ -474,7 +654,8 @@ Order within the phase is by dependency, then complexity.
   not a primitive).
 - [x] **Calendar** · Cx 5 · deps: Button
   Single-month grid generated server-side with Go's `time` package; selected
-  day marked via `aria-selected`. `Calendar(month, selected, …)`. Prev/Next are
+  day marked with `data-selected` (plus `aria-pressed` on a static calendar,
+  `aria-selected` on the gridcell in select mode). `Calendar(month, selected, …)`. Prev/Next are
   plain buttons; month nav is a caller-wired round-trip. Blocks **DatePicker**.
 - [x] **DatePicker** · Cx 5 · deps: **Popover** + **Calendar** + Button
   Composition recipe (Popover trigger + Calendar in PopoverContent) — shipped as
@@ -605,3 +786,25 @@ on 2026-07-07 with the guide above; the four that remain unported moved to
   preserved on each FieldError. Reflected and hand-written forms now render
   the same Field markup. (Surfaced by the /ship cross-model adversarial
   review.)
+
+### Grid semantics for screen readers
+
+**What:** Render the select-mode grid as react-day-picker does:
+`role="grid"` on the table with the month as its label, and `aria-selected`
+on a `role="gridcell"` instead of on the `<button>`.
+
+**Why:** `aria-selected` is not an allowed attribute of a button, so a
+screen reader may not announce the picked day, and the grid pattern tells it
+that the arrow keys work.
+
+**Context:** The static grid predates select mode and uses the same
+markup. Moving `aria-selected` changes the `aria-selected:` class
+selectors on the day button too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19 — in select mode the calendar is a `role="grid"`
+table named by its month with `aria-selected` on the gridcell; the button
+keeps `data-selected` for the look in both modes, and the static calendar,
+which has no keyboard handling, stays a plain table.

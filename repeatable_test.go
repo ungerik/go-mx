@@ -2,10 +2,14 @@ package mx
 
 import (
 	"context"
+	"errors"
+	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -183,6 +187,83 @@ func TestRepeatable_MissingFieldPresentLeavesSliceUntouched(t *testing.T) {
 	want := []lineItem{{Desc: "a"}, {Desc: "b"}}
 	if !reflect.DeepEqual(got.Lines, want) {
 		t.Errorf("Lines=%+v, want untouched %+v (no __present should not wipe)", got.Lines, want)
+	}
+}
+
+// A decider hides a repeatable field like any other, with a nil Render for
+// its path: the form shows no rows, and a forged __present marker, row or
+// row command cannot rewrite or empty the loaded rows.
+func TestRepeatable_DeciderHiddenFieldNotWritten(t *testing.T) {
+	base := newTestDecider()
+	hide := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		if path == "Lines" {
+			return FieldBehavior{}
+		}
+		return base(path, field, value)
+	}
+	loaded := []lineItem{{Desc: "keep", Qty: 1}}
+	var got *invoice
+	h := ReflectFormHandler(
+		func(context.Context) (*invoice, error) {
+			return &invoice{Title: "t", Lines: slices.Clone(loaded)}, nil
+		},
+		func(_ context.Context, in *invoice) error { got = in; return nil },
+		hide,
+	)
+	if body := getBody(t, h); strings.Contains(body, "Lines") {
+		t.Errorf("a hidden repeatable must not render: %s", body)
+	}
+	for name, form := range map[string]url.Values{
+		"emptied": {PresentSentinelName("Lines"): {"1"}},
+		"rewritten": {
+			PresentSentinelName("Lines"): {"1"}, RowSentinelName("Lines-0"): {"o0"},
+			PresentSentinelName("Lines-0-Desc"): {"1"}, "Lines-0-Desc": {"changed"},
+		},
+		"row command": {
+			PresentSentinelName("Lines"): {"1"}, sentinelCommand: {AddRowCommand("Lines")},
+		},
+	} {
+		got = nil
+		rec := postForm(t, h, form)
+		if rec.Code != http.StatusSeeOther || got == nil || !reflect.DeepEqual(got.Lines, loaded) {
+			t.Errorf("%s: status %d, saved %+v; want the loaded rows kept", name, rec.Code, got)
+		}
+	}
+}
+
+// A cell the client did not send is neither written nor in error, so a POST
+// of bare row markers must not cost a decider call or render per cell.
+func TestRepeatable_UnsentCellsAreNotRendered(t *testing.T) {
+	type row struct {
+		Note string
+		Qty  int
+	}
+	type sheet struct {
+		Rows []row `form:"repeatable"`
+	}
+	calls := 0
+	base := newTestDecider()
+	d := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		if path != "Rows" {
+			calls++
+		}
+		return base(path, field, value)
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*sheet, error) { return &sheet{}, nil },
+		func(context.Context, *sheet) error { return nil },
+		d,
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Rows"), "1")
+	for i := range 1000 {
+		form.Set(RowSentinelName(FieldPath("Rows").Append(strconv.Itoa(i))), "new")
+	}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if calls != 0 {
+		t.Errorf("the decider was asked %d times about 2000 unsent cells", calls)
 	}
 }
 
@@ -421,16 +502,358 @@ func TestRepeatable_PointerElements(t *testing.T) {
 }
 
 // addRow writes a full row (the field-level __present marker, the row's
-// __row__ marker, and each cell's __present sentinel and value) into
-// form.
+// __row__ marker naming the loaded row of that index as its origin, and
+// each cell's __present sentinel and value) into form.
 func addRow(form url.Values, field FieldPath, index int, cells map[string]string) {
 	form.Set(PresentSentinelName(field), "1")
 	rowPath := field.Append(strconv.Itoa(index))
-	form.Set(RowSentinelName(rowPath), "1")
+	form.Set(RowSentinelName(rowPath), "o"+strconv.Itoa(index))
 	for sub, val := range cells {
 		cellPath := rowPath.Append(sub)
 		form.Set(PresentSentinelName(cellPath), "1")
 		form.Set(string(cellPath), val)
+	}
+}
+
+var (
+	renderedInputRe = regexp.MustCompile(`<input\b([^>]*)>`)
+	renderedAttrRe  = regexp.MustCompile(`\b(name|value|type|checked)="([^"]*)"`)
+)
+
+// renderedValues returns what submitting the rendered form unchanged
+// posts: the name and value of every <input> in body, except checkboxes
+// and radios that are not checked.
+func renderedValues(body string) url.Values {
+	values := url.Values{}
+	for _, input := range renderedInputRe.FindAllStringSubmatch(body, -1) {
+		attrs := map[string]string{}
+		for _, a := range renderedAttrRe.FindAllStringSubmatch(input[1], -1) {
+			attrs[a[1]] = stdhtml.UnescapeString(a[2])
+		}
+		if typ := attrs["type"]; typ == "checkbox" || typ == "radio" {
+			if _, checked := attrs["checked"]; !checked {
+				continue
+			}
+		}
+		if name, ok := attrs["name"]; ok {
+			values.Add(name, attrs["value"])
+		}
+	}
+	return values
+}
+
+type approvalLine struct {
+	Desc       string
+	ApprovedBy string `form:"readonly"`
+}
+
+type approvalSheet struct {
+	Lines []approvalLine `form:"repeatable"`
+}
+
+// A readonly cell of a repeatable row is never parsed, yet keeps the value
+// of the loaded row it came from: through the re-renders of a remove-row
+// and an add-row click, on its own row after an earlier row was removed,
+// and never on the added row, whatever that row posts for it.
+func TestRepeatable_ReadonlyCellsKeepLoadedValues(t *testing.T) {
+	stored := []approvalLine{{"a", "alice"}, {"b", "bob"}, {"c", "carol"}}
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: append([]approvalLine(nil), stored...)}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	shown := renderedValues(get.Body.String())
+	if got := shown.Get(RowSentinelName("Lines-2")); got != "o2" {
+		t.Fatalf("GET marks row 2 with origin %q, want o2", got)
+	}
+
+	shown.Set("__cmd__", DeleteRowCommand("Lines-0"))
+	removedBody := postForm(t, h, shown).Body.String()
+	removed := renderedValues(removedBody)
+	if removed.Get("Lines-0-ApprovedBy") != "bob" || removed.Get(RowSentinelName("Lines-0")) != "o1" {
+		t.Fatalf("after removing row 0, row 0 must be bob's with origin o1: %s", removedBody)
+	}
+
+	removed.Set("__cmd__", AddRowCommand("Lines"))
+	added := renderedValues(postForm(t, h, removed).Body.String())
+	if got := added.Get(RowSentinelName("Lines-2")); got != "new" {
+		t.Fatalf("the added row's origin is %q, want new", got)
+	}
+	added.Del("__cmd__")
+	added.Set("Lines-2-Desc", "d")
+	added.Set("Lines-2-ApprovedBy", "mallory")
+	if rec := postForm(t, h, added); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	want := []approvalLine{{"b", "bob"}, {"c", "carol"}, {"d", ""}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// The __row__ marker is client-controlled: a loaded row's readonly values
+// go to at most one submitted row, and a marker naming no loaded row
+// claims none, nor does the bare "1" of a page rendered before markers
+// carried origins.
+func TestRepeatable_TamperedOriginsClaimOnce(t *testing.T) {
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: []approvalLine{{"a", "alice"}, {"b", "bob"}}}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	for i, origin := range []string{"o0", "o0", "o7", "1", "x"} {
+		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
+		form.Set(RowSentinelName(FieldPath("Lines").Append(strconv.Itoa(i))), origin)
+	}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	want := []approvalLine{{"0", "alice"}, {"1", ""}, {"2", ""}, {"3", ""}, {"4", ""}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type reviewLine struct {
+	Desc       string `form:"required"`
+	ApprovedBy string `form:"readonly"`
+}
+
+type reviewSheet struct {
+	Lines []reviewLine `form:"repeatable"`
+}
+
+// A save rejected after a remove-row click re-renders each row with its
+// origin, so the corrected save keeps the readonly cells on their rows,
+// whether a field, onSubmit's FieldErrors or onSubmit's error rejected it.
+// Rows that onSubmit appended before failing claim no loaded row; the rows
+// before them keep theirs.
+func TestRepeatable_ReadonlyOriginsSurviveRejectedSave(t *testing.T) {
+	stored := []reviewLine{{"a", "alice"}, {"b", "bob"}, {"c", "carol"}}
+	for _, tt := range []struct {
+		name        string
+		blankDesc   bool
+		firstSubmit func(*reviewSheet) error
+		wantMarkers []string
+		want        []reviewLine
+	}{
+		{
+			name:        "required cell blank",
+			blankDesc:   true,
+			wantMarkers: []string{"o1", "o2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			name:        "onSubmit field errors",
+			firstSubmit: func(*reviewSheet) error { return FieldErrors{"Lines-0-Desc": errors.New("taken")} },
+			wantMarkers: []string{"o1", "o2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			name:        "onSubmit error",
+			firstSubmit: func(*reviewSheet) error { return errors.New("try again") },
+			wantMarkers: []string{"o1", "o2"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}},
+		},
+		{
+			// Fewer rows may have shifted, so none claims a loaded row.
+			name: "onSubmit removed a row",
+			firstSubmit: func(s *reviewSheet) error {
+				s.Lines = s.Lines[1:]
+				return errors.New("try again")
+			},
+			wantMarkers: []string{"new"},
+			want:        []reviewLine{{"b", ""}},
+		},
+		{
+			name: "onSubmit added a row",
+			firstSubmit: func(s *reviewSheet) error {
+				s.Lines = append(s.Lines, reviewLine{Desc: "d"})
+				return errors.New("try again")
+			},
+			wantMarkers: []string{"o1", "o2", "new"},
+			want:        []reviewLine{{"b", "bob"}, {"c", "carol"}, {"d", ""}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			submits := 0
+			var saved *reviewSheet
+			h := ReflectFormHandler(
+				func(context.Context) (*reviewSheet, error) {
+					return &reviewSheet{Lines: append([]reviewLine(nil), stored...)}, nil
+				},
+				func(_ context.Context, s *reviewSheet) error {
+					submits++
+					if submits == 1 && tt.firstSubmit != nil {
+						return tt.firstSubmit(s)
+					}
+					saved = s
+					return nil
+				},
+				newTestDecider(),
+			)
+			get := httptest.NewRecorder()
+			h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+			shown := renderedValues(get.Body.String())
+			shown.Set("__cmd__", DeleteRowCommand("Lines-0"))
+			removed := renderedValues(postForm(t, h, shown).Body.String())
+			removed.Del("__cmd__")
+			if tt.blankDesc {
+				removed.Set("Lines-0-Desc", "")
+			}
+
+			rejected := postForm(t, h, removed)
+			if rejected.Code != http.StatusOK || saved != nil {
+				t.Fatalf("first save: status %d, saved %+v; want a 200 re-render", rejected.Code, saved)
+			}
+			again := renderedValues(rejected.Body.String())
+			for i, want := range tt.wantMarkers {
+				if got := again.Get(RowSentinelName(FieldPath("Lines").Append(strconv.Itoa(i)))); got != want {
+					t.Errorf("row %d origin %q, want %q", i, got, want)
+				}
+			}
+			again.Set("Lines-0-Desc", "b")
+			if rec := postForm(t, h, again); rec.Code != http.StatusSeeOther {
+				t.Fatalf("corrected save: status %d, body %s", rec.Code, rec.Body.String())
+			}
+			if saved == nil || !reflect.DeepEqual(saved.Lines, tt.want) {
+				t.Errorf("saved %+v, want %+v", saved, tt.want)
+			}
+		})
+	}
+}
+
+// A rebuilt row starts as a copy of its origin row: a cell the client did
+// not send keeps its loaded value instead of becoming zero.
+func TestRepeatable_RowCellsStartFromOrigin(t *testing.T) {
+	var saved *approvalSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*approvalSheet, error) {
+			return &approvalSheet{Lines: []approvalLine{{"a", "alice"}}}, nil
+		},
+		func(_ context.Context, s *approvalSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{}) // no cells sent
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type lockedSheet struct {
+	Lines []approvalLine `form:"repeatable,readonly"`
+}
+
+type auditPart struct {
+	Lines []approvalLine `form:"repeatable"`
+}
+
+type auditedSheet struct {
+	Audit auditPart `form:"section=Audit,readonly"`
+}
+
+// form:"readonly" on the repeatable field renders its rows readonly with no
+// add or remove buttons, and a tampered POST never rebuilds them.
+func TestRepeatable_ReadonlyFieldKeepsRows(t *testing.T) {
+	var saved *lockedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*lockedSheet, error) {
+			return &lockedSheet{Lines: []approvalLine{{"a", "alice"}}}, nil
+		},
+		func(_ context.Context, s *lockedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "__cmd__") {
+		t.Errorf("a readonly repeatable field offers add or remove buttons: %s", body)
+	}
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Desc": "tampered"})
+	addRow(form, "Lines", 1, map[string]string{"Desc": "injected"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+	// A forged row command on a readonly field is a plain submit.
+	form.Set("__cmd__", AddRowCommand("Lines"))
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther || len(saved.Lines) != 1 {
+		t.Errorf("forged add-row: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A repeatable inside a readonly section inherits readonly: no row
+// buttons, its rows are not rebuilt from the submission, and a forged row
+// command is a plain submit.
+func TestRepeatable_ReadonlySectionKeepsRows(t *testing.T) {
+	var saved *auditedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*auditedSheet, error) {
+			return &auditedSheet{Audit: auditPart{Lines: []approvalLine{{"a", "alice"}}}}, nil
+		},
+		func(_ context.Context, s *auditedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "__cmd__") {
+		t.Errorf("a repeatable in a readonly section offers add or remove buttons: %s", body)
+	}
+	lines := FieldPath("Audit").Append("Lines")
+	form := url.Values{}
+	addRow(form, lines, 0, map[string]string{"Desc": "tampered"})
+	addRow(form, lines, 1, map[string]string{"Desc": "injected"})
+	form.Set("__cmd__", AddRowCommand(lines))
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if want := []approvalLine{{"a", "alice"}}; saved == nil || !reflect.DeepEqual(saved.Audit.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type pointerSheet struct {
+	Lines []*approvalLine `form:"repeatable"`
+}
+
+// Rows of pointer elements start as a copy of their origin row too, a nil
+// one as the zero row, and the loaded pointees are never written.
+func TestRepeatable_PointerRowsStartFromOrigin(t *testing.T) {
+	first := &approvalLine{"a", "alice"}
+	var saved *pointerSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*pointerSheet, error) {
+			return &pointerSheet{Lines: []*approvalLine{first, nil}}, nil
+		},
+		func(_ context.Context, s *pointerSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Desc": "a2", "ApprovedBy": "mallory"})
+	addRow(form, "Lines", 1, map[string]string{"Desc": "b"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if saved == nil || len(saved.Lines) != 2 || *saved.Lines[0] != (approvalLine{"a2", "alice"}) || *saved.Lines[1] != (approvalLine{"b", ""}) {
+		t.Errorf("saved %+v", saved)
+	}
+	if *first != (approvalLine{"a", "alice"}) {
+		t.Errorf("the loaded row was written: %+v", *first)
 	}
 }
 

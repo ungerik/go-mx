@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 // This file implements form:"repeatable" — slice-of-struct fields
@@ -31,14 +29,33 @@ import (
 //     the client sent back (discovered via the __row__ markers), in
 //     order. Removing a row's markup drops it; adding appends one.
 //
-// Row identity / readonly caveat: v1 rebuilds the slice from the
-// submitted values and does not match submitted rows to previously
-// loaded rows by identity. A stable per-row key can still be
-// round-tripped with a form:"hidden" sub-field (its value is echoed
-// through a hidden input and parsed back), which is how a caller maps
-// rows to records in onSubmit. A form:"readonly" sub-field is rendered
-// but never parsed, so it is not preserved across a submit in v1 — put
-// server-controlled columns in onSubmit instead.
+// Row identity: v1 rebuilds the slice from the submitted values and does
+// not match submitted rows to previously loaded rows by a key. A stable
+// per-row key can still be round-tripped with a form:"hidden" sub-field
+// (its value is echoed through a hidden input and parsed back), which is
+// how a caller maps rows to records in onSubmit. A form:"readonly"
+// sub-field is rendered but never parsed. Each row's __row__ marker
+// carries the index of the loaded row it came from (its origin, written
+// "o<index>"), also
+// through the re-renders of add-row and remove-row clicks, and a rebuilt
+// row starts as a copy of that loaded row before the submission is
+// applied: a readonly cell keeps its loaded value, a rejected cell
+// behaves as the same top-level field does (it keeps the stored value, or
+// keeps the posted text where the field does, as an out-of-range number or
+// date and rejected date text), and a cell the client did not send is left
+// as loaded. An added row has no
+// origin and starts at the zero value. An origin is a position in the
+// slice load returns on that POST, so if the stored rows changed since
+// the GET, the values follow the row now at that position: key such rows
+// with a form:"hidden" sub-field and restore server-controlled columns in
+// onSubmit. For the same reason a failing onSubmit must not reorder or
+// remove the rows; rows it appends have no origin (and if the rows are
+// fewer, no row keeps one). The marker is
+// client-controlled, so only the index of a loaded row that no earlier
+// submitted row claimed counts: a tampered POST can reorder the record's
+// rows but cannot copy one row onto a second or keep a row whose origin it
+// dropped. form:"readonly" on the repeatable field itself renders its rows
+// readonly, without add and remove buttons, and never rebuilds them.
 
 const (
 	// sentinelCommand is the form-input name carrying an add/remove
@@ -89,17 +106,29 @@ func repeatableCommandField(cmd string) (field FieldPath, ok bool) {
 // form struct). This scopes command mode to real repeatable fields so
 // an unknown or injected __cmd__ value falls through to a normal submit
 // instead of silently discarding the save.
-func isRepeatableCommand(target any, cmd string) bool {
+//
+// A readonly repeatable field takes no row commands, also when a readonly
+// section passes readonly down to it, which the walk accounts for, and
+// neither does one the decider d leaves out of the form.
+func isRepeatableCommand(target any, d FieldDecider, cmd string) bool {
 	field, ok := repeatableCommandField(cmd)
 	if !ok {
 		return false
 	}
-	value, structField, err := SetField(reflect.ValueOf(target), field)
-	if err != nil {
-		return false
+	for visit := range ReflectFormFields(target) {
+		if visit.Path == field {
+			return visit.Kind == FieldKindRepeatable && !visit.Tag.Readonly && repeatableInForm(visit, d)
+		}
 	}
-	kind, _ := DetectField(field, structField, value)
-	return kind == FieldKindRepeatable
+	return false
+}
+
+// repeatableInForm reports whether the decider d puts the repeatable field
+// of visit into the form. The field renders its rows itself, so the
+// Component its Render returns is not used: a nil Render leaves the field
+// out, and the handler then neither renders nor writes its rows.
+func repeatableInForm(visit FieldVisit, d FieldDecider) bool {
+	return d(visit.Path, visit.Field, visit.Value).Render != nil
 }
 
 // requestFormValues returns the parsed non-file form values, preferring
@@ -116,11 +145,27 @@ func requestFormValues(r *http.Request) map[string][]string {
 // legend, one row per existing slice element, and an "Add row" button.
 // d renders each cell; fieldErrs supplies inline errors keyed by the
 // row-scoped cell path.
-func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error) Component {
+// origins gives each row's origin after a POST; a field it has no entry
+// for renders the loaded slice, whose origins are the row indices. The
+// field's own errors, such as an onSubmit one asking for at least one row,
+// show after the legend. Each path whose errors an input shows is added to
+// consumed. hasFile reports a file cell, or one whose FieldBehavior sets
+// Multipart, which needs a multipart body.
+func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	slice := visit.Value
 	structType := repeatableStructType(slice.Type())
 	if structType == nil {
-		return nil
+		return nil, false
+	}
+	// A row added later renders the cells of a zero row, at the index
+	// after the loaded rows.
+	added := 0
+	if slice.Kind() == reflect.Slice {
+		added = slice.Len()
+	}
+	addedRow := visit.Path.Append(strconv.Itoa(added))
+	for cv := range ReflectFormFields(reflect.New(structType).Interface()) {
+		hasFile = hasFile || cv.Kind == FieldKindFile || d(addedRow.Append(string(cv.Path)), cv.Field, cv.Value).Multipart
 	}
 
 	label := visit.Field.Name
@@ -141,28 +186,65 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			Attribute{Name: "value", Value: "1"},
 		),
 	}
+	for _, err := range fieldErrs[visit.Path] {
+		children = append(children, NewElement("p",
+			Attribute{Name: "class", Value: "form-error"},
+			Attribute{Name: "role", Value: "alert"},
+			Attribute{Name: "data-error", Value: string(visit.Path)},
+			Text(err.Error()),
+		))
+	}
+	consumed[visit.Path] = true
+	readonly := visit.Tag.Readonly
 	if slice.IsValid() && slice.Kind() == reflect.Slice {
+		rowsOrigin, recorded := origins[visit.Path]
 		for i := range slice.Len() {
+			origin := i
+			if recorded {
+				// A failing onSubmit that appended rows left the others in
+				// place, so they keep their origins and the appended ones
+				// have none; with fewer rows, any may have shifted, so no
+				// row claims a loaded one. It must not reorder or remove
+				// rows, as origins are positions.
+				origin = -1
+				if i < len(rowsOrigin) && len(rowsOrigin) <= slice.Len() {
+					origin = rowsOrigin[i]
+				}
+			}
 			structVal := rowStructValue(slice.Index(i), structType)
-			children = append(children, renderRepeatableRow(visit.Path, i, structVal, d, fieldErrs, true))
+			row, rowFile := renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed)
+			children = append(children, row)
+			// A loaded row can render a file cell a zero row has not, such
+			// as one in a section behind a pointer.
+			hasFile = hasFile || rowFile
 		}
 	}
-	children = append(children, repeatableAddButton(visit.Path))
+	if !readonly {
+		children = append(children, repeatableAddButton(visit.Path))
+	}
 
 	attribs := []any{Attribute{Name: "data-repeatable", Value: string(visit.Path)}}
-	return NewElement("fieldset", append(attribs, children...)...)
+	return NewElement("fieldset", append(attribs, children...)...), hasFile
 }
 
 // renderRepeatableRow renders one row: every leaf sub-field of
 // structVal (rendered by d and wrapped with its __present sentinel),
-// the hidden __row__ marker, and — when withRemove — a "Remove" button.
-func renderRepeatableRow(fieldPath FieldPath, index int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, withRemove bool) Component {
+// the hidden __row__ marker carrying the row's origin (see
+// [rowOriginMarker]), and a "Remove" button. readonly renders every cell
+// readonly and no button. Each cell path whose errors an input shows is
+// added to consumed; a hidden cell, such as a per-row key, shows none.
+// hasFile reports a rendered file cell, or one whose FieldBehavior sets
+// Multipart.
+func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
 	rowPath := fieldPath.Append(strconv.Itoa(index))
 	var cells []any
 	for cv := range ReflectFormFields(structVal.Addr().Interface()) {
 		if cv.Kind == FieldKindRepeatable {
 			// Nested repeatables are not supported in v1.
 			continue
+		}
+		if readonly {
+			cv.Field.Tag = withReadonlyTag(cv.Field.Tag)
 		}
 		cellPath := rowPath.Append(string(cv.Path))
 		beh := d(cellPath, cv.Field, cv.Value)
@@ -173,19 +255,23 @@ func renderRepeatableRow(fieldPath FieldPath, index int, structVal reflect.Value
 		if comp == nil {
 			continue
 		}
+		if _, hasErrs := fieldErrs[cellPath]; hasErrs && cv.Kind != FieldKindHidden {
+			consumed[cellPath] = true
+		}
+		hasFile = hasFile || cv.Kind == FieldKindFile || beh.Multipart
 		cells = append(cells, wrapWithPresentSentinel(cellPath, comp))
 	}
 	cells = append(cells, NewVoidElement("input",
 		Attribute{Name: "type", Value: "hidden"},
 		Attribute{Name: "name", Value: RowSentinelName(rowPath)},
-		Attribute{Name: "value", Value: "1"},
+		Attribute{Name: "value", Value: rowOriginMarker(origin)},
 	))
-	if withRemove {
+	if !readonly {
 		cells = append(cells, repeatableCommandButton(DeleteRowCommand(rowPath), "Remove"))
 	}
 
 	attribs := []any{Attribute{Name: "data-row", Value: string(rowPath)}}
-	return NewElement("div", append(attribs, cells...)...)
+	return NewElement("div", append(attribs, cells...)...), hasFile
 }
 
 func repeatableAddButton(fieldPath FieldPath) Component {
@@ -205,15 +291,25 @@ func repeatableCommandButton(value, text string) Component {
 	)
 }
 
+// rowOrigins maps the path of a repeatable field to the origin of each
+// of its rows after a POST: the index of the row in the slice the
+// handler loaded, or -1 for a row that has none, such as an added one.
+type rowOrigins map[FieldPath][]int
+
 // parseRepeatable rebuilds visit.Value from the rows the client
 // submitted for this repeatable field. Rows are discovered via the
 // __row__ markers, parsed in submitted order into fresh elements, and
-// assigned as a new slice. Per-cell errors are recorded in out under
-// the dense (post-rebuild) cell path so they line up with the
-// re-render.
-func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[FieldPath][]error) {
+// assigned as a new slice; a row starts as a copy of the loaded row its
+// marker names (see [rowOrigin]). Per-cell errors are recorded in out
+// under the dense (post-rebuild) cell path so they line up with the
+// re-render, and the rows' origins in origins. A readonly repeatable
+// field keeps the loaded slice.
+func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[FieldPath][]error, origins rowOrigins) {
 	slice := visit.Value
 	form := requestFormValues(r)
+	if visit.Tag.Readonly {
+		return
+	}
 	// Field-level __present allowlist gate: if the field was not
 	// rendered into this form, leave the loaded slice untouched rather
 	// than wiping it — the same mass-assignment defense scalar fields
@@ -222,7 +318,7 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 		return
 	}
 	if !slice.CanSet() {
-		out[visit.Path] = append(out[visit.Path], errs.New("internal: repeatable field not settable"))
+		out[visit.Path] = append(out[visit.Path], errors.New("internal: repeatable field not settable"))
 		return
 	}
 	sliceType := slice.Type()
@@ -232,21 +328,30 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 	}
 	indices := repeatableRowIndices(form, visit.Path)
 	elemIsPointer := sliceType.Elem().Kind() == reflect.Pointer
+	loaded := reflect.New(sliceType).Elem()
+	loaded.Set(slice)
+	claimed := map[int]bool{}
 
 	newSlice := reflect.MakeSlice(sliceType, 0, len(indices))
+	rowsOrigin := make([]int, 0, len(indices))
 	for _, srcIndex := range indices {
 		pos := newSlice.Len()
 		srcRow := visit.Path.Append(strconv.Itoa(srcIndex))
 		dstRow := visit.Path.Append(strconv.Itoa(pos))
+		origin := rowOrigin(form, srcRow, loaded.Len(), claimed)
 
 		structPtr := reflect.New(structType)
+		if origin >= 0 {
+			// The row is an edit of the loaded row it came from.
+			structPtr.Elem().Set(rowStructValue(loaded.Index(origin), structType))
+		}
 		for cv := range ReflectFormFields(structPtr.Interface()) {
 			if cv.Kind == FieldKindRepeatable {
 				continue
 			}
 			srcCell := srcRow.Append(string(cv.Path))
 			dstCell := dstRow.Append(string(cv.Path))
-			parseRepeatableCell(cv, d, r, form, srcCell, dstCell, out)
+			parseField(cv, d, r, form, srcCell, dstCell, out)
 		}
 
 		if elemIsPointer {
@@ -254,47 +359,41 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 		} else {
 			newSlice = reflect.Append(newSlice, structPtr.Elem())
 		}
+		rowsOrigin = append(rowsOrigin, origin)
 	}
 	slice.Set(newSlice)
+	if origins != nil {
+		origins[visit.Path] = rowsOrigin
+	}
 }
 
-// parseRepeatableCell applies one submitted cell value onto cv.Value,
-// mirroring the top-level parse+validate sequence: __present gate,
-// __clear handling, readonly skip, decider Parse, required check,
-// validation chain, and decider Validate. Errors are keyed by dstCell.
-func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form map[string][]string, srcCell, dstCell FieldPath, out map[FieldPath][]error) {
-	if !sentinelSet(form, PresentSentinelName(srcCell)) {
-		return
+// rowOriginMarker is the __row__ marker value for origin: "o" and the
+// index of the loaded row, or "new" for -1. The prefix keeps the marker
+// "1" that pages rendered before origins existed from naming a row.
+func rowOriginMarker(origin int) string {
+	if origin < 0 {
+		return "new"
 	}
-	if sentinelSet(form, ClearSentinelName(srcCell)) {
-		if err := setFieldNull(cv.Value); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-		}
-		return
+	return "o" + strconv.Itoa(origin)
+}
+
+// rowOrigin returns the origin the __row__ marker of the submitted row at
+// rowPath carries (see [rowOriginMarker]): the index of the loaded row it
+// came from. The marker is client-controlled, so only the index of one of
+// the loadedLen loaded rows that no earlier row claimed counts; anything
+// else, such as the "new" of an added row, is -1.
+func rowOrigin(form map[string][]string, rowPath FieldPath, loadedLen int, claimed map[int]bool) int {
+	vals := form[RowSentinelName(rowPath)]
+	if len(vals) == 0 {
+		return -1
 	}
-	if cv.Tag.Readonly {
-		return
+	index, isOrigin := strings.CutPrefix(vals[0], "o")
+	origin, err := strconv.Atoi(index)
+	if !isOrigin || err != nil || origin < 0 || origin >= loadedLen || claimed[origin] {
+		return -1
 	}
-	beh := d(srcCell, cv.Field, cv.Value)
-	if beh.Parse != nil {
-		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-			return
-		}
-	}
-	if cv.Tag.Required && isEffectivelyEmpty(cv.Value) {
-		// Validation results shown to the user carry no callstack.
-		out[dstCell] = append(out[dstCell], errors.New("required"))
-		return
-	}
-	if chainErrs := RunValidationChain(cv.Value); len(chainErrs) > 0 {
-		out[dstCell] = append(out[dstCell], chainErrs...)
-	}
-	if beh.Validate != nil {
-		if err := beh.Validate(dstCell, cv.Field, cv.Value); err != nil {
-			out[dstCell] = append(out[dstCell], err)
-		}
-	}
+	claimed[origin] = true
+	return origin
 }
 
 // applyRepeatableCommand mutates the slice referenced by an add/remove
@@ -302,8 +401,9 @@ func parseRepeatableCell(cv FieldVisit, d FieldDecider, r *http.Request, form ma
 // parseRepeatable has rebuilt the slice densely from the submitted
 // rows, so form supplies the submitted-row indices used to translate a
 // delrow's (possibly sparse) submitted index into the matching dense
-// position. Unknown or malformed commands are ignored.
-func applyRepeatableCommand(target any, cmd string, form map[string][]string) {
+// position. The rows' origins follow: an added row has none, and a
+// removed row's is dropped. Unknown or malformed commands are ignored.
+func applyRepeatableCommand(target any, cmd string, form map[string][]string, origins rowOrigins) {
 	root := reflect.ValueOf(target)
 	switch {
 	case strings.HasPrefix(cmd, cmdAddRow):
@@ -318,6 +418,9 @@ func applyRepeatableCommand(target any, cmd string, form map[string][]string) {
 			elem = reflect.New(elemType.Elem())
 		} else {
 			elem = reflect.Zero(elemType)
+		}
+		if rowsOrigin, ok := origins[field]; ok && len(rowsOrigin) == slice.Len() {
+			origins[field] = append(rowsOrigin, -1)
 		}
 		slice.Set(reflect.Append(slice, elem))
 
@@ -344,6 +447,9 @@ func applyRepeatableCommand(target any, cmd string, form map[string][]string) {
 		kept := reflect.MakeSlice(slice.Type(), 0, slice.Len()-1)
 		kept = reflect.AppendSlice(kept, slice.Slice(0, pos))
 		kept = reflect.AppendSlice(kept, slice.Slice(pos+1, slice.Len()))
+		if rowsOrigin, ok := origins[field]; ok && len(rowsOrigin) == slice.Len() {
+			origins[field] = append(rowsOrigin[:pos:pos], rowsOrigin[pos+1:]...)
+		}
 		slice.Set(kept)
 	}
 }

@@ -3,9 +3,10 @@ package mx
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -46,7 +47,8 @@ const (
 	FieldKindUnknown FieldKind = iota
 
 	// FieldKindSkip means the field is tagged form:"-" or
-	// form:"widget=skip" and must not be rendered or parsed.
+	// form:"widget=skip" (or hinted so by [FormWidgetHint]), or is a
+	// form:"repeatable" slice of times, and must not be rendered or parsed.
 	FieldKindSkip
 
 	// FieldKindHidden means the field is tagged form:"hidden": render
@@ -73,8 +75,15 @@ const (
 	FieldKindBool
 
 	// FieldKindDateTime covers time.Time (and pointer/Nullable
-	// variants of it) as well as types registered via the
-	// single-value registry with form:"widget=date|datetime|time".
+	// variants of it), a type defined as time.Time and a struct
+	// embedding it as its only field whose text is RFC 3339, as it is
+	// without text methods of its own ([DetectField] rule 14, no
+	// registration needed), plus any field tagged
+	// form:"widget=date|datetime|time" or hinted so by
+	// [FormWidgetHint].
+	// A string-kind field with one of these widgets holds its value
+	// as text; [DateTimeInput] decides how it renders and
+	// [ParseDateTimeInput] reads it back.
 	FieldKindDateTime
 
 	// FieldKindFile covers form:"widget=file" overrides.
@@ -111,9 +120,36 @@ const (
 
 	// FieldKindCatchAll means no rule matched. The renderer falls back
 	// to a text input and Parse requires the value type to implement
-	// encoding.TextUnmarshaler.
+	// encoding.TextUnmarshaler, or to be a database/sql type that
+	// [DriverValueText] writes and its Scan method reads back.
 	FieldKindCatchAll
 )
+
+// KeepsStoredWhenBlank reports whether a form:"sensitive" field of this
+// kind keeps its stored value when submitted blank: a text, number or date
+// input never shows a sensitive value, so its blank means "unchanged", and
+// the clear control empties it. A checkbox, checkbox set, select, hidden or
+// file field has a blank of its own.
+func (k FieldKind) KeepsStoredWhenBlank() bool {
+	switch k {
+	case FieldKindString, FieldKindTextarea, FieldKindNumber, FieldKindDateTime, FieldKindCatchAll:
+		return true
+	}
+	return false
+}
+
+// KeepsStoredValue reports whether a form:"sensitive" field of kind holds a
+// stored value that a blank submission keeps (see
+// [FieldKind.KeepsStoredWhenBlank]): one that is neither the zero value nor
+// null. Renderers drop HTML required from its input and render its clear
+// control unticked. With nothing stored there is nothing to keep: the form
+// handler parses a blank, and the clear control renders ticked.
+func KeepsStoredValue(tag FormTag, kind FieldKind, value reflect.Value) bool {
+	if !tag.Sensitive || !kind.KeepsStoredWhenBlank() || !value.IsValid() || value.IsZero() {
+		return false
+	}
+	return !(value.CanInterface() && IsNull(value.Interface()))
+}
 
 // String returns the kind's name (handy in error messages and tests).
 func (k FieldKind) String() string {
@@ -157,7 +193,10 @@ func (k FieldKind) String() string {
 // (text, email, url, tel, date, datetime, time, password, textarea,
 // select, radio, switch, checkbox, file, hidden, skip). The
 // [FieldDecider] consults this AFTER an explicit form:"widget=…" tag
-// but BEFORE structural type detection.
+// but BEFORE structural type detection. When the hint decides the
+// field's kind, [DetectField] returns its name as the [FormTag].Widget,
+// so a type declaring "date" renders and binds exactly like a field
+// tagged form:"widget=date".
 type FormWidgetHint interface {
 	FormWidget() string
 }
@@ -169,17 +208,32 @@ type FormWidgetHint interface {
 // range as one consistent unit.
 type FieldBehavior struct {
 	// Render emits the widget HTML plus the hidden __present sentinel
-	// for this field (and the __clear sentinel when the field is
-	// nullable). errs holds any validation errors to display inline;
-	// it is nil on a fresh GET and may be non-nil after a failed POST.
+	// for this field (and the __clear sentinel when the field is nullable
+	// or an optional form:"sensitive" input, see
+	// [FieldKind.KeepsStoredWhenBlank]). errs holds any validation errors
+	// to display inline; it is nil on a fresh GET and may be non-nil after
+	// a failed POST. A nil Render, or a nil Component, leaves the field
+	// out of the form, and the handler never writes it, so a decider can
+	// hide a field from some users. To tell, the handler calls Render on a
+	// POST for a sent or required field with the stored value and errs for
+	// which [IsRenderProbe] reports true: only whether it returns nil
+	// counts, so a Render may answer that call with any non-nil Component
+	// instead of building its markup, as the built-in deciders do. A
+	// form:"repeatable" field renders its rows itself and is left out only
+	// by a nil Render.
 	Render func(path FieldPath, field reflect.StructField, value reflect.Value, errs []error) Component
 
 	// Parse reads the submitted value out of r and writes it into
 	// value (which is addressable). The handler skips this call when
-	// the field's __present sentinel is absent — never touching a
-	// loaded record's field that the form did not render. When the
-	// __clear sentinel is set, Parse calls NullSetter.SetNull on the
-	// addressable value (no further parsing). Otherwise Parse decodes
+	// the field's __present sentinel is absent or Render leaves the field
+	// out — never touching a loaded record's field that the form did not
+	// render — and applies
+	// the __clear sentinel itself: it sets a null with NullSetter.SetNull
+	// (or a nil pointer, or Scan(nil) for a database/sql type such as
+	// sql.NullString) without calling Parse, while text typed into a
+	// sensitive input wins over the clear and a sensitive value without a
+	// null is cleared by parsing the blank. A blank sensitive input that
+	// keeps the stored value is not parsed either. Otherwise Parse decodes
 	// the submitted value.
 	Parse func(path FieldPath, field reflect.StructField, value reflect.Value, r *http.Request) error
 
@@ -187,6 +241,33 @@ type FieldBehavior struct {
 	// includes it in the inline error list; the decider may
 	// concatenate multiple errors via errors.Join.
 	Validate func(path FieldPath, field reflect.StructField, value reflect.Value) error
+
+	// Multipart reports that the field's input needs a multipart/form-data
+	// body, as a file input does. The form handler posts a form urlencoded
+	// unless a rendered field is a [FieldKindFile] or sets Multipart, so a
+	// decider rendering its own upload widget for another kind sets it.
+	Multipart bool
+}
+
+// errRenderProbe is the error a render probe carries (see [IsRenderProbe]).
+var errRenderProbe = errors.New("mx: render probe")
+
+// renderProbe returns the errs of a render probe: empty, as on a GET, so a
+// Render whose answer depends on its errors answers as it would there, with
+// the probe marker in its capacity. A new slice per call, so no Render can
+// change another's.
+func renderProbe() []error {
+	return []error{errRenderProbe}[:0]
+}
+
+// IsRenderProbe reports whether errs is the probe the form handler passes
+// to [FieldBehavior].Render on a POST, which asks only whether the field is
+// in the form: a Render may answer it with any non-nil Component, without
+// building its markup, or with nil to leave the field out, as it would on
+// a GET. The probe holds no errors. Every decider in a chain still runs, so
+// a wrapper hiding a field is asked too.
+func IsRenderProbe(errs []error) bool {
+	return len(errs) == 0 && cap(errs) > 0 && errs[:1][0] == errRenderProbe
 }
 
 // FieldDecider returns the [FieldBehavior] to use for a single field.
@@ -215,26 +296,26 @@ type FieldVisit struct {
 // onSubmit callback may return to surface per-field errors inline.
 // Keys are field paths (the same value passed to render/parse for
 // each field); values are the messages to render under each field.
-// FieldErrors implements the error interface via errors.Join.
+// FieldErrors implements the error interface via errors.Join. A nil entry
+// is no error, so a FieldErrors whose entries are all nil is a successful
+// submit; an entry for a path no input shows, such as a hidden field's,
+// is shown above the form as a form-level message: a [FormMessage]'s text,
+// else [FormErrorMessage].
 type FieldErrors map[FieldPath]error
 
 // Error joins every entry's message in deterministic (path-sorted)
 // order and returns a single string. It uses errors.Join's formatting
 // (newline-separated) when there is more than one entry.
 func (e FieldErrors) Error() string {
-	if len(e) == 0 {
-		return ""
+	parts := make([]error, 0, len(e))
+	for _, p := range slices.Sorted(maps.Keys(e)) {
+		parts = append(parts, e[p])
 	}
-	paths := make([]string, 0, len(e))
-	for p := range e {
-		paths = append(paths, string(p))
+	// errors.Join drops the nil entries, and is nil when all are.
+	if err := errors.Join(parts...); err != nil {
+		return err.Error()
 	}
-	sort.Strings(paths)
-	parts := make([]error, 0, len(paths))
-	for _, p := range paths {
-		parts = append(parts, e[FieldPath(p)])
-	}
-	return errors.Join(parts...).Error()
+	return ""
 }
 
 // Unwrap allows errors.Is/errors.As to inspect each per-field error.
@@ -244,7 +325,9 @@ func (e FieldErrors) Unwrap() []error {
 	}
 	parts := make([]error, 0, len(e))
 	for _, err := range e {
-		parts = append(parts, err)
+		if err != nil {
+			parts = append(parts, err)
+		}
 	}
 	return parts
 }
@@ -256,6 +339,10 @@ func (e FieldErrors) Unwrap() []error {
 // walked into a five-field "section." Callers add their own
 // single-value struct types here (currency, address, money amount,
 // etc.) so the decider knows to look up a widget instead of recursing.
+// Registration only stops the recursion: whether a type is a date and
+// time field is decided by its shape and its text ([DetectField] rule 14), and any
+// other registered type is a text input through its MarshalText and
+// UnmarshalText.
 //
 // Types implementing [FormWidgetHint] are treated as single-value
 // automatically and do not need to be registered.

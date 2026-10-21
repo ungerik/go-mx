@@ -3,6 +3,7 @@ package mx
 import (
 	"encoding"
 	"reflect"
+	"time"
 )
 
 // DetectField inspects field and value and returns the [FieldKind]
@@ -24,7 +25,8 @@ import (
 //  7. form:"widget=<other>" tag (text/email/url/tel/date/datetime/
 //     time/password/select/radio/switch/checkbox) → FieldKindString,
 //     FieldKindDateTime, or FieldKindBool depending on the widget name
-//  8. Type implementing [FormWidgetHint] → kind from the hint's name
+//  8. Type implementing [FormWidgetHint] → kind from the hint's name,
+//     which is also returned as the tag's Widget
 //  9. Type implementing the Enums()/EnumStrings() convention →
 //     FieldKindEnum
 // 10. map[T]struct{} where T satisfies the enum convention →
@@ -32,12 +34,13 @@ import (
 // 11. []T where T satisfies the enum convention → FieldKindEnumSet
 // 12. bool / *bool → FieldKindBool
 // 13. int*/uint*/float* and pointer variants → FieldKindNumber
-// 14. time.Time (and any single-value-registered struct type) →
-//     FieldKindDateTime
+// 14. time.Time, a type defined as it, or a struct embedding it as its only
+//     field whose text is RFC 3339 (as it is without text methods of its
+//     own) → FieldKindDateTime (other single-value structs → catch-all)
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
-// 18. struct field, no tag, not single-value, has TextMarshaler/
+// 18. struct field, no tag, has TextMarshaler/
 //     TextUnmarshaler → FieldKindCatchAll (renderer falls back to a
 //     text input)
 // 19. fallthrough → FieldKindCatchAll
@@ -51,7 +54,8 @@ import (
 //     decider's Render checks IsNull at render time.
 //   - Before rule 3, a form:"repeatable" tag on a direct []struct /
 //     []*struct field (element not a single-value type) yields
-//     FieldKindRepeatable; on any other shape the tag is ignored.
+//     FieldKindRepeatable, and on a slice of times FieldKindSkip; on any
+//     other shape the tag is ignored.
 //   - Between rules 7 and 8, a form:"options=name" tag yields
 //     FieldKindEnum (set-shaped fields: FieldKindEnumSet); the name
 //     must be registered via [RegisterNamedOptions] before rendering.
@@ -60,7 +64,19 @@ import (
 //     ([OptionsProvider], [NamedOptionsProvider],
 //     [NamedOptionsContextProvider]) as equivalent to the
 //     Enums()/EnumStrings() convention.
+//
+// A field whose widget is "password", by its tag or by [FormWidgetHint],
+// is form:"sensitive" too: a password input never shows its value, so the
+// stored one stays out of the page and a blank submission keeps it.
 func DetectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
+	kind, tag := detectField(path, field, value)
+	if tag.Widget == "password" {
+		tag.Sensitive = true
+	}
+	return kind, tag
+}
+
+func detectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
 	tag := ParseFormTag(field)
 
 	// 1. explicit skip
@@ -76,16 +92,25 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// 2.5. repeatable slice-of-struct. The tag only takes effect on a
 	// direct slice field whose element is a plain struct or a single
 	// pointer to one ([]T or []*T) that is not registered as a
-	// single-value type (so []time.Time is not turned into rows). We
-	// dereference at most one pointer level on purpose — not via
-	// derefType, which would also strip an interface element (panicking
-	// on Elem()) or multiple pointer levels that the row render/parse
-	// paths cannot bind. On any other shape the tag is ignored and
-	// detection falls through to the structural rules below.
+	// single-value type. A slice of times (time.Time, a type defined as it
+	// or a struct embedding only one) is skipped, as no rule renders it;
+	// on any other shape the tag is ignored and detection falls through to
+	// the structural rules below. We dereference at most one pointer level
+	// on purpose — not via derefType, which would also strip an interface
+	// element (panicking on Elem()) or multiple pointer levels that the row
+	// render/parse paths cannot bind.
 	if tag.Repeatable && field.Type.Kind() == reflect.Slice {
 		et := field.Type.Elem()
 		if et.Kind() == reflect.Pointer {
 			et = et.Elem()
+		}
+		if et.Kind() == reflect.Struct && (isTimeLike(et) || embedsOnlyTime(et)) {
+			// A time's fields are unexported, so its rows would have no
+			// cells and every save would zero the stored times, and no
+			// input binds a slice of times: the field is skipped, never
+			// rendered or bound, and its stored value is left alone.
+			tag.Skip = true
+			return FieldKindSkip, tag
 		}
 		if et.Kind() == reflect.Struct && !SingleValueTypes.Has(et) {
 			return FieldKindRepeatable, tag
@@ -103,7 +128,7 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// 4. anonymous embed with no tag → inline
 	if field.Anonymous {
 		ft := derefType(field.Type)
-		if ft.Kind() == reflect.Struct && !SingleValueTypes.Has(ft) {
+		if ft.Kind() == reflect.Struct && !SingleValueTypes.Has(ft) && !isTimeLike(ft) {
 			return FieldKindInline, tag
 		}
 	}
@@ -156,10 +181,14 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 
 	// 8. self-declared widget hint
 	if t := field.Type; implementsFormWidgetHint(t) {
-		// We don't call the hint here (would require an addressable
-		// value), but its presence flips us into the appropriate kind.
-		// Renderers re-query the hint to get the actual widget name.
-		switch hintWidget(value, t) {
+		// The hint's widget goes into the returned tag, so renderers and
+		// parsers read the widget from one place, whether a tag or the
+		// type declared it.
+		tag.Widget = hintWidget(value, t)
+		switch tag.Widget {
+		case "skip":
+			tag.Skip = true
+			return FieldKindSkip, tag
 		case "textarea":
 			return FieldKindTextarea, tag
 		case "file":
@@ -213,8 +242,12 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		return FieldKindNumber, tag
 	}
 
-	// 14. single-value struct types (time.Time, FormWidgetHint impls)
-	if ft.Kind() == reflect.Struct && SingleValueTypes.Has(ft) {
+	// 14. time-like struct types: time.Time, a type defined as it, or a
+	// struct embedding a time.Time as its only field whose text is RFC 3339
+	// (as it is without text methods of its own). Another single-value
+	// struct, such as a registered money type, is a text input through its
+	// MarshalText and UnmarshalText (the catch-all below).
+	if ft.Kind() == reflect.Struct && isTimeLike(ft) {
 		return FieldKindDateTime, tag
 	}
 
@@ -237,6 +270,46 @@ func DetectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// TextUnmarshaler → catch-all (parse-aware), otherwise still
 	// catch-all (renderer must surface the registration error).
 	return FieldKindCatchAll, tag
+}
+
+// isTimeLike reports whether the struct type t holds a time the way a
+// time.Time does: it is time.Time, a type defined as time.Time, or a struct
+// whose only field is an embedded time.Time and whose text is that time's
+// RFC 3339. A struct that writes its own text, such as a date-only one,
+// stays a text input through its MarshalText and UnmarshalText.
+func isTimeLike(t reflect.Type) bool {
+	timeType := reflect.TypeFor[time.Time]()
+	if t.ConvertibleTo(timeType) {
+		return true
+	}
+	return embedsOnlyTime(t) && textIsRFC3339(t)
+}
+
+// embedsOnlyTime reports whether the struct type t holds nothing but an
+// embedded time.Time, whatever text methods of its own it has.
+func embedsOnlyTime(t reflect.Type) bool {
+	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == reflect.TypeFor[time.Time]()
+}
+
+// textIsRFC3339 reports whether the zero value of t writes its text as
+// RFC 3339, as a time.Time does and so does a type embedding one without
+// text methods of its own.
+func textIsRFC3339(t reflect.Type) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	m, isMarshaler := reflect.New(t).Interface().(encoding.TextMarshaler)
+	if !isMarshaler {
+		return false
+	}
+	text, err := m.MarshalText()
+	if err != nil {
+		return false
+	}
+	_, err = time.Parse(time.RFC3339Nano, string(text))
+	return err == nil
 }
 
 // derefType returns the element type of a pointer chain, stopping at
@@ -328,8 +401,14 @@ func hintWidget(v reflect.Value, t reflect.Type) string {
 			}
 		}
 		// Fallback: use a zero value to call the method (works for
-		// value receivers).
-		if h, ok := reflect.New(t).Elem().Interface().(FormWidgetHint); ok {
+		// value receivers). A pointer type gets a pointer to a zero
+		// element instead of a nil pointer, which would panic in a
+		// value-receiver method.
+		zero := reflect.New(t).Elem()
+		if t.Kind() == reflect.Pointer {
+			zero = reflect.New(t.Elem())
+		}
+		if h, ok := zero.Interface().(FormWidgetHint); ok {
 			return h.FormWidget()
 		}
 	}

@@ -112,7 +112,8 @@ shadcn.InputID("email", html.Type("email")),
 A handful of components render a user-visible string the caller never passes:
 the screen-reader text of the built-in dialog/sheet close button, the
 pagination captions, the ellipsis "more" texts, the reflected-form clear
-checkbox, select placeholders, and the default `aria-label`s of the
+checkbox, select placeholders, the notes on values a save removes and the
+date and time format hint, and the default `aria-label`s of the
 landmark `<nav>`s and the icon-only buttons. Those strings live in the
 `Labels` struct and are resolved **from the render context**, not baked into
 the element at construction time, so one process can serve several languages
@@ -138,7 +139,10 @@ Fields may be left empty: each one falls back to the corresponding
 `DefaultLabels` field and then to the package's built-in English, so a partial
 translation renders a default for the strings it does not cover instead of
 dropping the label — an empty `aria-label` would take the accessible name away
-entirely. Translate the whole struct to avoid mixed-language output.
+entirely. `FormClearField` is the one exception: left empty in a struct that
+sets `FormClear`, it is that caption followed by the field label, so the box's
+accessible name keeps the caption's language. Translate the whole struct to
+avoid mixed-language output.
 
 The second step matters because `DefaultLabels` is itself assignable: without a
 frozen English last resort, assigning it a struct that sets only some fields
@@ -150,6 +154,7 @@ package variable read by every render, like `mx.AsComponent`.
 |-------------------------------------------------|----------------------------------------|
 | `BreadcrumbNav`                                 | `Breadcrumb` `aria-label`              |
 | `BreadcrumbEllipsis`                            | `BreadcrumbEllipsis` sr-only text      |
+| `CalendarPrevious` / `CalendarNext`             | `Calendar` month button `aria-label`s  |
 | `CarouselPrevious` / `CarouselNext`             | carousel button `aria-label`s          |
 | `DialogClose`                                   | `DialogContent` / `SheetContent` close |
 | `NavigationMenuNav`                             | `NavigationMenu` `aria-label`          |
@@ -160,18 +165,24 @@ package variable read by every render, like `mx.AsComponent`.
 | `SidebarTrigger`                                | `SidebarTrigger` `aria-label`          |
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
+| `FormClearField`                                | clear box aria-label, %s = field       |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
+| `FormValueRemovedOnSave`                        | note where saving clears that value    |
 | `FormChooseOption`                              | required select with no current value  |
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
+| `FormValuesNotAvailableReadonly`                | that note on a readonly set            |
+| `FormExpectedFormat`                            | date/time text-fallback format hint    |
+| `FormInvalidFormat`                             | the hint when stored text is invalid   |
 
 A caller-supplied `aria-label` still wins over the context label for a single
 call site — the components only fall back to `Labels` when the caller passed
 none. The text labels (the close button, the pagination captions, the ellipsis
 texts) come from `Labels` only.
 
-`Calendar` is the exception: its weekday and month names need locale data that
-Go's `time` package does not have, so they stay on the explicit
+`Calendar`'s weekday and month names are the exception (its month buttons do
+take their `aria-label`s from `Labels`): they need locale data that Go's `time`
+package does not have, so they stay on the explicit
 `CalendarWith(CalendarOptions{…}, …)` hooks rather than on `Labels` — the same
 "ship the hooks, not the translations" rule, just with a per-instance carrier
 because a calendar's week start is a rendering decision, not an ambient string.
@@ -671,18 +682,38 @@ examples, not functions in this package.
   cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
-  server-side with Go's `time` package; the selected day is marked via
-  `aria-selected`, and every day button carries an ISO 8601 `aria-label`.
+  server-side with Go's `time` package. The selected day's button carries
+  `data-selected` for its look, every day button an ISO 8601 `aria-label`,
+  and the month buttons their `aria-label`s from
+  `Labels.CalendarPrevious`/`CalendarNext`; days of the adjacent months are
+  muted, and only disabled days are faded. A static calendar's selected day
+  button is `aria-pressed`; in select mode (below) the table is instead, like
+  react-day-picker's, a `role="grid"` named by its month whose selected
+  gridcell carries `aria-selected`.
   Previous/Next are plain buttons with no default behavior — month navigation
   is a server round-trip, so wire them with `html.HRef("?month=…")` or an
   `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
   (Go's `time` has no locale, and the core module deliberately avoids
   `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
-  for the ISO/European week), `WeekdayName`, `MonthLabel`, `DayLabel`, and
+  for the ISO/European week), `WeekdayName`, `WeekdayLabel` (the full name a
+  screen reader announces for a column), `MonthLabel`, `DayLabel`, and
   `Disabled` (grey out unavailable/past dates — a disabled day is never
-  `aria-selected`). The zero-value `CalendarOptions` renders exactly what
-  `Calendar` renders. react-day-picker's range/multiple selection is not
-  reproduced.
+  marked selected). `Today` marks a day with the accent background and
+  `aria-current="date"` (an option, not `time.Now()`, so the caller picks the
+  zone and the output stays deterministic), and `StartMonth`/`EndMonth`
+  disable Previous/Next at the limits. `Name` turns on select mode, which is
+  react-day-picker's single mode re-expressed with one small shared script:
+  a hidden input of that name carries the picked day as `2006-01-02`, a click
+  or Enter picks a day and fires `input`/`change` on that input, the arrow
+  keys and Home/End move the focus between enabled days with a single Tab
+  stop, a surrounding popover closes, and `CalendarText(name, …)` shows the
+  picked day's `DayLabel` — the label of a date picker's trigger.
+  `Disabled`, `StartMonth` and `EndMonth` only shape the grid in the browser,
+  so a handler must check a submitted day against the same rules; a disabled
+  selected day keeps its date in the hidden input. The zero-value
+  `CalendarOptions` renders exactly what `Calendar` renders.
+  react-day-picker's range/multiple selection, dropdown caption and
+  client-side month navigation are not reproduced (see `TODOS.md`).
 - **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /
   `CarouselPrevious` / `CarouselNext`. A native CSS `scroll-snap` track —
   drag, swipe and keyboard scrolling are free; the Previous/Next buttons

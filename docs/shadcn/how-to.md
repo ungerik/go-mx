@@ -216,12 +216,15 @@ control.
 A few components render text the caller never passes: the close button inside
 `DialogContent` / `SheetContent`, the `PaginationPrevious` / `PaginationNext`
 captions, the breadcrumb and pagination ellipsis screen-reader text, and the
-default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`,
-`CarouselPrevious`, `CarouselNext`, `SidebarTrigger` and `Spinner`. Reflected
-forms add the clear checkbox on a nullable field, the disabled placeholder a
-select shows when the current value is not in its option list, the "Choose…"
-and "(none)" options on a select with no empty choice, and the note an
-enum-set shows when stored members are hidden by the current list.
+default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`, the
+`Calendar` month buttons, `CarouselPrevious`, `CarouselNext`, `SidebarTrigger`
+and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
+sensitive field, the
+disabled placeholder a select shows when the current value is not in its option
+list and the note below it where saving removes that value, the "Choose…" and "(none)" options on a select with no empty choice, the
+note an enum-set shows when stored members are hidden by the current list, and
+the "Expected format:" hint under a date or time field whose stored text the
+picker cannot show ("Not in the expected format:" when that text is invalid).
 
 Those strings live in `shadcn.Labels` and are read **from the render context**,
 so the language is chosen per request — not per call site.
@@ -232,25 +235,32 @@ so the language is chosen per request — not per call site.
 
    ```go
    var germanLabels = shadcn.Labels{
-       BreadcrumbNav:          "Brotkrümelnavigation",
-       BreadcrumbEllipsis:     "Mehr Einträge",
-       CarouselPrevious:       "Vorheriges Bild",
-       CarouselNext:           "Nächstes Bild",
-       DialogClose:            "Schließen",
-       NavigationMenuNav:      "Hauptnavigation",
-       PaginationNav:          "Seitennummerierung",
-       PaginationPrevious:     "Zurück",
-       PaginationNext:         "Weiter",
-       PaginationPreviousPage: "Zur vorherigen Seite",
-       PaginationNextPage:     "Zur nächsten Seite",
-       PaginationEllipsis:     "Mehr Seiten",
-       SidebarTrigger:         "Seitenleiste umschalten",
-       Spinner:                "Lädt",
-       FormClear:              "leeren",
-       FormValueNotAvailable:  "(aktueller Wert nicht verfügbar)",
-       FormChooseOption:       "Auswählen…",
-       FormNoSelection:        "(keine)",
-       FormValuesNotAvailable: "(einige aktuelle Werte sind nicht verfügbar)",
+       BreadcrumbNav:                  "Brotkrümelnavigation",
+       BreadcrumbEllipsis:             "Mehr Einträge",
+       CalendarPrevious:               "Zum vorherigen Monat",
+       CalendarNext:                   "Zum nächsten Monat",
+       CarouselPrevious:               "Vorheriges Bild",
+       CarouselNext:                   "Nächstes Bild",
+       DialogClose:                    "Schließen",
+       NavigationMenuNav:              "Hauptnavigation",
+       PaginationNav:                  "Seitennummerierung",
+       PaginationPrevious:             "Zurück",
+       PaginationNext:                 "Weiter",
+       PaginationPreviousPage:         "Zur vorherigen Seite",
+       PaginationNextPage:             "Zur nächsten Seite",
+       PaginationEllipsis:             "Mehr Seiten",
+       SidebarTrigger:                 "Seitenleiste umschalten",
+       Spinner:                        "Lädt",
+       FormClear:                      "leeren",
+       FormClearField:                 "%s leeren",
+       FormValueNotAvailable:          "(aktueller Wert nicht verfügbar)",
+       FormValueRemovedOnSave:         "Der aktuelle Wert wird beim Speichern entfernt.",
+       FormChooseOption:               "Auswählen…",
+       FormNoSelection:                "(keine)",
+       FormValuesNotAvailable:         "(einige aktuelle Werte sind nicht verfügbar und werden beim Speichern entfernt)",
+       FormValuesNotAvailableReadonly: "(einige aktuelle Werte sind nicht verfügbar)",
+       FormExpectedFormat:             "Erwartetes Format:",
+       FormInvalidFormat:              "Nicht im erwarteten Format:",
    }
    ```
 
@@ -302,7 +312,8 @@ fell back to `shadcn.DefaultLabels`. Fill it in.
 **`Calendar` is still English.** Weekday and month names need locale data Go's
 `time` package does not carry, so they are not part of `Labels`. Use
 `shadcn.CalendarWith(shadcn.CalendarOptions{WeekStart: time.Monday,
-WeekdayName: …, MonthLabel: …}, month, selected)` instead.
+WeekdayName: …, WeekdayLabel: …, MonthLabel: …, DayLabel: …}, month, selected)`
+instead.
 
 **One control needs a name the translation cannot know.** Pass your own
 `html.Attrib("aria-label", …)`; a caller-supplied attribute still wins over the

@@ -1,9 +1,11 @@
 package examples
 
 import (
+	"context"
 	"time"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn"
 )
 
@@ -16,22 +18,39 @@ func CalendarDemo() mx.Component {
 }
 
 // CalendarBookingDemo renders CalendarWith as a German booking calendar:
-// Monday-first, German weekday and month names, and days before a cutoff
-// disabled. The cutoff ("today") is a fixed date rather than time.Now() so the
+// Monday-first, German weekday, month and day names, days before a cutoff
+// disabled, today marked, no navigation into earlier months, and a day
+// picked with a click or the arrow keys into a hidden "booking-date" input.
+// The cutoff ("today") is a fixed date rather than time.Now() so the
 // pre-rendered gallery stays deterministic.
 func CalendarBookingDemo() mx.Component {
 	deDays := [7]string{"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"} // indexed by time.Weekday
+	deWeekdays := [7]string{"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"}
 	deMonths := [12]string{"Januar", "Februar", "März", "April", "Mai", "Juni",
 		"Juli", "August", "September", "Oktober", "November", "Dezember"}
 	today := time.Date(2026, time.June, 10, 0, 0, 0, 0, time.UTC)
-	return shadcn.CalendarWith(
+	// The month buttons take their names from the context's Labels, and
+	// lang lets a screen reader read the German names with a German voice.
+	de := shadcn.Labels{CalendarPrevious: "Zum vorherigen Monat", CalendarNext: "Zum nächsten Monat"}
+	calendar := shadcn.CalendarWith(
 		shadcn.CalendarOptions{
-			WeekStart:   time.Monday,
-			WeekdayName: func(wd time.Weekday) string { return deDays[wd] },
-			MonthLabel:  func(m time.Time) string { return deMonths[m.Month()-1] + m.Format(" 2006") },
-			Disabled:    func(d time.Time) bool { return d.Before(today) },
+			WeekStart:    time.Monday,
+			WeekdayName:  func(wd time.Weekday) string { return deDays[wd] },
+			WeekdayLabel: func(wd time.Weekday) string { return deWeekdays[wd] },
+			MonthLabel:   func(m time.Time) string { return deMonths[m.Month()-1] + m.Format(" 2006") },
+			DayLabel: func(d time.Time) string {
+				return d.Format("2. ") + deMonths[d.Month()-1] + d.Format(" 2006")
+			},
+			Disabled:   func(d time.Time) bool { return d.Before(today) },
+			Today:      today,
+			StartMonth: today,
+			Name:       "booking-date",
 		},
 		time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC),
+		html.Lang("de"),
 	)
+	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		return calendar.Render(shadcn.ContextWithLabels(ctx, de), w)
+	})
 }

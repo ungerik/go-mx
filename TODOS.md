@@ -288,6 +288,420 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 **Priority:** P4
 **Depends on:** None
 
+## mx reflected forms
+
+### A file field holding a file shows "No file chosen"
+
+**What:** Show that a file field holds a file, such as its filename, next to
+the file picker, readonly or editable, and on an editable one that leaving
+it empty keeps the stored file; link the note with `aria-describedby`.
+
+**Why:** The browser labels a file input "No file chosen" even when a file is
+stored. A readonly one tells the user there is no file; an editable one,
+which keeps the stored file on an empty submit and so is no longer
+HTML-`required` when it holds one, gives no sign of it, so the user uploads
+again or thinks the file is gone.
+
+**Context:** `fileInput` in `html/formdecider.go` and `fileAttribs` in
+`shadcn/formdecider.go`; `hasStoredFile` tells whether one is stored. A
+string field holds a filename to show; a `[]byte` field has none, so it
+would need a caption, which needs localizable text (shadcn `Labels`). The
+editable case was found in the date widget branch's review.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A readonly repeatable field with no rows renders an empty box
+
+**What:** Render a short "none" line inside the fieldset of a
+`form:"readonly"` repeatable field that has no rows.
+
+**Why:** A readonly repeatable field has no add-row button, so with no rows
+its fieldset shows only the legend, and a user cannot tell "no entries" from a
+broken render.
+
+**Context:** `renderRepeatable` in `repeatable.go` builds the fieldset in the
+core package, which has no localizable labels; the text would need a hook, such
+as a shadcn `Labels` field passed down or a `ReflectFormConfig` option.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Date format hints and date errors are English only
+
+**What:** Let a localized form translate the format it asks for and the
+messages of a rejected date or time.
+
+**Why:** The format in the placeholder and hint of a date field's text
+fallback (`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `HH:MM`) and the errors of a
+rejected or out-of-range date ("is not a date in the format …", "earlier
+than …") are fixed English. A German shadcn form shows "Erwartetes Format:
+YYYY-MM-DD", a translated `form:"placeholder=JJJJ-MM-TT"` disagrees with the
+hint, and after a submit the only statement that the value is invalid is the
+English field error.
+
+**Context:** `timeTexts` and `DateTimeFormatError` in `formdatetime.go`,
+`CheckDateTimeRange`, and the hint in `shadcn/formdecider.go` (`Labels`
+captions already exist). A typed error the shadcn renderer can map to
+`Labels`, and one displayed format string used by both the placeholder and the
+hint, would cover it. The parser's layouts stay internal.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### `aria-describedby` on a field leaves out its errors and help
+
+**What:** Give each field's help text and error messages ids and reference
+them all from the control's `aria-describedby` (or `aria-errormessage`), in
+the html and shadcn renderers.
+
+**Why:** A date field's text fallback references only its format hint, a
+select or checkbox set only its note on options the list no longer offers
+(`optionNoteID`), and other fields reference nothing; the error and help ids
+must join those in the same attribute. After a failed submit, a screen reader user
+who tabs to the field hears "invalid" but not the error, and `role="alert"`
+on server-rendered markup is not announced on a full-page load.
+
+**Context:** `renderField` in `html/formdecider.go` and `shadcnFieldMarked` /
+`appendFieldErrors` in `shadcn/formdecider.go`. It changes the markup of every
+field, so the gallery output changes too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### No limit on the number of submitted repeatable rows
+
+**What:** Add a row limit (a `ReflectFormConfig.MaxRows` with a default, or a
+`form:"maxrows=N"` tag) that rejects a POST with more rows before binding and
+hides the add-row button at the limit.
+
+**Why:** Rows are bounded only by Go's form limits (10,000 urlencoded values,
+1,000 multipart parts). One 218 KB urlencoded POST with 9,990 `__row__`
+markers renders a 6 MB page and allocates about 127 MB, and wider row structs
+scale linearly. A row with a required cell answers such a POST with every row
+in error: 9,000 markers against `cmd/example-form` gave a 49 MB page in 1.5 s.
+
+**Context:** `repeatableRowIndices` and `parseRepeatable` in `repeatable.go`;
+`applyRepeatableCommand` for the add-row side. Predates the date widget work;
+found in its review.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### `form:"pattern=…"` is checked only by the browser
+
+**What:** Check a string field's `form:"pattern=…"` on the server too,
+anchored like the HTML attribute (`^(?:pattern)$`), compiled once per tag,
+with a sensitive field's error masked; or document it as browser-only.
+
+**Why:** `FormTag.Pattern` is documented as a constraint on string inputs,
+but it only becomes the `pattern` attribute, so a scripted POST stores any
+string. `min`/`max` of numbers and dates are now checked on the server, so
+`pattern` is the last declarative constraint only the browser enforces.
+
+**Context:** The string bind in `html/formdecider.go` (`parseField`'s
+`FieldKindString` case). Predates the date widget work; found in its review.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A missing `__present` sentinel skips `required` and `min` of a number
+
+**What:** Reject a required number that is no pointer, and check a number's
+range, when a rendered field's `__present` sentinel is missing and the value
+is the zero a submit-only form's `new(T)` starts with.
+
+**Why:** A browser always sends the sentinel. A scripted POST that leaves it
+out keeps the stored value unchecked, and for `new(T)` that is a 0 that
+`form:"required,min=1"` should reject. The missing-sentinel required check
+treats a number as never blank, and the range check lives in the parser,
+which does not run.
+
+**Context:** The missing-sentinel branch of `parseField` (`formhandler.go`)
+and `checkNumberRange` (`html/formdecider.go`). Exposing the range check
+as the decider's `Validate` would let that branch run it. A partial update
+that posts a subset of fields must keep working.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Form-level messages are unstyled in shadcn forms
+
+**What:** Let a renderer style the form-level `<p role="alert">` messages,
+for example with a `data-slot="form-message"` hook that the shadcn renderer
+styles like a destructive `Alert`.
+
+**Why:** The messages above a reflected form (an `onSubmit` error, an error
+no input shows) are bare paragraphs, so in a shadcn form they look like
+body text next to the red field errors, though they are often the only sign
+that a save failed.
+
+**Context:** `formMessageComponent` in `formhandler.go` builds them in the
+core package, which knows no Tailwind classes.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A sensitive input says nothing about its stored value
+
+**What:** Tell the user what a blank sensitive input does: a caption such
+as "Leave blank to keep the current value" while a value is stored, and a
+note on an add-row or remove-row re-render that a typed value must be typed
+again.
+
+**Why:** A sensitive input never shows its value, so a user cannot tell a
+stored secret from none, does not know a blank keeps it, and loses a value
+typed before a row command without notice.
+
+**Context:** `renderField` (html) and `shadcnFieldMarked` (shadcn); the
+captions need shadcn `Labels` fields.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### shadcn readonly inputs look editable
+
+**What:** Give readonly text, number and date inputs in shadcn forms a
+readonly look, such as `read-only:bg-muted/50 read-only:cursor-default`,
+or mark the Field root `data-readonly`.
+
+**Why:** The `Input` classes have no `read-only:` variant, so a readonly
+input looks like an editable one, while readonly checkboxes, selects and
+file inputs in the same readonly section render disabled and dimmed.
+
+**Context:** The attrib builders in `shadcn/formdecider.go`; the `Input`
+component stays faithful to upstream.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Fractional seconds in date and time inputs
+
+**What:** Accept and keep fractional seconds in datetime and time inputs, so
+a `form:"step=…"` under one second works.
+
+**Why:** A sub-second step makes the browser submit values such as
+`2026-07-06T09:05:30.123`. A field holding text rejects them, since its parser
+reads only whole seconds, and stored text with a fraction renders as an
+invalid text input. A `time.Time` accepts them, because `time.Parse` tolerates a
+fraction, but renders without it, so an unchanged save truncates. For now the
+README and `FormTag.Step` document that the finest step is one second.
+
+**Context:** `timeText.parse` and `shortest` in `formdatetime.go` read and
+write the input forms; a `.999999999` layout variant would keep the fraction,
+and `dateTimeInput` would format a `time.Time` with it. The `step="1"` rule in
+`DateTimeInput` would then count sub-second remainders from `min` too.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A time-of-day type whose zero is midnight cannot hold 00:00
+
+**What:** Let a time-of-day type such as `civil.Time`, whose `IsZero` is true
+at 00:00:00, show and store midnight in a time input.
+
+**Why:** `DateTimeInput` renders a zero value as no value, so a stored
+midnight shows an empty input, and the handler's required check reads the
+bound zero value as missing, so a required time field rejects a posted 00:00.
+An optional field saves midnight but shows it empty again.
+
+**Context:** `marshaledText` in `formdatetime.go` honours the type's own
+`IsZero`; `isEffectivelyEmpty` in `formhandler.go` decides required. A fix would
+show a time-of-day value's text whenever it is not null and decide required
+from the raw submission for date and time fields. The type cannot tell an
+unset value from midnight itself, so either way it needs a pointer or a
+nullable wrapper to mean "no time".
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### `database/sql` types render as plain text inputs
+
+**What:** Give a `sql.Null*` field the widget of the value it holds: a
+nullable checkbox or a true/false/(none) select for `sql.NullBool`, the
+datetime widget for `sql.NullTime`, and a number input with `min`, `max` and
+`step` for the integer and float types.
+
+**Why:** A catch-all `sql.Null*` field is a text input holding the driver
+value, so a user types "true", a raw RFC 3339 time with no picker, or a
+number without a numeric keypad, and the browser checks none of it; the
+server does (`setScanned`).
+
+**Context:** `mx.DriverValueText` and `setScanned`/`checkScannedRange` in
+`html/formdecider.go` bind them today. `DetectField` would map the type by
+its driver value kind (from a zero value's `Scan` targets or a field-name
+convention such as `Bool`/`Time`/`Int64`) to the matching `FieldKind`, and
+the binders of those kinds would need a null for a blank.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### A text-held date type that reads only its own spelling cannot be saved
+
+**What:** Let a string-kind date type whose `UnmarshalText` reads only its own
+spelling (a `type DEDate string` that takes `02.01.2006`) render as a text
+input of its own text and bind through `UnmarshalText` of the raw text, as a
+non-string own-spelling type does.
+
+**Why:** Such a field shows its stored text as "Not in the expected format:
+YYYY-MM-DD"; posting it back fails in `mx.ParseDateTimeInput`, and posting
+ISO text passes that but is rejected by the type, so nothing can be saved.
+
+**Context:** `readsOwnSpellingOnly` in `formdatetime.go` exempts every string
+kind; `setTimeText` in `html/formdecider.go` calls `mx.ParseDateTimeInput`
+before `UnmarshalText`. Found in the date widget branch's review; deferred.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A forged row origin pairs one row's readonly values with another's key
+
+**What:** Tie a rebuilt repeatable row's origin to its hidden key cells: a
+row whose `__row__` marker names a loaded row but whose submitted hidden
+cells (such as a per-row `ID`) differ from that row's starts as a new row,
+or rows are matched by a declared key (`form:"hidden,key"`) that must be one
+of the loaded keys.
+
+**Why:** A rebuilt row starts as a copy of the loaded row its marker names,
+so its readonly and sensitive cells are kept, while its hidden key is parsed
+from the POST; both are client-controlled and nothing checks that they
+belong together. A tampered POST naming row 0 with row 1's key saves row 0's
+readonly price (or stored secret) under row 1's key, and an `onSubmit` that
+updates by key writes it to the wrong record.
+
+**Context:** `parseRepeatable` and `rowOrigin` in `repeatable.go`. Keeping
+the loaded hidden cells instead would break a hidden optimistic-locking
+`UpdatedAt` per row, which must come from the client, and comparing parsed
+values needs `Equal` for times (a round-tripped time has another location).
+Until then, an `onSubmit` must restore readonly row values by key itself.
+Found by the date widget branch's adversarial review.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+### A `database/sql` text holding a NUL byte cannot be saved
+
+**What:** Decide the `Scan` path of a `database/sql` field by its type, not by
+whether its stored text fits an input, and show stored text an input cannot
+hold (a NUL byte, invalid UTF-8) as an invalid text input the user can
+replace, with an error naming the cause.
+
+**Why:** `isScanner` returns `mx.DriverValueText`'s ok, which is false for such
+text, so `setScalar` skips `Scan` and every save of a `sql.NullString` holding
+`"a\x00b"` fails with "implement encoding.TextUnmarshaler or
+database/sql.Scanner", though the type implements `Scanner`; a newly typed
+valid value cannot be saved either.
+
+A tab or line break in such text is not caught at all: the attribute
+escaper turns them into spaces and browsers strip line breaks from text
+inputs, so an unchanged save rewrites `"a\tb"` as `"a  b"` and `"k1\nk2"`
+as `"k1 k2"`; excluding them in `inputText` would make such values
+unsaveable through the same `isScanner` path, so both need the type-based
+`Scan` decision, and multi-line text a textarea.
+
+**Context:** `isScanner` and `setScalar` in `html/formdecider.go`;
+`DriverValueText` and `inputText` in `nullable.go`. Skipped in the date
+widget branch's review as rare; the tab and line break case came from its
+adversarial review.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### An unsent required enum whose stored zero is an option reads as blank
+
+**What:** On a POST that leaves out a required enum's `__present` sentinel,
+count a stored zero that is one of its options (a `Low = iota`, an option
+`"0"`) as a value, not as blank.
+
+**Why:** The handler then reports "required" under a select that shows the
+option selected, and the save fails. A browser always sends the sentinel, so
+only partial or programmatic POSTs hit it.
+
+**Context:** `isBlank` in `formhandler.go` (the unsent path of `parseField`);
+the sent path decides from the submitted text (`sentBlank`). Knowing whether
+the zero is listed needs the field's options (`mx.CollectOptions`). Skipped
+in the date widget branch's review.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Form rules duplicated across `mx`, `html` and `shadcn`
+
+**What:** Keep each reflected-form rule in one place in `mx`: when an input
+drops HTML `required` (`browserTag` and `hasStoredFile`, copied in `html`
+and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
+`html`, a copy of `mx`'s), which error text a page may show
+(`optionListError` in `html` repeats `formErrorText`'s policy, for example
+as an `mx.FormError(err) error`), and the 64-byte date text limit
+(`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
+`validateBound`, which has a single caller, `validateField`, and fold
+`mx.SelectedOption` into `mx.SelectPreface` (both renderers call one with
+the other's result).
+
+**Why:** Each copy can drift from the others: `hasStoredFile` already differs
+from the handler's `isEffectivelyEmpty` on a non-nil `*string` holding "".
+
+**Context:** Advisory findings of the date widget branch's review, skipped to
+land it; each is a small refactor with an exported helper in `mx`.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A static enum without a validator accepts any submitted value
+
+**What:** Check a submitted single-value enum against its static options
+(`Enums`, `EnumStrings`, `NamedOptions`, `Options`) on the server when the
+type has no `Validate`/`Valid` method, as a context option list already is.
+
+**Why:** Only a type's own validator rejects a value its list does not
+offer: a forged `"42"`, or a forged `"0"` for a required enum whose zero is
+no constant, binds and saves. The branch's own enums (go-enum) validate
+themselves; a hand-written `Enums()` type does not.
+
+**Context:** `validateBound` in `formhandler.go` runs the validation chain;
+`validateOptionMembership` in `html/formdecider.go` checks context lists
+only. Predates the date widget branch; found in its last review pass.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### Backtick HTML literals in tests lack the `/*html*/` prefix
+
+**What:** Prefix the backtick HTML literals in the reflected-form and calendar
+tests with `/*html*/`, on its own line where the literal follows another
+argument.
+
+**Why:** AGENTS.md asks for the prefix on every backtick HTML literal; the
+date widget branch added about 100 without it (`html/formdecider_test.go`,
+`shadcn/formdecider_test.go`, `shadcn/calendar_test.go`,
+`formhandler_test.go`), and `main` already had a few.
+
+**Context:** Mechanical, but it reflows many table rows. Skipped in the date
+widget branch's review.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## mx dead code
 
 ### Remove or finish `reflectroutes.go`, `writereflect.go` and `TypedRoute.Path`
@@ -318,6 +732,102 @@ idea. For `Path`, either implement it with the existing `JoinAbsPath` and
 **Depends on:** None
 
 ## Completed
+
+### Date and time inputs drop the stored time zone
+
+**What:** Bind a submitted date or time into a `time.Time` (or a type that
+wraps it) in the location of the value it replaces, instead of UTC.
+
+**Why:** A `time.Time` stored as 2026-07-06T09:00+02:00 shows 09:00 in the
+input, which has no zone, and an unchanged save stores 09:00 UTC: the time
+moves by the offset on every save. Types that wrap `time.Time` behave the same
+way since they render and bind like it.
+
+**Context:** `setTime` in `html/formdecider.go` parses with `time.Parse`, which
+gives UTC; `time.ParseInLocation` with the loaded value's `Location()` keeps the
+wall clock in its zone. It changes what existing `time.Time` fields store, so it
+was left out of the string-kind date work. Fields holding text are not
+affected: their text has no zone, and text with one falls back to a text input.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+**Completed:** 2026-10-20 — `setTime` keeps the stored value on an unchanged
+submission and reads a changed one in the zone the input showed it in
+(`mx.DateTimeInputSpec.Time`): a date at the first instant of its day, a time
+on the stored date; a new record still reads UTC.
+
+
+### Server-side `min`/`max` for `time.Time` date fields
+
+**What:** Check `form:"min=…,max=…"` on the server when binding a `time.Time`
+(or other non-text) date, datetime or time field, as `mx.ParseDateTimeInput`
+already does for fields that hold the value as text.
+
+**Why:** For a `time.Time` field the range only reaches the browser as the
+input's `min`/`max`, so a tampered or scripted POST stores a date outside it.
+
+**Context:** `ParseDateTimeInput` (`formdatetime.go`) parses the bounds with the
+input type's layouts and compares times; `setTime` in `html/formdecider.go`
+parses `time.Time` with its own layout list. Reusing the same bound check there
+keeps both paths consistent. Left out of the string-kind date work because the
+text path needed it (its fallback cannot enforce the range in the browser) and
+the `time.Time` path was to stay unchanged.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19 — `setTime` checks the bounds with
+`mx.CheckDateTimeRange` for `time.Time`, types defined as it, wrappers and date
+structs.
+
+
+### `datetime` and `time` widgets on string-kind fields
+
+**What:** Make `form:"widget=datetime"` and `form:"widget=time"` prefill and
+bind a field that holds its value as text (`string`, `*string`, a named string
+type), the way `form:"widget=date"` does.
+
+**Why:** A string field tagged `widget=datetime` or `widget=time` rendered an
+empty input, and every non-empty submit failed with
+`cannot assign time to <type>`, so such a field could not be edited at all.
+
+**Context:** Settled formats: no zone, because these inputs are local times
+and attaching or dropping a zone would change what the stored text means; and
+seconds only when they are not zero, the form a `datetime-local` input uses
+itself (`2006-01-02T15:04[:05]`, `15:04[:05]`). `mx.ParseDateTimeInput`
+normalizes on bind, so a round trip does not depend on whether the browser
+submits zero seconds. A type with its own spelling converts with `Format` and
+`UnmarshalText`. Text the input cannot show, a time with a zone included,
+falls back to a text input with the format as placeholder and hint.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19
+
+### A tag-free opt-in for date types
+
+**What:** Let a string-kind date type declare itself a date once, so its
+fields render a date input without a `form:"widget=date"` tag on each of
+them.
+
+**Why:** A date type is a date wherever it appears, and a field that forgets
+the tag renders as a plain text input, which accepts any spelling.
+
+**Context:** `mx.FormWidgetHint` was the opt-in already but did not work for
+dates: both renderers and the parser read only `FormTag.Widget`, so a type
+returning `"date"` rendered `type="datetime-local"` and failed to bind.
+`mx.DetectField` now returns the hint's widget as the tag's `Widget` when the
+hint decides the kind, so every renderer and the parser read one value. That
+also fixed a `"checkbox"` hint rendering a shadcn switch, an explicit
+`widget=text` tag being overridden by an `"email"` hint, and a panic on a nil
+pointer to a type with a value-receiver `FormWidget`.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-10-19
 
 ### Enum-set checkboxes drop members missing from the option list
 

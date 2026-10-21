@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"reflect"
 	"slices"
 	"sort"
 	"strings"
-
-	"github.com/domonda/go-errs"
 )
 
 // DefaultMaxMemory is the default upper bound on multipart form parsing
@@ -22,18 +23,51 @@ import (
 // handler via [ReflectFormConfig.MaxMemory].
 var DefaultMaxMemory int64 = 4 << 20
 
+// DefaultMaxUploadSize is the default upper bound on the size of a
+// multipart request body that [ReflectFormHandler] reads; past it a POST
+// answers 413. Every reflected form accepts a multipart body, also one
+// without a file field, and the parser writes file parts past MaxMemory to
+// disk, so the bound keeps one request from filling it.
+//
+// Override globally by reassigning this variable at init time or per
+// handler via [ReflectFormConfig.MaxUploadSize].
+var DefaultMaxUploadSize int64 = 32 << 20
+
 // FormSubmitLabel is the default text rendered on the form's submit
 // button. Reassign to change globally; the renderer layer (html / hx /
 // shadcn) may also render its own button instead of relying on this.
 var FormSubmitLabel = "Save"
 
+// FormErrorMessage is the form-level message shown when onSubmit returns
+// an error that is neither [FieldErrors] nor [FormMessage]: such an error
+// may carry internal details and a call stack, so its text is shown only
+// when [RevealInternalServerErrors] is set. Reassign to change it globally.
+var FormErrorMessage = "The form could not be saved."
+
+// FormMessage is an error whose text is meant for the user. When onSubmit
+// returns one, also wrapped, the form shows its text as the form-level
+// message.
+type FormMessage string
+
+// Error returns the message.
+func (m FormMessage) Error() string { return string(m) }
+
 // ReflectFormConfig customizes a single [ReflectFormHandlerWith]
 // invocation. Zero-valued fields fall back to their package-level
 // defaults.
 type ReflectFormConfig struct {
-	// MaxMemory bounds the multipart form parser. 0 means use
+	// MaxMemory bounds the multipart form parser and the size of an upload
+	// a file field reads into memory ([FormMaxMemory]). 0 means use
 	// [DefaultMaxMemory].
 	MaxMemory int64
+
+	// MaxUploadSize bounds the size of a multipart request body; past it
+	// a POST answers 413. 0 means use [DefaultMaxUploadSize], and a
+	// negative value means no bound, for a handler behind a limit of its
+	// own: an http.MaxBytesReader with a larger limit is cut to this one.
+	// A urlencoded body has net/http's 10 MB limit, or the limit of an
+	// http.MaxBytesReader around it.
+	MaxUploadSize int64
 
 	// Redirect produces the URL to 303-redirect to on successful
 	// submit. nil means "redirect to r.URL.Path" — the same handler
@@ -67,9 +101,33 @@ type ReflectFormConfig struct {
 // per-field validation chain via the decider, and either re-renders
 // with inline errors or calls onSubmit. If onSubmit returns a
 // [FieldErrors] the form re-renders with each entry routed to the
-// matching field. On any other error the form re-renders with a
-// form-level message. On success the handler responds with
-// 303 See Other to cfg.Redirect or r.URL.Path when nil.
+// matching field; an entry for a path no input shows goes above the form
+// as below, and a FieldErrors of only nil entries is a successful submit.
+// On any other error the form re-renders with a
+// form-level message: a [FormMessage]'s text, or [FormErrorMessage]. On
+// success the handler responds with 303 See Other to cfg.Redirect or
+// r.URL.Path when nil. A body that cannot be parsed is answered with 400,
+// or 413 past the multipart limits, net/http's 10 MB for a urlencoded
+// body or a limit set with [http.MaxBytesReader], never treated as a
+// submission of nothing, also when a middleware parsed it first and
+// ignored the error; a body that is no form (urlencoded or multipart) is
+// answered with 415. A middleware that reads a multipart form must parse
+// all of it (r.ParseMultipartForm or r.FormValue): after r.ParseForm alone
+// the handler cannot tell an unread multipart body from a half-read one
+// and answers 400.
+//
+// load must return a record the handler may change: it binds the
+// submission into it, including text a field rejected, which stays there for
+// the re-render. Return a deep copy, never a pointer into a cache or store:
+// a field of a pointer type binds into a new pointee, but the fields of a
+// pointer section, and of a repeatable row's pointer sections, are written
+// in place.
+//
+// When onSubmit returns an error, the form re-renders the record as
+// onSubmit left it. It must not reorder or remove the rows of a repeatable
+// field then: rows are matched to the loaded rows by position, which their
+// readonly and rejected cells are taken from on the next save. Rows it
+// appends have no loaded row.
 //
 // load may be nil for submit-only forms (registration, contact, new
 // record) where there is no existing state to load: the handler then
@@ -145,6 +203,10 @@ func ReflectFormHandlerRedirecting[T any](
 	if maxMem <= 0 {
 		maxMem = DefaultMaxMemory
 	}
+	maxUpload := cfg.MaxUploadSize
+	if maxUpload == 0 {
+		maxUpload = DefaultMaxUploadSize
+	}
 	submitLabel := cfg.SubmitLabel
 	if submitLabel == "" {
 		submitLabel = FormSubmitLabel
@@ -157,13 +219,13 @@ func ReflectFormHandlerRedirecting[T any](
 		return DeciderFromContext(r.Context())
 	}
 
-	render := func(w http.ResponseWriter, r *http.Request, target *T, fieldErrs map[FieldPath][]error, formMsg string) {
+	render := func(w http.ResponseWriter, r *http.Request, target *T, fieldErrs map[FieldPath][]error, formMsg string, origins rowOrigins) {
 		d := pickDecider(r)
 		action := selfSubmitAction(r)
 		if cfg.Action != nil {
 			action = cfg.Action(r)
 		}
-		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action)
+		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action, origins)
 		writeFormResponse(w, r, comp)
 	}
 
@@ -175,50 +237,77 @@ func ReflectFormHandlerRedirecting[T any](
 				respondLoadError(w, err)
 				return
 			}
-			render(w, r, target, nil, "")
+			render(w, r, target, nil, "", nil)
 
 		case http.MethodPost:
-			if err := r.ParseMultipartForm(maxMem); err != nil {
-				// Fallback for non-multipart submissions.
-				if err2 := r.ParseForm(); err2 != nil {
-					http.Error(w, "could not parse form", http.StatusBadRequest)
-					return
+			// A body that fails to parse, such as one past the multipart
+			// part limit, must not read as a submission of nothing: onSubmit
+			// would save the unchanged record and drop the user's edits.
+			loaded := r.MultipartForm
+			if parseErr := parseFormBody(w, r, maxMem, maxUpload); parseErr != nil {
+				status := http.StatusBadRequest
+				var tooLarge *http.MaxBytesError
+				switch {
+				case errors.Is(parseErr, errNotAForm):
+					status = http.StatusUnsupportedMediaType
+				case errors.Is(parseErr, multipart.ErrMessageTooLarge) || errors.As(parseErr, &tooLarge) || parseErr.Error() == errPostTooLarge:
+					status = http.StatusRequestEntityTooLarge
 				}
+				http.Error(w, "could not parse form", status)
+				return
 			}
+			// The server removes the temporary files only of a form set on
+			// the request it passed in, which a middleware's copy is not.
+			if form := r.MultipartForm; form != nil && form != loaded {
+				defer form.RemoveAll()
+			}
+			r = r.WithContext(context.WithValue(r.Context(), maxMemoryKey{}, maxMem))
 			target, err := load(r.Context())
 			if err != nil {
 				respondLoadError(w, err)
 				return
 			}
 			d := pickDecider(r)
+			origins := rowOrigins{}
 			// Repeatable add/remove buttons submit a __cmd__ value with
 			// formnovalidate: bind whatever the user entered, apply the
 			// row mutation, and re-render without running onSubmit. Only
 			// commands that resolve to a real repeatable field enter this
 			// path; an unknown/injected __cmd__ falls through to a normal
 			// submit rather than silently discarding the save.
-			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, cmd) {
-				parseAndValidate(target, d, r)
-				applyRepeatableCommand(target, cmd, requestFormValues(r))
-				render(w, r, target, nil, "")
+			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, d, cmd) {
+				parseAndValidate(target, d, r, origins)
+				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
+				render(w, r, target, nil, "", origins)
 				return
 			}
-			fieldErrs := parseAndValidate(target, d, r)
+			fieldErrs := parseAndValidate(target, d, r, origins)
 			if len(fieldErrs) > 0 {
-				render(w, r, target, fieldErrs, "")
+				render(w, r, target, fieldErrs, "", origins)
 				return
 			}
 			redirect, err := onSubmit(r.Context(), target)
-			if err != nil {
-				if fe, ok := errors.AsType[FieldErrors](err); ok {
-					perField := map[FieldPath][]error{}
-					for p, e := range fe {
+			if fe, ok := errors.AsType[FieldErrors](err); ok {
+				// A nil entry, as from FieldErrors{"Name": validate(x)} with a
+				// valid x, is no error.
+				perField := map[FieldPath][]error{}
+				for p, e := range fe {
+					if e != nil {
 						perField[p] = []error{e}
 					}
-					render(w, r, target, perField, "")
+				}
+				if len(perField) > 0 {
+					render(w, r, target, perField, "", origins)
 					return
 				}
-				render(w, r, target, nil, err.Error())
+				// A FieldErrors whose entries are all nil is no error at all,
+				// unless it came wrapped or joined with another error.
+				if _, bare := err.(FieldErrors); bare {
+					err = nil
+				}
+			}
+			if err != nil {
+				render(w, r, target, nil, formErrorText(err), origins)
 				return
 			}
 			// onSubmit's returned URL wins; an empty string falls back to
@@ -244,77 +333,307 @@ func ReflectFormHandlerRedirecting[T any](
 // onto it (only for fields whose __present sentinel is set), and runs
 // each per-field [FieldBehavior.Validate]. Returns a map of paths to
 // the errors that prevented save; an empty map means the form is
-// ready for onSubmit.
-func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request) map[FieldPath][]error {
+// ready for onSubmit. The origins of the rebuilt repeatable rows are
+// recorded in origins.
+func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins rowOrigins) map[FieldPath][]error {
 	out := map[FieldPath][]error{}
 	form := requestFormValues(r)
 	for visit := range ReflectFormFields(target) {
 		if visit.Kind == FieldKindRepeatable {
-			parseRepeatable(visit, d, r, out)
+			if repeatableInForm(visit, d) {
+				parseRepeatable(visit, d, r, out, origins)
+			}
 			continue
 		}
-		beh := d(visit.Path, visit.Field, visit.Value)
 		if !visit.Value.CanAddr() {
 			out[visit.Path] = append(out[visit.Path],
-				errs.New("internal: field value not addressable"))
+				errors.New("internal: field value not addressable"))
 			continue
 		}
-		// __present gate: skip silently when the field was not
-		// rendered. This is the allowlist that defends against
-		// mass-assignment via tampered POSTs.
-		if !sentinelSet(form, PresentSentinelName(visit.Path)) {
-			continue
-		}
-		// __clear: explicit null intent for nullable fields.
-		if sentinelSet(form, ClearSentinelName(visit.Path)) {
-			if err := setFieldNull(visit.Value); err != nil {
-				out[visit.Path] = append(out[visit.Path], err)
-			}
-			continue
-		}
-		// Readonly: render-only; never write a submitted value.
-		if visit.Tag.Readonly {
-			continue
-		}
-		if beh.Parse != nil {
-			if err := beh.Parse(visit.Path, visit.Field, visit.Value, r); err != nil {
-				out[visit.Path] = append(out[visit.Path], err)
-				continue
-			}
-		}
-		// Required check (type-aware) — relevant for string and
-		// nullable values; the parsers already enforce numeric range
-		// via min/max.
-		if visit.Tag.Required && isEffectivelyEmpty(visit.Value) {
-			// Validation results shown to the user carry no callstack.
-			out[visit.Path] = append(out[visit.Path],
-				errors.New("required"))
-			continue
-		}
-		// A blank optional enum is "no choice", not an invalid constant.
-		// go-enum Validate rejects the zero string, which would make the
-		// leading "(none)" option impossible to save. A decider Validate
-		// still runs: that hook is the caller's, not the type's enum check.
-		if !(visit.Kind == FieldKindEnum && isEffectivelyEmpty(visit.Value)) {
-			// The elements of an enum set carry the enum's Validate, not
-			// the map or slice holding them, so a set is validated element
-			// by element unless it validates itself.
-			chainErrs := RunValidationChain(visit.Value)
-			if len(chainErrs) == 0 && visit.Kind == FieldKindEnumSet {
-				chainErrs = validateSetElements(visit.Value)
-			}
-			if len(chainErrs) > 0 {
-				out[visit.Path] = append(out[visit.Path], chainErrs...)
-			}
-		}
-		// Decider-supplied Validate runs after the chain (additive).
-		if beh.Validate != nil {
-			if err := beh.Validate(visit.Path, visit.Field, visit.Value); err != nil {
-				out[visit.Path] = append(out[visit.Path], err)
-			}
-		}
+		parseField(visit, d, r, form, visit.Path, visit.Path, out)
 	}
 	return out
+}
+
+// validateField runs the validation chain (see [validateBound]) and then
+// the decider-supplied Validate on a bound field value, at the top level
+// and in a repeatable row alike. The errors of a form:"sensitive" field
+// read "not a valid value": a type's own message may quote the value,
+// which after a blank submission is the stored one. A [FormMessage], such
+// as a password rule, is meant for the user and shows as it is.
+func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath, blank bool) []error {
+	errs := validateBound(visit.Kind, visit.Value, blank)
+	if beh.Validate != nil {
+		if err := beh.Validate(path, visit.Field, visit.Value); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if !visit.Tag.Sensitive || len(errs) == 0 {
+		return errs
+	}
+	var shown []error
+	masked := false
+	for _, err := range errs {
+		// Only the message itself: an error wrapping or joined with it may
+		// quote the value.
+		if m, ok := errors.AsType[FormMessage](err); ok {
+			shown = append(shown, m)
+		} else if !masked {
+			// Validation results shown to the user carry no callstack.
+			shown = append(shown, errors.New("not a valid value"))
+			masked = true
+		}
+	}
+	return shown
+}
+
+// validateBound runs the validation chain on a bound field value, at the
+// top level and in a repeatable row alike. A blank optional enum, one
+// submitted empty ([sentBlank]), is "no choice", not an invalid constant:
+// go-enum Validate rejects the zero string, which would make the leading
+// "(none)" option impossible to save (a decider Validate still runs: that
+// hook is the caller's, not the type's enum check). An enum zero bound
+// from text that was not empty, such as a forged "0", is validated. The
+// elements of an enum set carry the enum's Validate, not the map or slice
+// holding them, so a set is validated element by element unless it
+// validates itself.
+func validateBound(kind FieldKind, value reflect.Value, blank bool) []error {
+	if kind == FieldKindEnum && blank {
+		return nil
+	}
+	chainErrs := RunValidationChain(value)
+	if len(chainErrs) == 0 && kind == FieldKindEnumSet {
+		chainErrs = validateSetElements(value)
+	}
+	return chainErrs
+}
+
+// parseField applies one submitted value onto cv.Value, for a top-level
+// field (srcCell and dstCell are its path) and a repeatable row's cell
+// (srcCell is the submitted cell path, dstCell its path in the rebuilt
+// rows): readonly skip (the value stays as loaded, or as the row started),
+// __present gate (the mass-assignment allowlist), __clear handling,
+// keepsStored, decider Parse, required check, then the validation chain
+// and decider Validate. Errors are keyed by dstCell.
+func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string][]string, srcCell, dstCell FieldPath, out map[FieldPath][]error) {
+	if cv.Tag.Readonly {
+		// Never a submitted value, not even the null of __clear.
+		return
+	}
+	// A value not sent is left alone, but an empty required one, as in a
+	// submit-only form's new(T) or an added row, is still an error. The
+	// sentinel is checked first: a field that was not sent costs no decider
+	// call, so a POST of bare row markers stays cheap.
+	present := sentinelSet(form, PresentSentinelName(srcCell))
+	if !present && !(cv.Tag.Required && isBlank(cv.Kind, cv.Value)) {
+		return
+	}
+	beh := d(srcCell, cv.Field, cv.Value)
+	// A field the decider does not render, or renders as nothing, is not
+	// in the form: it is never written, also not by a forged __present
+	// sentinel, and shows no error.
+	if !fieldInForm(beh, srcCell, cv) {
+		return
+	}
+	if !present {
+		out[dstCell] = append(out[dstCell], errors.New("required"))
+		return
+	}
+	keep := true // a blank sensitive input may keep the stored value
+	// A field the decider does not parse is not written, not even cleared.
+	if beh.Parse != nil && sentinelSet(form, ClearSentinelName(srcCell)) {
+		// The forms offer no clear control on a required field, so a clear
+		// there is a tampered POST; it is rejected, not saved.
+		if cv.Tag.Required {
+			out[dstCell] = append(out[dstCell], errors.New("required"))
+			return
+		}
+		cleared, err := clearField(cv.Tag, cv.Kind, cv.Value, form, srcCell)
+		if err != nil {
+			out[dstCell] = append(out[dstCell], err)
+		}
+		if cleared {
+			return
+		}
+		keep = false
+	}
+	if beh.Parse != nil && !(keep && keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell)) {
+		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
+			out[dstCell] = append(out[dstCell], err)
+			return
+		}
+	}
+	blank := sentBlank(cv, form, srcCell, beh.Parse != nil && !(keep && keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell)))
+	if cv.Tag.Required && blank {
+		// Validation results shown to the user carry no callstack.
+		out[dstCell] = append(out[dstCell], errors.New("required"))
+		return
+	}
+	if errs := validateField(cv, beh, dstCell, blank); len(errs) > 0 {
+		out[dstCell] = append(out[dstCell], errs...)
+	}
+}
+
+// fieldInForm reports whether the decider's behavior beh puts the field of
+// cv at path into the form: a nil Render, or one that returns nil, leaves
+// it out. Render is asked with a probe ([IsRenderProbe]), which the
+// built-in deciders answer without building markup.
+func fieldInForm(beh FieldBehavior, path FieldPath, cv FieldVisit) bool {
+	return beh.Render != nil && beh.Render(path, cv.Field, cv.Value, renderProbe()) != nil
+}
+
+// keepsStored reports whether a submission leaves a field's stored value
+// alone: a form:"sensitive" field never shows its value, so leaving it
+// blank means "unchanged", as with a password field. Since the input stays
+// empty, a value typed into it before an add-row or remove-row click is
+// not shown again and must be typed again before saving. An optional one
+// is emptied with its clear control. With nothing stored
+// there is nothing to keep, so a blank is parsed, and a required field or
+// a number's range still rejects it. A checkbox, checkbox set, hidden or
+// file field has no such blank, and a select shows its stored option.
+// A parser reads the first submitted value, as form.Get returns it.
+func keepsStored(tag FormTag, kind FieldKind, value reflect.Value, form url.Values, path FieldPath) bool {
+	return KeepsStoredValue(tag, kind, value) && form.Get(string(path)) == ""
+}
+
+// clearField applies a __clear sentinel: it sets value to null, and cleared
+// reports that nothing is left to parse. A form:"sensitive" input that keeps
+// a blank's stored value gets the clear control too, rendered ticked while
+// the value is empty. Text typed into it wins over the tick, and a value
+// that has no null is cleared by parsing the blank, so its range, required
+// check and validation apply; cleared is false for both.
+func clearField(tag FormTag, kind FieldKind, value reflect.Value, form url.Values, path FieldPath) (cleared bool, err error) {
+	sensitive := tag.Sensitive && kind.KeepsStoredWhenBlank()
+	if sensitive && form.Get(string(path)) != "" {
+		return false, nil
+	}
+	if err := setFieldNull(value); err != nil {
+		if sensitive {
+			return false, nil
+		}
+		return true, err
+	}
+	return true, nil
+}
+
+// errPostTooLarge is the text of the error net/http's ParseForm returns for
+// a urlencoded body past its 10 MB limit, which it applies unless the body
+// is an http.MaxBytesReader with a limit of its own. Either answers 413, as
+// a body past the multipart limits does.
+const errPostTooLarge = "http: POST too large"
+
+// errNotAForm answers a POST whose body is no form, such as JSON or one
+// without a content type: parsing it reads nothing, and onSubmit would run
+// on a submission of nothing.
+var errNotAForm = errors.New("the body is not a form")
+
+// errPreParseFailed answers a body a middleware parsed before the handler
+// and failed to read (see [preParseFailed]).
+var errPreParseFailed = errors.New("the form body was parsed before the handler and could not be read")
+
+// preParseFailed reports whether the body of r, whose form a middleware
+// parsed before the handler, evidently failed to parse: a multipart body
+// with no multipart form, which a stopped read leaves half consumed, or a
+// urlencoded body with content but no values, as one past a limit leaves
+// it. A middleware such as a method override reading r.FormValue ignores
+// that error, and the handler must not save what is left. A middleware
+// parsing a multipart form must parse all of it (r.ParseMultipartForm or
+// r.FormValue), not only r.ParseForm.
+func preParseFailed(r *http.Request, mediaType string) bool {
+	switch mediaType {
+	case ContentTypeMultipartFormData:
+		return r.MultipartForm == nil
+	case ContentTypeWWWFormURLEncoded:
+		return len(r.PostForm) == 0 && r.ContentLength != 0
+	}
+	return false
+}
+
+// parseFormBody parses the request body into r.PostForm, r.Form and, for a
+// multipart body, r.MultipartForm. Only the body is the submission, so it
+// is parsed on its own: a URL query that cannot be parsed, such as one with
+// a semicolon, fails nothing, and its readable values join r.Form. A form
+// a middleware parsed already holds the query, unless its parse evidently
+// failed ([preParseFailed]). A multipart body past maxUpload, when it is
+// positive, is too large.
+func parseFormBody(w http.ResponseWriter, r *http.Request, maxMem, maxUpload int64) error {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaType != ContentTypeWWWFormURLEncoded && mediaType != ContentTypeMultipartFormData {
+		return errNotAForm
+	}
+	if mediaType == ContentTypeMultipartFormData && maxUpload > 0 && r.Body != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
+	}
+	parsed := r.Form != nil
+	if parsed && preParseFailed(r, mediaType) {
+		return errPreParseFailed
+	}
+	body := *r
+	bodyURL := *r.URL
+	bodyURL.RawQuery = ""
+	body.URL = &bodyURL
+	err := body.ParseForm()
+	if mediaType == ContentTypeMultipartFormData {
+		err = body.ParseMultipartForm(maxMem)
+	}
+	r.Form, r.PostForm, r.MultipartForm = body.Form, body.PostForm, body.MultipartForm
+	if r.Form == nil {
+		r.Form = url.Values{}
+	}
+	if !parsed {
+		query, _ := url.ParseQuery(r.URL.RawQuery)
+		for name, values := range query {
+			r.Form[name] = append(r.Form[name], values...)
+		}
+	}
+	return err
+}
+
+type maxMemoryKey struct{}
+
+// FormMaxMemory returns the [ReflectFormConfig.MaxMemory] of the reflected
+// form handler parsing the request of ctx, or [DefaultMaxMemory]. A
+// decider's file binder reads no larger upload into memory.
+func FormMaxMemory(ctx context.Context) int64 {
+	if n, ok := ctx.Value(maxMemoryKey{}).(int64); ok {
+		return n
+	}
+	return DefaultMaxMemory
+}
+
+// formErrorText is the form-level message for an error onSubmit returned
+// that is no [FieldErrors]: a [FormMessage]'s text, else [FormErrorMessage]
+// unless [RevealInternalServerErrors] is set.
+func formErrorText(err error) string {
+	if m, ok := errors.AsType[FormMessage](err); ok {
+		return string(m)
+	}
+	if RevealInternalServerErrors {
+		return err.Error()
+	}
+	return FormErrorMessage
+}
+
+// isBlank reports whether a value not sent counts as no value for a
+// required check: [isEffectivelyEmpty], or the zero of an enum of any kind,
+// the value an empty select stores, which isEffectivelyEmpty never sees in
+// a number.
+func isBlank(kind FieldKind, value reflect.Value) bool {
+	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
+}
+
+// sentBlank reports whether a sent field holds no value, for the required
+// check and the validation chain. An enum the decider parsed is blank when
+// its submitted text was empty and it bound no value, as a parser that
+// stores the zero for an empty select leaves it; text that bound a zero,
+// such as a Low = iota or an option "0", is a value, which the validation
+// chain then checks. Any other field, also an enum the decider did not
+// parse from the submission, is blank when [isEffectivelyEmpty].
+func sentBlank(cv FieldVisit, form url.Values, path FieldPath, parsed bool) bool {
+	if cv.Kind == FieldKindEnum && parsed {
+		return form.Get(string(path)) == "" && (cv.Value.IsZero() || isEffectivelyEmpty(cv.Value))
+	}
+	return isEffectivelyEmpty(cv.Value)
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a
@@ -358,16 +677,26 @@ func sentinelSet(form map[string][]string, name string) bool {
 }
 
 // setFieldNull asks the addressable value to clear itself. Tries
-// NullSetter first; falls back to reflect-level zeroing for pointer/
+// NullSetter first, then a database/sql type's Scan(nil) on a copy (such
+// as sql.NullString); falls back to reflect-level zeroing for pointer/
 // slice/map/interface kinds.
 func setFieldNull(value reflect.Value) error {
 	if !value.IsValid() {
-		return errs.New("internal: invalid value for clear")
+		return errors.New("internal: invalid value for clear")
 	}
 	if value.CanAddr() {
 		if ns, ok := value.Addr().Interface().(NullSetter); ok {
 			ns.SetNull()
 			return nil
+		}
+		// A database/sql type, such as sql.NullString, scans nil as its
+		// null, into a copy: a Scan that fails may change its value.
+		if _, ok := value.Addr().Interface().(sqlScanner); ok && value.Kind() == reflect.Struct {
+			null := reflect.New(value.Type())
+			if null.Interface().(sqlScanner).Scan(nil) == nil {
+				value.Set(null.Elem())
+				return nil
+			}
 		}
 	}
 	switch value.Kind() {
@@ -377,7 +706,7 @@ func setFieldNull(value reflect.Value) error {
 			return nil
 		}
 	}
-	return errs.New("field is not nullable")
+	return errors.New("field is not nullable")
 }
 
 // isEffectivelyEmpty reports whether value should be treated as
@@ -388,7 +717,14 @@ func setFieldNull(value reflect.Value) error {
 // submission stores the zero value of a fixed-size ID such as uuid.UUID
 // or of a time.Time, so a length check alone would accept a blank ID as
 // uuid.Nil(). A [Zeroable] type decides that itself, as time.Time does.
-func isEffectivelyEmpty(value reflect.Value) bool {
+func isEffectivelyEmpty(value reflect.Value) (empty bool) {
+	// A method that panics, as one promoted through a nil embedded pointer
+	// does (IsNull, IsZero), holds no value.
+	defer func() {
+		if recover() != nil {
+			empty = true
+		}
+	}()
 	if !value.IsValid() {
 		return true
 	}
@@ -439,8 +775,10 @@ func selfSubmitAction(r *http.Request) string {
 
 // buildFormComponent constructs the top-level form Component.
 //
-// The handler emits the surrounding <form> element with method=post,
-// enctype=multipart/form-data and the given action (by default the URL
+// The handler emits the surrounding <form> element with method=post, an
+// enctype of multipart/form-data when a file field, or one whose
+// [FieldBehavior].Multipart is set, renders and
+// application/x-www-form-urlencoded otherwise, and the given action (by default the URL
 // that served the form — see [selfSubmitAction] — or the caller's
 // [ReflectFormConfig.Action] when set), then asks the decider to render
 // each field (in walk order, grouped by section). The explicit action
@@ -450,36 +788,58 @@ func selfSubmitAction(r *http.Request) string {
 // submit button is appended so the form is usable out of the box;
 // renderers can layer their own buttons on top by returning extra
 // children.
-func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string) Component {
+func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
 	}
 	var (
-		root     []Component
-		sections []*sectionEntry
-		byName   = map[string]*sectionEntry{}
+		messages    []Component
+		rowCommands bool // a repeatable field renders its row buttons
+		hasFile     bool // a file input needs a multipart body
+		root        []Component
+		sections    []*sectionEntry
+		byName      = map[string]*sectionEntry{}
+		// consumed holds the paths whose errors a rendered input shows.
+		consumed = map[FieldPath]bool{}
 	)
 	if formMsg != "" {
-		root = append(root, formMessageComponent(formMsg))
+		messages = append(messages, formMessageComponent(formMsg))
 	}
 	for visit := range ReflectFormFields(target) {
 		var wrapped Component
 		if visit.Kind == FieldKindRepeatable {
+			if !repeatableInForm(visit, d) {
+				continue
+			}
+			rowCommands = rowCommands || !visit.Tag.Readonly
 			// The repeatable field owns its own row markup, __present
 			// sentinels and add/remove buttons; the core handler only
 			// places it into the right section.
-			wrapped = renderRepeatable(visit, d, fieldErrs)
+			var rowFiles bool
+			wrapped, rowFiles = renderRepeatable(visit, d, fieldErrs, origins, consumed)
+			hasFile = hasFile || rowFiles
 		} else {
 			beh := d(visit.Path, visit.Field, visit.Value)
 			if beh.Render == nil {
 				continue
 			}
 			errs := fieldErrs[visit.Path]
+			fieldComp := beh.Render(visit.Path, visit.Field, visit.Value, errs)
+			if fieldComp == nil {
+				// A field the decider renders as nothing is not in the form,
+				// so it gets no __present sentinel either: one would make
+				// every save blank it.
+				continue
+			}
+			// A hidden input shows no error of its own.
+			if _, hasErrs := fieldErrs[visit.Path]; hasErrs && visit.Kind != FieldKindHidden {
+				consumed[visit.Path] = true
+			}
+			hasFile = hasFile || visit.Kind == FieldKindFile || beh.Multipart
 			// Each render emits its own __present sentinel; the handler
 			// ALSO ensures one is present (defense-in-depth) when the
 			// decider chose to omit it.
-			fieldComp := beh.Render(visit.Path, visit.Field, visit.Value, errs)
 			wrapped = wrapWithPresentSentinel(visit.Path, fieldComp)
 		}
 		if wrapped == nil {
@@ -497,8 +857,34 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 		}
 		s.components = append(s.components, wrapped)
 	}
+	// An error no input shows, of a hidden field or row cell, a field the
+	// decider does not render or a path that names no field, must not fail
+	// the save silently: it becomes a form-level message, written as an
+	// onSubmit error is ([formErrorText]), once per distinct text.
+	unshown := make([]FieldPath, 0, len(fieldErrs))
+	for path := range fieldErrs {
+		if !consumed[path] {
+			unshown = append(unshown, path)
+		}
+	}
+	slices.Sort(unshown)
+	shownMsgs := map[string]bool{}
+	for _, path := range unshown {
+		for _, err := range fieldErrs[path] {
+			if msg := formErrorText(err); !shownMsgs[msg] {
+				shownMsgs[msg] = true
+				messages = append(messages, formMessageComponent(msg))
+			}
+		}
+	}
 
-	children := make([]any, 0, len(root)+len(sections)+1)
+	children := make([]any, 0, len(messages)+len(root)+len(sections)+2)
+	if rowCommands {
+		children = append(children, defaultSubmitButton())
+	}
+	for _, c := range messages {
+		children = append(children, c)
+	}
 	for _, c := range root {
 		children = append(children, c)
 	}
@@ -513,9 +899,17 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	}
 	children = append(children, submitButton(submitLabel))
 
+	// A form posts urlencoded, which allows 10,000 values, unless a file
+	// input needs multipart, whose limit is 1,000 parts: every field takes
+	// two (its value and __present sentinel), so 100 rows of 5 cells would
+	// already be rejected.
+	enctype := ContentTypeWWWFormURLEncoded
+	if hasFile {
+		enctype = ContentTypeMultipartFormData
+	}
 	formAttribs := []any{
 		Attribute{Name: "method", Value: "post"},
-		Attribute{Name: "enctype", Value: "multipart/form-data"},
+		Attribute{Name: "enctype", Value: enctype},
 		Attribute{Name: "action", Value: action},
 	}
 	all := append(formAttribs, children...)
@@ -540,6 +934,20 @@ func submitButton(label string) Component {
 	return NewElement("button",
 		Attribute{Name: "type", Value: "submit"},
 		Text(label),
+	)
+}
+
+// defaultSubmitButton is the form's first submit button when rows render
+// their "Remove" buttons before the Save button: pressing Enter in an
+// input clicks the first submit button, which would remove a row instead
+// of saving. It is out of sight and out of the tab order rather than
+// display:none, which some browsers skip for that implicit submission.
+func defaultSubmitButton() Component {
+	return NewElement("button",
+		Attribute{Name: "type", Value: "submit"},
+		Attribute{Name: "tabindex", Value: "-1"},
+		Attribute{Name: "aria-hidden", Value: "true"},
+		Attribute{Name: "style", Value: "position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%)"},
 	)
 }
 
