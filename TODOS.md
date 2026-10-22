@@ -384,6 +384,10 @@ hides the add-row button at the limit.
 markers renders a 6 MB page and allocates about 127 MB, and wider row structs
 scale linearly. A row with a required cell answers such a POST with every row
 in error: 9,000 markers against `cmd/example-form` gave a 49 MB page in 1.5 s.
+Each forged row whose hidden cell fails to parse, or whose `form:"sensitive"`
+cell fails its validation, is also one `mx.ReportError` call: 3,300 rows gave
+3,300 synchronous calls, so a hook sending to an error tracker can spend its
+quota on one request.
 
 **Context:** `repeatableRowIndices` and `parseRepeatable` in `repeatable.go`;
 `applyRepeatableCommand` for the add-row side. Predates the date widget work;
@@ -648,7 +652,7 @@ in the date widget branch's review.
 drops HTML `required` (`browserTag` and `hasStoredFile`, copied in `html`
 and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
 `html`, a copy of `mx`'s), the "not a valid value" of a `form:"sensitive"`
-field's error (masked in `mx`'s `validateField` and `html`'s `guardBind`),
+field's error (masked in `mx`'s `validateField` and `html`'s `maskSensitive`),
 and the 64-byte date text limit
 (`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
 `validateBound`, which has a single caller, `validateField`, and fold
@@ -665,25 +669,23 @@ land it; each is a small refactor with an exported helper in `mx`.
 **Priority:** P4
 **Depends on:** None
 
-### A field shows an error's `Error()` text, not its `UserMessage`
+### A server-side timeout counts as a client that went away
 
-**What:** Render an error at its field (`html` and `shadcn` field errors, a
-repeatable field's own errors) as the `UserMessage` of an
-`mx.UserMessageError`, as the form-level message and a `form:"sensitive"`
-field already do.
+**What:** Tell the request's own cancellation (`ctx.Err() != nil`) apart from
+a `context.DeadlineExceeded` that a call with its own timeout returned, and
+treat only the first as a disconnected client.
 
-**Why:** A domain error whose `Error()` adds internal context to its
-`UserMessage`, returned in `mx.FieldErrors` or from a type's `Validate`,
-shows that context under a field that is not sensitive.
+**Why:** A database query under `context.WithTimeout` fails with
+`DeadlineExceeded` while the client still waits: `mx.RespondNonContextError`
+then answers nothing (an empty 200), and `mx.ReportError` never hears of it,
+also from a form's `onSubmit` or load function.
 
-**Context:** Left out of the `UserMessageError` change on purpose: the field
-renderers call `e.Error()`, and `mx.UserMessage` finds only the first user
-message of a joined error, so a field error joining two messages would lose
-one. Needs a helper that collects every user message of a join, plus the
-non-user parts' text, and both renderers calling it.
+**Context:** `isContextError` in `errors.go` decides by the error alone, as
+the `ReportError` contract and `TestRespondNonContextError_SilentForContextErrors`
+require; the 500 path predates the hook. Found in the review of the hook.
 
 **Effort:** S
-**Priority:** P3
+**Priority:** P2
 **Depends on:** None
 
 ### `mx.ReportError` gets a field's error without the field's path

@@ -84,6 +84,13 @@ func (e ibanError) Error() string {
 
 func (e ibanError) UserMessage() string { return "The IBAN is not valid." }
 
+// blankMessageError is a UserMessageError whose UserMessage is empty, which
+// gives the user nothing to read.
+type blankMessageError struct{}
+
+func (blankMessageError) Error() string       { return "crm: partner 7 has no display name" }
+func (blankMessageError) UserMessage() string { return "" }
+
 var (
 	_ UserMessageError = ibanError{}
 	_ UserMessageError = FormMessage("")
@@ -204,7 +211,7 @@ func TestUserMessage_RecognizedByMethodSet(t *testing.T) {
 	if msg, ok := UserMessage(fmt.Errorf("saving: %w", FormMessage("the plan is full"))); !ok || msg != "the plan is full" {
 		t.Errorf("FormMessage: UserMessage = %q, %v", msg, ok)
 	}
-	for _, err := range []error{nil, errors.New("pq: connection refused"), FieldErrors{"Name": nil}} {
+	for _, err := range []error{nil, errors.New("pq: connection refused"), FieldErrors{"Name": nil}, blankMessageError{}, FormMessage("")} {
 		if msg, ok := UserMessage(err); ok {
 			t.Errorf("UserMessage(%v) = %q, want none", err, msg)
 		}
@@ -254,4 +261,27 @@ func TestReportHiddenError(t *testing.T) {
 	ReportHiddenError(t.Context(), context.Canceled)
 	ReportHiddenError(t.Context(), fmt.Errorf("calling the pricing service: %w", context.DeadlineExceeded))
 	rep.checkReported(t, false)
+}
+
+// A field shows the UserMessage of an error, never the Error text of a
+// wrapper around it; every part of a joined error gives its own text, so two
+// joined messages both show, and an error with no user message shows itself.
+func TestFieldErrorText(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, ""},
+		{"plain", errors.New("strconv: invalid syntax"), "strconv: invalid syntax"},
+		{"domain", ibanError{"DE00"}, "The IBAN is not valid."},
+		{"wrapped", fmt.Errorf("partner 7: %w", ibanError{"DE00"}), "The IBAN is not valid."},
+		{"two messages", errors.Join(FormMessage("at least 12 characters"), FormMessage("one digit")), "at least 12 characters\none digit"},
+		{"message and plain", errors.Join(fmt.Errorf("rule: %w", FormMessage("one digit")), errors.New("too short")), "one digit\ntoo short"},
+		{"empty message", blankMessageError{}, "crm: partner 7 has no display name"},
+	} {
+		if got := FieldErrorText(c.err); got != c.want {
+			t.Errorf("%s: FieldErrorText = %q, want %q", c.name, got, c.want)
+		}
+	}
 }

@@ -191,7 +191,7 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			Attribute{Name: "class", Value: "form-error"},
 			Attribute{Name: "role", Value: "alert"},
 			Attribute{Name: "data-error", Value: string(visit.Path)},
-			Text(err.Error()),
+			Text(FieldErrorText(err)),
 		))
 	}
 	consumed[visit.Path] = true

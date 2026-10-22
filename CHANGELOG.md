@@ -290,17 +290,23 @@ API is still free to change.
     one found anywhere in the chain (as `errors.As` finds it, also through
     `errors.Join`), never the `Error()` text around it: the form-level message
     of a reflected form for an `onSubmit` error or an error no input shows, a
-    `form:"sensitive"` field's validation and parse errors, and a context
-    option list that fails while a POST is read. A domain package marks its
-    user-fixable errors without importing go-mx; `mx.FormMessage` gains the
-    method and works as before. `mx.UserMessage(err)` is the test, and
+    `form:"sensitive"` field's validation and parse errors (also of a date or
+    time field, which otherwise shows the format to enter), and a context
+    option list that fails while a POST is read. A field of the `html` and
+    `shadcn` deciders and a repeatable field's own box show an error's
+    `UserMessage` too, and each part of a joined error on its own line. A
+    domain package marks its user-fixable errors without importing go-mx;
+    `mx.FormMessage` gains the method and works as before. An empty
+    `UserMessage` counts as none. `mx.UserMessage(err)` is the test,
     `mx.FormErrorText(ctx, err)` the text a form shows for an error it cannot
-    show at a field, for a decider of the application.
+    show at a field, and `mx.FieldErrorText(err)` the text a field shows, for
+    a decider of the application.
   - `mx.ReportError`, a `func(ctx context.Context, err error)` that is nil by
     default, gets every error go-mx answers with a generic text instead: the
-    500s of `mx.RespondNonContextError` (so also the render errors and
-    recovered panics of `mx.ComponentHTTPHandler`, `mx.ComponentFuncHandler`,
-    the reflected forms and the `html`, `xml` and `web` handlers), a reflected
+    500s of `mx.RespondNonContextError` (so also the render errors of
+    `mx.ComponentHTTPHandler`, `mx.ComponentFuncHandler`, the reflected forms
+    and the `html`, `xml` and `web` handlers, and the panics the first two
+    recover), a reflected
     form's load error, `SSEResponse.SendError`, an `onSubmit` error or an error
     no input shows that the form answers with `mx.FormErrorMessage`, a
     sensitive field's "not a valid value", a failing context option list of

@@ -176,7 +176,7 @@ func appendFieldErrors(parts []any, path mx.FieldPath, errs []error) []any {
 	for _, e := range errs {
 		parts = append(parts, FieldError(
 			mx.NewAttrib("data-error", string(path)),
-			mx.Text(e.Error()),
+			mx.Text(mx.FieldErrorText(e)),
 		))
 	}
 	return parts

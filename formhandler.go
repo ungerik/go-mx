@@ -283,7 +283,9 @@ func ReflectFormHandlerRedirecting[T any](
 			// path; an unknown/injected __cmd__ falls through to a normal
 			// submit rather than silently discarding the save.
 			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, d, cmd) {
-				parseAndValidate(target, d, r, origins)
+				// The command saves nothing and shows no error, so the errors
+				// of this parse, which the next save reports, are not reported.
+				parseAndValidate(target, d, r.WithContext(withoutReports(r.Context())), origins)
 				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
 				render(w, r, target, nil, "", origins)
 				return
@@ -616,15 +618,25 @@ func FormMaxMemory(ctx context.Context) int64 {
 // FormErrorText returns the text a form shows the user for err, an error
 // it cannot show at a field, such as one onSubmit returned that is no
 // [FieldErrors]: its [UserMessage], else [FormErrorMessage], or the error's
-// own text when [RevealInternalServerErrors] is set. An error that is no
-// user message is passed to [ReportError] with ctx ([ReportHiddenError]).
-// A decider of the application can use it for an error it does not show.
+// own text when [RevealInternalServerErrors] is set, and "" for a nil err.
+// An error that is no user message is passed to [ReportError] with ctx
+// ([ReportHiddenError]). A decider of the application can use it for an
+// error it does not show.
+//
+// Unlike a 500, the form is re-rendered also for a context.Canceled or
+// context.DeadlineExceeded, which may come from a call onSubmit made while
+// the client is still there, so it gets a message like any other error; it
+// is not reported.
 func FormErrorText(ctx context.Context, err error) string {
+	if err == nil {
+		return ""
+	}
 	if msg, ok := UserMessage(err); ok {
 		return msg
 	}
-	if text, ok := hiddenErrorText(ctx, err, FormErrorMessage); ok {
-		return text
+	ReportHiddenError(ctx, err)
+	if RevealInternalServerErrors {
+		return err.Error()
 	}
 	return FormErrorMessage
 }

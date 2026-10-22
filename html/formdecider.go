@@ -114,7 +114,7 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 			parts = append(parts, mx.NewElement("p",
 				mx.Attribute{Name: "class", Value: "form-error"},
 				mx.Attribute{Name: "data-error", Value: string(path)},
-				mx.Text(e.Error()),
+				mx.Text(mx.FieldErrorText(e)),
 			))
 		}
 	}
@@ -526,12 +526,16 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			// A hidden time is written as RFC 3339, whatever the field's
 			// widget or range, and setTime reads that without them, also
 			// for a type defined as time.Time, which has no UnmarshalText.
-			return setTime(value, raw, mx.FormTag{Sensitive: tag.Sensitive})
+			return setTime(r.Context(), value, raw, mx.FormTag{Sensitive: tag.Sensitive})
 		}
 		if kind == mx.FieldKindHidden && isPlainNumber(derefType(value.Type())) {
 			// A hidden number, such as a per-row key, binds as a number
 			// does, and a hidden bool as a checkbox does; setScalar takes
-			// only text.
+			// only text. A longer text is no number, and its parse error,
+			// which no input shows and the form reports, would quote it.
+			if len(raw) > maxNumberLen {
+				return errors.New("too long for a number")
+			}
 			return guardBind(r.Context(), value, raw, tag, func() error { return setNumeric(value, raw) })
 		}
 		if kind == mx.FieldKindHidden && derefType(value.Type()).Kind() == reflect.Bool &&
@@ -575,7 +579,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		return setBool(value, raw)
 	case mx.FieldKindDateTime:
 		raw := form.Get(string(path))
-		return setTime(value, raw, tag)
+		return setTime(r.Context(), value, raw, tag)
 	case mx.FieldKindEnum:
 		raw := form.Get(string(path))
 		// A required select's empty option must not become a zero non-string
@@ -603,7 +607,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 				// undone by the list changing before POST.
 				options, err := mx.CollectOptions(r.Context(), reflect.Value{}, tag, keyType)
 				if err != nil {
-					return optionListError(r.Context(), err)
+					return optionListError(r.Context(), err, tag)
 				}
 				if err := rejectUnlistedOptions(options, vals); err != nil {
 					return err
@@ -675,7 +679,7 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 	}
 	options, err := mx.CollectOptions(ctx, value, tag, t)
 	if err != nil {
-		return optionListError(ctx, err)
+		return optionListError(ctx, err, tag)
 	}
 	return rejectUnlistedOptions(options, vals)
 }
@@ -685,11 +689,16 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 // internal details and a call stack, so the field shows [mx.FormErrorText]:
 // the [mx.UserMessage] of a [mx.UserMessageError] the list returned, else
 // [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set, with
-// the error reported to [mx.ReportError]. The text is a [mx.FormMessage],
-// meant for the user, so a form:"sensitive" field shows it too and does not
-// report the error again.
-func optionListError(ctx context.Context, err error) error {
-	return mx.FormMessage(mx.FormErrorText(ctx, err))
+// the error reported to [mx.ReportError]. A form:"sensitive" field reveals
+// nothing, as the list's error may quote the value. The text is a
+// [mx.FormMessage], meant for the user, so the sensitive field's guard shows
+// it as it is and does not report the error again.
+func optionListError(ctx context.Context, err error, tag mx.FormTag) error {
+	text := mx.FormErrorText(ctx, err)
+	if _, ok := mx.UserMessage(err); !ok && tag.Sensitive {
+		text = mx.FormErrorMessage
+	}
+	return mx.FormMessage(text)
 }
 
 // rejectUnlistedOptions is the membership check itself, split out so an
@@ -714,29 +723,34 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
 // embedded pointer does, is an error instead of a failed request. A
-// form:"sensitive" field's error reads "not a valid value", leaving raw out,
-// which an option list, UnmarshalText or strconv error would quote, and is
-// reported with ctx ([mx.ReportHiddenError]); the UserMessage of an
-// [mx.UserMessageError], which quotes nothing, shows as it is. (Date and
-// time fields guard their own panics and sensitive errors.)
+// form:"sensitive" field's error reads "not a valid value" ([maskSensitive]),
+// leaving raw out, which an option list, UnmarshalText or strconv error
+// would quote. (Date and time fields guard their own panics and mask their
+// errors with their format instead.)
 func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
 		}
 		if err != nil && tag.Sensitive {
-			// Only a message itself: an error wrapping or joined with it may
-			// quote raw.
-			if msg, ok := mx.UserMessage(err); ok {
-				err = mx.FormMessage(msg)
-			} else {
-				mx.ReportHiddenError(ctx, err)
-				// Meant for the user, so neither hidden nor reported again.
-				err = mx.FormMessage("not a valid value")
-			}
+			err = maskSensitive(ctx, err, "not a valid value")
 		}
 	}()
 	return bind()
+}
+
+// maskSensitive is the error a form:"sensitive" field shows in place of err,
+// whose text may quote the submitted or stored value: the UserMessage of an
+// [mx.UserMessageError] in it, which quotes nothing, without what it was
+// wrapped or joined with, else mask, with err reported to [mx.ReportError].
+// Either is a [mx.FormMessage], meant for the user, so a later stage neither
+// masks nor reports it again.
+func maskSensitive(ctx context.Context, err error, mask string) error {
+	if msg, ok := mx.UserMessage(err); ok {
+		return mx.FormMessage(msg)
+	}
+	mx.ReportHiddenError(ctx, err)
+	return mx.FormMessage(mask)
 }
 
 // maxNumberLen is the longest text a number field takes.
@@ -1092,7 +1106,7 @@ func setBool(value reflect.Value, raw string) error {
 	return nil
 }
 
-func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
+func setTime(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag) error {
 	// Text longer than any date or time input sends is no date. It is
 	// rejected before it is bound, so the re-render does not echo a
 	// submission of any size, and the field keeps its stored value.
@@ -1104,10 +1118,10 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 			value.SetZero()
 			return nil
 		}
-		return bindPointee(value, func(v reflect.Value) error { return setTime(v, raw, tag) })
+		return bindPointee(value, func(v reflect.Value) error { return setTime(ctx, v, raw, tag) })
 	}
 	if value.Kind() == reflect.String {
-		return setTimeText(value, raw, tag)
+		return setTimeText(ctx, value, raw, tag)
 	}
 	if raw == "" {
 		value.SetZero()
@@ -1167,8 +1181,10 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 		// converted and a time in a DST gap moved.
 		rangeErr = mx.CheckDateTimeRange(tag, raw, t)
 	} else if tag.Sensitive {
-		// A sensitive value is not echoed through the parse error.
-		parseErr = mx.DateTimeFormatError(tag, raw)
+		// A sensitive value is not echoed through the parse error. The format
+		// is all it says, and the type may still read raw in its own spelling,
+		// so it is not reported; a FormMessage is not masked again.
+		parseErr = mx.FormMessage(mx.DateTimeFormatError(tag, raw).Error())
 	}
 	timeType := reflect.TypeFor[time.Time]()
 	if value.Type() == timeType || (value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType)) {
@@ -1180,7 +1196,7 @@ func setTime(value reflect.Value, raw string, tag mx.FormTag) error {
 		return rangeErr
 	}
 	if reflect.PointerTo(value.Type()).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
-		if err := unmarshalTime(value, raw, t, parseErr, tag); err != nil {
+		if err := unmarshalTime(ctx, value, raw, t, parseErr, tag); err != nil {
 			return err
 		}
 		if parseErr != nil && (tag.Min != "" || tag.Max != "") {
@@ -1261,15 +1277,16 @@ func checkOwnTextRange(value reflect.Value, raw string, tag mx.FormTag) error {
 // itself null ([mx.IsNull]) was half set and is refused.
 //
 // A method that panics, as the promoted method of a nil embedded pointer
-// does, is an error. A form:"sensitive" field's error does not echo raw.
-func unmarshalTime(value reflect.Value, raw string, t time.Time, parseErr error, tag mx.FormTag) (err error) {
+// does, is an error. A form:"sensitive" field's error does not echo raw
+// ([maskSensitive]).
+func unmarshalTime(ctx context.Context, value reflect.Value, raw string, t time.Time, parseErr error, tag mx.FormTag) (err error) {
 	typ := value.Type()
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, typ)
 		}
 		if err != nil && tag.Sensitive {
-			err = dateFormatError(value, tag, raw)
+			err = maskSensitive(ctx, err, dateFormatError(value, tag, raw).Error())
 		}
 	}()
 	if parseErr != nil && textIsRFC3339(typ) {
@@ -1356,7 +1373,7 @@ func textIsRFC3339(t reflect.Type) (ok bool) {
 // add-row click, which discards the errors, and in an added repeatable
 // row. The form handler never calls onSubmit while a field has an error,
 // so the rejected text is not saved.
-func setTimeText(value reflect.Value, raw string, tag mx.FormTag) (bindErr error) {
+func setTimeText(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag) (bindErr error) {
 	// An UnmarshalText that panics rejects the value, which stays bound as
 	// posted, as other rejected text does.
 	defer func() {
@@ -1390,7 +1407,7 @@ func setTimeText(value reflect.Value, raw string, tag mx.FormTag) (bindErr error
 		if err != nil {
 			value.SetString(raw)
 			if tag.Sensitive {
-				return mx.DateTimeFormatError(tag, raw)
+				return maskSensitive(ctx, err, mx.DateTimeFormatError(tag, raw).Error())
 			}
 			return err
 		}

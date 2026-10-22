@@ -1844,6 +1844,23 @@ func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
 	}
 }
 
+// A repeatable field's own error shows its UserMessage, not the Error text
+// of the error wrapping it.
+func TestReflectFormHandler_RepeatableFieldErrorShowsUserMessage(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) { return &keyRecord{Key: "sk_1"}, nil },
+		func(context.Context, *keyRecord) error {
+			return FieldErrors{"Lines": fmt.Errorf("invoice 7 at db-host-7: %w", FormMessage("add at least one line"))}
+		},
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Lines"), "1")
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, `data-error="Lines">add at least one line</p>`) || strings.Contains(body, "db-host-7") {
+		t.Errorf("want only the UserMessage in %s", body)
+	}
+}
+
 // Pressing Enter in an input clicks the form's first submit button, so a
 // form whose rows render "Remove" buttons before Save starts with a default
 // button that saves; a form without row buttons has none.
@@ -1998,8 +2015,9 @@ func TestReflectFormHandler_NonFormBodyRejected(t *testing.T) {
 // An onSubmit error with a UserMessage method shows its UserMessage, bare,
 // wrapped or joined with another error, and is not reported: the user sees
 // it. Any other error shows the generic message and is reported once with
-// the request's context, also when it is revealed; a canceled request is
-// not reported.
+// the request's context, also when it is revealed. A context error, such as
+// a downstream call's timeout, is not reported, but the form still shows a
+// message: the generic one, or the error's text when it is revealed.
 func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 	rep := recordReports(t)
 	var submitErr error
@@ -2034,6 +2052,14 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 	rep.checkReported(t, true, submitErr)
 
 	rep.reset()
+	submitErr = fmt.Errorf("pricing at 10.0.0.5: %w", context.DeadlineExceeded)
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">pricing at 10.0.0.5: context deadline exceeded</p>`) {
+		t.Errorf("a revealed context error must show its text: %s", body)
+	}
+	RevealInternalServerErrors = false
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">`+FormErrorMessage+`</p>`) || strings.Contains(body, "10.0.0.5") {
+		t.Errorf("a context error must show the generic message: %s", body)
+	}
 	submitErr = fmt.Errorf("saving: %w", context.Canceled)
 	serveReportRequest(h, http.MethodPost, validSampleForm())
 	rep.checkReported(t, false)
@@ -2120,6 +2146,34 @@ func TestReflectFormHandler_SensitiveValidatorErrors(t *testing.T) {
 		t.Errorf("reported %q, want %q", got, want)
 	}
 
+	// Two hidden errors of one field, the type's and the decider's, read one
+	// "not a valid value" and are both reported.
+	rep.reset()
+	unique := errors.New("pq: key index unavailable")
+	base := newTestDecider()
+	checked := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		beh.Validate = func(FieldPath, reflect.StructField, reflect.Value) error { return unique }
+		return beh
+	}
+	type oneKey struct {
+		Key apiKey `form:"sensitive"`
+	}
+	twice := ReflectFormHandler(
+		func(context.Context) (*oneKey, error) { return &oneKey{}, nil },
+		func(context.Context, *oneKey) error { return nil },
+		checked,
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "typed-SECRET")
+	if body := serveReportRequest(twice, http.MethodPost, form).Body.String(); strings.Count(body, "not a valid value") != 1 || strings.Contains(body, "pq:") {
+		t.Errorf("want one masked message in %s", body)
+	}
+	if got, want := rep.texts(), []string{`invalid key "typed-SECRET"`, unique.Error()}; !slices.Equal(got, want) {
+		t.Errorf("reported %q, want %q", got, want)
+	}
+
 	rep.reset()
 	type hiddenKey struct {
 		Key apiKey `form:"hidden,sensitive"`
@@ -2150,13 +2204,21 @@ func TestReflectFormHandler_ReportsLoadError(t *testing.T) {
 		func(context.Context, *sampleStruct) error { return nil },
 		newTestDecider(),
 	)
-	if rec := serveReportRequest(h, http.MethodGet, nil); rec.Code != http.StatusInternalServerError {
-		t.Errorf("GET: status %d, want 500", rec.Code)
+	if rec := serveReportRequest(h, http.MethodGet, nil); rec.Code != http.StatusInternalServerError || rec.Body.String() != "failed to load record\n" {
+		t.Errorf("GET: status %d, body %q; want a generic 500", rec.Code, rec.Body.String())
 	}
-	if rec := serveReportRequest(h, http.MethodPost, validSampleForm()); rec.Code != http.StatusInternalServerError {
-		t.Errorf("POST: status %d, want 500", rec.Code)
+	if rec := serveReportRequest(h, http.MethodPost, validSampleForm()); rec.Code != http.StatusInternalServerError || rec.Body.String() != "failed to load record\n" {
+		t.Errorf("POST: status %d, body %q; want a generic 500", rec.Code, rec.Body.String())
 	}
 	rep.checkReported(t, true, loadErr, loadErr)
+
+	rep.reset()
+	defer func(prev bool) { RevealInternalServerErrors = prev }(RevealInternalServerErrors)
+	RevealInternalServerErrors = true
+	if rec := serveReportRequest(h, http.MethodGet, nil); rec.Body.String() != "db down\n" {
+		t.Errorf("revealed: body %q, want the error text", rec.Body.String())
+	}
+	rep.checkReported(t, true, loadErr)
 
 	rep.reset()
 	loadErr = fmt.Errorf("loading: %w", context.Canceled)
@@ -2184,4 +2246,96 @@ func TestReflectFormHandler_ReportsRenderError(t *testing.T) {
 		t.Errorf("status %d, body %q; want a generic 500", rec.Code, rec.Body.String())
 	}
 	rep.checkReported(t, true, renderErr)
+}
+
+// An error shown at its field is the user's to read, so it is not reported:
+// an onSubmit FieldErrors entry for a rendered field, and a field's own
+// validation error that is not sensitive.
+func TestReflectFormHandler_ShownFieldErrorsNotReported(t *testing.T) {
+	rep := recordReports(t)
+	h := ReflectFormHandler(
+		func(context.Context) (*hiddenKeyRecord, error) {
+			return &hiddenKeyRecord{Name: "n", Lines: []hiddenKeyLine{{"k", "a"}}}, nil
+		},
+		func(context.Context, *hiddenKeyRecord) error {
+			return FieldErrors{"Name": errors.New("name already taken")}
+		},
+		hiddenKeyDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
+	if body := serveReportRequest(h, http.MethodPost, form).Body.String(); !strings.Contains(body, `data-error="Name">name already taken`) {
+		t.Fatalf("want the error at its field in %s", body)
+	}
+	rep.checkReported(t, true)
+
+	type plainKey struct{ Key apiKey }
+	plain := ReflectFormHandler(
+		func(context.Context) (*plainKey, error) { return &plainKey{}, nil },
+		func(context.Context, *plainKey) error { return nil },
+		newTestDecider(),
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "typed")
+	if body := serveReportRequest(plain, http.MethodPost, form).Body.String(); !strings.Contains(body, "invalid key") {
+		t.Fatalf("want the validation error at its field in %s", body)
+	}
+	rep.checkReported(t, true)
+}
+
+// A user message with no text gives the user nothing to read, so the error
+// counts as hidden: the generic message shows and the error is reported,
+// rather than a failed save with no message and no report.
+func TestReflectFormHandler_BlankUserMessageIsHidden(t *testing.T) {
+	rep := recordReports(t)
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return blankMessageError{} },
+		newTestDecider(),
+	)
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">`+FormErrorMessage+`</p>`) {
+		t.Errorf("want the generic message in %s", body)
+	}
+	rep.checkReported(t, true, blankMessageError{})
+}
+
+// A row command saves nothing and shows no field error, so the errors its
+// parse discards are not reported; the save that follows reports them.
+func TestReflectFormHandler_RowCommandReportsNothing(t *testing.T) {
+	rep := recordReports(t)
+	keys := ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) {
+			return &keyRecord{Key: "legacy-SECRET", Lines: []keyLine{{"row-SECRET"}}}, nil
+		},
+		func(context.Context, *keyRecord) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "")
+	addRow(form, "Lines", 0, map[string]string{"Key": ""})
+	form.Set(sentinelCommand, AddRowCommand("Lines"))
+	serveReportRequest(keys, http.MethodPost, form)
+	rep.checkReported(t, true)
+
+	form.Del(sentinelCommand)
+	serveReportRequest(keys, http.MethodPost, form)
+	if got := len(rep.got()); got != 2 {
+		t.Errorf("the save reported %d errors, want 2", got)
+	}
+}
+
+// FormErrorText is exported for deciders: a nil error is no error, revealed
+// or not, and must not panic.
+func TestFormErrorText_NilError(t *testing.T) {
+	defer func(prev bool) { RevealInternalServerErrors = prev }(RevealInternalServerErrors)
+	for _, reveal := range []bool{false, true} {
+		RevealInternalServerErrors = reveal
+		if got := FormErrorText(t.Context(), nil); got != "" {
+			t.Errorf("reveal=%v: FormErrorText(nil) = %q, want none", reveal, got)
+		}
+	}
 }

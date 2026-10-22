@@ -237,8 +237,9 @@ a half-read one and answers 400.
 
 An error the user can fix is one with a `UserMessage() string` method
 (`mx.UserMessageError`), anywhere in its chain: returned as it is, wrapped with
-`%w` or joined with other errors. The form shows its `UserMessage`, never the
-`Error()` text around it, which may add internal context. go-mx recognizes the
+`%w` or joined with other errors. The form shows its `UserMessage`, above the
+form and at a field alike, never the `Error()` text around it, which may add
+internal context. go-mx recognizes the
 method, not a type, so a domain package marks its user-fixable errors without
 importing go-mx:
 
@@ -252,15 +253,17 @@ func (e InputError) UserMessage() string { return e.Message }
 
 `mx.FormMessage("…")` is the ready-made one for code that does use go-mx. The
 same goes for a `form:"sensitive"` field: it shows the user message of a
-validator's or parser's error, and "not a valid value" for any other error,
-whose text may quote the value the field keeps off the page.
+validator's or parser's error, and "not a valid value" (for a date or time, the
+format to enter) for any other error, whose text may quote the value the field
+keeps off the page. A user message must therefore not quote the value it
+rejects.
 
 What go-mx hides from the client it hands to the application. `mx.ReportError`,
 nil by default, gets every error go-mx answers with a generic text: an internal
 `onSubmit` error, an error no input shows, a sensitive field's masked error, a
-failing load function, and a render error or recovered panic answered with a
-500 (also outside forms, through `mx.RespondNonContextError` and
-`SSEResponse.SendError`). Set it once at start-up to log them:
+failing load function, and a render error answered with a 500 (also outside
+forms, through `mx.RespondNonContextError` and `SSEResponse.SendError`, and the
+panics `mx.ComponentHTTPHandler` recovers). Set it once at start-up to log them:
 
 ```go
 mx.ReportError = func(ctx context.Context, err error) {
@@ -275,8 +278,9 @@ recovered panic with its stack. It does not get an error the user sees, nor a
 A sensitive field's error may quote the value it guards, so a hook that logs
 must keep it as secret as that value. A decider or handler of your own that
 hides an error reports it through `mx.ReportHiddenError(ctx, err)`, which
-applies the same rules, and `mx.FormErrorText(ctx, err)` returns the text a
-form shows for an error no input shows.
+applies the same rules; `mx.FormErrorText(ctx, err)` returns the text a form
+shows for an error no input shows, and `mx.FieldErrorText(err)` the text a
+field shows for one of its errors.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
