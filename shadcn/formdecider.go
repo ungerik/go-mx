@@ -119,7 +119,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 //	  <input ...>
 //	  <FieldDescription>help</FieldDescription> (when set)
 //	  <Label for=clear>clear</Label> (when nullable or sensitive, not required and not readonly)
-//	  <FieldError data-error=path>err</FieldError> (one per error, role="alert")
+//	  <FieldError data-error=path>msg</FieldError> (one per message of each error, role="alert")
 //	</Field>
 //
 // The error look keys off data-invalid on the [Field] root (destructive

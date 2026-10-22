@@ -669,11 +669,91 @@ land it; each is a small refactor with an exported helper in `mx`.
 **Priority:** P4
 **Depends on:** None
 
+### Edge cases of the user message at a field
+
+**What:** Close the gaps the reviews of the `UserMessageError` change left
+in `mx.FieldErrorTexts` and the sensitive masks: an error that supplies its
+`UserMessageError` only through an `As` method shows its `Error()` at a
+field (it does above the form); an empty `UserMessage` stops `errors.As` and
+hides a real one deeper in the chain, as in
+`errors.Join(FormMessage(""), FormMessage("x"))`; a `form:"sensitive"` field
+shows only the first of several joined messages (`validateField`,
+`maskSensitive`); and an error that gives no text, such as an empty
+`FieldErrors` from a decider's Validate, marks a field invalid with no
+message. The shadcn and repeatable renderers of several messages per error
+have no test of their own.
+
+**Why:** Each shows the user less than the error carries, or a wrapper's
+internal text; none is worse than before the change, where fields showed
+`Error()`.
+
+**Context:** `FieldErrorTexts` and `UserMessage` in `errors.go`; a tree walk
+that skips empty messages and asks `errors.As` at each node would fix the
+first two. Found in the review passes of this change; deferred at the
+review cycle limit.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### An internal error joined with a user message is dropped
+
+**What:** Report the rest of an error that also carries a user message or a
+`mx.FieldErrors`, such as `errors.Join(FieldErrors{"Name": taken}, auditErr)`
+returned from `onSubmit`.
+
+**Why:** The form shows the user message, and the internal error reaches
+neither the page nor `mx.ReportError`, so a failed audit write is lost.
+
+**Context:** The `ReportError` contract does not report an error the user
+sees, which an `errors.As` match makes the whole chain; reporting every
+wrapped user message instead would log each validation failure. Needs a rule
+for which parts count as hidden.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A sensitive field shows `onSubmit`'s `FieldErrors` text unmasked
+
+**What:** Mask an `onSubmit` `mx.FieldErrors` entry for a `form:"sensitive"`
+field as its parse and validation errors are: its `UserMessage`, else "not
+a valid value".
+
+**Why:** After a blank submission the record holds the stored secret, and an
+entry such as `fmt.Errorf("token %q rejected", r.Token)` renders it at the
+field.
+
+**Context:** `perField` in `ReflectFormHandlerRedirecting` passes entries to
+the renderers as they are; predates the `UserMessageError` change.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### A visible number field rejects a float that needs more than 64 characters
+
+**What:** Parse a number before applying `maxNumberLen`, as hidden fields
+now do through `guardBind`'s quoting bound.
+
+**Why:** The renderer writes floats with `strconv.FormatFloat(..., 'f', -1, ...)`,
+so a value of 1e64 or more round-trips as more than 64 characters and can
+never be saved again.
+
+**Context:** The `FieldKindNumber` branch of `html.parseField`; predates this
+change.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ### A server-side timeout counts as a client that went away
 
 **What:** Tell the request's own cancellation (`ctx.Err() != nil`) apart from
 a `context.DeadlineExceeded` that a call with its own timeout returned, and
-treat only the first as a disconnected client.
+treat only the first as a disconnected client. A join of a real error with
+`context.Canceled`, as fan-out results collected after a cancel give, is
+the same case.
 
 **Why:** A database query under `context.WithTimeout` fails with
 `DeadlineExceeded` while the client still waits: `mx.RespondNonContextError`

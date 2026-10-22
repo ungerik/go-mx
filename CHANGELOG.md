@@ -295,7 +295,9 @@ API is still free to change.
     option list that fails while a POST is read. A field of the `html` and
     `shadcn` deciders and a repeatable field's own box show an error's
     `UserMessage` too, and each message of a joined error, also a wrapped one,
-    as an error of its own. A
+    as an error of its own (a `form:"sensitive"` field shows the first). A
+    field's error quotes at most 256 bytes of the posted text, so a forged
+    value of any size reaches neither the page nor the hook whole. A
     domain package marks its user-fixable errors without importing go-mx;
     `mx.FormMessage` gains the method and works as before. An empty
     `UserMessage` counts as none. `mx.UserMessage(err)` is the test,

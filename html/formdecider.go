@@ -533,11 +533,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		if kind == mx.FieldKindHidden && isPlainNumber(derefType(value.Type())) {
 			// A hidden number, such as a per-row key, binds as a number
 			// does, and a hidden bool as a checkbox does; setScalar takes
-			// only text. A longer text is no number, and its parse error,
-			// which no input shows and the form reports, would quote it.
-			if len(raw) > maxNumberLen {
-				return errors.New("too long for a number")
-			}
+			// only text.
 			return guardBind(r.Context(), value, raw, tag, func() error { return setNumeric(value, raw) })
 		}
 		if kind == mx.FieldKindHidden && derefType(value.Type()).Kind() == reflect.Bool &&
@@ -724,15 +720,21 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
-// embedded pointer does, is an error instead of a failed request. A
-// form:"sensitive" field's error reads "not a valid value" ([maskSensitive]),
-// leaving raw out, which an option list, UnmarshalText or strconv error
-// would quote. (Date and time fields guard their own panics and mask their
-// errors with their format instead.)
+// embedded pointer does, is an error instead of a failed request. The error
+// of text longer than maxQuotedLen reads "the text is not a valid value",
+// unless it carries a user message: an option list, UnmarshalText or strconv
+// error quotes raw whole, into the page, or, where no input shows it,
+// through [mx.ReportError] into the application's logs. A form:"sensitive"
+// field's error reads "not a valid value" ([maskSensitive]), leaving raw out
+// at any length. (Date and time fields guard their own panics and mask
+// their errors with their format instead.)
 func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
+		}
+		if _, ok := mx.UserMessage(err); err != nil && !ok && len(raw) > maxQuotedLen {
+			err = errors.New("the text is not a valid value")
 		}
 		if err != nil && tag.Sensitive {
 			err = maskSensitive(ctx, err, "not a valid value")
@@ -757,6 +759,10 @@ func maskSensitive(ctx context.Context, err error, mask string) error {
 
 // maxNumberLen is the longest text a number field takes.
 const maxNumberLen = 64
+
+// maxQuotedLen is the longest submitted text a field's error may quote (see
+// [guardBind]); a valid value of any length still binds.
+const maxQuotedLen = 256
 
 // dateFormatError is [mx.DateTimeFormatError] for raw, except for a type
 // that reads only its own spelling, whose format the error cannot name

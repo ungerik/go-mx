@@ -5950,8 +5950,50 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
 	keyed(httptest.NewRecorder(), req)
-	if want := []string{"too long for a number"}; !slices.Equal(reported, want) {
+	if want := []string{"the text is not a valid value"}; !slices.Equal(reported, want) {
 		t.Errorf("reported %d errors of %d bytes, want %q", len(reported), len(strings.Join(reported, "")), want)
+	}
+}
+
+// quotingCode is a hidden value whose UnmarshalText quotes the rejected text.
+type quotingCode struct{ v string }
+
+func (c quotingCode) MarshalText() ([]byte, error) { return []byte(c.v), nil }
+
+func (c *quotingCode) UnmarshalText(b []byte) error {
+	if !strings.HasPrefix(string(b), "c-") {
+		return fmt.Errorf("%q is no code", b)
+	}
+	c.v = string(b)
+	return nil
+}
+
+// A hidden value of any length that is valid saves, a float of 1e70 too, and
+// the error of a forged one of any type quotes no more than a bounded text,
+// into the page or through ReportError.
+func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
+	reported := recordReports(t)
+	type record struct {
+		Scale float64     `form:"hidden"`
+		Code  quotingCode `form:"hidden"`
+		Name  string
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Scale: 1e70, Code: quotingCode{"c-1"}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Scale != 1e70 {
+		t.Fatalf("round trip of a hidden 1e70: status %d, saved %+v", rec.Code, saved)
+	}
+	vals := submittedValues(get.Body.String())
+	vals.Set("Code", strings.Repeat("x", 4096))
+	postValues(t, h, vals)
+	if len(*reported) != 1 || len((*reported)[0]) > 2*maxQuotedLen {
+		t.Errorf("reported %d errors of %d bytes, want one bounded report", len(*reported), len(strings.Join(*reported, "")))
 	}
 }
 

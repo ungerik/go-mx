@@ -292,6 +292,8 @@ func TestFieldErrorTexts(t *testing.T) {
 		{"own message over causes", addressErrors{errors.New("geo: lookup at 10.0.0.5 failed"), errors.New("pq: row 7 locked")}, []string{"Please check the address."}},
 		{"field errors by path", FieldErrors{"B": FormMessage("b"), "A": FormMessage("a"), "C": nil}, []string{"a", "b"}},
 		{"empty message", blankMessageError{}, []string{"crm: partner 7 has no display name"}},
+		{"plain join", errors.Join(errors.New("too short"), errors.New("no digits")), []string{"too short\nno digits"}},
+		{"plain multi-wrap", fmt.Errorf("must be between %w and %w", errors.New("10"), errors.New("20")), []string{"must be between 10 and 20"}},
 	} {
 		if got := FieldErrorTexts(c.err); !slices.Equal(got, c.want) {
 			t.Errorf("%s: FieldErrorTexts = %q, want %q", c.name, got, c.want)

@@ -97,10 +97,11 @@ func UserMessage(err error) (message string, ok bool) {
 // FieldErrorTexts returns the messages a field shows for err, one of its
 // errors, one text each: the UserMessage of a [UserMessageError], which
 // speaks for everything it wraps, else the error's own text, as a field error
-// that is no user message is meant to be read where it is shown. A joined
-// error gives the messages of each of its parts, also when it is wrapped, so
-// two joined user messages both show; a wrapper's own text is left out where
-// a user message is under it. A decider renders a field's errors with it.
+// that is no user message is meant to be read where it is shown. Where a user
+// message is under it, a wrapper's own text is left out, and a joined error
+// gives the messages of each of its parts, also when it is wrapped, so two
+// joined user messages both show; an error with none under it shows its own
+// text whole. A decider renders a field's errors with it.
 func FieldErrorTexts(err error) []string {
 	if err == nil {
 		return nil
@@ -108,15 +109,15 @@ func FieldErrorTexts(err error) []string {
 	if m, ok := err.(UserMessageError); ok && m.UserMessage() != "" {
 		return []string{m.UserMessage()}
 	}
-	switch wrapped := err.(type) {
-	case interface{ Unwrap() []error }:
-		var texts []string
-		for _, part := range wrapped.Unwrap() {
-			texts = append(texts, FieldErrorTexts(part)...)
-		}
-		return texts
-	case interface{ Unwrap() error }:
-		if _, ok := UserMessage(err); ok {
+	if _, ok := UserMessage(err); ok {
+		switch wrapped := err.(type) {
+		case interface{ Unwrap() []error }:
+			var texts []string
+			for _, part := range wrapped.Unwrap() {
+				texts = append(texts, FieldErrorTexts(part)...)
+			}
+			return texts
+		case interface{ Unwrap() error }:
 			return FieldErrorTexts(wrapped.Unwrap())
 		}
 	}
@@ -131,10 +132,11 @@ func FieldErrorTexts(err error) []string {
 // calls it wherever it hides an error; a decider or handler of the
 // application that hides one calls it too.
 func ReportHiddenError(ctx context.Context, err error) {
-	if ReportError == nil || err == nil || isContextError(err) || ctx.Value(unreportedKey{}) != nil {
+	report := ReportError
+	if report == nil || err == nil || isContextError(err) || ctx.Value(unreportedKey{}) != nil {
 		return
 	}
-	ReportError(context.WithoutCancel(ctx), err)
+	report(context.WithoutCancel(ctx), err)
 }
 
 // unreportedKey marks a context whose hidden errors [ReportHiddenError] does
