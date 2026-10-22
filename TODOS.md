@@ -647,9 +647,9 @@ in the date widget branch's review.
 **What:** Keep each reflected-form rule in one place in `mx`: when an input
 drops HTML `required` (`browserTag` and `hasStoredFile`, copied in `html`
 and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
-`html`, a copy of `mx`'s), which error text a page may show
-(`optionListError` in `html` repeats `formErrorText`'s policy, for example
-as an `mx.FormError(err) error`), and the 64-byte date text limit
+`html`, a copy of `mx`'s), the "not a valid value" of a `form:"sensitive"`
+field's error (masked in `mx`'s `validateField` and `html`'s `guardBind`),
+and the 64-byte date text limit
 (`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
 `validateBound`, which has a single caller, `validateField`, and fold
 `mx.SelectedOption` into `mx.SelectPreface` (both renderers call one with
@@ -663,6 +663,62 @@ land it; each is a small refactor with an exported helper in `mx`.
 
 **Effort:** S
 **Priority:** P4
+**Depends on:** None
+
+### A field shows an error's `Error()` text, not its `UserMessage`
+
+**What:** Render an error at its field (`html` and `shadcn` field errors, a
+repeatable field's own errors) as the `UserMessage` of an
+`mx.UserMessageError`, as the form-level message and a `form:"sensitive"`
+field already do.
+
+**Why:** A domain error whose `Error()` adds internal context to its
+`UserMessage`, returned in `mx.FieldErrors` or from a type's `Validate`,
+shows that context under a field that is not sensitive.
+
+**Context:** Left out of the `UserMessageError` change on purpose: the field
+renderers call `e.Error()`, and `mx.UserMessage` finds only the first user
+message of a joined error, so a field error joining two messages would lose
+one. Needs a helper that collects every user message of a join, plus the
+non-user parts' text, and both renderers calling it.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### `mx.ReportError` gets a field's error without the field's path
+
+**What:** Tell the hook which field a reported field error belongs to: an
+error no input shows, a `form:"sensitive"` field's masked error.
+
+**Why:** A log line "required" or a strconv error says nothing about the field;
+for a `mx.FieldErrors` entry under a misspelled path, the path is the bug.
+
+**Context:** `ReportHiddenError` gets the error as it is, so the hook can
+`errors.Is` it. Wrapping it with the path (`fmt.Errorf("%s: %w", path, err)`)
+keeps that, but `html`'s `guardBind` does not know the path and would need it
+passed.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A panic recovered while binding a field is not reported
+
+**What:** Pass the panic `guardBind`, `unmarshalTime` and the other
+field-binding guards in `html` recover to `mx.ReportHiddenError`, with its
+stack.
+
+**Why:** The field shows "cannot be stored as …" and the panic, a bug in the
+application's type such as a promoted method of a nil embedded pointer, is
+dropped; the handler-level panics of `ComponentHTTPHandler` and
+`ComponentFuncHandler` are reported.
+
+**Context:** The guards turn the panic into a validation error the field
+shows, so the user sees an error; only the panic itself is lost.
+
+**Effort:** S
+**Priority:** P3
 **Depends on:** None
 
 ### A static enum without a validator accepts any submitted value

@@ -39,18 +39,23 @@ var DefaultMaxUploadSize int64 = 32 << 20
 var FormSubmitLabel = "Save"
 
 // FormErrorMessage is the form-level message shown when onSubmit returns
-// an error that is neither [FieldErrors] nor [FormMessage]: such an error
-// may carry internal details and a call stack, so its text is shown only
-// when [RevealInternalServerErrors] is set. Reassign to change it globally.
+// an error that is neither [FieldErrors] nor a [UserMessageError]: such an
+// error may carry internal details and a call stack, so its text is shown
+// only when [RevealInternalServerErrors] is set (see [FormErrorText]).
+// Reassign to change it globally.
 var FormErrorMessage = "The form could not be saved."
 
-// FormMessage is an error whose text is meant for the user. When onSubmit
-// returns one, also wrapped, the form shows its text as the form-level
-// message.
+// FormMessage is an error whose text is meant for the user, the
+// [UserMessageError] of go-mx itself. When onSubmit returns one, also
+// wrapped, the form shows its text as the form-level message.
 type FormMessage string
 
 // Error returns the message.
 func (m FormMessage) Error() string { return string(m) }
+
+// UserMessage returns the message, which makes a FormMessage a
+// [UserMessageError].
+func (m FormMessage) UserMessage() string { return string(m) }
 
 // ReflectFormConfig customizes a single [ReflectFormHandlerWith]
 // invocation. Zero-valued fields fall back to their package-level
@@ -104,7 +109,9 @@ type ReflectFormConfig struct {
 // matching field; an entry for a path no input shows goes above the form
 // as below, and a FieldErrors of only nil entries is a successful submit.
 // On any other error the form re-renders with a
-// form-level message: a [FormMessage]'s text, or [FormErrorMessage]. On
+// form-level message, [FormErrorText]: the [UserMessage] of a
+// [UserMessageError] such as a [FormMessage], or [FormErrorMessage], with
+// the error passed to [ReportError]. On
 // success the handler responds with 303 See Other to cfg.Redirect or
 // r.URL.Path when nil. A body that cannot be parsed is answered with 400,
 // or 413 past the multipart limits, net/http's 10 MB for a urlencoded
@@ -225,7 +232,7 @@ func ReflectFormHandlerRedirecting[T any](
 		if cfg.Action != nil {
 			action = cfg.Action(r)
 		}
-		comp := buildFormComponent(target, d, fieldErrs, formMsg, submitLabel, action, origins)
+		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, submitLabel, action, origins)
 		writeFormResponse(w, r, comp)
 	}
 
@@ -234,7 +241,7 @@ func ReflectFormHandlerRedirecting[T any](
 		case http.MethodGet, http.MethodHead:
 			target, err := load(r.Context())
 			if err != nil {
-				respondLoadError(w, err)
+				respondLoadError(w, r, err)
 				return
 			}
 			render(w, r, target, nil, "", nil)
@@ -264,7 +271,7 @@ func ReflectFormHandlerRedirecting[T any](
 			r = r.WithContext(context.WithValue(r.Context(), maxMemoryKey{}, maxMem))
 			target, err := load(r.Context())
 			if err != nil {
-				respondLoadError(w, err)
+				respondLoadError(w, r, err)
 				return
 			}
 			d := pickDecider(r)
@@ -307,7 +314,7 @@ func ReflectFormHandlerRedirecting[T any](
 				}
 			}
 			if err != nil {
-				render(w, r, target, nil, formErrorText(err), origins)
+				render(w, r, target, nil, FormErrorText(r.Context(), err), origins)
 				return
 			}
 			// onSubmit's returned URL wins; an empty string falls back to
@@ -358,10 +365,11 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 // validateField runs the validation chain (see [validateBound]) and then
 // the decider-supplied Validate on a bound field value, at the top level
 // and in a repeatable row alike. The errors of a form:"sensitive" field
-// read "not a valid value": a type's own message may quote the value,
-// which after a blank submission is the stored one. A [FormMessage], such
-// as a password rule, is meant for the user and shows as it is.
-func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath, blank bool) []error {
+// read "not a valid value", and are reported ([ReportHiddenError]): a
+// type's own message may quote the value, which after a blank submission is
+// the stored one. A [UserMessageError], such as a password rule, is meant
+// for the user and shows as its UserMessage.
+func validateField(ctx context.Context, visit FieldVisit, beh FieldBehavior, path FieldPath, blank bool) []error {
 	errs := validateBound(visit.Kind, visit.Value, blank)
 	if beh.Validate != nil {
 		if err := beh.Validate(path, visit.Field, visit.Value); err != nil {
@@ -376,11 +384,15 @@ func validateField(visit FieldVisit, beh FieldBehavior, path FieldPath, blank bo
 	for _, err := range errs {
 		// Only the message itself: an error wrapping or joined with it may
 		// quote the value.
-		if m, ok := errors.AsType[FormMessage](err); ok {
-			shown = append(shown, m)
-		} else if !masked {
-			// Validation results shown to the user carry no callstack.
-			shown = append(shown, errors.New("not a valid value"))
+		if msg, ok := UserMessage(err); ok {
+			shown = append(shown, FormMessage(msg))
+			continue
+		}
+		ReportHiddenError(ctx, err)
+		if !masked {
+			// Meant for the user: where no input shows it, it goes above the
+			// form as it is, neither hidden nor reported again.
+			shown = append(shown, FormMessage("not a valid value"))
 			masked = true
 		}
 	}
@@ -469,7 +481,7 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		out[dstCell] = append(out[dstCell], errors.New("required"))
 		return
 	}
-	if errs := validateField(cv, beh, dstCell, blank); len(errs) > 0 {
+	if errs := validateField(r.Context(), cv, beh, dstCell, blank); len(errs) > 0 {
 		out[dstCell] = append(out[dstCell], errs...)
 	}
 }
@@ -601,15 +613,18 @@ func FormMaxMemory(ctx context.Context) int64 {
 	return DefaultMaxMemory
 }
 
-// formErrorText is the form-level message for an error onSubmit returned
-// that is no [FieldErrors]: a [FormMessage]'s text, else [FormErrorMessage]
-// unless [RevealInternalServerErrors] is set.
-func formErrorText(err error) string {
-	if m, ok := errors.AsType[FormMessage](err); ok {
-		return string(m)
+// FormErrorText returns the text a form shows the user for err, an error
+// it cannot show at a field, such as one onSubmit returned that is no
+// [FieldErrors]: its [UserMessage], else [FormErrorMessage], or the error's
+// own text when [RevealInternalServerErrors] is set. An error that is no
+// user message is passed to [ReportError] with ctx ([ReportHiddenError]).
+// A decider of the application can use it for an error it does not show.
+func FormErrorText(ctx context.Context, err error) string {
+	if msg, ok := UserMessage(err); ok {
+		return msg
 	}
-	if RevealInternalServerErrors {
-		return err.Error()
+	if text, ok := hiddenErrorText(ctx, err, FormErrorMessage); ok {
+		return text
 	}
 	return FormErrorMessage
 }
@@ -788,7 +803,7 @@ func selfSubmitAction(r *http.Request) string {
 // submit button is appended so the form is usable out of the box;
 // renderers can layer their own buttons on top by returning extra
 // children.
-func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins) Component {
+func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
@@ -860,7 +875,8 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	// An error no input shows, of a hidden field or row cell, a field the
 	// decider does not render or a path that names no field, must not fail
 	// the save silently: it becomes a form-level message, written as an
-	// onSubmit error is ([formErrorText]), once per distinct text.
+	// onSubmit error is ([FormErrorText]), once per distinct text. Each
+	// error is reported, also one whose text is shown already.
 	unshown := make([]FieldPath, 0, len(fieldErrs))
 	for path := range fieldErrs {
 		if !consumed[path] {
@@ -871,7 +887,7 @@ func buildFormComponent[T any](target *T, d FieldDecider, fieldErrs map[FieldPat
 	shownMsgs := map[string]bool{}
 	for _, path := range unshown {
 		for _, err := range fieldErrs[path] {
-			if msg := formErrorText(err); !shownMsgs[msg] {
+			if msg := FormErrorText(ctx, err); !shownMsgs[msg] {
 				shownMsgs[msg] = true
 				messages = append(messages, formMessageComponent(msg))
 			}
@@ -983,7 +999,7 @@ func writeFormResponse(w http.ResponseWriter, r *http.Request, comp Component) {
 	var buf bytes.Buffer
 	writer := DefaultWriterFactory.NewWriter(&buf)
 	if err := comp.Render(r.Context(), writer); err != nil {
-		RespondNonContextError(w, err)
+		RespondNonContextError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", ContentTypeHTML)
@@ -991,15 +1007,10 @@ func writeFormResponse(w http.ResponseWriter, r *http.Request, comp Component) {
 }
 
 // respondLoadError surfaces a load() failure as a 500 with a generic
-// message. The detailed error stays server-side unless
-// [RevealInternalServerErrors] is true.
-func respondLoadError(w http.ResponseWriter, err error) {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return
+// message and reports it to [ReportError]. The detailed error stays
+// server-side unless [RevealInternalServerErrors] is true.
+func respondLoadError(w http.ResponseWriter, r *http.Request, err error) {
+	if msg, ok := hiddenErrorText(r.Context(), err, "failed to load record"); ok {
+		http.Error(w, msg, http.StatusInternalServerError)
 	}
-	msg := "failed to load record"
-	if RevealInternalServerErrors {
-		msg = err.Error()
-	}
-	http.Error(w, msg, http.StatusInternalServerError)
 }

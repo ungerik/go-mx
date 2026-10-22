@@ -451,8 +451,8 @@ Serving:
 | `DOCTYPE`                         | The `<!DOCTYPE html>` `Raw` constant  |
 
 Both serving paths set `Content-Type: text/html; charset=utf-8` and turn a
-render error into a 500 via `mx.RespondNonContextError` (which never leaks the
-error string to the client).
+render error into a 500 via `mx.RespondNonContextError`, which never leaks the
+error string to the client and passes the error to `mx.ReportError` instead.
 
 ```go
 page := html.NewDocument("Hello",

@@ -45,7 +45,7 @@ and the handler sends one `Line` per event:
 func stream(w http.ResponseWriter, r *http.Request) {
     sse, err := mx.NewSSEResponse(w, nil)
     if err != nil {
-        mx.RespondNonContextError(w, err) // still a clean 500
+        mx.RespondNonContextError(w, r, err) // still a clean 500
         return
     }
     defer sse.Close()

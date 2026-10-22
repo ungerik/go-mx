@@ -1994,3 +1994,194 @@ func TestReflectFormHandler_NonFormBodyRejected(t *testing.T) {
 		}
 	}
 }
+
+// An onSubmit error with a UserMessage method shows its UserMessage, bare,
+// wrapped or joined with another error, and is not reported: the user sees
+// it. Any other error shows the generic message and is reported once with
+// the request's context, also when it is revealed; a canceled request is
+// not reported.
+func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
+	rep := recordReports(t)
+	var submitErr error
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return submitErr },
+		newTestDecider(),
+	)
+	domain := ibanError{"DE00 1234"}
+	for _, submitErr = range []error{
+		domain,
+		fmt.Errorf("saving partner 7: %w", domain),
+		errors.Join(errors.New("pq: deadlock detected"), domain),
+	} {
+		body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String()
+		if !strings.Contains(body, `<p role="alert">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
+			t.Errorf("%v: want only the UserMessage in %s", submitErr, body)
+		}
+	}
+	rep.checkReported(t, true)
+
+	submitErr = errors.New("pq: connection refused to 10.0.0.5")
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, FormErrorMessage) {
+		t.Errorf("want the generic message in %s", body)
+	}
+	rep.checkReported(t, true, submitErr)
+
+	rep.reset()
+	defer func(prev bool) { RevealInternalServerErrors = prev }(RevealInternalServerErrors)
+	RevealInternalServerErrors = true
+	serveReportRequest(h, http.MethodPost, validSampleForm())
+	rep.checkReported(t, true, submitErr)
+
+	rep.reset()
+	submitErr = fmt.Errorf("saving: %w", context.Canceled)
+	serveReportRequest(h, http.MethodPost, validSampleForm())
+	rep.checkReported(t, false)
+}
+
+// Each error no input shows is reported once, also two that read alike,
+// whose generic message the form shows once. A user message at such a path
+// shows as its UserMessage and is not reported.
+func TestReflectFormHandler_ReportsEachUnshownError(t *testing.T) {
+	rep := recordReports(t)
+	locked := errors.New("pq: row 7 locked")
+	lockedToo := errors.New("pq: row 7 locked")
+	h := ReflectFormHandler(
+		func(context.Context) (*hiddenKeyRecord, error) {
+			return &hiddenKeyRecord{Name: "n", Lines: []hiddenKeyLine{{"k", "a"}}}, nil
+		},
+		func(context.Context, *hiddenKeyRecord) error {
+			return FieldErrors{
+				FieldPath("Lines").Append("0").Append("Key"): locked,
+				"Nmae": lockedToo,
+				"Iban": fmt.Errorf("checking: %w", ibanError{"DE00"}),
+			}
+		},
+		hiddenKeyDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
+	body := serveReportRequest(h, http.MethodPost, form).Body.String()
+	if strings.Count(body, ">"+FormErrorMessage+"<") != 1 || !strings.Contains(body, ">The IBAN is not valid.<") || strings.Contains(body, "pq:") || strings.Contains(body, "checksum") {
+		t.Errorf("want the generic message once and the UserMessage in %s", body)
+	}
+	rep.checkReported(t, true, locked, lockedToo)
+}
+
+// sensitiveIBAN validates itself with a domain error wrapped in one that
+// quotes the value.
+type sensitiveIBAN string
+
+func (v sensitiveIBAN) Validate() error {
+	if !strings.HasPrefix(string(v), "DE") {
+		return fmt.Errorf("%q: %w", string(v), ibanError{string(v)})
+	}
+	return nil
+}
+
+// A sensitive field shows the UserMessage of its validator's error, without
+// the error wrapping it, and reports nothing. Its other validation errors
+// read "not a valid value" and are reported, each once, also when no input
+// shows the message.
+func TestReflectFormHandler_SensitiveValidatorErrors(t *testing.T) {
+	rep := recordReports(t)
+	type ibanRecord struct {
+		IBAN sensitiveIBAN `form:"sensitive"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*ibanRecord, error) { return &ibanRecord{}, nil },
+		func(context.Context, *ibanRecord) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("IBAN"), "1")
+	form.Set("IBAN", "XX-SECRET")
+	body := serveReportRequest(h, http.MethodPost, form).Body.String()
+	if !strings.Contains(body, ">The IBAN is not valid.<") || strings.Contains(body, "not a valid value") || strings.Contains(body, "checksum") {
+		t.Errorf("want only the UserMessage in %s", body)
+	}
+	rep.checkReported(t, true)
+
+	keys := ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) {
+			return &keyRecord{Key: "legacy-SECRET", Lines: []keyLine{{"row-SECRET"}}}, nil
+		},
+		func(context.Context, *keyRecord) error { return nil },
+		newTestDecider(),
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "")
+	addRow(form, "Lines", 0, map[string]string{"Key": ""})
+	serveReportRequest(keys, http.MethodPost, form)
+	if got, want := rep.texts(), []string{`invalid key "legacy-SECRET"`, `invalid key "row-SECRET"`}; !slices.Equal(got, want) {
+		t.Errorf("reported %q, want %q", got, want)
+	}
+
+	rep.reset()
+	type hiddenKey struct {
+		Key apiKey `form:"hidden,sensitive"`
+	}
+	hidden := ReflectFormHandler(
+		func(context.Context) (*hiddenKey, error) { return &hiddenKey{}, nil },
+		func(context.Context, *hiddenKey) error { return nil },
+		hiddenKeyDecider(),
+	)
+	form = url.Values{}
+	form.Set(PresentSentinelName("Key"), "1")
+	form.Set("Key", "forged-SECRET")
+	if body := serveReportRequest(hidden, http.MethodPost, form).Body.String(); !strings.Contains(body, `<p role="alert">`) || strings.Contains(body, "invalid key") {
+		t.Errorf("want a message above the form that does not quote the value in %s", body)
+	}
+	if got, want := rep.texts(), []string{`invalid key "forged-SECRET"`}; !slices.Equal(got, want) {
+		t.Errorf("reported %q, want %q", got, want)
+	}
+}
+
+// A load error answers "failed to load record" and is reported, on GET and
+// POST; a canceled request is not.
+func TestReflectFormHandler_ReportsLoadError(t *testing.T) {
+	rep := recordReports(t)
+	loadErr := errors.New("db down")
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return nil, loadErr },
+		func(context.Context, *sampleStruct) error { return nil },
+		newTestDecider(),
+	)
+	if rec := serveReportRequest(h, http.MethodGet, nil); rec.Code != http.StatusInternalServerError {
+		t.Errorf("GET: status %d, want 500", rec.Code)
+	}
+	if rec := serveReportRequest(h, http.MethodPost, validSampleForm()); rec.Code != http.StatusInternalServerError {
+		t.Errorf("POST: status %d, want 500", rec.Code)
+	}
+	rep.checkReported(t, true, loadErr, loadErr)
+
+	rep.reset()
+	loadErr = fmt.Errorf("loading: %w", context.Canceled)
+	serveReportRequest(h, http.MethodGet, nil)
+	rep.checkReported(t, false)
+}
+
+// A form that fails to render answers a 500 and reports the render error.
+func TestReflectFormHandler_ReportsRenderError(t *testing.T) {
+	rep := recordReports(t)
+	renderErr := errors.New("option provider: pq: connection refused")
+	failing := func(FieldPath, reflect.StructField, reflect.Value) FieldBehavior {
+		return FieldBehavior{
+			Render: func(FieldPath, reflect.StructField, reflect.Value, []error) Component {
+				return NewErrElement(renderErr)
+			},
+		}
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return nil },
+		failing,
+	)
+	if rec := serveReportRequest(h, http.MethodGet, nil); rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "pq:") {
+		t.Errorf("status %d, body %q; want a generic 500", rec.Code, rec.Body.String())
+	}
+	rep.checkReported(t, true, renderErr)
+}

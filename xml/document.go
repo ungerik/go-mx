@@ -77,7 +77,7 @@ func serve(response http.ResponseWriter, request *http.Request, component mx.Com
 	buf := bytes.NewBuffer(nil)
 	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")
 	if err := component.Render(request.Context(), writer); err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	response.Header().Set("Content-Type", mx.ContentTypeXML)

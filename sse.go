@@ -110,7 +110,7 @@ type SSEEvent struct {
 //
 //	sse, err := mx.NewSSEResponse(w, nil)
 //	if err != nil {
-//		mx.RespondNonContextError(w, err)
+//		mx.RespondNonContextError(w, r, err)
 //		return
 //	}
 //	defer sse.Close()
@@ -344,16 +344,17 @@ func renderEventData(ctx context.Context, factory WriterFactory, comp Component)
 // directly.
 //
 // Like [RespondNonContextError] it sends a generic "Internal Server Error"
-// unless [RevealInternalServerErrors] is set, and it does nothing (returning a
-// nil error) when err is a context.Canceled or context.DeadlineExceeded,
-// because the client that would read it has disconnected.
+// unless [RevealInternalServerErrors] is set, passes err to [ReportError] with
+// ctx, and does nothing (returning a nil error) when err is a
+// context.Canceled or context.DeadlineExceeded, because the client that would
+// read it has disconnected.
 //
-// ctx is used only to render the message, with its cancellation stripped: a
-// cancellation is often what caused err, and the report should still reach a
-// client that is still reading.
+// ctx is used to render the message and to report err, with its cancellation
+// stripped: a cancellation is often what caused err, and the report should
+// still reach a client that is still reading.
 func (r *SSEResponse) SendError(ctx context.Context, err error) error {
-	message, report := nonContextErrorMessage(err)
-	if !report {
+	message, ok := hiddenErrorText(ctx, err, "Internal Server Error")
+	if !ok {
 		return nil
 	}
 	return r.Send(context.WithoutCancel(ctx), SSEEventError, Text(message))

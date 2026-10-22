@@ -292,7 +292,7 @@ func (l *LLMsTxt) String() string {
 func (l *LLMsTxt) HandleHTTP(response http.ResponseWriter, request *http.Request) {
 	text, err := l.MarshalText()
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	hash := sha256.Sum256(text)

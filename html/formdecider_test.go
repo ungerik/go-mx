@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -357,6 +358,9 @@ func init() {
 	mx.RegisterNamedOptions("test-html-handler-partners", partnersFromCtx)
 	mx.RegisterNamedOptions("test-html-partners-message", func(context.Context) ([]mx.NamedOption, error) {
 		return nil, fmt.Errorf("partner lookup: %w", mx.FormMessage("The partner list is unavailable, try again later."))
+	})
+	mx.RegisterNamedOptions("test-html-partners-domain", func(context.Context) ([]mx.NamedOption, error) {
+		return nil, fmt.Errorf("partner lookup: %w", partnerListError{})
 	})
 	mx.RegisterNamedOptions("test-html-tags", func(context.Context) ([]mx.NamedOption, error) {
 		return []mx.NamedOption{
@@ -5743,5 +5747,134 @@ func (d *upcomingDate) UnmarshalText(b []byte) error {
 func TestDateTimeInput_NowRelativeDateTypeKeepsDateInput(t *testing.T) {
 	if in := mx.DateTimeInput(reflect.ValueOf(upcomingDate{}), mx.FormTag{Widget: "date"}); in.Type != "date" || in.Format != "YYYY-MM-DD" {
 		t.Errorf("an ISO date type with a window from now: %+v", in)
+	}
+}
+
+// partnerListError is a domain error marked for the user by its method set
+// alone: it uses no go-mx type.
+type partnerListError struct{}
+
+func (partnerListError) Error() string { return "crm: partner index is rebuilding" }
+
+func (partnerListError) UserMessage() string { return "Partners can be chosen again in a minute." }
+
+// taxNumber reads only digits. Its error wraps a domain error marked for
+// the user in one that quotes the text.
+type taxNumber struct{ v string }
+
+func (n taxNumber) MarshalText() ([]byte, error) { return []byte(n.v), nil }
+
+func (n *taxNumber) UnmarshalText(b []byte) error {
+	if strings.Trim(string(b), "0123456789") != "" {
+		return fmt.Errorf("%q: %w", b, taxNumberError{})
+	}
+	n.v = string(b)
+	return nil
+}
+
+type taxNumberError struct{}
+
+func (taxNumberError) Error() string { return "tax: the number holds other characters than digits" }
+
+func (taxNumberError) UserMessage() string { return "Enter the tax number as digits only." }
+
+// recordReports sets mx.ReportError for the duration of the test and
+// returns the text of each error it receives.
+func recordReports(t *testing.T) *[]string {
+	t.Helper()
+	prev := mx.ReportError
+	t.Cleanup(func() { mx.ReportError = prev })
+	reported := new([]string)
+	mx.ReportError = func(_ context.Context, err error) { *reported = append(*reported, err.Error()) }
+	return reported
+}
+
+// A context option list that fails while a POST is parsed is reported once,
+// also for a sensitive field, whose guard hides it again; one that fails
+// with a user message, a FormMessage or a domain error, shows that message
+// and is not reported.
+func TestFieldDecider_OptionListErrorReported(t *testing.T) {
+	reported := recordReports(t)
+	type form struct {
+		Partner   string   `form:"options=test-html-partners"`
+		Tags      []string `form:"options=test-html-partners"`
+		Sensitive string   `form:"options=test-html-partners,sensitive"`
+	}
+	for _, field := range []string{"Partner", "Tags", "Sensitive"} {
+		*reported = nil
+		err := parseFieldValue(t, &form{}, field, "a")
+		if err == nil || strings.Contains(err.Error(), "no partners") {
+			t.Errorf("%s: error %v, want one that hides the list's error", field, err)
+		}
+		if want := []string{"no partners in context"}; !slices.Equal(*reported, want) {
+			t.Errorf("%s: reported %q, want %q", field, *reported, want)
+		}
+	}
+
+	*reported = nil
+	type messageForm struct {
+		Partner string   `form:"options=test-html-partners-domain"`
+		Tags    []string `form:"options=test-html-partners-domain,sensitive"`
+		Message string   `form:"options=test-html-partners-message"`
+	}
+	for field, want := range map[string]string{
+		"Partner": "Partners can be chosen again in a minute.",
+		"Tags":    "Partners can be chosen again in a minute.",
+		"Message": "The partner list is unavailable, try again later.",
+	} {
+		if err := parseFieldValue(t, &messageForm{}, field, "a"); err == nil || err.Error() != want {
+			t.Errorf("%s: error %v, want %q", field, err, want)
+		}
+	}
+	if len(*reported) != 0 {
+		t.Errorf("reported %q, want nothing", *reported)
+	}
+
+	prev := mx.RevealInternalServerErrors
+	mx.RevealInternalServerErrors = true
+	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
+	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || len(*reported) != 1 {
+		t.Errorf("a revealed sensitive option-list error: %v, reported %q; want it reported once", err, *reported)
+	}
+}
+
+// A sensitive field's parse error reads "not a valid value" and is
+// reported with the request's context; the UserMessage of a domain error
+// shows instead, without the error wrapping it, and is not reported.
+func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
+	prev := mx.ReportError
+	t.Cleanup(func() { mx.ReportError = prev })
+	type requestKey struct{}
+	var reported []string
+	mx.ReportError = func(ctx context.Context, err error) {
+		if ctx.Value(requestKey{}) != "request-1" {
+			t.Error("ReportError did not get the request context")
+		}
+		reported = append(reported, err.Error())
+	}
+	type record struct {
+		PIN int       `form:"sensitive"`
+		Tax taxNumber `form:"sensitive"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	vals := url.Values{
+		mx.PresentSentinelName("PIN"): {"1"}, "PIN": {"12a4-SECRET"},
+		mx.PresentSentinelName("Tax"): {"1"}, "Tax": {"12-SECRET"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, ">not a valid value<") || !strings.Contains(body, ">Enter the tax number as digits only.<") || strings.Contains(body, "SECRET") {
+		t.Errorf("want the masked PIN error and the tax number's UserMessage in %s", body)
+	}
+	if len(reported) != 1 || !strings.Contains(reported[0], "invalid syntax") {
+		t.Errorf("reported %q, want the PIN's parse error once", reported)
 	}
 }

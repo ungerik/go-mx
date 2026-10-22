@@ -19,7 +19,9 @@
 // Two flags show what happens when a stream does not simply succeed:
 //
 //   - -fail reports an error in band instead of finishing, because by then the
-//     200 status is committed and there is no 500 left to send.
+//     200 status is committed and there is no 500 left to send. The client
+//     reads a generic text; the error itself goes to the server log through
+//     [mx.ReportError].
 //   - -drop cuts the first connection midway through the reply. The browser
 //     reconnects on its own and sends back the last id it saw, and the handler
 //     resumes from the next event — so the transcript completes exactly once.
@@ -28,6 +30,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -217,7 +220,7 @@ func streamHandler(fail, drop bool) http.HandlerFunc {
 		if err != nil {
 			// Still a clean 500: NewSSEResponse checks that it can flush before
 			// writing anything.
-			mx.RespondNonContextError(w, err)
+			mx.RespondNonContextError(w, r, err)
 			return
 		}
 		defer sse.Close()
@@ -280,6 +283,9 @@ func main() {
 	fail := flag.Bool("fail", false, "report an in-band error mid-stream instead of finishing")
 	drop := flag.Bool("drop", false, "cut the first connection mid-reply, so the browser reconnects and resumes")
 	flag.Parse()
+
+	// What the client is shown a generic text for, the server logs.
+	mx.ReportError = func(_ context.Context, err error) { log.Printf("hidden from the client: %v", err) }
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(*fail, *drop))

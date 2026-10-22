@@ -532,7 +532,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			// A hidden number, such as a per-row key, binds as a number
 			// does, and a hidden bool as a checkbox does; setScalar takes
 			// only text.
-			return guardBind(value, raw, tag, func() error { return setNumeric(value, raw) })
+			return guardBind(r.Context(), value, raw, tag, func() error { return setNumeric(value, raw) })
 		}
 		if kind == mx.FieldKindHidden && derefType(value.Type()).Kind() == reflect.Bool &&
 			!reflect.PointerTo(derefType(value.Type())).Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
@@ -541,9 +541,9 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 				value.SetZero()
 				return nil
 			}
-			return guardBind(value, raw, tag, func() error { return setBool(value, raw) })
+			return guardBind(r.Context(), value, raw, tag, func() error { return setBool(value, raw) })
 		}
-		return guardBind(value, raw, tag, func() error {
+		return guardBind(r.Context(), value, raw, tag, func() error {
 			if err := setScalar(value, raw); err != nil {
 				return err
 			}
@@ -556,7 +556,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		if len(raw) > maxNumberLen {
 			return errors.New("too long for a number")
 		}
-		return guardBind(value, raw, tag, func() error {
+		return guardBind(r.Context(), value, raw, tag, func() error {
 			if err := setNumeric(value, raw); err != nil {
 				return err
 			}
@@ -584,7 +584,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		if raw == "" && tag.Required {
 			return fmt.Errorf("required")
 		}
-		return guardBind(value, raw, tag, func() error {
+		return guardBind(r.Context(), value, raw, tag, func() error {
 			if raw != "" {
 				if err := validateOptionMembership(r.Context(), value, tag, field.Type, raw); err != nil {
 					return err
@@ -594,7 +594,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		})
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
-		return guardBind(value, strings.Join(vals, ","), tag, func() error {
+		return guardBind(r.Context(), value, strings.Join(vals, ","), tag, func() error {
 			if keyType := setKeyType(field.Type); keyType != nil && mx.OptionsNeedContext(tag, keyType) {
 				// The list is the trust boundary for the set, same as a select.
 				// Submitted values outside it are rejected. Members the list
@@ -603,7 +603,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 				// undone by the list changing before POST.
 				options, err := mx.CollectOptions(r.Context(), reflect.Value{}, tag, keyType)
 				if err != nil {
-					return optionListError(err)
+					return optionListError(r.Context(), err)
 				}
 				if err := rejectUnlistedOptions(options, vals); err != nil {
 					return err
@@ -666,34 +666,30 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 //
 // The rejection is a plain validation error (rendered inline at the
 // field). A failure to resolve the option list itself becomes
-// [optionListError]: a [mx.FormMessage] the list returned, else
-// [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set; for
-// a form:"sensitive" field the parser's guard reports either as "not a
-// valid value".
+// [optionListError]: the [mx.UserMessage] of an error the list returned,
+// else [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set,
+// with the error reported to [mx.ReportError].
 func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.FormTag, t reflect.Type, vals ...string) error {
 	if len(vals) == 0 || !mx.OptionsNeedContext(tag, t) {
 		return nil
 	}
 	options, err := mx.CollectOptions(ctx, value, tag, t)
 	if err != nil {
-		return optionListError(err)
+		return optionListError(ctx, err)
 	}
 	return rejectUnlistedOptions(options, vals)
 }
 
 // optionListError is the field error for a context option list that failed
 // while a POST was parsed. Like an onSubmit error, its text may carry
-// internal details and a call stack, so it is shown only when
-// [mx.RevealInternalServerErrors] is set: otherwise the field shows a
-// [mx.FormMessage] the list returned, or [mx.FormErrorMessage].
-func optionListError(err error) error {
-	if m, ok := errors.AsType[mx.FormMessage](err); ok {
-		return m
-	}
-	if mx.RevealInternalServerErrors {
-		return err
-	}
-	return errors.New(mx.FormErrorMessage)
+// internal details and a call stack, so the field shows [mx.FormErrorText]:
+// the [mx.UserMessage] of a [mx.UserMessageError] the list returned, else
+// [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set, with
+// the error reported to [mx.ReportError]. The text is a [mx.FormMessage],
+// meant for the user, so a form:"sensitive" field shows it too and does not
+// report the error again.
+func optionListError(ctx context.Context, err error) error {
+	return mx.FormMessage(mx.FormErrorText(ctx, err))
 }
 
 // rejectUnlistedOptions is the membership check itself, split out so an
@@ -718,11 +714,12 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
 // embedded pointer does, is an error instead of a failed request. A
-// form:"sensitive" field's error leaves raw out, which an option list,
-// UnmarshalText or strconv error would quote; an [mx.FormMessage], which
-// quotes nothing, shows as it is. (Date and time fields guard their own
-// panics and sensitive errors.)
-func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
+// form:"sensitive" field's error reads "not a valid value", leaving raw out,
+// which an option list, UnmarshalText or strconv error would quote, and is
+// reported with ctx ([mx.ReportHiddenError]); the UserMessage of an
+// [mx.UserMessageError], which quotes nothing, shows as it is. (Date and
+// time fields guard their own panics and sensitive errors.)
+func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
@@ -730,10 +727,12 @@ func guardBind(value reflect.Value, raw string, tag mx.FormTag, bind func() erro
 		if err != nil && tag.Sensitive {
 			// Only a message itself: an error wrapping or joined with it may
 			// quote raw.
-			if m, ok := errors.AsType[mx.FormMessage](err); ok {
-				err = m
+			if msg, ok := mx.UserMessage(err); ok {
+				err = mx.FormMessage(msg)
 			} else {
-				err = errors.New("not a valid value")
+				mx.ReportHiddenError(ctx, err)
+				// Meant for the user, so neither hidden nor reported again.
+				err = mx.FormMessage("not a valid value")
 			}
 		}
 	}()

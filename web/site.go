@@ -508,7 +508,7 @@ func (s *Site) RegisterRoutes(mux *http.ServeMux) (err error) {
 func (s *Site) HandleRobotsTxt(response http.ResponseWriter, request *http.Request) {
 	robots, err := s.RobotsTxt()
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	robots.HandleHTTP(response, request)
@@ -520,7 +520,7 @@ func (s *Site) HandleRobotsTxt(response http.ResponseWriter, request *http.Reque
 func (s *Site) HandleSitemapXML(response http.ResponseWriter, request *http.Request) {
 	sitemap, err := s.Sitemap(request.Context())
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	sitemap.HandleHTTP(response, request)

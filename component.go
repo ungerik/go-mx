@@ -121,14 +121,14 @@ func ComponentHTTPHandler(comp Component, writerFactory WriterFactory, header ht
 	return func(response http.ResponseWriter, request *http.Request) {
 		defer func() {
 			if p := recover(); p != nil {
-				RespondNonContextError(response, errs.AsErrorWithDebugStack(p))
+				RespondNonContextError(response, request, errs.AsErrorWithDebugStack(p))
 			}
 		}()
 		var buf bytes.Buffer
 		writer := writerFactory.NewWriter(&buf)
 		err := comp.Render(request.Context(), writer)
 		if err != nil {
-			RespondNonContextError(response, err)
+			RespondNonContextError(response, request, err)
 			return
 		}
 		for key, vals := range header {

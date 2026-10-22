@@ -299,8 +299,8 @@ type FieldVisit struct {
 // FieldErrors implements the error interface via errors.Join. A nil entry
 // is no error, so a FieldErrors whose entries are all nil is a successful
 // submit; an entry for a path no input shows, such as a hidden field's,
-// is shown above the form as a form-level message: a [FormMessage]'s text,
-// else [FormErrorMessage].
+// is shown above the form as a form-level message, [FormErrorText]: the
+// [UserMessage] of a [UserMessageError], else [FormErrorMessage].
 type FieldErrors map[FieldPath]error
 
 // Error joins every entry's message in deterministic (path-sorted)
