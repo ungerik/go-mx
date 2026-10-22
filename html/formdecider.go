@@ -111,11 +111,13 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	}
 	if len(errs) > 0 {
 		for _, e := range errs {
-			parts = append(parts, mx.NewElement("p",
-				mx.Attribute{Name: "class", Value: "form-error"},
-				mx.Attribute{Name: "data-error", Value: string(path)},
-				mx.Text(mx.FieldErrorText(e)),
-			))
+			for _, text := range mx.FieldErrorTexts(e) {
+				parts = append(parts, mx.NewElement("p",
+					mx.Attribute{Name: "class", Value: "form-error"},
+					mx.Attribute{Name: "data-error", Value: string(path)},
+					mx.Text(text),
+				))
+			}
 		}
 	}
 	return parts
@@ -1111,6 +1113,10 @@ func setTime(ctx context.Context, value reflect.Value, raw string, tag mx.FormTa
 	// rejected before it is bound, so the re-render does not echo a
 	// submission of any size, and the field keeps its stored value.
 	if len(raw) > maxDateTimeLen {
+		if tag.Sensitive {
+			// The format is all it says, so it is not reported (see below).
+			return mx.FormMessage(dateFormatError(value, tag, raw).Error())
+		}
 		return dateFormatError(value, tag, raw)
 	}
 	if value.Kind() == reflect.Pointer {

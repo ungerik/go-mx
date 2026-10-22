@@ -263,25 +263,45 @@ func TestReportHiddenError(t *testing.T) {
 	rep.checkReported(t, false)
 }
 
+// addressErrors is a multi-error whose own UserMessage speaks for the
+// internal causes it wraps.
+type addressErrors []error
+
+func (e addressErrors) Error() string       { return errors.Join(e...).Error() }
+func (e addressErrors) Unwrap() []error     { return e }
+func (e addressErrors) UserMessage() string { return "Please check the address." }
+
 // A field shows the UserMessage of an error, never the Error text of a
-// wrapper around it; every part of a joined error gives its own text, so two
-// joined messages both show, and an error with no user message shows itself.
-func TestFieldErrorText(t *testing.T) {
+// wrapper around it or of the causes an error with its own message wraps;
+// every message of a joined error, also a wrapped one, is a text of its own,
+// in a stable order, and an error with no user message shows itself.
+func TestFieldErrorTexts(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		err  error
-		want string
+		want []string
 	}{
-		{"nil", nil, ""},
-		{"plain", errors.New("strconv: invalid syntax"), "strconv: invalid syntax"},
-		{"domain", ibanError{"DE00"}, "The IBAN is not valid."},
-		{"wrapped", fmt.Errorf("partner 7: %w", ibanError{"DE00"}), "The IBAN is not valid."},
-		{"two messages", errors.Join(FormMessage("at least 12 characters"), FormMessage("one digit")), "at least 12 characters\none digit"},
-		{"message and plain", errors.Join(fmt.Errorf("rule: %w", FormMessage("one digit")), errors.New("too short")), "one digit\ntoo short"},
-		{"empty message", blankMessageError{}, "crm: partner 7 has no display name"},
+		{"nil", nil, nil},
+		{"plain", errors.New("strconv: invalid syntax"), []string{"strconv: invalid syntax"}},
+		{"plain wrapped", fmt.Errorf("parsing: %w", errors.New("invalid syntax")), []string{"parsing: invalid syntax"}},
+		{"domain", ibanError{"DE00"}, []string{"The IBAN is not valid."}},
+		{"wrapped", fmt.Errorf("partner 7: %w", ibanError{"DE00"}), []string{"The IBAN is not valid."}},
+		{"two messages", errors.Join(FormMessage("at least 12 characters"), FormMessage("one digit")), []string{"at least 12 characters", "one digit"}},
+		{"wrapped join", fmt.Errorf("password: %w", errors.Join(FormMessage("at least 12 characters"), FormMessage("one digit"))), []string{"at least 12 characters", "one digit"}},
+		{"message and plain", errors.Join(fmt.Errorf("rule: %w", FormMessage("one digit")), errors.New("too short")), []string{"one digit", "too short"}},
+		{"own message over causes", addressErrors{errors.New("geo: lookup at 10.0.0.5 failed"), errors.New("pq: row 7 locked")}, []string{"Please check the address."}},
+		{"field errors by path", FieldErrors{"B": FormMessage("b"), "A": FormMessage("a"), "C": nil}, []string{"a", "b"}},
+		{"empty message", blankMessageError{}, []string{"crm: partner 7 has no display name"}},
 	} {
-		if got := FieldErrorText(c.err); got != c.want {
-			t.Errorf("%s: FieldErrorText = %q, want %q", c.name, got, c.want)
+		if got := FieldErrorTexts(c.err); !slices.Equal(got, c.want) {
+			t.Errorf("%s: FieldErrorTexts = %q, want %q", c.name, got, c.want)
+		}
+	}
+	// A map's order is random; the texts follow the paths every time.
+	many := FieldErrors{"E": FormMessage("e"), "D": FormMessage("d"), "C": FormMessage("c"), "B": FormMessage("b"), "A": FormMessage("a")}
+	for range 20 {
+		if got := FieldErrorTexts(many); !slices.Equal(got, []string{"a", "b", "c", "d", "e"}) {
+			t.Fatalf("FieldErrorTexts(FieldErrors) = %q, want path order", got)
 		}
 	}
 }

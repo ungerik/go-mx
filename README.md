@@ -263,7 +263,7 @@ nil by default, gets every error go-mx answers with a generic text: an internal
 `onSubmit` error, an error no input shows, a sensitive field's masked error, a
 failing load function, and a render error answered with a 500 (also outside
 forms, through `mx.RespondNonContextError` and `SSEResponse.SendError`, and the
-panics `mx.ComponentHTTPHandler` recovers). Set it once at start-up to log them:
+panics `mx.ComponentHTTPHandler` and `mx.ComponentFuncHandler` recover). Set it once at start-up to log them:
 
 ```go
 mx.ReportError = func(ctx context.Context, err error) {
@@ -279,8 +279,8 @@ A sensitive field's error may quote the value it guards, so a hook that logs
 must keep it as secret as that value. A decider or handler of your own that
 hides an error reports it through `mx.ReportHiddenError(ctx, err)`, which
 applies the same rules; `mx.FormErrorText(ctx, err)` returns the text a form
-shows for an error no input shows, and `mx.FieldErrorText(err)` the text a
-field shows for one of its errors.
+shows for an error no input shows, and `mx.FieldErrorTexts(err)` the
+messages a field shows for one of its errors.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a

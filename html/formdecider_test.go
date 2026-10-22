@@ -5970,6 +5970,51 @@ func TestReflectFormHandler_FieldErrorShowsUserMessage(t *testing.T) {
 	if !strings.Contains(body, `data-error="Name">name already taken</p>`) || strings.Contains(body, "db-host-7") {
 		t.Errorf("want only the UserMessage at the field in %s", body)
 	}
+
+	// Two joined messages are two errors at the field, each its own line.
+	joined := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error {
+			return mx.FieldErrors{"Name": fmt.Errorf("name: %w", errors.Join(mx.FormMessage("too short"), mx.FormMessage("no digits")))}
+		},
+		FieldDecider,
+	)
+	body = postValues(t, joined, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
+	if !strings.Contains(body, `data-error="Name">too short</p><p class="form-error" data-error="Name">no digits</p>`) {
+		t.Errorf("want one error element per message in %s", body)
+	}
+}
+
+// rfcWrap embeds time.Time, whose text is RFC 3339.
+type rfcWrap struct{ time.Time }
+
+// A sensitive date or time's format error names only the format: it is not
+// reported, and where no input shows it, it goes above the form as it is,
+// also for text longer than any input sends.
+func TestFieldDecider_SensitiveTimeFormatNotReported(t *testing.T) {
+	reported := recordReports(t)
+	type record struct {
+		At time.Time `form:"hidden,sensitive"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	for _, raw := range []string{"x-SECRET", strings.Repeat("x", 70) + "-SECRET"} {
+		*reported = nil
+		body := postValues(t, h, url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {raw}}).Body.String()
+		if !strings.Contains(body, `<p role="alert">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
+			t.Errorf("%d bytes: reported %q, body %s; want the format above the form, nothing reported", len(raw), *reported, body)
+		}
+	}
+	*reported = nil
+	type form struct {
+		At rfcWrap `form:"widget=date,sensitive"`
+	}
+	if err := parseFieldValue(t, &form{}, "At", "x-SECRET"); err == nil || len(*reported) != 0 {
+		t.Errorf("wrapper: error %v, reported %q; want the format, nothing reported", err, *reported)
+	}
 }
 
 // weekdayError is a domain error marked for the user by its method set.

@@ -318,15 +318,16 @@ func (e FieldErrors) Error() string {
 	return ""
 }
 
-// Unwrap allows errors.Is/errors.As to inspect each per-field error.
+// Unwrap allows errors.Is/errors.As to inspect each per-field error, in the
+// path-sorted order of [FieldErrors.Error].
 func (e FieldErrors) Unwrap() []error {
 	if len(e) == 0 {
 		return nil
 	}
 	parts := make([]error, 0, len(e))
-	for _, err := range e {
-		if err != nil {
-			parts = append(parts, err)
+	for _, p := range slices.Sorted(maps.Keys(e)) {
+		if e[p] != nil {
+			parts = append(parts, e[p])
 		}
 	}
 	return parts

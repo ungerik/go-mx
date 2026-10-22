@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 )
 
 var (
@@ -62,7 +61,7 @@ var (
 // a rule a submitted value breaks. Where go-mx hides the text of any other
 // error, it shows the UserMessage instead: as a reflected form's message for
 // an onSubmit error ([FormErrorText]), and for a form:"sensitive" field. A
-// field shows it in place of the error's own text ([FieldErrorText]), so the
+// field shows it in place of the error's own text ([FieldErrorTexts]), so the
 // Error text of a wrapper never reaches the page.
 //
 // go-mx recognizes the method set wherever [errors.As] finds it in an
@@ -95,29 +94,33 @@ func UserMessage(err error) (message string, ok bool) {
 	return "", false
 }
 
-// FieldErrorText returns the text a field shows for err, one of its errors:
-// the [UserMessage] of a [UserMessageError], else the error's own text, as a
-// field error that is no user message is meant to be read where it is
-// shown. The parts of a joined error each give their text, one per line, so
-// two joined user messages both show. A decider renders a field's errors
-// with it.
-func FieldErrorText(err error) string {
+// FieldErrorTexts returns the messages a field shows for err, one of its
+// errors, one text each: the UserMessage of a [UserMessageError], which
+// speaks for everything it wraps, else the error's own text, as a field error
+// that is no user message is meant to be read where it is shown. A joined
+// error gives the messages of each of its parts, also when it is wrapped, so
+// two joined user messages both show; a wrapper's own text is left out where
+// a user message is under it. A decider renders a field's errors with it.
+func FieldErrorTexts(err error) []string {
 	if err == nil {
-		return ""
+		return nil
 	}
-	if joined, ok := err.(interface{ Unwrap() []error }); ok {
-		texts := make([]string, 0, len(joined.Unwrap()))
-		for _, part := range joined.Unwrap() {
-			if text := FieldErrorText(part); text != "" {
-				texts = append(texts, text)
-			}
+	if m, ok := err.(UserMessageError); ok && m.UserMessage() != "" {
+		return []string{m.UserMessage()}
+	}
+	switch wrapped := err.(type) {
+	case interface{ Unwrap() []error }:
+		var texts []string
+		for _, part := range wrapped.Unwrap() {
+			texts = append(texts, FieldErrorTexts(part)...)
 		}
-		return strings.Join(texts, "\n")
+		return texts
+	case interface{ Unwrap() error }:
+		if _, ok := UserMessage(err); ok {
+			return FieldErrorTexts(wrapped.Unwrap())
+		}
 	}
-	if msg, ok := UserMessage(err); ok {
-		return msg
-	}
-	return err.Error()
+	return []string{err.Error()}
 }
 
 // ReportHiddenError passes err, an error the client is shown a generic text

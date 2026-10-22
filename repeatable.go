@@ -187,12 +187,14 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 		),
 	}
 	for _, err := range fieldErrs[visit.Path] {
-		children = append(children, NewElement("p",
-			Attribute{Name: "class", Value: "form-error"},
-			Attribute{Name: "role", Value: "alert"},
-			Attribute{Name: "data-error", Value: string(visit.Path)},
-			Text(FieldErrorText(err)),
-		))
+		for _, text := range FieldErrorTexts(err) {
+			children = append(children, NewElement("p",
+				Attribute{Name: "class", Value: "form-error"},
+				Attribute{Name: "role", Value: "alert"},
+				Attribute{Name: "data-error", Value: string(visit.Path)},
+				Text(text),
+			))
+		}
 	}
 	consumed[visit.Path] = true
 	readonly := visit.Tag.Readonly
