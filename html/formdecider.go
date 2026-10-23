@@ -733,7 +733,12 @@ func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.Form
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
 		}
 		if err != nil {
-			err = boundFieldError(ctx, err, raw)
+			// A sensitive field's substitute is its mask, whatever its length.
+			substitute := mx.FormMessage("the text is not a valid value")
+			if tag.Sensitive {
+				substitute = "not a valid value"
+			}
+			err = boundFieldError(ctx, err, raw, substitute)
 		}
 		if err != nil && tag.Sensitive {
 			err = maskSensitive(ctx, err, "not a valid value")
@@ -744,21 +749,20 @@ func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.Form
 
 // boundFieldError is err, the error of binding the posted text raw, bounded
 // by [mx.MaxFieldErrorLen] unless it carries a user message. An error whose
-// text is longer than the bound reads "the text is not a valid value"; it is
-// reported when raw is within the bound, as its text was then not built from
-// a forged value. The text is not built at all for raw far longer than the
-// bound, where it could only be a quote of raw several times its size. A
-// short error of a long raw keeps its text and nothing else, so what it
-// holds does not reach [mx.ReportError] either. The substitute is a
-// [mx.FormMessage], meant for the user, so it is not reported again.
-func boundFieldError(ctx context.Context, err error, raw string) error {
+// text is longer than the bound reads substitute; it is reported when raw is
+// within the bound, as its text was then not built from a forged value. For
+// raw longer than 64 times the bound the text is not built at all, as it may
+// quote raw at several times its size, so even a short error reads
+// substitute. A short error of a long raw keeps its text and nothing else,
+// so what it holds does not reach [mx.ReportError] either. The substitute is
+// a [mx.FormMessage], meant for the user, so it is not reported again.
+func boundFieldError(ctx context.Context, err error, raw string, substitute mx.FormMessage) error {
 	maxLen := mx.MaxFieldErrorLen
 	if _, ok := mx.UserMessage(err); ok || maxLen <= 0 {
 		return err
 	}
-	const notValid = mx.FormMessage("the text is not a valid value")
-	if len(raw) > 64*maxLen {
-		return notValid
+	if len(raw)/64 > maxLen {
+		return substitute
 	}
 	text := err.Error()
 	switch {
@@ -766,7 +770,7 @@ func boundFieldError(ctx context.Context, err error, raw string) error {
 		if len(raw) <= maxLen {
 			mx.ReportHiddenError(ctx, err)
 		}
-		return notValid
+		return substitute
 	case len(raw) > maxLen:
 		return errors.New(text)
 	}

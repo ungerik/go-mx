@@ -717,6 +717,29 @@ decider. Found in the review of the bound.
 **Priority:** P2
 **Depends on:** None
 
+### Three binders quote a forged value as they build its error
+
+**What:** Build the quoting error lazily, or quote at most
+`mx.MaxFieldErrorLen` bytes, in `scanError` (its `fmt.Sprintf("%q is", raw)`
+runs before the length check), in `setScanned` (a `database/sql` value is
+scanned as a string and again as `[]byte`, and each `Scan` error quotes it),
+in `rejectUnlistedOptions`, and in `guardBind`'s recovered panic.
+
+**Why:** `boundFieldError` skips building the text of a long value's error,
+but these errors hold the quote already: a forged 12 MB value allocated about
+1.1 GB in a `sql.NullInt64` field, and about 380 MB in a context-option select
+or a type whose UnmarshalText panics.
+
+**Context:** All predate the `UserMessageError` change; found in the review of
+its bound. Also: whether a long error is reported depends on the length of
+the posted text, for a checkbox set the length of all its values joined, so
+a legitimate long value's long error is not reported; reporting a bounded
+stand-in (the error's type and the text's length) would close that.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
 ### A failing upload's temp file answers the client's 400
 
 **What:** Tell a server-side failure of the multipart parser (a full or

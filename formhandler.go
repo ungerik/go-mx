@@ -51,9 +51,13 @@ var FormErrorMessage = "The form could not be saved."
 // deciders built on it, such as shadcn's) whose text is longer than this many
 // bytes and carries no [UserMessage] reads "the text is not a valid value"
 // instead, as such an error typically quotes the posted text whole, a forged
-// value of any size included. A short error of a long value shows as it is.
-// (Date and time fields take no text longer than 64 bytes at all.) 0 or less
-// means no bound. Reassign at init time to change it globally.
+// value of any size included. A short error of a long value shows as it is,
+// up to text 64 times the bound (32 KiB by default), past which the error's
+// text is not built at all, as it may quote the text at several times its
+// size: a type that rejects such large values returns a [UserMessageError]
+// to keep its message. (Date and time fields take no text longer than 64
+// bytes at all.) 0 or less means no bound. Reassign at init time to change
+// it globally.
 var MaxFieldErrorLen = 512
 
 // FormMessage is an error whose text is meant for the user, the

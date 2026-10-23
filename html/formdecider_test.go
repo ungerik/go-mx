@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	stdhtml "html"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -6022,26 +6023,49 @@ func TestBoundFieldError(t *testing.T) {
 	quote := func(raw string) error { return fmt.Errorf("%q is no code", raw) }
 	long := strings.Repeat("x", 600)
 
-	if err := boundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*mx.MaxFieldErrorLen+1)); err.Error() != "the text is not a valid value" {
+	const notValid = mx.FormMessage("the text is not a valid value")
+	if err := boundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*mx.MaxFieldErrorLen+64), notValid); err != error(notValid) {
 		t.Errorf("far past the bound: %v", err)
 	}
-	if err := boundFieldError(t.Context(), quote(long), long); err.Error() != "the text is not a valid value" || len(*reported) != 0 {
+	if err := boundFieldError(t.Context(), quote(long), long, notValid); err.Error() != "the text is not a valid value" || len(*reported) != 0 {
 		t.Errorf("a quote of long text: %v, reported %q", err, *reported)
 	}
 	hint := errors.New("cannot parse value into the type: " + long)
-	if err := boundFieldError(t.Context(), hint, "x"); err.Error() != "the text is not a valid value" || len(*reported) != 1 || (*reported)[0] != hint.Error() {
+	if err := boundFieldError(t.Context(), hint, "x", notValid); err.Error() != "the text is not a valid value" || len(*reported) != 1 || (*reported)[0] != hint.Error() {
 		t.Errorf("a long error of short text: %v, reported %d", err, len(*reported))
 	}
-	kept := boundFieldError(t.Context(), wrappedQuote{quote(long)}, long)
+	kept := boundFieldError(t.Context(), wrappedQuote{quote(long)}, long, notValid)
 	if kept.Error() != "invalid code" || errors.Unwrap(kept) != nil {
 		t.Errorf("a short error of long text: %v, wraps %v; want only its text", kept, errors.Unwrap(kept))
 	}
 	short := quote("abc")
-	if err := boundFieldError(t.Context(), short, "abc"); err != short {
+	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
 		t.Errorf("a short error of short text: %v, want it as it is", err)
 	}
-	if msg := mx.FormMessage(strings.Repeat("m", 600)); boundFieldError(t.Context(), msg, long) != error(msg) {
+	if msg := mx.FormMessage(strings.Repeat("m", 600)); boundFieldError(t.Context(), msg, long, notValid) != error(msg) {
 		t.Error("a user message must stay as it is")
+	}
+
+	// A bound too large to multiply means no bound in practice, not none at all.
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = math.MaxInt
+	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
+		t.Errorf("a bound of MaxInt: %v, want the error as it is", err)
+	}
+}
+
+// A sensitive field shows its mask also for an error past the bound, so the
+// text it shows says nothing of the error's length.
+func TestFieldDecider_SensitiveMaskIgnoresErrorLength(t *testing.T) {
+	recordReports(t)
+	type form struct {
+		Code quotingCode `form:"sensitive"`
+	}
+	for _, raw := range []string{"short", strings.Repeat("x", 600)} {
+		if err := parseFieldValue(t, &form{}, "Code", raw); err == nil || err.Error() != "not a valid value" {
+			t.Errorf("%d bytes: error %v, want the mask", len(raw), err)
+		}
 	}
 }
 
@@ -6065,7 +6089,7 @@ func (a *addressList) UnmarshalText(b []byte) error {
 }
 
 // The bound is on the error, not on the posted text: a long value whose
-// error is short shows that error.
+// error is short shows that error, up to 64 times the bound.
 func TestFieldDecider_LongValueKeepsShortError(t *testing.T) {
 	type form struct {
 		To addressList `form:"widget=textarea"`
