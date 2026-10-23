@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	stdhtml "html"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -357,6 +359,9 @@ func init() {
 	mx.RegisterNamedOptions("test-html-handler-partners", partnersFromCtx)
 	mx.RegisterNamedOptions("test-html-partners-message", func(context.Context) ([]mx.NamedOption, error) {
 		return nil, fmt.Errorf("partner lookup: %w", mx.FormMessage("The partner list is unavailable, try again later."))
+	})
+	mx.RegisterNamedOptions("test-html-partners-domain", func(context.Context) ([]mx.NamedOption, error) {
+		return nil, fmt.Errorf("partner lookup: %w", partnerListError{})
 	})
 	mx.RegisterNamedOptions("test-html-tags", func(context.Context) ([]mx.NamedOption, error) {
 		return []mx.NamedOption{
@@ -5743,5 +5748,490 @@ func (d *upcomingDate) UnmarshalText(b []byte) error {
 func TestDateTimeInput_NowRelativeDateTypeKeepsDateInput(t *testing.T) {
 	if in := mx.DateTimeInput(reflect.ValueOf(upcomingDate{}), mx.FormTag{Widget: "date"}); in.Type != "date" || in.Format != "YYYY-MM-DD" {
 		t.Errorf("an ISO date type with a window from now: %+v", in)
+	}
+}
+
+// partnerListError is a domain error marked for the user by its method set
+// alone: it uses no go-mx type.
+type partnerListError struct{}
+
+func (partnerListError) Error() string { return "crm: partner index is rebuilding" }
+
+func (partnerListError) UserMessage() string { return "Partners can be chosen again in a minute." }
+
+// taxNumber reads only digits. Its error wraps a domain error marked for
+// the user in one that quotes the text.
+type taxNumber struct{ v string }
+
+func (n taxNumber) MarshalText() ([]byte, error) { return []byte(n.v), nil }
+
+func (n *taxNumber) UnmarshalText(b []byte) error {
+	if strings.Trim(string(b), "0123456789") != "" {
+		return fmt.Errorf("%q: %w", b, taxNumberError{})
+	}
+	n.v = string(b)
+	return nil
+}
+
+type taxNumberError struct{}
+
+func (taxNumberError) Error() string { return "tax: the number holds other characters than digits" }
+
+func (taxNumberError) UserMessage() string { return "Enter the tax number as digits only." }
+
+// recordReports sets mx.ReportError for the duration of the test and
+// returns the text of each error it receives.
+func recordReports(t *testing.T) *[]string {
+	t.Helper()
+	prev := mx.ReportError
+	t.Cleanup(func() { mx.ReportError = prev })
+	reported := new([]string)
+	mx.ReportError = func(_ context.Context, err error) { *reported = append(*reported, err.Error()) }
+	return reported
+}
+
+// A context option list that fails while a POST is parsed is reported once,
+// also for a sensitive field, whose guard hides it again; one that fails
+// with a user message, a FormMessage or a domain error, shows that message
+// and is not reported.
+func TestFieldDecider_OptionListErrorReported(t *testing.T) {
+	reported := recordReports(t)
+	type form struct {
+		Partner   string   `form:"options=test-html-partners"`
+		Tags      []string `form:"options=test-html-partners"`
+		Sensitive string   `form:"options=test-html-partners,sensitive"`
+	}
+	for _, field := range []string{"Partner", "Tags", "Sensitive"} {
+		*reported = nil
+		err := parseFieldValue(t, &form{}, field, "a")
+		if err == nil || strings.Contains(err.Error(), "no partners") {
+			t.Errorf("%s: error %v, want one that hides the list's error", field, err)
+		}
+		if want := []string{"no partners in context"}; !slices.Equal(*reported, want) {
+			t.Errorf("%s: reported %q, want %q", field, *reported, want)
+		}
+	}
+
+	*reported = nil
+	type messageForm struct {
+		Partner string   `form:"options=test-html-partners-domain"`
+		Tags    []string `form:"options=test-html-partners-domain,sensitive"`
+		Message string   `form:"options=test-html-partners-message"`
+	}
+	for field, want := range map[string]string{
+		"Partner": "Partners can be chosen again in a minute.",
+		"Tags":    "Partners can be chosen again in a minute.",
+		"Message": "The partner list is unavailable, try again later.",
+	} {
+		if err := parseFieldValue(t, &messageForm{}, field, "a"); err == nil || err.Error() != want {
+			t.Errorf("%s: error %v, want %q", field, err, want)
+		}
+	}
+	if len(*reported) != 0 {
+		t.Errorf("reported %q, want nothing", *reported)
+	}
+
+	// The report carries the request's context, from a select and a set.
+	type requestKey struct{}
+	var withRequest int
+	mx.ReportError = func(ctx context.Context, err error) {
+		if ctx.Value(requestKey{}) == "request-1" {
+			withRequest++
+		}
+	}
+	for _, field := range []string{"Partner", "Tags"} {
+		values := url.Values{field: {"a"}}
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r = r.WithContext(context.WithValue(r.Context(), requestKey{}, "request-1"))
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(&form{}).Elem()
+		sf, _ := v.Type().FieldByName(field)
+		path := mx.FieldPath(field)
+		_ = FieldDecider(path, sf, v.FieldByIndex(sf.Index)).Parse(path, sf, v.FieldByIndex(sf.Index), r)
+	}
+	if withRequest != 2 {
+		t.Errorf("%d of 2 reports got the request context", withRequest)
+	}
+
+	*reported = nil
+	mx.ReportError = func(_ context.Context, err error) { *reported = append(*reported, err.Error()) }
+	prev := mx.RevealInternalServerErrors
+	mx.RevealInternalServerErrors = true
+	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
+	// A sensitive field reveals nothing: the list's error may quote the value.
+	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || err.Error() != mx.FormErrorMessage || len(*reported) != 1 {
+		t.Errorf("a revealed sensitive option-list error: %v, reported %q; want the generic message, reported once", err, *reported)
+	}
+}
+
+// A sensitive field's parse error reads "not a valid value" and is
+// reported with the request's context; the UserMessage of a domain error
+// shows instead, without the error wrapping it, and is not reported.
+func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
+	prev := mx.ReportError
+	t.Cleanup(func() { mx.ReportError = prev })
+	type requestKey struct{}
+	var reported []string
+	mx.ReportError = func(ctx context.Context, err error) {
+		if ctx.Value(requestKey{}) != "request-1" {
+			t.Error("ReportError did not get the request context")
+		}
+		reported = append(reported, err.Error())
+	}
+	type record struct {
+		PIN int       `form:"sensitive"`
+		Tax taxNumber `form:"sensitive"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	vals := url.Values{
+		mx.PresentSentinelName("PIN"): {"1"}, "PIN": {"12a4-SECRET"},
+		mx.PresentSentinelName("Tax"): {"1"}, "Tax": {"12-SECRET"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, ">not a valid value<") || !strings.Contains(body, ">Enter the tax number as digits only.<") || strings.Contains(body, "SECRET") {
+		t.Errorf("want the masked PIN error and the tax number's UserMessage in %s", body)
+	}
+	if len(reported) != 1 || !strings.Contains(reported[0], "invalid syntax") {
+		t.Errorf("reported %q, want the PIN's parse error once", reported)
+	}
+
+	// No input shows a hidden field's error: its mask goes above the form as
+	// it is, and the parse error is not reported a second time there.
+	reported = nil
+	type hiddenRecord struct {
+		Seq int `form:"hidden,sensitive"`
+	}
+	hidden := mx.ReflectFormHandler(
+		func(context.Context) (*hiddenRecord, error) { return &hiddenRecord{}, nil },
+		func(context.Context, *hiddenRecord) error { return nil },
+		FieldDecider,
+	)
+	vals = url.Values{mx.PresentSentinelName("Seq"): {"1"}, "Seq": {"x-SECRET"}}
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
+	rec = httptest.NewRecorder()
+	hidden(rec, req)
+	if body := rec.Body.String(); !strings.Contains(body, `<p role="alert">not a valid value</p>`) || strings.Contains(body, "SECRET") {
+		t.Errorf("want the masked message above the form in %s", body)
+	}
+	if len(reported) != 1 || !strings.Contains(reported[0], "invalid syntax") {
+		t.Errorf("reported %q, want the hidden field's parse error once", reported)
+	}
+
+	// Text longer than any number is rejected unparsed, so the report does
+	// not quote a forged value of any size.
+	reported = nil
+	type keyRecord struct {
+		ID   int `form:"hidden"`
+		Name string
+	}
+	keyed := mx.ReflectFormHandler(
+		func(context.Context) (*keyRecord, error) { return &keyRecord{}, nil },
+		func(context.Context, *keyRecord) error { return nil },
+		FieldDecider,
+	)
+	vals = url.Values{
+		mx.PresentSentinelName("ID"): {"1"}, "ID": {strings.Repeat("9x", 50000)},
+		mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
+	rec = httptest.NewRecorder()
+	keyed(rec, req)
+	if body := rec.Body.String(); len(reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) || len(body) > 10000 {
+		t.Errorf("reported %d errors of %d bytes, page of %d bytes; want the bounded verdict above the form, nothing reported", len(reported), len(strings.Join(reported, "")), len(body))
+	}
+}
+
+// quotingCode is a hidden value whose UnmarshalText quotes the rejected text.
+type quotingCode struct{ v string }
+
+func (c quotingCode) MarshalText() ([]byte, error) { return []byte(c.v), nil }
+
+func (c *quotingCode) UnmarshalText(b []byte) error {
+	if !strings.HasPrefix(string(b), "c-") {
+		return fmt.Errorf("%q is no code", b)
+	}
+	c.v = string(b)
+	return nil
+}
+
+// A hidden value of any length that is valid saves, a float of 1e70 too, and
+// the error of a forged one of any type quotes no more than a bounded text,
+// into the page or through ReportError.
+func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
+	reported := recordReports(t)
+	type record struct {
+		Scale float64     `form:"hidden"`
+		Code  quotingCode `form:"hidden"`
+		Name  string
+	}
+	var saved *record
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Scale: 1e70, Code: quotingCode{"c-1"}}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec := postValues(t, h, submittedValues(get.Body.String())); rec.Code != http.StatusSeeOther || saved == nil || saved.Scale != 1e70 {
+		t.Fatalf("round trip of a hidden 1e70: status %d, saved %+v", rec.Code, saved)
+	}
+	vals := submittedValues(get.Body.String())
+	vals.Set("Code", strings.Repeat("x", 4096))
+	if body := postValues(t, h, vals).Body.String(); len(*reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) {
+		t.Errorf("reported %d errors of %d bytes; want the bounded verdict above the form, nothing reported", len(*reported), len(strings.Join(*reported, "")))
+	}
+
+	// The bound is mx.MaxFieldErrorLen: 0 or less means none.
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = 0
+	*reported = nil
+	postValues(t, h, vals)
+	if len(*reported) != 1 || len((*reported)[0]) < 4096 {
+		t.Errorf("unbounded: reported %d errors of %d bytes, want the whole quote", len(*reported), len(strings.Join(*reported, "")))
+	}
+}
+
+// wrappedQuote keeps the quoting error it wraps behind a short text.
+type wrappedQuote struct{ cause error }
+
+func (e wrappedQuote) Error() string { return "invalid code" }
+func (e wrappedQuote) Unwrap() error { return e.cause }
+
+// The bound of a field's error: for posted text far past it the error's text
+// is never built; a long error of short text is replaced and reported, as no
+// forged value built it; a short error of long text keeps only its text, so
+// the hook does not get the forged value it wraps.
+func TestBoundFieldError(t *testing.T) {
+	reported := recordReports(t)
+	quote := func(raw string) error { return fmt.Errorf("%q is no code", raw) }
+	long := strings.Repeat("x", 600)
+
+	const notValid = mx.FormMessage("the text is not a valid value")
+	if err := boundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*mx.MaxFieldErrorLen+64), notValid); err != error(notValid) {
+		t.Errorf("far past the bound: %v", err)
+	}
+	if err := boundFieldError(t.Context(), quote(long), long, notValid); err.Error() != "the text is not a valid value" || len(*reported) != 0 {
+		t.Errorf("a quote of long text: %v, reported %q", err, *reported)
+	}
+	hint := errors.New("cannot parse value into the type: " + long)
+	if err := boundFieldError(t.Context(), hint, "x", notValid); err.Error() != "the text is not a valid value" || len(*reported) != 1 || (*reported)[0] != hint.Error() {
+		t.Errorf("a long error of short text: %v, reported %d", err, len(*reported))
+	}
+	kept := boundFieldError(t.Context(), wrappedQuote{quote(long)}, long, notValid)
+	if kept.Error() != "invalid code" || errors.Unwrap(kept) != nil {
+		t.Errorf("a short error of long text: %v, wraps %v; want only its text", kept, errors.Unwrap(kept))
+	}
+	short := quote("abc")
+	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
+		t.Errorf("a short error of short text: %v, want it as it is", err)
+	}
+	if msg := mx.FormMessage(strings.Repeat("m", 600)); boundFieldError(t.Context(), msg, long, notValid) != error(msg) {
+		t.Error("a user message must stay as it is")
+	}
+
+	// A bound too large to multiply means no bound in practice, not none at all.
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = math.MaxInt
+	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
+		t.Errorf("a bound of MaxInt: %v, want the error as it is", err)
+	}
+}
+
+// A sensitive field shows its mask also for an error past the bound, so the
+// text it shows says nothing of the error's length.
+func TestFieldDecider_SensitiveMaskIgnoresErrorLength(t *testing.T) {
+	recordReports(t)
+	type form struct {
+		Code quotingCode `form:"sensitive"`
+	}
+	for _, raw := range []string{"short", strings.Repeat("x", 600)} {
+		if err := parseFieldValue(t, &form{}, "Code", raw); err == nil || err.Error() != "not a valid value" {
+			t.Errorf("%d bytes: error %v, want the mask", len(raw), err)
+		}
+	}
+}
+
+// panicOnError fails the test the moment its text is built.
+type panicOnError struct{}
+
+func (panicOnError) Error() string { panic("Error() built for text far past the bound") }
+
+// addressList is text a textarea holds, whose UnmarshalText rejects it with
+// a short message that quotes nothing.
+type addressList struct{ v string }
+
+func (a addressList) MarshalText() ([]byte, error) { return []byte(a.v), nil }
+
+func (a *addressList) UnmarshalText(b []byte) error {
+	if !strings.Contains(string(b), "@") {
+		return errors.New("check the addresses: missing '@'")
+	}
+	a.v = string(b)
+	return nil
+}
+
+// The bound is on the error, not on the posted text: a long value whose
+// error is short shows that error, up to 64 times the bound.
+func TestFieldDecider_LongValueKeepsShortError(t *testing.T) {
+	type form struct {
+		To addressList `form:"widget=textarea"`
+	}
+	if err := parseFieldValue(t, &form{}, "To", strings.Repeat("someone at example dot com, ", 20)); err == nil || err.Error() != "check the addresses: missing '@'" {
+		t.Errorf("error %v, want the type's own short message", err)
+	}
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = 10
+	if err := parseFieldValue(t, &form{}, "To", "x"); err == nil || err.Error() != "the text is not a valid value" {
+		t.Errorf("a bound below the error's length: error %v, want the generic text", err)
+	}
+}
+
+// A field shows the UserMessage of an onSubmit error, not the Error text of
+// the error wrapping it.
+func TestReflectFormHandler_FieldErrorShowsUserMessage(t *testing.T) {
+	type record struct{ Name string }
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error {
+			return mx.FieldErrors{"Name": fmt.Errorf("partner 7 at db-host-7: %w", mx.FormMessage("name already taken"))}
+		},
+		FieldDecider,
+	)
+	body := postValues(t, h, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
+	if !strings.Contains(body, `data-error="Name">name already taken</p>`) || strings.Contains(body, "db-host-7") {
+		t.Errorf("want only the UserMessage at the field in %s", body)
+	}
+
+	// Two joined messages are two errors at the field, each its own line.
+	joined := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error {
+			return mx.FieldErrors{"Name": fmt.Errorf("name: %w", errors.Join(mx.FormMessage("too short"), mx.FormMessage("no digits")))}
+		},
+		FieldDecider,
+	)
+	body = postValues(t, joined, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
+	if !strings.Contains(body, `data-error="Name">too short</p><p class="form-error" data-error="Name">no digits</p>`) {
+		t.Errorf("want one error element per message in %s", body)
+	}
+}
+
+// rfcWrap embeds time.Time, whose text is RFC 3339.
+type rfcWrap struct{ time.Time }
+
+// A sensitive date or time's format error names only the format: it is not
+// reported, and where no input shows it, it goes above the form as it is,
+// also for text longer than any input sends.
+func TestFieldDecider_SensitiveTimeFormatNotReported(t *testing.T) {
+	reported := recordReports(t)
+	type record struct {
+		At time.Time `form:"hidden,sensitive"`
+	}
+	h := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{}, nil },
+		func(context.Context, *record) error { return nil },
+		FieldDecider,
+	)
+	for _, raw := range []string{"x-SECRET", strings.Repeat("x", 70) + "-SECRET"} {
+		*reported = nil
+		body := postValues(t, h, url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {raw}}).Body.String()
+		if !strings.Contains(body, `<p role="alert">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
+			t.Errorf("%d bytes: reported %q, body %s; want the format above the form, nothing reported", len(raw), *reported, body)
+		}
+	}
+	*reported = nil
+	type form struct {
+		At rfcWrap `form:"widget=date,sensitive"`
+	}
+	if err := parseFieldValue(t, &form{}, "At", "x-SECRET"); err == nil || len(*reported) != 0 {
+		t.Errorf("wrapper: error %v, reported %q; want the format, nothing reported", err, *reported)
+	}
+}
+
+// weekdayError is a domain error marked for the user by its method set.
+type weekdayError struct{}
+
+func (weekdayError) Error() string       { return "calendar: the date falls on a weekend" }
+func (weekdayError) UserMessage() string { return "Pick a weekday." }
+
+// unmarshalWorkday rejects a Saturday with a user message wrapped in an
+// error quoting the text, and Christmas with a plain error quoting it.
+func unmarshalWorkday(b []byte) error {
+	switch {
+	case strings.Contains(string(b), "-10-24"):
+		return fmt.Errorf("%q: %w", b, weekdayError{})
+	case strings.Contains(string(b), "-12-25"):
+		return fmt.Errorf("%q is a holiday", b)
+	}
+	return nil
+}
+
+// workdayText is a date held as text, bound through setTimeText.
+type workdayText string
+
+func (d workdayText) MarshalText() ([]byte, error) { return []byte(d), nil }
+
+func (d *workdayText) UnmarshalText(b []byte) error {
+	if err := unmarshalWorkday(b); err != nil {
+		return err
+	}
+	*d = workdayText(b)
+	return nil
+}
+
+// workdayStruct is a date struct, bound through unmarshalTime.
+type workdayStruct struct{ s string }
+
+func (d workdayStruct) MarshalText() ([]byte, error) { return []byte(d.s), nil }
+
+func (d *workdayStruct) UnmarshalText(b []byte) error {
+	if err := unmarshalWorkday(b); err != nil {
+		return err
+	}
+	d.s = string(b)
+	return nil
+}
+
+// A sensitive date field follows the rule of the other sensitive fields: the
+// UserMessage of the type's error shows and is not reported; any other error
+// shows the format and is reported once. Neither quotes the posted text.
+func TestFieldDecider_SensitiveDateUserMessage(t *testing.T) {
+	reported := recordReports(t)
+	type form struct {
+		Text   workdayText   `form:"widget=date,sensitive"`
+		Struct workdayStruct `form:"widget=date,sensitive"`
+	}
+	for _, field := range []string{"Text", "Struct"} {
+		*reported = nil
+		if err := parseFieldValue(t, &form{}, field, "2026-10-24"); err == nil || err.Error() != "Pick a weekday." || len(*reported) != 0 {
+			t.Errorf("%s: error %v, reported %q; want the UserMessage, nothing reported", field, err, *reported)
+		}
+		*reported = nil
+		err := parseFieldValue(t, &form{}, field, "2026-12-25")
+		if err == nil || strings.Contains(err.Error(), "2026-12-25") || len(*reported) != 1 || !strings.Contains((*reported)[0], "holiday") {
+			t.Errorf("%s: error %v, reported %q; want the masked format, the type's error reported once", field, err, *reported)
+		}
+		if _, ok := mx.UserMessage(err); !ok {
+			t.Errorf("%s: the mask %v is no FormMessage, so a hidden field would report it again", field, err)
+		}
 	}
 }

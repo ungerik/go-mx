@@ -123,7 +123,7 @@ func (d *Document) HandleHTTP(response http.ResponseWriter, request *http.Reques
 	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")
 	err := d.Render(request.Context(), writer)
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	response.Header().Set("Content-Type", mx.ContentTypeHTML)

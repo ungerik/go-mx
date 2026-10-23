@@ -158,7 +158,9 @@ buffers a whole response before writing it, so that a deferred computation
 failing mid-render becomes a clean 500 instead of a truncated page;
 `SSEResponse` keeps that guarantee per *event* rather than per response, and
 `SendError` carries a later failure in band, since after the first flush the 200
-is committed and there is no 500 left to send.
+is committed and there is no 500 left to send; like the 500, it shows the client
+a generic text and hands the error to `mx.ReportError` (see
+[Reflected forms](#reflected-forms)).
 
 A browser reconnects to a dropped stream on its own and does it silently, so
 `SSEResponse.SendEvent` takes an `SSEEvent.ID` and `mx.LastEventID(request)`
@@ -218,10 +220,11 @@ string falls back to `cfg.Redirect` then the request path.
 
 When `onSubmit` fails, the form re-renders with the submitted values. A
 `mx.FieldErrors` puts each message under its field (a path no input shows, such
-as a hidden field's, goes above the form like the next two); a `mx.FormMessage`
-(also wrapped) is shown above the form as its text. Any other error is internal: the
-form shows `mx.FormErrorMessage` ("The form could not be saved.") instead of
-its text, unless `mx.RevealInternalServerErrors` is set. A body that cannot be
+as a hidden field's, goes above the form like the next two); an error the user
+can fix is shown above the form as its user message (see below). Any other error
+is internal: the form shows `mx.FormErrorMessage` ("The form could not be
+saved.") instead of its text, unless `mx.RevealInternalServerErrors` is set. A
+body that cannot be
 parsed is answered with 400 (413 past the multipart limits, net/http's
 10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
 `onSubmit`, also when a middleware parsed it first and ignored the error; a
@@ -231,6 +234,61 @@ middleware that reads a multipart form, such as a method override calling
 `r.FormValue`, must parse all of it (`r.ParseMultipartForm` or `r.FormValue`):
 after `r.ParseForm` alone the handler cannot tell an unread multipart body from
 a half-read one and answers 400.
+
+An error the user can fix is one with a `UserMessage() string` method
+(`mx.UserMessageError`), anywhere in its chain: returned as it is, wrapped with
+`%w` or joined with other errors. The form shows its `UserMessage`, above the
+form and at a field alike, never the `Error()` text around it, which may add
+internal context. go-mx recognizes the
+method, not a type, so a domain package marks its user-fixable errors without
+importing go-mx:
+
+```go
+// In a domain package that does not import go-mx.
+type InputError struct{ Field, Message string }
+
+func (e InputError) Error() string       { return e.Field + ": " + e.Message }
+func (e InputError) UserMessage() string { return e.Message }
+```
+
+`mx.FormMessage("…")` is the ready-made one for code that does use go-mx. The
+same goes for a `form:"sensitive"` field: it shows the user message of a
+validator's or parser's error, and "not a valid value" (for a date or time, the
+format to enter) for any other error, whose text may quote the value the field
+keeps off the page. A user message must therefore not quote the value it
+rejects.
+
+What go-mx hides from the client it hands to the application. `mx.ReportError`,
+nil by default, gets every error go-mx answers with a generic text: an internal
+`onSubmit` error, an error no input shows, a sensitive field's masked error, a
+failing load function or context option list, and a render error answered
+with a 500 (also outside forms, through `mx.RespondNonContextError`,
+`SSEResponse.SendError` and `pdf.Document.ServeHTTP`, and the panics
+`mx.ComponentHTTPHandler` and `mx.ComponentFuncHandler` recover). Set it once at start-up to log them:
+
+```go
+mx.ReportError = func(ctx context.Context, err error) {
+    slog.ErrorContext(ctx, "error hidden from the client", "err", err)
+}
+```
+
+A parse error longer than `mx.MaxFieldErrorLen` (512 bytes by default) reads
+"the text is not a valid value" (a sensitive field's: "not a valid value")
+unless it carries a user message, as such an error usually quotes the posted
+text, so a forged value cannot flood the page or the hook. For posted text past
+64 times the bound the error's text is not even built, so a type that rejects
+such large values with a message of its own returns it as a user message.
+
+It gets each hidden error once, with the request's context (its values, not its
+cancellation), whether or not `mx.RevealInternalServerErrors` is set, and a
+recovered panic with its stack. It does not get an error the user sees, nor a
+`context.Canceled` or `context.DeadlineExceeded`: that client has disconnected.
+A sensitive field's error may quote the value it guards, so a hook that logs
+must keep it as secret as that value. A decider or handler of your own that
+hides an error reports it through `mx.ReportHiddenError(ctx, err)`, which
+applies the same rules; `mx.FormErrorText(ctx, err)` returns the text a form
+shows for an error no input shows, and `mx.FieldErrorTexts(err)` the
+messages a field shows for one of its errors.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a

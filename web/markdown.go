@@ -275,7 +275,7 @@ func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request
 	}
 	doc, err := s.MarkdownAlternate(page)
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	s.ServeMarkdownDocument(response, request, page, doc, etag, lastMod)
@@ -310,7 +310,7 @@ func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request
 // [Site.MarkdownAlternate] in [Site.ServeMarkdown].
 func (s *Site) ServeMarkdownDocument(response http.ResponseWriter, request *http.Request, page *Page, doc *MarkdownDocument, etag string, lastMod time.Time) {
 	if doc == nil {
-		mx.RespondNonContextError(response, errs.Errorf("page %q: no Markdown document to serve", page.Path))
+		mx.RespondNonContextError(response, request, errs.Errorf("page %q: no Markdown document to serve", page.Path))
 		return
 	}
 	header := response.Header()

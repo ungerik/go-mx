@@ -57,7 +57,7 @@ func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, reques
 	// field would otherwise crash the request without a response.
 	defer func() {
 		if p := recover(); p != nil {
-			RespondNonContextError(response, errs.AsErrorWithDebugStack(p))
+			RespondNonContextError(response, request, errs.AsErrorWithDebugStack(p))
 		}
 	}()
 	var funcArg T
@@ -84,7 +84,7 @@ func (h *ComponentFuncHandler[T]) ServeHTTP(response http.ResponseWriter, reques
 	writer := factory.NewWriter(&body)
 	err := h.compFunc(funcArg).Render(request.Context(), writer)
 	if err != nil {
-		RespondNonContextError(response, err)
+		RespondNonContextError(response, request, err)
 		return
 	}
 	for _, header := range h.headers {

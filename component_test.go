@@ -1,6 +1,11 @@
 package mx
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -98,5 +103,40 @@ func TestDefaultAsComponent_residualMatchesEquivalentString(t *testing.T) {
 	withString := renderToString(t, NewElement("div", "<x>"))
 	if withResidual != withString {
 		t.Errorf("residual %q != string %q", withResidual, withString)
+	}
+}
+
+// A component that fails to render, or panics, answers a 500 and is
+// reported, a panic with the debug stack its error carries. A render the
+// client canceled is not reported.
+func TestComponentHTTPHandler_ReportsErrorsAndPanics(t *testing.T) {
+	rep := recordReports(t)
+	var renderErr error
+	failing := ComponentHTTPHandler(ComponentFunc(func(context.Context, Writer) error { return renderErr }), DefaultWriterFactory, nil)
+	renderErr = errors.New("template: pq: connection refused")
+	if rec := serveReportRequest(failing, http.MethodGet, nil); rec.Code != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", rec.Code)
+	}
+	rep.checkReported(t, true, renderErr)
+
+	rep.reset()
+	renderErr = fmt.Errorf("rendering: %w", context.Canceled)
+	serveReportRequest(failing, http.MethodGet, nil)
+	rep.checkReported(t, false)
+
+	panicking := ComponentHTTPHandler(ComponentFunc(func(context.Context, Writer) error { panic("nil map in the sidebar") }), DefaultWriterFactory, nil)
+	if rec := serveReportRequest(panicking, http.MethodGet, nil); rec.Code != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", rec.Code)
+	}
+	checkReportedPanic(t, rep, "nil map in the sidebar")
+}
+
+// checkReportedPanic fails the test unless rep holds one report: the
+// recovered panic value with the debug stack of the panic.
+func checkReportedPanic(t *testing.T, rep *reports, value string) {
+	t.Helper()
+	texts := rep.texts()
+	if len(texts) != 1 || !strings.HasPrefix(texts[0], value+"\n") || !strings.Contains(texts[0], "goroutine ") {
+		t.Errorf("reported %q, want the panic %q with its stack", texts, value)
 	}
 }

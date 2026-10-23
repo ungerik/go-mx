@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"slices"
+
+	"github.com/ungerik/go-mx"
 )
 
 // ContentType is the MIME type of PDF output.
@@ -297,10 +299,12 @@ func (d *Document) OutputFile(ctx context.Context, filename string) error {
 
 // ServeHTTP renders the document and serves it as application/pdf, using the
 // request context for cancellation. On error it responds with a short, generic
-// 500 message and does not leak the underlying error.
+// 500 message and does not leak the underlying error, which it passes to
+// [mx.ReportError] instead.
 func (d *Document) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	pdfBytes, err := d.Bytes(req.Context())
 	if err != nil {
+		mx.ReportHiddenError(req.Context(), err)
 		http.Error(w, "failed to render PDF", http.StatusInternalServerError)
 		return
 	}

@@ -384,6 +384,10 @@ hides the add-row button at the limit.
 markers renders a 6 MB page and allocates about 127 MB, and wider row structs
 scale linearly. A row with a required cell answers such a POST with every row
 in error: 9,000 markers against `cmd/example-form` gave a 49 MB page in 1.5 s.
+Each forged row whose hidden cell fails to parse, or whose `form:"sensitive"`
+cell fails its validation, is also one `mx.ReportError` call: 3,300 rows gave
+3,300 synchronous calls, so a hook sending to an error tracker can spend its
+quota on one request.
 
 **Context:** `repeatableRowIndices` and `parseRepeatable` in `repeatable.go`;
 `applyRepeatableCommand` for the add-row side. Predates the date widget work;
@@ -647,9 +651,9 @@ in the date widget branch's review.
 **What:** Keep each reflected-form rule in one place in `mx`: when an input
 drops HTML `required` (`browserTag` and `hasStoredFile`, copied in `html`
 and `shadcn`), the RFC 3339 check of a time wrapper (`textIsRFC3339` in
-`html`, a copy of `mx`'s), which error text a page may show
-(`optionListError` in `html` repeats `formErrorText`'s policy, for example
-as an `mx.FormError(err) error`), and the 64-byte date text limit
+`html`, a copy of `mx`'s), the "not a valid value" of a `form:"sensitive"`
+field's error (masked in `mx`'s `validateField` and `html`'s `maskSensitive`),
+and the 64-byte date text limit
 (`maxDateTimeLen` in `html`, `maxQuotedDateTimeLen` in `mx`). Also inline
 `validateBound`, which has a single caller, `validateField`, and fold
 `mx.SelectedOption` into `mx.SelectPreface` (both renderers call one with
@@ -663,6 +667,216 @@ land it; each is a small refactor with an exported helper in `mx`.
 
 **Effort:** S
 **Priority:** P4
+**Depends on:** None
+
+### Edge cases of the user message at a field
+
+**What:** Close the gaps the reviews of the `UserMessageError` change left
+in `mx.FieldErrorTexts` and the sensitive masks: an error that supplies its
+`UserMessageError` only through an `As` method shows its `Error()` at a
+field (it does above the form); an empty `UserMessage` stops `errors.As` and
+hides a real one deeper in the chain, as in
+`errors.Join(FormMessage(""), FormMessage("x"))`; a `form:"sensitive"` field
+shows only the first of several joined messages (`validateField`,
+`maskSensitive`); and an error that gives no text, such as an empty
+`FieldErrors` from a decider's Validate, marks a field invalid with no
+message. The shadcn and repeatable renderers of several messages per error
+have no test of their own.
+
+**Why:** Each shows the user less than the error carries, or a wrapper's
+internal text; none is worse than before the change, where fields showed
+`Error()`.
+
+**Context:** `FieldErrorTexts` and `UserMessage` in `errors.go`; a tree walk
+that skips empty messages and asks `errors.As` at each node would fix the
+first two. Found in the review passes of this change; deferred at the
+review cycle limit.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Validation errors are not bounded by `mx.MaxFieldErrorLen`
+
+**What:** Apply the bound to every error a field shows or reports, not only
+to `html.FieldDecider`'s parse errors: the validation chain's (a go-enum
+`Validate` quotes the value with `%#v`), a decider's `Validate`, the parts
+of a joined error next to a user message, which exempts all of them, and a
+user message itself, which a domain type may build by quoting the value
+without knowing of the bound.
+
+**Why:** A forged string enum of 200 KB in a visible select shows whole at
+the field, and in a hidden one reaches `mx.ReportError` whole; a checkbox
+set gets one error per forged element, so 9,990 values give a 930 KB page.
+
+**Context:** `guardBind` in `html/formdecider.go` holds the only bound;
+moving it into `mx`'s `parseField`, per error part, would cover every
+decider. Found in the review of the bound.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### Three binders quote a forged value as they build its error
+
+**What:** Build the quoting error lazily, or quote at most
+`mx.MaxFieldErrorLen` bytes, in `scanError` (its `fmt.Sprintf("%q is", raw)`
+runs before the length check), in `setScanned` (a `database/sql` value is
+scanned as a string and again as `[]byte`, and each `Scan` error quotes it),
+in `rejectUnlistedOptions`, and in `guardBind`'s recovered panic.
+
+**Why:** `boundFieldError` skips building the text of a long value's error,
+but these errors hold the quote already: a forged 12 MB value allocated about
+1.1 GB in a `sql.NullInt64` field, and about 380 MB in a context-option select
+or a type whose UnmarshalText panics.
+
+**Context:** All predate the `UserMessageError` change; found in the review of
+its bound. Also: whether a long error is reported depends on the length of
+the posted text, for a checkbox set the length of all its values joined, so
+a legitimate long value's long error is not reported; reporting a bounded
+stand-in (the error's type and the text's length) would close that.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### A failing upload's temp file answers the client's 400
+
+**What:** Tell a server-side failure of the multipart parser (a full or
+missing temp directory) apart from a malformed body, answer it with a 500
+and report it.
+
+**Why:** All uploads then fail with "could not parse form" and nothing
+reaches `mx.ReportError`, which excludes the 400s as the client's.
+
+**Context:** `parseFormBody` and the status switch in
+`ReflectFormHandlerRedirecting`; predates this change.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A nil request or context panics in the error helpers
+
+**What:** Fall back to `context.Background()` in `RespondNonContextError`
+for a nil request and in `ReportHiddenError` and `FormErrorText` for a nil
+context.
+
+**Why:** A nil context panics only once `mx.ReportError` is set, which tests
+that leave the hook nil never see.
+
+**Context:** `errors.go`; Go's convention forbids a nil context, so this is
+defense against misuse.
+
+**Effort:** XS
+**Priority:** P4
+**Depends on:** None
+
+### An internal error joined with a user message is dropped
+
+**What:** Report the rest of an error that also carries a user message or a
+`mx.FieldErrors`, such as `errors.Join(FieldErrors{"Name": taken}, auditErr)`
+returned from `onSubmit`.
+
+**Why:** The form shows the user message, and the internal error reaches
+neither the page nor `mx.ReportError`, so a failed audit write is lost.
+
+**Context:** The `ReportError` contract does not report an error the user
+sees, which an `errors.As` match makes the whole chain; reporting every
+wrapped user message instead would log each validation failure. Needs a rule
+for which parts count as hidden.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A sensitive field shows `onSubmit`'s `FieldErrors` text unmasked
+
+**What:** Mask an `onSubmit` `mx.FieldErrors` entry for a `form:"sensitive"`
+field as its parse and validation errors are: its `UserMessage`, else "not
+a valid value".
+
+**Why:** After a blank submission the record holds the stored secret, and an
+entry such as `fmt.Errorf("token %q rejected", r.Token)` renders it at the
+field.
+
+**Context:** `perField` in `ReflectFormHandlerRedirecting` passes entries to
+the renderers as they are; predates the `UserMessageError` change.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### A visible number field rejects a float that needs more than 64 characters
+
+**What:** Parse a number before applying `maxNumberLen`, as hidden fields
+now do through `guardBind`'s quoting bound.
+
+**Why:** The renderer writes floats with `strconv.FormatFloat(..., 'f', -1, ...)`,
+so a value of 1e64 or more round-trips as more than 64 characters and can
+never be saved again.
+
+**Context:** The `FieldKindNumber` branch of `html.parseField`; predates this
+change.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A server-side timeout counts as a client that went away
+
+**What:** Tell the request's own cancellation (`ctx.Err() != nil`) apart from
+a `context.DeadlineExceeded` that a call with its own timeout returned, and
+treat only the first as a disconnected client. A join of a real error with
+`context.Canceled`, as fan-out results collected after a cancel give, is
+the same case.
+
+**Why:** A database query under `context.WithTimeout` fails with
+`DeadlineExceeded` while the client still waits: `mx.RespondNonContextError`
+then answers nothing (an empty 200), and `mx.ReportError` never hears of it,
+also from a form's `onSubmit` or load function.
+
+**Context:** `isContextError` in `errors.go` decides by the error alone, as
+the `ReportError` contract and `TestRespondNonContextError_SilentForContextErrors`
+require; the 500 path predates the hook. Found in the review of the hook.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### `mx.ReportError` gets a field's error without the field's path
+
+**What:** Tell the hook which field a reported field error belongs to: an
+error no input shows, a `form:"sensitive"` field's masked error.
+
+**Why:** A log line "required" or a strconv error says nothing about the field;
+for a `mx.FieldErrors` entry under a misspelled path, the path is the bug.
+
+**Context:** `ReportHiddenError` gets the error as it is, so the hook can
+`errors.Is` it. Wrapping it with the path (`fmt.Errorf("%s: %w", path, err)`)
+keeps that, but `html`'s `guardBind` does not know the path and would need it
+passed.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A panic recovered while binding a field is not reported
+
+**What:** Pass the panic `guardBind`, `unmarshalTime` and the other
+field-binding guards in `html` recover to `mx.ReportHiddenError`, with its
+stack.
+
+**Why:** The field shows "cannot be stored as …" and the panic, a bug in the
+application's type such as a promoted method of a nil embedded pointer, is
+dropped; the handler-level panics of `ComponentHTTPHandler` and
+`ComponentFuncHandler` are reported.
+
+**Context:** The guards turn the panic into a validation error the field
+shows, so the user sees an error; only the panic itself is lost.
+
+**Effort:** S
+**Priority:** P3
 **Depends on:** None
 
 ### A static enum without a validator accepts any submitted value

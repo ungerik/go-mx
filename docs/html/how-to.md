@@ -73,8 +73,8 @@ document), use `html.Serve(addr, component)`.
 your `<h1>` and `<p>` inside `<body>`.
 
 **Troubleshooting:** a render error becomes a `500` with a generic message (the
-error string is never sent to the client). Log it server-side if you need the
-detail.
+error string is never sent to the client). Set `mx.ReportError` once at start-up
+to log it server-side if you need the detail.
 
 ## Add CSS and JavaScript to a page
 
@@ -211,9 +211,11 @@ func main() {
 The handler renders the `<form>` on GET and, on POST, parses **only the fields it
 rendered** (an allowlist against mass-assignment), validates, and either
 re-renders with inline errors or 303-redirects on success. Return
-`mx.FormMessage("…")` from `onSubmit` for a message shown above the form; any
-other error shows the generic `mx.FormErrorMessage`, so internal details stay
-out of the page.
+`mx.FormMessage("…")` from `onSubmit` for a message shown above the form, or any
+error with a `UserMessage() string` method, also wrapped, which a domain package
+can define without importing go-mx; any other error shows the generic
+`mx.FormErrorMessage`, so internal details stay out of the page, and goes to
+`mx.ReportError` for the application to log.
 
 **Editing an existing record:** pass a non-nil `load` that returns the current
 `*T`; the form is seeded with its values.

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -941,4 +942,32 @@ func TestSSEResponse_SendCannotForgeAFrameFromEventData(t *testing.T) {
 	if got := strings.Count(body(rec), "\n\n"); got != 1 {
 		t.Errorf("%d frame terminators in the output, want 1 — the data forged a second event", got)
 	}
+}
+
+// The client reads a generic event, so SendError reports the error with the
+// context it was given, also when the error is revealed; a disconnected
+// client is not reported.
+func TestSSEResponse_SendErrorReportsTheError(t *testing.T) {
+	rep := recordReports(t)
+	ctx := context.WithValue(t.Context(), requestKey{}, "request-1")
+	hidden := errors.New("ledger query timed out after 30s")
+	sse, _ := newSSETest(t)
+	if err := sse.SendError(ctx, hidden); err != nil {
+		t.Fatalf("SendError: %v", err)
+	}
+	rep.checkReported(t, true, hidden)
+
+	rep.reset()
+	defer func(prev bool) { RevealInternalServerErrors = prev }(RevealInternalServerErrors)
+	RevealInternalServerErrors = true
+	if err := sse.SendError(ctx, hidden); err != nil {
+		t.Fatalf("SendError: %v", err)
+	}
+	rep.checkReported(t, true, hidden)
+
+	rep.reset()
+	if err := sse.SendError(ctx, fmt.Errorf("streaming: %w", context.Canceled)); err != nil {
+		t.Fatalf("SendError: %v", err)
+	}
+	rep.checkReported(t, false)
 }

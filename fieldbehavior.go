@@ -299,8 +299,8 @@ type FieldVisit struct {
 // FieldErrors implements the error interface via errors.Join. A nil entry
 // is no error, so a FieldErrors whose entries are all nil is a successful
 // submit; an entry for a path no input shows, such as a hidden field's,
-// is shown above the form as a form-level message: a [FormMessage]'s text,
-// else [FormErrorMessage].
+// is shown above the form as a form-level message, [FormErrorText]: the
+// [UserMessage] of a [UserMessageError], else [FormErrorMessage].
 type FieldErrors map[FieldPath]error
 
 // Error joins every entry's message in deterministic (path-sorted)
@@ -318,15 +318,16 @@ func (e FieldErrors) Error() string {
 	return ""
 }
 
-// Unwrap allows errors.Is/errors.As to inspect each per-field error.
+// Unwrap allows errors.Is/errors.As to inspect each per-field error, in the
+// path-sorted order of [FieldErrors.Error].
 func (e FieldErrors) Unwrap() []error {
 	if len(e) == 0 {
 		return nil
 	}
 	parts := make([]error, 0, len(e))
-	for _, err := range e {
-		if err != nil {
-			parts = append(parts, err)
+	for _, p := range slices.Sorted(maps.Keys(e)) {
+		if e[p] != nil {
+			parts = append(parts, e[p])
 		}
 	}
 	return parts

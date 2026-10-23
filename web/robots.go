@@ -137,7 +137,7 @@ func (r *Robots) String() string {
 func (r *Robots) HandleHTTP(response http.ResponseWriter, request *http.Request) {
 	text, err := r.MarshalText()
 	if err != nil {
-		mx.RespondNonContextError(response, err)
+		mx.RespondNonContextError(response, request, err)
 		return
 	}
 	response.Header().Set("Content-Type", mx.ContentTypePlainText)

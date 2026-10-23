@@ -29,7 +29,7 @@
 //	http.HandleFunc("GET /logs/stream", func(w http.ResponseWriter, r *http.Request) {
 //		sse, err := mx.NewSSEResponse(w, nil)
 //		if err != nil {
-//			mx.RespondNonContextError(w, err)
+//			mx.RespondNonContextError(w, r, err)
 //			return
 //		}
 //		defer sse.Close()

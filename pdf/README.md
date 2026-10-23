@@ -285,7 +285,8 @@ conformance; check the output with a validator like veraPDF.
 [above](#embedded-files-and-xmp-metadata-zugferd--factur-x)), and the body.
 It renders to a `Renderer`, an `io.Writer` (`Output`), a `[]byte` (`Bytes`),
 a file (`OutputFile`), or an `http.ResponseWriter` (`ServeHTTP`, served as
-`application/pdf` with a generic 500 on error). All page-setup fields default
+`application/pdf` with a generic 500 on error, whose error goes to
+`mx.ReportError`). All page-setup fields default
 to A4 / portrait / millimeters with a Helvetica 12pt font.
 
 ## Raw-engine surface

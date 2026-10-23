@@ -295,7 +295,7 @@ func streamHandler(src *source, fail bool) http.HandlerFunc {
 		if err != nil {
 			// Still a clean 500: NewSSEResponse checks it can flush before
 			// writing anything.
-			mx.RespondNonContextError(w, err)
+			mx.RespondNonContextError(w, r, err)
 			return
 		}
 		defer sse.Close()

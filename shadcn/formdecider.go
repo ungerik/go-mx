@@ -119,7 +119,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 //	  <input ...>
 //	  <FieldDescription>help</FieldDescription> (when set)
 //	  <Label for=clear>clear</Label> (when nullable or sensitive, not required and not readonly)
-//	  <FieldError data-error=path>err</FieldError> (one per error, role="alert")
+//	  <FieldError data-error=path>msg</FieldError> (one per message of each error, role="alert")
 //	</Field>
 //
 // The error look keys off data-invalid on the [Field] root (destructive
@@ -169,15 +169,18 @@ func fieldWrap(invalid bool, children ...any) mx.Component {
 	return Field("", args...)
 }
 
-// appendFieldErrors appends one [FieldError] (role="alert") per error, each
-// tagged data-error=path so a client can target a specific field's message
-// (the same convention the html layer uses).
+// appendFieldErrors appends one [FieldError] (role="alert") per message of
+// each error ([mx.FieldErrorTexts]), each tagged data-error=path so a client
+// can target a specific field's message (the same convention the html layer
+// uses).
 func appendFieldErrors(parts []any, path mx.FieldPath, errs []error) []any {
 	for _, e := range errs {
-		parts = append(parts, FieldError(
-			mx.NewAttrib("data-error", string(path)),
-			mx.Text(e.Error()),
-		))
+		for _, text := range mx.FieldErrorTexts(e) {
+			parts = append(parts, FieldError(
+				mx.NewAttrib("data-error", string(path)),
+				mx.Text(text),
+			))
+		}
 	}
 	return parts
 }

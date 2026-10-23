@@ -222,6 +222,16 @@ func TestShadcn_ErrorUsesFieldError(t *testing.T) {
 	}
 }
 
+// A field shows the UserMessage of its error, not the Error text of the
+// error wrapping it.
+func TestShadcn_ErrorShowsUserMessage(t *testing.T) {
+	out := renderShadcn(t, &formSample{Name: "Alice"}, "Name",
+		[]error{fmt.Errorf("partner 7 at db-host-7: %w", mx.FormMessage("name already taken"))})
+	if !strings.Contains(out, "name already taken") || strings.Contains(out, "db-host-7") {
+		t.Errorf("want only the UserMessage in %s", out)
+	}
+}
+
 func TestShadcn_BoolUsesField(t *testing.T) {
 	out := renderShadcn(t, &formSample{Active: true}, "Active", nil)
 	for _, want := range []string{`data-slot="field"`, `data-slot="field-label"`, `data-slot="switch"`} {
