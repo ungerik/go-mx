@@ -696,6 +696,57 @@ review cycle limit.
 **Priority:** P3
 **Depends on:** None
 
+### Validation errors are not bounded by `mx.MaxFieldErrorLen`
+
+**What:** Apply the bound to every error a field shows or reports, not only
+to `html.FieldDecider`'s parse errors: the validation chain's (a go-enum
+`Validate` quotes the value with `%#v`), a decider's `Validate`, and the
+parts of a joined error next to a user message, which exempts all of them.
+
+**Why:** A forged string enum of 200 KB in a visible select shows whole at
+the field, and in a hidden one reaches `mx.ReportError` whole; a checkbox
+set gets one error per forged element, so 9,990 values give a 930 KB page.
+
+**Context:** `guardBind` in `html/formdecider.go` holds the only bound;
+moving it into `mx`'s `parseField`, per error part, would cover every
+decider. Found in the review of the bound.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### A failing upload's temp file answers the client's 400
+
+**What:** Tell a server-side failure of the multipart parser (a full or
+missing temp directory) apart from a malformed body, answer it with a 500
+and report it.
+
+**Why:** All uploads then fail with "could not parse form" and nothing
+reaches `mx.ReportError`, which excludes the 400s as the client's.
+
+**Context:** `parseFormBody` and the status switch in
+`ReflectFormHandlerRedirecting`; predates this change.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A nil request or context panics in the error helpers
+
+**What:** Fall back to `context.Background()` in `RespondNonContextError`
+for a nil request and in `ReportHiddenError` and `FormErrorText` for a nil
+context.
+
+**Why:** A nil context panics only once `mx.ReportError` is set, which tests
+that leave the hook nil never see.
+
+**Context:** `errors.go`; Go's convention forbids a nil context, so this is
+defense against misuse.
+
+**Effort:** XS
+**Priority:** P4
+**Depends on:** None
+
 ### An internal error joined with a user message is dropped
 
 **What:** Report the rest of an error that also carries a user message or a

@@ -5992,8 +5992,49 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 	vals := submittedValues(get.Body.String())
 	vals.Set("Code", strings.Repeat("x", 4096))
 	postValues(t, h, vals)
-	if len(*reported) != 1 || len((*reported)[0]) > 2*maxQuotedLen {
-		t.Errorf("reported %d errors of %d bytes, want one bounded report", len(*reported), len(strings.Join(*reported, "")))
+	if want := []string{"the text is not a valid value"}; !slices.Equal(*reported, want) {
+		t.Errorf("reported %d errors of %d bytes, want %q", len(*reported), len(strings.Join(*reported, "")), want)
+	}
+
+	// The bound is mx.MaxFieldErrorLen: 0 or less means none.
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = 0
+	*reported = nil
+	postValues(t, h, vals)
+	if len(*reported) != 1 || len((*reported)[0]) < 4096 {
+		t.Errorf("unbounded: reported %d errors of %d bytes, want the whole quote", len(*reported), len(strings.Join(*reported, "")))
+	}
+}
+
+// addressList is text a textarea holds, whose UnmarshalText rejects it with
+// a short message that quotes nothing.
+type addressList struct{ v string }
+
+func (a addressList) MarshalText() ([]byte, error) { return []byte(a.v), nil }
+
+func (a *addressList) UnmarshalText(b []byte) error {
+	if !strings.Contains(string(b), "@") {
+		return errors.New("check the addresses: missing '@'")
+	}
+	a.v = string(b)
+	return nil
+}
+
+// The bound is on the error, not on the posted text: a long value whose
+// error is short shows that error.
+func TestFieldDecider_LongValueKeepsShortError(t *testing.T) {
+	type form struct {
+		To addressList `form:"widget=textarea"`
+	}
+	if err := parseFieldValue(t, &form{}, "To", strings.Repeat("someone at example dot com, ", 20)); err == nil || err.Error() != "check the addresses: missing '@'" {
+		t.Errorf("error %v, want the type's own short message", err)
+	}
+	prev := mx.MaxFieldErrorLen
+	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
+	mx.MaxFieldErrorLen = 10
+	if err := parseFieldValue(t, &form{}, "To", "x"); err == nil || err.Error() != "the text is not a valid value" {
+		t.Errorf("a bound below the error's length: error %v, want the generic text", err)
 	}
 }
 

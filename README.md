@@ -271,6 +271,11 @@ mx.ReportError = func(ctx context.Context, err error) {
 }
 ```
 
+A parse error longer than `mx.MaxFieldErrorLen` (512 bytes by default) reads
+"the text is not a valid value" unless it carries a user message, as such an
+error usually quotes the posted text, so a forged value cannot flood the page or
+the hook.
+
 It gets each hidden error once, with the request's context (its values, not its
 cancellation), whether or not `mx.RevealInternalServerErrors` is set, and a
 recovered panic with its stack. It does not get an error the user sees, nor a

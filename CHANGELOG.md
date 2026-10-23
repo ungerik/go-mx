@@ -296,8 +296,11 @@ API is still free to change.
     `shadcn` deciders and a repeatable field's own box show an error's
     `UserMessage` too, and each message of a joined error, also a wrapped one,
     as an error of its own (a `form:"sensitive"` field shows the first). A
-    field's error quotes at most 256 bytes of the posted text, so a forged
-    value of any size reaches neither the page nor the hook whole. A
+    parse error of `html.FieldDecider` longer than the new
+    `mx.MaxFieldErrorLen` (512 bytes, reassignable, 0 for no bound) that
+    carries no user message reads "the text is not a valid value", so a
+    forged value of any size reaches neither the page nor the hook whole
+    through it. A
     domain package marks its user-fixable errors without importing go-mx;
     `mx.FormMessage` gains the method and works as before. An empty
     `UserMessage` counts as none. `mx.UserMessage(err)` is the test,

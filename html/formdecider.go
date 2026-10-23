@@ -720,8 +720,8 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
-// embedded pointer does, is an error instead of a failed request. The error
-// of text longer than maxQuotedLen reads "the text is not a valid value",
+// embedded pointer does, is an error instead of a failed request. An error
+// longer than [mx.MaxFieldErrorLen] reads "the text is not a valid value",
 // unless it carries a user message: an option list, UnmarshalText or strconv
 // error quotes raw whole, into the page, or, where no input shows it,
 // through [mx.ReportError] into the application's logs. A form:"sensitive"
@@ -733,7 +733,7 @@ func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.Form
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
 		}
-		if _, ok := mx.UserMessage(err); err != nil && !ok && len(raw) > maxQuotedLen {
+		if _, ok := mx.UserMessage(err); err != nil && !ok && mx.MaxFieldErrorLen > 0 && len(err.Error()) > mx.MaxFieldErrorLen {
 			err = errors.New("the text is not a valid value")
 		}
 		if err != nil && tag.Sensitive {
@@ -759,10 +759,6 @@ func maskSensitive(ctx context.Context, err error, mask string) error {
 
 // maxNumberLen is the longest text a number field takes.
 const maxNumberLen = 64
-
-// maxQuotedLen is the longest submitted text a field's error may quote (see
-// [guardBind]); a valid value of any length still binds.
-const maxQuotedLen = 256
 
 // dateFormatError is [mx.DateTimeFormatError] for raw, except for a type
 // that reads only its own spelling, whose format the error cannot name
