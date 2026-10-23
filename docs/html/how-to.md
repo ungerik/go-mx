@@ -73,8 +73,8 @@ document), use `html.Serve(addr, component)`.
 your `<h1>` and `<p>` inside `<body>`.
 
 **Troubleshooting:** a render error becomes a `500` with a generic message (the
-error string is never sent to the client). Log it server-side if you need the
-detail.
+error string is never sent to the client). Set `mx.ReportError` once at start-up
+to log it server-side if you need the detail.
 
 ## Add CSS and JavaScript to a page
 

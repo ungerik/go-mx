@@ -261,9 +261,10 @@ rejects.
 What go-mx hides from the client it hands to the application. `mx.ReportError`,
 nil by default, gets every error go-mx answers with a generic text: an internal
 `onSubmit` error, an error no input shows, a sensitive field's masked error, a
-failing load function, and a render error answered with a 500 (also outside
-forms, through `mx.RespondNonContextError` and `SSEResponse.SendError`, and the
-panics `mx.ComponentHTTPHandler` and `mx.ComponentFuncHandler` recover). Set it once at start-up to log them:
+failing load function or context option list, and a render error answered
+with a 500 (also outside forms, through `mx.RespondNonContextError`,
+`SSEResponse.SendError` and `pdf.Document.ServeHTTP`, and the panics
+`mx.ComponentHTTPHandler` and `mx.ComponentFuncHandler` recover). Set it once at start-up to log them:
 
 ```go
 mx.ReportError = func(ctx context.Context, err error) {
@@ -272,11 +273,11 @@ mx.ReportError = func(ctx context.Context, err error) {
 ```
 
 A parse error longer than `mx.MaxFieldErrorLen` (512 bytes by default) reads
-"the text is not a valid value" unless it carries a user message, as such an
-error usually quotes the posted text, so a forged value cannot flood the page or
-the hook. For posted text past 64 times the bound the error is not even built,
-so a type that rejects such large values with a message of its own returns it as
-a user message.
+"the text is not a valid value" (a sensitive field's: "not a valid value")
+unless it carries a user message, as such an error usually quotes the posted
+text, so a forged value cannot flood the page or the hook. For posted text past
+64 times the bound the error's text is not even built, so a type that rejects
+such large values with a message of its own returns it as a user message.
 
 It gets each hidden error once, with the request's context (its values, not its
 cancellation), whether or not `mx.RevealInternalServerErrors` is set, and a
