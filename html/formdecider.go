@@ -720,11 +720,10 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
-// embedded pointer does, is an error instead of a failed request. An error
-// longer than [mx.MaxFieldErrorLen] reads "the text is not a valid value",
-// unless it carries a user message: an option list, UnmarshalText or strconv
-// error quotes raw whole, into the page, or, where no input shows it,
-// through [mx.ReportError] into the application's logs. A form:"sensitive"
+// embedded pointer does, is an error instead of a failed request. Its error
+// is bounded by [mx.MaxFieldErrorLen] ([boundFieldError]): an option list,
+// UnmarshalText or strconv error quotes raw whole, into the page, or, where
+// no input shows it, through [mx.ReportError] into the application's logs. A form:"sensitive"
 // field's error reads "not a valid value" ([maskSensitive]), leaving raw out
 // at any length. (Date and time fields guard their own panics and mask
 // their errors with their format instead.)
@@ -733,14 +732,45 @@ func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.Form
 		if recover() != nil {
 			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
 		}
-		if _, ok := mx.UserMessage(err); err != nil && !ok && mx.MaxFieldErrorLen > 0 && len(err.Error()) > mx.MaxFieldErrorLen {
-			err = errors.New("the text is not a valid value")
+		if err != nil {
+			err = boundFieldError(ctx, err, raw)
 		}
 		if err != nil && tag.Sensitive {
 			err = maskSensitive(ctx, err, "not a valid value")
 		}
 	}()
 	return bind()
+}
+
+// boundFieldError is err, the error of binding the posted text raw, bounded
+// by [mx.MaxFieldErrorLen] unless it carries a user message. An error whose
+// text is longer than the bound reads "the text is not a valid value"; it is
+// reported when raw is within the bound, as its text was then not built from
+// a forged value. The text is not built at all for raw far longer than the
+// bound, where it could only be a quote of raw several times its size. A
+// short error of a long raw keeps its text and nothing else, so what it
+// holds does not reach [mx.ReportError] either. The substitute is a
+// [mx.FormMessage], meant for the user, so it is not reported again.
+func boundFieldError(ctx context.Context, err error, raw string) error {
+	maxLen := mx.MaxFieldErrorLen
+	if _, ok := mx.UserMessage(err); ok || maxLen <= 0 {
+		return err
+	}
+	const notValid = mx.FormMessage("the text is not a valid value")
+	if len(raw) > 64*maxLen {
+		return notValid
+	}
+	text := err.Error()
+	switch {
+	case len(text) > maxLen:
+		if len(raw) <= maxLen {
+			mx.ReportHiddenError(ctx, err)
+		}
+		return notValid
+	case len(raw) > maxLen:
+		return errors.New(text)
+	}
+	return err
 }
 
 // maskSensitive is the error a form:"sensitive" field shows in place of err,

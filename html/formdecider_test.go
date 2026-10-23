@@ -5949,9 +5949,10 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
-	keyed(httptest.NewRecorder(), req)
-	if want := []string{"the text is not a valid value"}; !slices.Equal(reported, want) {
-		t.Errorf("reported %d errors of %d bytes, want %q", len(reported), len(strings.Join(reported, "")), want)
+	rec = httptest.NewRecorder()
+	keyed(rec, req)
+	if body := rec.Body.String(); len(reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) || len(body) > 10000 {
+		t.Errorf("reported %d errors of %d bytes, page of %d bytes; want the bounded verdict above the form, nothing reported", len(reported), len(strings.Join(reported, "")), len(body))
 	}
 }
 
@@ -5991,9 +5992,8 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 	}
 	vals := submittedValues(get.Body.String())
 	vals.Set("Code", strings.Repeat("x", 4096))
-	postValues(t, h, vals)
-	if want := []string{"the text is not a valid value"}; !slices.Equal(*reported, want) {
-		t.Errorf("reported %d errors of %d bytes, want %q", len(*reported), len(strings.Join(*reported, "")), want)
+	if body := postValues(t, h, vals).Body.String(); len(*reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) {
+		t.Errorf("reported %d errors of %d bytes; want the bounded verdict above the form, nothing reported", len(*reported), len(strings.Join(*reported, "")))
 	}
 
 	// The bound is mx.MaxFieldErrorLen: 0 or less means none.
@@ -6006,6 +6006,49 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 		t.Errorf("unbounded: reported %d errors of %d bytes, want the whole quote", len(*reported), len(strings.Join(*reported, "")))
 	}
 }
+
+// wrappedQuote keeps the quoting error it wraps behind a short text.
+type wrappedQuote struct{ cause error }
+
+func (e wrappedQuote) Error() string { return "invalid code" }
+func (e wrappedQuote) Unwrap() error { return e.cause }
+
+// The bound of a field's error: for posted text far past it the error's text
+// is never built; a long error of short text is replaced and reported, as no
+// forged value built it; a short error of long text keeps only its text, so
+// the hook does not get the forged value it wraps.
+func TestBoundFieldError(t *testing.T) {
+	reported := recordReports(t)
+	quote := func(raw string) error { return fmt.Errorf("%q is no code", raw) }
+	long := strings.Repeat("x", 600)
+
+	if err := boundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*mx.MaxFieldErrorLen+1)); err.Error() != "the text is not a valid value" {
+		t.Errorf("far past the bound: %v", err)
+	}
+	if err := boundFieldError(t.Context(), quote(long), long); err.Error() != "the text is not a valid value" || len(*reported) != 0 {
+		t.Errorf("a quote of long text: %v, reported %q", err, *reported)
+	}
+	hint := errors.New("cannot parse value into the type: " + long)
+	if err := boundFieldError(t.Context(), hint, "x"); err.Error() != "the text is not a valid value" || len(*reported) != 1 || (*reported)[0] != hint.Error() {
+		t.Errorf("a long error of short text: %v, reported %d", err, len(*reported))
+	}
+	kept := boundFieldError(t.Context(), wrappedQuote{quote(long)}, long)
+	if kept.Error() != "invalid code" || errors.Unwrap(kept) != nil {
+		t.Errorf("a short error of long text: %v, wraps %v; want only its text", kept, errors.Unwrap(kept))
+	}
+	short := quote("abc")
+	if err := boundFieldError(t.Context(), short, "abc"); err != short {
+		t.Errorf("a short error of short text: %v, want it as it is", err)
+	}
+	if msg := mx.FormMessage(strings.Repeat("m", 600)); boundFieldError(t.Context(), msg, long) != error(msg) {
+		t.Error("a user message must stay as it is")
+	}
+}
+
+// panicOnError fails the test the moment its text is built.
+type panicOnError struct{}
+
+func (panicOnError) Error() string { panic("Error() built for text far past the bound") }
 
 // addressList is text a textarea holds, whose UnmarshalText rejects it with
 // a short message that quotes nothing.

@@ -46,13 +46,14 @@ var FormSubmitLabel = "Save"
 var FormErrorMessage = "The form could not be saved."
 
 // MaxFieldErrorLen bounds the error a field shows, and reports through
-// [ReportError], for a value a user posted: a parse error of html.FieldDecider
-// (and of the deciders built on it, such as shadcn's) whose text is longer
-// than this many bytes and carries no [UserMessage] reads "the text is not a
-// valid value" instead, as such an error typically quotes the posted text
-// whole, a forged value of any size included. A short error of a long value
-// shows as it is. 0 or less means no bound. Reassign at init time to change
-// it globally.
+// [ReportError], for a value a user posted: the parse error of a text,
+// number, select or checkbox-set field of html.FieldDecider (and of the
+// deciders built on it, such as shadcn's) whose text is longer than this many
+// bytes and carries no [UserMessage] reads "the text is not a valid value"
+// instead, as such an error typically quotes the posted text whole, a forged
+// value of any size included. A short error of a long value shows as it is.
+// (Date and time fields take no text longer than 64 bytes at all.) 0 or less
+// means no bound. Reassign at init time to change it globally.
 var MaxFieldErrorLen = 512
 
 // FormMessage is an error whose text is meant for the user, the

@@ -700,8 +700,10 @@ review cycle limit.
 
 **What:** Apply the bound to every error a field shows or reports, not only
 to `html.FieldDecider`'s parse errors: the validation chain's (a go-enum
-`Validate` quotes the value with `%#v`), a decider's `Validate`, and the
-parts of a joined error next to a user message, which exempts all of them.
+`Validate` quotes the value with `%#v`), a decider's `Validate`, the parts
+of a joined error next to a user message, which exempts all of them, and a
+user message itself, which a domain type may build by quoting the value
+without knowing of the bound.
 
 **Why:** A forged string enum of 200 KB in a visible select shows whole at
 the field, and in a hidden one reaches `mx.ReportError` whole; a checkbox
