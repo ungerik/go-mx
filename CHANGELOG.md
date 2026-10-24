@@ -329,6 +329,8 @@ API is still free to change.
 
 ### Changed
 
+- Updated `go-fs` to `v1.0.0-beta.2` and passed the page source context to
+  `File.ReadAll`, so `web.GlobPageSource` builds with the new file API.
 - **`mx.RespondNonContextError` takes the request: `RespondNonContextError(w, r,
   err)`.** It now passes the error to `mx.ReportError`, which needs the
   request's context, and the former `(w, err)` had none to give. A sibling

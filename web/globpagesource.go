@@ -73,7 +73,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			}
 			switch content.ExtLower() {
 			case ".md":
-				data, err := content.ReadAll()
+				data, err := content.ReadAll(ctx)
 				if err != nil {
 					yield(nil, err)
 					return
@@ -141,7 +141,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				}
 				// TODO parse HTML title
 				if withContent {
-					page.Content, err = content.ReadAll()
+					page.Content, err = content.ReadAll(ctx)
 					if err != nil {
 						yield(nil, err)
 						return
@@ -164,7 +164,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 					Published:   modified,
 				}
 				if withContent {
-					page.Content, err = content.ReadAll()
+					page.Content, err = content.ReadAll(ctx)
 					if err != nil {
 						yield(nil, err)
 						return
