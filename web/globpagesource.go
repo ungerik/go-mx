@@ -3,9 +3,11 @@ package web
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	"github.com/adrg/frontmatter"
 	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-fs"
+	"github.com/ungerik/go-fs/fsimpl"
 	"github.com/ungerik/go-mx"
 )
 
@@ -43,13 +46,19 @@ type GlobPageSource struct {
 	// Dir has to name a directory on the local file system; any other fails
 	// the source. On Windows go-fs reads a file URI with a host, like
 	// "file://server/share", as the network share `\\server\share`.
+	//
+	// Dir is trusted: the glob and the reads follow symlinks, so a symlink
+	// below Dir publishes the file it points to, wherever that is, as does a
+	// ".." in Pattern. Only those who may publish any file the process can
+	// read should be able to write below Dir.
 	Dir fs.File
 
 	// Pattern is the glob matched below Dir, in the syntax of filepath.Match.
 	// It must be relative when Dir is set. Like a shell glob, a wildcard does
 	// not match a name beginning with ".": a pattern has to name the dot to
-	// match hidden files, as ".well-known/*.txt" does. Only regular files of a
-	// page type are pages, directories and special files are skipped.
+	// match hidden files, as ".well-known/*.txt" does. Directories, named
+	// pipes, sockets and devices are skipped, as is a file that is gone by the
+	// time its turn comes.
 	Pattern string
 
 	PageType      string
@@ -105,17 +114,26 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			}
 			// The stat also dates the pages without front matter. Its error
 			// fails the source rather than leaving the page out without a
-			// word: without dates it would not be in the sitemap.
-			info, err := content.Stat()
+			// word: without dates it would not be in the sitemap. It is the
+			// os stat of the matched path, because go-fs reports every file
+			// that is no directory and not regular as irregular, including
+			// the OneDrive and compressed files of Windows, which are pages.
+			info, err := os.Stat(file)
 			if err != nil {
+				// A file that is gone since the glob listed it, deleted or
+				// replaced while a deploy runs, is no page. A dangling
+				// symlink is still there and an error.
+				_, lstatErr := os.Lstat(file)
+				if errors.Is(lstatErr, os.ErrNotExist) {
+					continue
+				}
 				yield(nil, err)
 				return
 			}
-			// Only a regular file is a page. A pattern like "*.md" does not
-			// match a directory anyway, but a wider one like "*" does, and a
-			// named pipe or a link to a device would block or never end when
-			// read.
-			if !info.Mode().IsRegular() {
+			// A pattern like "*.md" does not match a directory anyway, but a
+			// wider one like "*" does, and a named pipe or a link to a device
+			// would block or never end when read.
+			if info.Mode()&(os.ModeDir|os.ModeNamedPipe|os.ModeSocket|os.ModeDevice|os.ModeCharDevice) != 0 {
 				continue
 			}
 			switch ext {
@@ -308,21 +326,30 @@ func (s *GlobPageSource) dirPath() string {
 // hidden file or directory only where pattern names the dot itself:
 // ".well-known/*.txt" matches the files below ".well-known", but "*" does not
 // match ".secret.txt". The matches of filepath.Glob are clean and have one
-// name for each name of the cleaned pattern, so they compare name by name.
+// name for each name of the cleaned pattern, so they compare name by name,
+// without the volume name of Windows, which "C:.secret.txt" glues to the
+// first name.
 func matchedHidden(pattern, file string) bool {
 	sep := string(filepath.Separator)
-	patternNames := strings.Split(filepath.Clean(pattern), sep)
-	fileNames := strings.Split(file, sep)
+	pattern = filepath.Clean(pattern)
+	patternNames := strings.Split(pattern[len(filepath.VolumeName(pattern)):], sep)
+	fileNames := strings.Split(file[len(filepath.VolumeName(file)):], sep)
 	if len(patternNames) != len(fileNames) {
 		// A pattern without a wildcard matches only itself, as written.
 		return false
 	}
 	for i, name := range fileNames {
-		if strings.HasPrefix(name, ".") && !strings.HasPrefix(patternNames[i], ".") {
+		if strings.HasPrefix(name, ".") && !namesDot(patternNames[i]) {
 			return true
 		}
 	}
 	return false
+}
+
+// namesDot reports if a name of a glob pattern begins with a dot, written
+// as is or, where a backslash is no separator, escaped as `\.`.
+func namesDot(patternName string) bool {
+	return strings.HasPrefix(patternName, ".") || (filepath.Separator != '\\' && strings.HasPrefix(patternName, `\.`))
 }
 
 // globPattern returns the pattern to match files with: Pattern below Dir, or
@@ -342,12 +369,22 @@ func (s *GlobPageSource) globPattern() (string, error) {
 		// The files are matched on the local disk, so a Dir of another file
 		// system would match nothing, an empty source instead of an error.
 		if s.Dir != "" {
-			return "", errs.Errorf("GlobPageSource.Dir %q names no directory on the local file system", string(s.Dir))
+			// Redacted, because the error goes to logs.
+			return "", errs.Errorf("GlobPageSource.Dir %q names no directory on the local file system", fsimpl.RedactURI(string(s.Dir)))
 		}
 		return s.Pattern, nil
 	}
 	if filepath.IsAbs(s.Pattern) {
 		return "", errs.Errorf("GlobPageSource.Pattern %q is absolute, it must be relative to Dir %q", s.Pattern, dir)
+	}
+	// The glob ignores a directory it cannot read, so a missing Dir would be
+	// an empty source as well.
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", errs.Errorf("GlobPageSource.Dir: %w", err)
+	}
+	if !info.IsDir() {
+		return "", errs.Errorf("GlobPageSource.Dir %q is no directory", dir)
 	}
 	return filepath.Join(dir, s.Pattern), nil
 }

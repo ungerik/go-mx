@@ -520,21 +520,60 @@ func TestGlobPageSourceSkipsHiddenFiles(t *testing.T) {
 	require.Empty(t, pagePaths(filepath.Join("*", "*.md")))
 	require.Equal(t, []string{"/.well-known/security"}, pagePaths(filepath.Join(".well-known", "*.txt")))
 	require.Equal(t, []string{"/.secret"}, pagePaths(".*"))
+	if filepath.Separator == '/' {
+		// An escaped dot names the dot too, where a backslash is no separator.
+		require.Equal(t, []string{"/.secret"}, pagePaths(`\.secret.txt`))
+	}
 }
 
-func TestGlobPageSourceNonLocalDir(t *testing.T) {
+func TestGlobPageSourceInvalidDir(t *testing.T) {
 	// The files are matched on the local disk, so a Dir that names no local
-	// directory is an error. Regression: go-fs v1 gives a URI of a file
-	// system that is not local its URI as path, which matched no file, so the
-	// source was empty and a sitemap of it had no page and no error.
-	source := &web.GlobPageSource{Dir: fs.File("nofs://host/content"), Pattern: "*.md"}
-	var results []error
-	for page, err := range source.Pages(context.Background(), false) {
-		require.Nil(t, page)
-		results = append(results, err)
+	// directory is an error. Regression: the glob matched nothing below such
+	// a Dir, so the source was empty and a sitemap of it had no page and no
+	// error. go-fs v1 gives a URI of a file system that is not local its URI
+	// as path, and a Dir that is missing, like a relative one under a service
+	// started in another working directory, or a file is no better.
+	dir := t.TempDir()
+	file := filepath.Join(dir, "page.md")
+	require.NoError(t, os.WriteFile(file, []byte("page\n"), 0o600))
+	dirError := func(t *testing.T, sourceDir fs.File) error {
+		t.Helper()
+		source := &web.GlobPageSource{Dir: sourceDir, Pattern: "*.md"}
+		var results []error
+		for page, err := range source.Pages(context.Background(), false) {
+			require.Nil(t, page)
+			results = append(results, err)
+		}
+		require.Len(t, results, 1)
+		return results[0]
 	}
-	require.Len(t, results, 1)
-	require.ErrorContains(t, results[0], `GlobPageSource.Dir "nofs://host/content"`)
+
+	require.ErrorContains(t, dirError(t, "nofs://host/content"), `GlobPageSource.Dir "nofs://host/content"`)
+	require.ErrorIs(t, dirError(t, fs.File(filepath.Join(dir, "missing"))), os.ErrNotExist)
+	require.ErrorContains(t, dirError(t, fs.File(file)), "is no directory")
+
+	// The error goes to logs, so a password in the URI is redacted.
+	err := dirError(t, "sftp://deploy:hunter2@example.com/site")
+	require.ErrorContains(t, err, "GlobPageSource.Dir")
+	require.NotContains(t, err.Error(), "hunter2")
+}
+
+func TestGlobPageSourceFileGoneWhileIterating(t *testing.T) {
+	// A file the glob listed that is gone when its turn comes, deleted or
+	// replaced while a deploy runs, is no page rather than an error that
+	// would fail the sitemap and every other page with it.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.html"), []byte("<p>a</p>"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.html"), []byte("<p>b</p>"), 0o600))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.html"}
+	var paths []string
+	for page, err := range source.Pages(context.Background(), false) {
+		require.NoError(t, err)
+		paths = append(paths, page.Path)
+		require.NoError(t, os.Remove(filepath.Join(dir, "b.html")))
+	}
+	require.Equal(t, []string{"/a"}, paths)
 }
 
 func TestGlobPageSourceLiteralTildeDir(t *testing.T) {

@@ -373,10 +373,15 @@ API is still free to change.
   cannot stat.** Like a shell glob, a wildcard of `Pattern` no longer matches a
   name beginning with `.`, so `*` does not publish `.secret.txt` as the page
   `/.secret`; a pattern that names the dot, like `.well-known/*.txt`, still
-  matches. Only a regular file is a page: a named pipe blocked the source
-  past any deadline and a symlink to `/dev/zero` was read without end. An HTML
-  or text file whose stat fails, like a dangling symlink, fails the source
-  instead of being yielded without dates, which kept it out of the sitemap.
+  matches; on Unix an escaped `\.` does too. Directories, named pipes, sockets
+  and devices are no pages: a named pipe blocked the source past any deadline
+  and a symlink to `/dev/zero` was read without end. An HTML or text file
+  whose stat fails, like a dangling symlink, fails the source instead of
+  being yielded without dates, which kept it out of the sitemap, while a file
+  that is gone since the glob listed it, as during a deploy, is skipped. A
+  missing `Dir`, or one that is a file, fails the source as well instead of
+  matching nothing. `Dir` stays trusted, as its doc now says: symlinks below
+  it are followed, so they can publish files from outside it.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown
