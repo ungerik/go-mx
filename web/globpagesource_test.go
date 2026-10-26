@@ -418,6 +418,54 @@ func TestGlobPageSourceReadError(t *testing.T) {
 	}
 }
 
+func TestGlobPageSourceUnreadableFile(t *testing.T) {
+	// A page file that has a stat but cannot be read ends the source with the
+	// read error when its content is read.
+	for _, name := range []string{"locked.md", "locked.html", "locked.txt"} {
+		file := filepath.Join(t.TempDir(), name)
+		require.NoError(t, os.WriteFile(file, []byte("locked\n"), 0o000))
+		_, err := os.ReadFile(file)
+		if err == nil {
+			t.Skip("root and Windows read a file without read permission")
+		}
+
+		source := &web.GlobPageSource{Dir: fs.File(filepath.Dir(file)), Pattern: "locked.*"}
+		var results []error
+		for page, err := range source.Pages(context.Background(), true) {
+			require.Nilf(t, page, "file %s", name)
+			results = append(results, err)
+		}
+		require.Lenf(t, results, 1, "file %s", name)
+		require.ErrorIsf(t, results[0], os.ErrPermission, "file %s", name)
+	}
+}
+
+func TestGlobPageSourceCancelledWhileIterating(t *testing.T) {
+	// A caller that cancels while it iterates gets the context's error
+	// instead of the next page. HTML files without content are not read, so
+	// only the check before each file can notice.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.html"), []byte("<p>a</p>"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.html"), []byte("<p>b</p>"), 0o600))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.html"}
+	var paths []string
+	var results []error
+	for page, err := range source.Pages(ctx, false) {
+		if err != nil {
+			results = append(results, err)
+			continue
+		}
+		paths = append(paths, page.Path)
+		cancel()
+	}
+	require.Equal(t, []string{"/a"}, paths)
+	require.Len(t, results, 1)
+	require.ErrorIs(t, results[0], context.Canceled)
+}
+
 func TestGlobPageSourceSkipsSpecialFiles(t *testing.T) {
 	// Only a regular file is a page. Regression: a named pipe or a symlink to
 	// a device with a page extension was read like a file, so a pipe blocked
