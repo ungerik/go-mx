@@ -22,7 +22,7 @@ require (
 	github.com/pkg/xattr v0.4.12 // indirect
 	github.com/segmentio/asm v1.1.5 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
-	github.com/ungerik/go-fs v0.1.0 // indirect
+	github.com/ungerik/go-fs v1.0.0-rc.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect

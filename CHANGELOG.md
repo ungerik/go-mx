@@ -349,6 +349,11 @@ API is still free to change.
   the go-types string types trimmed them. Only a nil pointer is NULL now: an
   empty string or the Nil UUID is stored as such, where the go-types nullable
   types stored it as NULL.
+- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.1 instead of
+  v0.1.0.** `web.GlobPageSource.Dir` is a go-fs `fs.File`, so a module that
+  uses it moves up to the new go-fs as well, where `File.ReadAll`,
+  `File.WriteAll` and their string variants take a `context.Context`.
+  `GlobPageSource.Pages` passes its context on to the file reads.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown
