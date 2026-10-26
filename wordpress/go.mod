@@ -7,7 +7,7 @@ go 1.27.0
 replace github.com/ungerik/go-mx => ../
 
 require (
-	github.com/domonda/go-errs v1.0.4
+	github.com/domonda/go-errs v1.1.0
 	github.com/ungerik/go-mx v0.0.0-00010101000000-000000000000
 	golang.org/x/net v0.61.0
 )

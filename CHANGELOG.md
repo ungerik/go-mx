@@ -349,6 +349,39 @@ API is still free to change.
   the go-types string types trimmed them. Only a nil pointer is NULL now: an
   empty string or the Nil UUID is stored as such, where the go-types nullable
   types stored it as NULL.
+- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.1 instead of
+  v0.1.0.** `web.GlobPageSource.Dir` is a go-fs `fs.File`, so a module that
+  uses it moves up to the new go-fs as well, whose breaking changes, like the
+  `context.Context` that `File.ReadAll` and `File.WriteAll` take now, are
+  listed in its
+  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.1/docs/MIGRATION_v1.md).
+  `GlobPageSource.Pages` checks its context before each file and passes it on
+  to the file reads, so a cancelled context ends it with the context's error,
+  also when it yields pages without content, as for a sitemap, or when no
+  file matched. A `%` in a `Dir` given as a plain path is taken literally
+  now: the `File.Path` of go-fs v0.1.0 percent-decoded local paths, so a
+  `Dir` of `fs.File("a%20b")` matched the files below `a b`. A matched file
+  is also read as matched: one whose relative path began with `~`, like
+  `~draft.md` or a file below a directory named `~`, used to be read from the
+  home directory. A `Dir` that names no directory on the local file system,
+  like a URI of another file system, fails the source; go-fs v1 gives it its
+  URI as path, which matched no file, so the source was empty without an
+  error. On Windows go-fs v1 reads a file URI with a host, like
+  `file://server/share`, as the network share `\\server\share`, where v0.1.0
+  took `server/share` for a relative path.
+- **`web.GlobPageSource` skips hidden and special files and reports a file it
+  cannot stat.** Like a shell glob, a wildcard of `Pattern` no longer matches a
+  name beginning with `.`, so `*` does not publish `.secret.txt` as the page
+  `/.secret`; a pattern that names the dot, like `.well-known/*.txt`, still
+  matches; on Unix an escaped `\.` does too. Directories, named pipes, sockets
+  and devices are no pages: a named pipe blocked the source past any deadline
+  and a symlink to `/dev/zero` was read without end. An HTML or text file
+  whose stat fails, like a dangling symlink, fails the source instead of
+  being yielded without dates, which kept it out of the sitemap, while a file
+  that is gone since the glob listed it, as during a deploy, is skipped. A
+  missing `Dir`, or one that is a file, fails the source as well instead of
+  matching nothing. `Dir` stays trusted, as its doc now says: symlinks below
+  it are followed, so they can publish files from outside it.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown
