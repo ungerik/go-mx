@@ -250,6 +250,198 @@ option keeping the raw file as content.
 **Priority:** P4
 **Depends on:** None
 
+### `GlobPageSource.Dir` is no containment boundary
+
+**What:** The glob and the reads follow symlinks, so a symlink below `Dir`
+publishes the file it points to, and a `..` in `Pattern` reaches outside `Dir`.
+A `leak.txt -> /etc/hosts` came out as the page `/leak` with its content; on
+Linux `/proc/self/environ` reads like a regular file.
+
+**Why:** Kept trusted on purpose (the `Dir` doc says so): deploy tools symlink
+content directories, and confining by default would break them. It matters
+once people who should not read the server can write below `Dir`, like a
+contributed content repo.
+
+**Context:** An opt-in confinement, e.g. `GlobPageSource.Confine`, built on
+`os.OpenRoot(dir)`: `fs.Glob(root.FS(), Pattern)` and reads through the root,
+so a symlink out of `Dir` fails and `..` is rejected. Codex rated it P1 in the
+/ship review of the go-fs v1.0.0-rc.1 bump (2026-10-26).
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+### An unreadable `Dir` is an empty source
+
+**What:** `globPattern` checks `Dir` with `os.Stat`, which needs only search
+permission on the parent, and `filepath.Glob` ignores a directory it cannot
+open, so a `Dir` with mode `000` yields no page and no error. An unreadable
+subdirectory matched by a wildcard (`*/*.md`) drops out the same way.
+
+**Why:** An empty sitemap, llms.txt and MCP page list with a nil error, the
+failure the `Dir` check was added to prevent; likely in non-root containers
+where another user owns the content.
+
+**Context:** Open the directory instead (`os.Open`, `Stat`, `Close`). The
+subdirectory case needs a walk that reports read errors instead of
+`filepath.Glob`. Found in round 3 of the /ship review (2026-10-26).
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### An escaped dot in a `Pattern` without `Dir` gives pages without a path
+
+**What:** `matchedHidden` accepts `\.` as naming the dot on Unix, but `baseDir`
+cuts the fixed prefix at the first `*?[` without unescaping it, so for a
+`Pattern` like `/srv/site/\.well-known/*.txt` and no `Dir` the page path is
+empty and `Site.Sitemap` fails.
+
+**Why:** With `Dir` set the same pattern works, so the two documented forms
+disagree.
+
+**Context:** On non-Windows, cut the prefix at the first unescaped wildcard and
+unescape it in `baseDir`. Escapes in a `Dir`-less fixed prefix were already
+broken before the branch. Found in round 3 of the /ship review (2026-10-26).
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### A matched path shaped like a URI is read by go-fs as a URI
+
+**What:** Pages stats a matched path with `os.Stat` but reads it through
+`fs.File(local).ReadAll`, and go-fs parses a path like `file://localhost/x` as
+a URI. A pattern without wildcards returns its spelling unchanged, so a local
+decoy can be stat'ed while go-fs reads another file.
+
+**Why:** The stat and the read must name the same file. Needs a pattern that
+spells a URI, so it is contrived.
+
+**Context:** Read the matched path with `os` instead of go-fs; the context is
+already checked before each file, which is all go-fs's `ReadAll` does with it.
+That also removes the `./` workaround for a leading `~`. Found in round 3 of
+the /ship review (2026-10-26).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Markdown files are read whole, without a size limit
+
+**What:** Every `.md` file is read completely, also for a sitemap, which needs
+only the front matter, and no file has a size limit.
+
+**Why:** A huge, sparse or growing file costs its size in memory on every
+sitemap, llms.txt or MCP request.
+
+**Context:** A `MaxFileSize` field with a default that fails larger files, and
+reading only the front matter when no content is wanted. Deferred in the
+/ship review of the go-fs bump (2026-10-26).
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### The glob and the reads cannot be cancelled
+
+**What:** `filepath.Glob`, `os.Stat` and go-fs's local `ReadAll` take no
+context; the context is checked only between them.
+
+**Why:** A huge directory or a stalled NFS or FUSE mount holds the request
+past its deadline, and repeated requests pile up goroutines.
+
+**Context:** A directory walk that checks the context per entry instead of
+`filepath.Glob`; reads would need a context-aware reader. Deferred in the
+/ship review of the go-fs bump (2026-10-26).
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### Glob characters in `Dir` act as wildcards
+
+**What:** `globPattern` joins `Dir` with `Pattern` unescaped, so a directory
+named `content[prod]` or `site[1]` is matched as a pattern and reads another
+directory or nothing.
+
+**Why:** A legal directory name changes which files are published.
+
+**Context:** Glob below the directory literally, e.g.
+`fs.Glob(os.DirFS(dir), filepath.ToSlash(Pattern))`, which also settles the
+`..` half of the containment entry. Deferred in the /ship review of the go-fs
+bump (2026-10-26).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A page file can change between its stat and its read
+
+**What:** Pages stats a matched file to skip pipes and devices, then go-fs opens
+it again by name for the read, so a file swapped for a named pipe in between
+blocks the read without a timeout.
+
+**Why:** Needs write access below `Dir`, which is trusted, so it is low risk.
+
+**Context:** Open once, check the open file's `Stat`, and read from it; the
+open itself must not block on a pipe (`O_NONBLOCK` on Unix). Deferred in the
+/ship review of the go-fs bump (2026-10-26).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The `Dir` error redacts only a password
+
+**What:** The error for a non-local `Dir` passes the URI through
+`fsimpl.RedactURI`, which masks a password but not a token in the user info
+(`https://ghp_TOKEN@github.com/x`) or in the query (`?access_token=…`), and on
+Windows `file://user:pass@server/share` is a local UNC path printed by the
+other `Dir` errors.
+
+**Why:** The errors go to logs, like the mcp module's `OnError`.
+
+**Context:** The message needs no URI: print the scheme only, or drop the user
+info and query after `url.Parse`. Found in round 3 of the /ship review
+(2026-10-26).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The context is not checked before the glob
+
+**What:** Pages checks the context after `filepath.Glob`, so an already
+cancelled request still stats `Dir` and runs the whole glob, and with a
+missing `Dir` returns that error instead of the context's.
+
+**Why:** Wasted work for a request nobody waits for.
+
+**Context:** A `ctx.Err()` check at the top of the iterator. Found in round 3
+of the /ship review (2026-10-26).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Only `Dir` is checked to exist, not the fixed prefix of `Pattern`
+
+**What:** A missing `Dir` fails the source, but a missing directory in the
+fixed part of `Pattern`, with or without `Dir` (`blog/*.md` with no `blog`),
+still matches nothing without an error, although the `Dir` doc calls the two
+forms the same result written differently.
+
+**Why:** The same silent empty source, one level down.
+
+**Context:** Stat the fixed directory prefix of the joined pattern instead of
+`Dir` alone, or document that only `Dir` is checked. Found in round 3 of the
+/ship review (2026-10-26).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### No `og:locale:alternate` for translations
 
 **What:** `Site.AddPageMetadata` emits hreflang links for translations but no
