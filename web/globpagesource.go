@@ -64,7 +64,22 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			return
 		}
 		for _, file := range files {
-			content := fs.File(file)
+			// Without content an HTML or text file is not read, so the file
+			// reads alone would let a cancelled ctx go through every one of
+			// them.
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+			// The glob matched a literal path, but go-fs expands a leading "~"
+			// of a relative path to the home directory. A leading "./" keeps a
+			// directory named "~" literal, so the file read is the file
+			// matched.
+			local := file
+			if !filepath.IsAbs(local) {
+				local = "." + string(filepath.Separator) + local
+			}
+			content := fs.File(local)
 			// A directory has no content to render. A pattern like "*.md" does
 			// not match one anyway; a wider pattern like "*" does, and skipping
 			// it here keeps that from being read as a file.
@@ -243,10 +258,10 @@ func (s *GlobPageSource) baseDir() string {
 	return filepath.Dir(pattern)
 }
 
-// dirPath returns the path of Dir, or "" if no Dir is set. The zero fs.File
-// has the path "." — the working directory — which is a real directory to read
-// from and not the same thing as "no directory given", so the unset case is
-// decided on the value rather than on its path.
+// dirPath returns the path of Dir, or "" if no Dir is set. The unset case is
+// decided on the value rather than on its path, which must not depend on what
+// go-fs makes of an empty File: a path of "." would be the working directory,
+// a real directory to read from and not the same thing as "no directory given".
 func (s *GlobPageSource) dirPath() string {
 	if s.Dir == "" {
 		return ""

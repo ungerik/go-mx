@@ -351,9 +351,18 @@ API is still free to change.
   types stored it as NULL.
 - **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.1 instead of
   v0.1.0.** `web.GlobPageSource.Dir` is a go-fs `fs.File`, so a module that
-  uses it moves up to the new go-fs as well, where `File.ReadAll`,
-  `File.WriteAll` and their string variants take a `context.Context`.
-  `GlobPageSource.Pages` passes its context on to the file reads.
+  uses it moves up to the new go-fs as well, whose breaking changes, like the
+  `context.Context` that `File.ReadAll` and `File.WriteAll` take now, are
+  listed in its
+  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.1/docs/MIGRATION_v1.md).
+  `GlobPageSource.Pages` checks its context before each file and passes it on
+  to the file reads, so a cancelled context ends it with the context's error,
+  also when it yields pages without content, as for a sitemap. A `%` in a
+  local `Dir` is taken literally now: the `File.Path` of go-fs v0.1.0
+  percent-decoded local paths, so a `Dir` of `fs.File("a%20b")` matched the
+  files below `a b`. A matched file is also read as matched: a relative path
+  beginning with a directory named `~` used to be read from the home
+  directory instead.
 - **`web.GlobPageSource` no longer includes the front matter in the content of
   a Markdown page.** It is parsed into the page fields, and passing it along as
   well put it into every rendering of the page — and into the Markdown

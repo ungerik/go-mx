@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -228,6 +229,29 @@ func TestGlobPageSourceEscapesFileNames(t *testing.T) {
 	}, locs)
 }
 
+func TestGlobPageSourcePercentInDir(t *testing.T) {
+	// A percent escape in Dir is part of the directory name. Regression: go-fs
+	// v0.1.0 percent-decoded the path of a local File, so a Dir named "a%20b"
+	// was globbed as the nonexistent "a b" and the source yielded no pages and
+	// no error.
+	dir := filepath.Join(t.TempDir(), "a%20b")
+	require.NoError(t, os.Mkdir(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "x%41.md"), []byte("---\ntitle: T\n---\nbody\n"), 0o600))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md"}
+	var pages []*web.Page
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		pages = append(pages, page)
+	}
+	require.Len(t, pages, 1)
+	// The file name keeps its "%" as well, escaped in the URL path.
+	require.Equal(t, "/x%2541", pages[0].Path)
+	markdown, ok := pages[0].MarkdownSource()
+	require.True(t, ok)
+	require.Equal(t, "body\n", string(markdown))
+}
+
 func TestGlobPageSourceDirScopesGlob(t *testing.T) {
 	// Dir is both what the glob runs below and what page paths are relative
 	// to, so the two cannot name different directories.
@@ -284,9 +308,10 @@ func TestGlobPageSourceSkipsDirectories(t *testing.T) {
 func TestGlobPageSourceWithoutDir(t *testing.T) {
 	// Without a Dir the Pattern carries the whole path and its fixed prefix is
 	// the base for page paths. Regression: the unset Dir was detected by its
-	// path, but the zero fs.File has the path "." rather than an empty one, so
-	// the base became the working directory and every page came out with an
-	// empty Path — which then failed the sitemap it was meant to feed.
+	// path, but go-fs v0.1.0 gave the zero fs.File the path "." rather than an
+	// empty one, so the base became the working directory and every page came
+	// out with an empty Path — which then failed the sitemap it was meant to
+	// feed.
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.md"),
 		[]byte("---\ntitle: Hello\npublishDate: 2026-06-01T08:00:00Z\n---\npost\n"), 0o600))
@@ -305,4 +330,89 @@ func TestGlobPageSourceWithoutDir(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, sitemap.URLs, 1)
 	require.Equal(t, "https://example.com/hello", sitemap.URLs[0].Loc)
+}
+
+func TestGlobPageSourceHTMLAndTextContent(t *testing.T) {
+	// HTML and plain-text files have no front matter, so the content of their
+	// page is the whole file, and like any content it is only read when asked
+	// for.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.html"), []byte("<p>page</p>"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "note.txt"), []byte("a note\n"), 0o600))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.*"}
+	contents := map[string]string{}
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		// Content may be a string or a []byte, %s formats both.
+		contents[page.Path] = fmt.Sprintf("%s", page.Content)
+	}
+	require.Equal(t, map[string]string{"/page": "<p>page</p>", "/note": "a note\n"}, contents)
+
+	var paths []string
+	for page, err := range source.Pages(context.Background(), false) {
+		require.NoError(t, err)
+		require.Nilf(t, page.Content, "page %s", page.Path)
+		paths = append(paths, page.Path)
+	}
+	require.ElementsMatch(t, []string{"/page", "/note"}, paths)
+}
+
+func TestGlobPageSourceCancelledContext(t *testing.T) {
+	// A caller that gives up, like a sitemap request whose client went away,
+	// stops the source at the next file instead of it going through the rest
+	// of the site. That has to hold without content too, where an HTML or
+	// text file is not read at all.
+	dir := t.TempDir()
+	files := map[string]string{
+		"post.md":   "---\ntitle: Post\n---\npost\n",
+		"page.html": "<p>page</p>",
+		"note.txt":  "a note\n",
+	}
+	for name, content := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, withContent := range []bool{true, false} {
+		for _, pattern := range []string{"*.md", "*.html", "*.txt"} {
+			source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: pattern}
+			var results []error
+			for page, err := range source.Pages(ctx, withContent) {
+				require.Nilf(t, page, "pattern %q, withContent %t", pattern, withContent)
+				results = append(results, err)
+			}
+			require.Lenf(t, results, 1, "pattern %q, withContent %t", pattern, withContent)
+			require.ErrorIsf(t, results[0], context.Canceled, "pattern %q, withContent %t", pattern, withContent)
+		}
+	}
+}
+
+func TestGlobPageSourceLiteralTildeDir(t *testing.T) {
+	// The page of a matched file has the content of that file. Regression: a
+	// matched path was handed back to go-fs, which expands a leading "~" of a
+	// relative path to the home directory, so a Dir of "./~/content" globbed
+	// the directory named "~" but read the same-named files of the home
+	// directory and published those.
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	work := filepath.Join(root, "work")
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "content"), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Join(work, "~", "content"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "content", "a.md"), []byte("home\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(work, "~", "content", "a.md"), []byte("literal\n"), 0o600))
+	t.Setenv("HOME", home)
+	t.Chdir(work)
+
+	source := &web.GlobPageSource{Dir: fs.File("./~/content"), Pattern: "*.md"}
+	var pages []*web.Page
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		pages = append(pages, page)
+	}
+	require.Len(t, pages, 1)
+	markdown, ok := pages[0].MarkdownSource()
+	require.True(t, ok)
+	require.Equal(t, "literal\n", string(markdown))
 }
