@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/adrg/frontmatter v0.2.0
-	github.com/domonda/go-errs v1.0.4
+	github.com/domonda/go-errs v1.1.0
 	github.com/domonda/go-pretty v1.0.0
 	github.com/stretchr/testify v1.12.1
 	github.com/ungerik/go-fs v1.0.0-rc.1

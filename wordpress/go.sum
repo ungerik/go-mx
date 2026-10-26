@@ -1,5 +1,5 @@
-github.com/domonda/go-errs v1.0.4 h1:oX7WWrAFbRTd5D+vSQyKvvv97mR7SKNfLK8CEoLInxA=
-github.com/domonda/go-errs v1.0.4/go.mod h1:zt5V57wkHr3YNuCGemVABL/OUa0zFbixzr5CXiKYp6w=
+github.com/domonda/go-errs v1.1.0 h1:o1jTFDz+N7ds1PnrSkRGKmkuBTioZ0eqn+myKvK/Rbg=
+github.com/domonda/go-errs v1.1.0/go.mod h1:GvnmZ4SadP+jaPYu7GRPT2Egp1KS0c39lZEISUJY02U=
 github.com/domonda/go-pretty v1.0.0 h1:58OcAmEgcYEOuMQRXtC0jAndPKqHfV3TVZUttWKnRc4=
 github.com/domonda/go-pretty v1.0.0/go.mod h1:O05JaeEezfZ2ian+t10+JrAZFKadSIsqWdukNtOPEzI=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
