@@ -39,10 +39,17 @@ type GlobPageSource struct {
 	// An empty Dir keeps Pattern as the whole path to match, relative to the
 	// working directory, and takes the base for page paths from the part of
 	// Pattern before its first wildcard — the same result written differently.
+	//
+	// Dir has to name a directory on the local file system; any other fails
+	// the source. On Windows go-fs reads a file URI with a host, like
+	// "file://server/share", as the network share `\\server\share`.
 	Dir fs.File
 
 	// Pattern is the glob matched below Dir, in the syntax of filepath.Match.
-	// It must be relative when Dir is set.
+	// It must be relative when Dir is set. Like a shell glob, a wildcard does
+	// not match a name beginning with ".": a pattern has to name the dot to
+	// match hidden files, as ".well-known/*.txt" does. Only regular files of a
+	// page type are pages, directories and special files are skipped.
 	Pattern string
 
 	PageType      string
@@ -63,6 +70,12 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 			yield(nil, err)
 			return
 		}
+		// Checked here as well, so a cancelled ctx is not taken for an empty
+		// site when no file matched.
+		if err := ctx.Err(); err != nil {
+			yield(nil, err)
+			return
+		}
 		for _, file := range files {
 			// Without content an HTML or text file is not read, so the file
 			// reads alone would let a cancelled ctx go through every one of
@@ -71,22 +84,41 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				yield(nil, err)
 				return
 			}
+			if matchedHidden(pattern, file) {
+				continue
+			}
 			// The glob matched a literal path, but go-fs expands a leading "~"
-			// of a relative path to the home directory. A leading "./" keeps a
+			// path element to the home directory. A leading "./" keeps a
 			// directory named "~" literal, so the file read is the file
-			// matched.
+			// matched. Only such a path gets it: on Windows `\x` and `C:x` are
+			// not absolute either, and "./" would change what they name.
 			local := file
-			if !filepath.IsAbs(local) {
+			if local == "~" || strings.HasPrefix(local, "~/") || strings.HasPrefix(local, "~"+string(filepath.Separator)) {
 				local = "." + string(filepath.Separator) + local
 			}
 			content := fs.File(local)
-			// A directory has no content to render. A pattern like "*.md" does
-			// not match one anyway; a wider pattern like "*" does, and skipping
-			// it here keeps that from being read as a file.
-			if content.IsDir() {
+			ext := content.ExtLower()
+			// Only a file of a page type is looked at, so an unreadable image
+			// a wide pattern like "*" matched does not fail the source.
+			if ext != ".md" && ext != ".html" && ext != ".htm" && ext != ".txt" {
 				continue
 			}
-			switch content.ExtLower() {
+			// The stat also dates the pages without front matter. Its error
+			// fails the source rather than leaving the page out without a
+			// word: without dates it would not be in the sitemap.
+			info, err := content.Stat()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			// Only a regular file is a page. A pattern like "*.md" does not
+			// match a directory anyway, but a wider one like "*" does, and a
+			// named pipe or a link to a device would block or never end when
+			// read.
+			if !info.Mode().IsRegular() {
+				continue
+			}
+			switch ext {
 			case ".md":
 				data, err := content.ReadAll(ctx)
 				if err != nil {
@@ -144,7 +176,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				// modification time is the only publication signal there is.
 				// Without it the page would never be [Page.Indexable] and
 				// would silently stay out of every sitemap.
-				modified := content.Modified()
+				modified := info.ModTime()
 				page := &Page{
 					Path:        s.pagePath(file),
 					ContentType: mx.ContentTypeHTML,
@@ -167,7 +199,7 @@ func (s *GlobPageSource) Pages(ctx context.Context, withContent bool) iter.Seq2[
 				}
 
 			case ".txt":
-				modified := content.Modified()
+				modified := info.ModTime()
 				page := &Page{
 					Path:        s.pagePath(file),
 					ContentType: mx.ContentTypePlainText,
@@ -258,15 +290,39 @@ func (s *GlobPageSource) baseDir() string {
 	return filepath.Dir(pattern)
 }
 
-// dirPath returns the path of Dir, or "" if no Dir is set. The unset case is
-// decided on the value rather than on its path, which must not depend on what
-// go-fs makes of an empty File: a path of "." would be the working directory,
-// a real directory to read from and not the same thing as "no directory given".
+// dirPath returns the local path of Dir, or "" if no Dir is set or if Dir
+// names no directory on the local file system, which globPattern reports. The
+// unset case is decided on the value rather than on its path, which must not
+// depend on what go-fs makes of an empty File: a path of "." would be the
+// working directory, a real directory to read from and not the same thing as
+// "no directory given".
 func (s *GlobPageSource) dirPath() string {
 	if s.Dir == "" {
 		return ""
 	}
-	return s.Dir.Path()
+	return s.Dir.LocalPath()
+}
+
+// matchedHidden reports if a wildcard of pattern matched a name in the path
+// of file that begins with ".". Like a shell glob, the source matches such a
+// hidden file or directory only where pattern names the dot itself:
+// ".well-known/*.txt" matches the files below ".well-known", but "*" does not
+// match ".secret.txt". The matches of filepath.Glob are clean and have one
+// name for each name of the cleaned pattern, so they compare name by name.
+func matchedHidden(pattern, file string) bool {
+	sep := string(filepath.Separator)
+	patternNames := strings.Split(filepath.Clean(pattern), sep)
+	fileNames := strings.Split(file, sep)
+	if len(patternNames) != len(fileNames) {
+		// A pattern without a wildcard matches only itself, as written.
+		return false
+	}
+	for i, name := range fileNames {
+		if strings.HasPrefix(name, ".") && !strings.HasPrefix(patternNames[i], ".") {
+			return true
+		}
+	}
+	return false
 }
 
 // globPattern returns the pattern to match files with: Pattern below Dir, or
@@ -283,6 +339,11 @@ func (s *GlobPageSource) globPattern() (string, error) {
 	}
 	dir := s.dirPath()
 	if dir == "" {
+		// The files are matched on the local disk, so a Dir of another file
+		// system would match nothing, an empty source instead of an error.
+		if s.Dir != "" {
+			return "", errs.Errorf("GlobPageSource.Dir %q names no directory on the local file system", string(s.Dir))
+		}
 		return s.Pattern, nil
 	}
 	if filepath.IsAbs(s.Pattern) {

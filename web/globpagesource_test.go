@@ -376,7 +376,9 @@ func TestGlobPageSourceCancelledContext(t *testing.T) {
 	cancel()
 
 	for _, withContent := range []bool{true, false} {
-		for _, pattern := range []string{"*.md", "*.html", "*.txt"} {
+		// "*.none" matches nothing, and a cancelled ctx must not pass for an
+		// empty site then either.
+		for _, pattern := range []string{"*.md", "*.html", "*.txt", "*.none"} {
 			source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: pattern}
 			var results []error
 			for page, err := range source.Pages(ctx, withContent) {
@@ -390,23 +392,101 @@ func TestGlobPageSourceCancelledContext(t *testing.T) {
 }
 
 func TestGlobPageSourceReadError(t *testing.T) {
-	// A matched file that cannot be read ends the source with the read error
-	// instead of being skipped, which would leave its page silently out of
-	// the sitemap.
-	for _, name := range []string{"broken.md", "broken.html", "broken.txt"} {
-		dir := t.TempDir()
-		// The glob matches a dangling symlink, but reading it fails.
-		require.NoError(t, os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, name)))
+	// A matched file that cannot be read ends the source with the error
+	// instead of its page being left out without a word. Regression: without
+	// content an HTML or text file was only stat'ed for its dates, and a
+	// failed stat gave it no dates, which dropped it from the sitemap.
+	for _, withContent := range []bool{true, false} {
+		for _, name := range []string{"broken.md", "broken.html", "broken.txt"} {
+			dir := t.TempDir()
+			// The glob matches a dangling symlink, but reading it fails.
+			err := os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, name))
+			if err != nil {
+				// Windows allows symlinks only with Developer Mode or elevation.
+				t.Skipf("cannot create a symlink: %s", err)
+			}
 
-		source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "broken.*"}
-		var results []error
-		for page, err := range source.Pages(context.Background(), true) {
-			require.Nilf(t, page, "file %s", name)
-			results = append(results, err)
+			source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "broken.*"}
+			var results []error
+			for page, err := range source.Pages(context.Background(), withContent) {
+				require.Nilf(t, page, "file %s, withContent %t", name, withContent)
+				results = append(results, err)
+			}
+			require.Lenf(t, results, 1, "file %s, withContent %t", name, withContent)
+			require.ErrorIsf(t, results[0], os.ErrNotExist, "file %s, withContent %t", name, withContent)
 		}
-		require.Lenf(t, results, 1, "file %s", name)
-		require.ErrorIsf(t, results[0], os.ErrNotExist, "file %s", name)
 	}
+}
+
+func TestGlobPageSourceSkipsSpecialFiles(t *testing.T) {
+	// Only a regular file is a page. Regression: a named pipe or a symlink to
+	// a device with a page extension was read like a file, so a pipe blocked
+	// the source past any deadline and /dev/zero was read without end.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.md"),
+		[]byte("---\ntitle: Hello\n---\npost\n"), 0o600))
+	err := os.Symlink(os.DevNull, filepath.Join(dir, "device.md"))
+	if err != nil {
+		t.Skipf("cannot create a symlink: %s", err)
+	}
+	// A file of no page type is not looked at, so an unreadable one that a
+	// wide pattern matches does not fail the source.
+	require.NoError(t, os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, "image.png")))
+
+	source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*"}
+	var titles []string
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		titles = append(titles, page.Title)
+	}
+	require.Equal(t, []string{"Hello"}, titles)
+}
+
+func TestGlobPageSourceSkipsHiddenFiles(t *testing.T) {
+	// Like a shell glob, a wildcard does not match a name beginning with ".",
+	// so a wide pattern does not publish dotfiles. Regression: Pattern "*"
+	// published ".secret.txt" as the page "/.secret". A pattern that names
+	// the dot still matches, as does a Dir below a hidden directory.
+	dir := filepath.Join(t.TempDir(), ".site")
+	for name, content := range map[string]string{
+		"hello.md":                 "---\ntitle: Hello\n---\npost\n",
+		".secret.txt":              "secret",
+		".private/draft.md":        "---\ntitle: Private\n---\ndraft\n",
+		".well-known/security.txt": "Contact: mailto:security@example.com\n",
+	} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+
+	pagePaths := func(pattern string) []string {
+		t.Helper()
+		var paths []string
+		source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: pattern}
+		for page, err := range source.Pages(context.Background(), false) {
+			require.NoError(t, err)
+			paths = append(paths, page.Path)
+		}
+		return paths
+	}
+	require.Equal(t, []string{"/hello"}, pagePaths("*"))
+	require.Empty(t, pagePaths(filepath.Join("*", "*.md")))
+	require.Equal(t, []string{"/.well-known/security"}, pagePaths(filepath.Join(".well-known", "*.txt")))
+	require.Equal(t, []string{"/.secret"}, pagePaths(".*"))
+}
+
+func TestGlobPageSourceNonLocalDir(t *testing.T) {
+	// The files are matched on the local disk, so a Dir that names no local
+	// directory is an error. Regression: go-fs v1 gives a URI of a file
+	// system that is not local its URI as path, which matched no file, so the
+	// source was empty and a sitemap of it had no page and no error.
+	source := &web.GlobPageSource{Dir: fs.File("nofs://host/content"), Pattern: "*.md"}
+	var results []error
+	for page, err := range source.Pages(context.Background(), false) {
+		require.Nil(t, page)
+		results = append(results, err)
+	}
+	require.Len(t, results, 1)
+	require.ErrorContains(t, results[0], `GlobPageSource.Dir "nofs://host/content"`)
 }
 
 func TestGlobPageSourceLiteralTildeDir(t *testing.T) {
