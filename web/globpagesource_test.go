@@ -389,6 +389,26 @@ func TestGlobPageSourceCancelledContext(t *testing.T) {
 	}
 }
 
+func TestGlobPageSourceReadError(t *testing.T) {
+	// A matched file that cannot be read ends the source with the read error
+	// instead of being skipped, which would leave its page silently out of
+	// the sitemap.
+	for _, name := range []string{"broken.md", "broken.html", "broken.txt"} {
+		dir := t.TempDir()
+		// The glob matches a dangling symlink, but reading it fails.
+		require.NoError(t, os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, name)))
+
+		source := &web.GlobPageSource{Dir: fs.File(dir), Pattern: "broken.*"}
+		var results []error
+		for page, err := range source.Pages(context.Background(), true) {
+			require.Nilf(t, page, "file %s", name)
+			results = append(results, err)
+		}
+		require.Lenf(t, results, 1, "file %s", name)
+		require.ErrorIsf(t, results[0], os.ErrNotExist, "file %s", name)
+	}
+}
+
 func TestGlobPageSourceLiteralTildeDir(t *testing.T) {
 	// The page of a matched file has the content of that file. Regression: a
 	// matched path was handed back to go-fs, which expands a leading "~" of a
