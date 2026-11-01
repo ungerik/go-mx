@@ -1,6 +1,8 @@
 package shadcn
 
 import (
+	"context"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
@@ -85,7 +87,8 @@ const MessageScrollerStart = mx.ConstAttrib("data-direction=start")
 // [MessageScroller], centred over the viewport's bottom edge. It is shown
 // while the viewport is not following new content, that is while it lacks
 // StickToBottom's data-stuck, and scrolls it back to the bottom. With
-// [MessageScrollerStart] it is the "scroll to start" button instead. variant
+// [MessageScrollerStart], or any data-direction="start" attrib, it is the
+// "scroll to start" button instead. variant
 // and size may be "" for [ButtonSecondary] and [SizeIconSM], upstream's
 // defaults. Without children it shows an arrow and the screen-reader text
 // "Scroll to end" or "Scroll to start" (localizable via [Labels]); a
@@ -94,9 +97,13 @@ const MessageScrollerStart = mx.ConstAttrib("data-direction=start")
 func MessageScrollerButton(variant ButtonVariant, size ButtonSize, attribsChildren ...any) *mx.Element {
 	e := Button(variant.ValidOr(ButtonSecondary), size.ValidOr(SizeIconSM), attribsChildren...)
 	start := false
+	// Any data-direction attrib counts, not only MessageScrollerStart; one
+	// whose value fails stays, so the render reports its error.
 	if i := e.AttribIndex("data-direction"); i >= 0 {
-		start = e.Attribs[i] == MessageScrollerStart
-		e.Attribs = append(e.Attribs[:i], e.Attribs[i+1:]...)
+		if direction, err := e.Attribs[i].AttribValue(context.Background()); err == nil {
+			start = direction == "start"
+			e.Attribs = append(e.Attribs[:i], e.Attribs[i+1:]...)
+		}
 	}
 	if len(e.Children) == 0 {
 		label := func(l Labels) string { return l.MessageScrollerButton }

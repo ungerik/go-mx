@@ -680,6 +680,10 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		if (kind == mx.FieldKindString || kind == mx.FieldKindCatchAll) && keepsStoredLines(value, raw) {
 			return nil
 		}
+		// The browser holds only text the user edited to minlength and
+		// maxlength, so a stored text that breaks a bound added later comes
+		// back unchanged; it passes, else no other field could be saved.
+		unchanged := unchangedText(raw, mx.FormValueText(value))
 		return guardBind(r.Context(), value, raw, tag, func() error {
 			if err := setScalar(value, raw); err != nil {
 				return err
@@ -692,7 +696,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 					return err
 				}
 			}
-			if kind == mx.FieldKindString || kind == mx.FieldKindCatchAll || kind == mx.FieldKindTextarea {
+			if (kind == mx.FieldKindString || kind == mx.FieldKindCatchAll || kind == mx.FieldKindTextarea) && !unchanged {
 				if err := mx.CheckTextLength(tag, raw); err != nil {
 					return err
 				}

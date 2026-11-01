@@ -191,6 +191,27 @@ func TestChartTicks(t *testing.T) {
 	}
 }
 
+// A stack rounds the bar that ends it on each side of zero, not the last
+// series: a zero-height bar of the last series leaves the corners to the
+// bar below it, and a negative stack rounds its own end.
+func TestChartStackedRounding(t *testing.T) {
+	out := render(t, Chart(ChartBar, ChartData{Categories: []string{"A", "B"}, Series: []ChartSeries{
+		{Key: "a", Values: []float64{5, 5}},
+		{Key: "b", Values: []float64{-2, 3}},
+		{Key: "c", Values: []float64{0, 3}},
+	}}, ChartOptions{Stacked: true}))
+	var rounded []string
+	for _, m := range regexp.MustCompile(`<rect [^>]*>\s*<title>([^<]*)</title>`).FindAllStringSubmatch(out, -1) {
+		if strings.Contains(m[0], ` rx="`) {
+			rounded = append(rounded, m[1])
+		}
+	}
+	want := []string{"A: a 5", "A: b -2", "B: c 3"}
+	if strings.Join(rounded, ",") != strings.Join(want, ",") {
+		t.Errorf("rounded %q, want %q: %s", rounded, want, out)
+	}
+}
+
 func TestChartTangentIsMonotone(t *testing.T) {
 	points := [][2]float64{{0, 0}, {1, 10}, {2, 10}, {3, 0}}
 	if got := chartTangent(points, 1); got != 0 {

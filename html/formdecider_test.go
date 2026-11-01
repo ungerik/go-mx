@@ -6787,6 +6787,82 @@ func TestReflectFormHandler_TextTagOptions(t *testing.T) {
 	}
 }
 
+// A stored text that breaks a length bound added later comes back
+// unchanged, which the browser does not check, so it passes on the server
+// too and the other fields can still be saved. An edited text is checked.
+func TestReflectFormHandler_TextLengthKeepsUnchanged(t *testing.T) {
+	type record struct {
+		Bio   string `form:"widget=textarea,maxlength=5"`
+		Title string `form:"minlength=3"`
+		Name  string
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(func(context.Context) (*record, error) {
+		return &record{Bio: "far too long", Title: "ab"}, nil
+	}, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	post := func(bio, title string) *httptest.ResponseRecorder {
+		form := url.Values{
+			mx.PresentSentinelName("Bio"): {"1"}, "Bio": {bio},
+			mx.PresentSentinelName("Title"): {"1"}, "Title": {title},
+			mx.PresentSentinelName("Name"): {"1"}, "Name": {"Ada"},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("far too long", "ab"); rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "Ada" {
+		t.Errorf("unchanged stored texts must not block the save: status %d: %s", rec.Code, rec.Body)
+	}
+	saved = nil
+	if rec := post("still too long", "xy"); saved != nil ||
+		!strings.Contains(rec.Body.String(), ">must be at most 5 characters<") ||
+		!strings.Contains(rec.Body.String(), ">must be at least 3 characters<") {
+		t.Errorf("edited texts are checked: status %d: %s", rec.Code, rec.Body)
+	}
+}
+
+// A submit that fails does not show its uploads as stored: the request's
+// temporary files are removed with the response and the browser does not
+// send them again, so the re-render shows what was loaded, and a file input
+// left empty on the next submit keeps that, not the lost upload.
+func TestReflectFormHandler_FailedSubmitDropsUploads(t *testing.T) {
+	type record struct {
+		Attachment *multipart.FileHeader
+		Scan       string `form:"widget=file"`
+		Email      string `form:"required"`
+	}
+	handler := mx.ReflectFormHandler(func(context.Context) (*record, error) {
+		return &record{Scan: "scan.pdf"}, nil
+	}, func(context.Context, *record) error { return nil }, FieldDecider)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for _, field := range []string{"Attachment", "Scan", "Email"} {
+		_ = mw.WriteField(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+	}
+	_ = mw.WriteField("Email", "")
+	for _, f := range []struct{ field, name string }{{"Attachment", "report.pdf"}, {"Scan", "new.pdf"}} {
+		w, _ := mw.CreateFormFile(f.field, f.name)
+		_, _ = io.WriteString(w, "content")
+	}
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, ">required<") {
+		t.Fatalf("want the Email error: %s", body)
+	}
+	if strings.Contains(body, "report.pdf") || strings.Contains(body, "new.pdf") {
+		t.Errorf("the failed submit's uploads must not show as stored: %s", body)
+	}
+	if !strings.Contains(body, `id="Scan-file">Current file: scan.pdf Leave empty to keep it.<`) {
+		t.Errorf("the loaded file stays the stored one: %s", body)
+	}
+}
+
 // A field of several files gets a multiple input and binds every upload: the
 // names, the contents or the uploads themselves; a *multipart.FileHeader
 // field needs no tag. form:"accept=…" limits the picker.

@@ -67,6 +67,15 @@ func TestMessageScrollerButtonLabel(t *testing.T) {
 	}
 }
 
+// Any data-direction="start" attrib makes the scroll-to-start button, not
+// only the MessageScrollerStart constant.
+func TestMessageScrollerButtonDirectionAttrib(t *testing.T) {
+	out := render(t, MessageScrollerButton("", "", html.DataAttr("direction", "start")))
+	if !strings.Contains(out, `data-direction="start"`) || strings.Contains(out, `data-direction="end"`) || !strings.Contains(out, "scrollTo({top:0") {
+		t.Errorf("want the scroll-to-start button: %s", out)
+	}
+}
+
 // TestMessageScrollerInBrowser runs StickToBottom in a MessageScroller in
 // headless Chrome: it opens pinned to the latest message, follows an append
 // while at the bottom, leaves a reader who scrolled up where they are, and

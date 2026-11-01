@@ -1719,6 +1719,31 @@ func TestShadcn_DatePicker(t *testing.T) {
 	}
 }
 
+// The trigger of a date picker is described by the field's help and error
+// messages, as every other control is, and the calendar's hidden input,
+// which the calendar script fires change on, carries the hx-trigger of
+// every other control.
+func TestShadcn_DatePickerDescribedBy(t *testing.T) {
+	type form struct {
+		Due time.Time `form:"widget=datepicker,help=When it is due"`
+	}
+	out := renderShadcn(t, &form{}, "Due", []error{stringErr("required")})
+	// The trigger's class holds ">", so its start tag ends at </button>.
+	trigger := regexp.MustCompile(`<button [^<]*popovertarget="Due-calendar"[^<]*`).FindString(out)
+	if !strings.Contains(trigger, `aria-describedby="Due-help Due-error-0"`) {
+		t.Errorf("the trigger must be described by the help and the error: %s", out)
+	}
+	for _, id := range []string{`id="Due-help"`, `id="Due-error-0"`} {
+		if !strings.Contains(out, id) {
+			t.Errorf("missing %s in %s", id, out)
+		}
+	}
+	input := regexp.MustCompile(`<input [^>]*data-slot="calendar-input"[^>]*>`).FindString(out)
+	if !strings.Contains(input, `hx-trigger="change"`) {
+		t.Errorf("the calendar input must carry hx-trigger: %s", input)
+	}
+}
+
 // ContextWithDatePickerOptions configures the picker's calendar: MonthURL
 // wires the month buttons, and the shown month without a value is Today's.
 func TestShadcn_DatePickerOptions(t *testing.T) {

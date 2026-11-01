@@ -482,7 +482,9 @@ API is still free to change.
   submits what a date input submits; other renderers show a date input.
   `shadcn.ContextWithDatePickerOptions` sets the calendar options per field,
   and `shadcn.DatePickerCalendar` answers its `MonthURL`. The placeholder is
-  `Labels.FormPickDate`.
+  `Labels.FormPickDate`. The trigger is described by the field's help and
+  error messages (`aria-describedby`), and the calendar's hidden input
+  carries the `hx-trigger="change"` of every other control.
 - **`highlight.Highlighter.Lines`** cuts highlighted tokens into one
   `mx.Components` per line, a token spanning lines into one span per line, so
   highlighted code can be numbered with `shadcn.CodeBlockLine`.
@@ -521,11 +523,14 @@ API is still free to change.
   of pulsing.
 - **`MessageScrollerButton(…, MessageScrollerStart)`**, upstream's
   scroll-to-start button, shown while the viewport is not at the top
-  (StickToBottom now also sets `data-at-start`).
+  (StickToBottom now also sets `data-at-start`). Any `data-direction="start"`
+  attrib makes it too.
 - **Text-length, autocomplete and input-mode tag options.**
   `form:"minlength=…,maxlength=…"` become the input's attributes and are
   checked on the server (`mx.CheckTextLength`, in UTF-16 code units and
-  with a textarea's line break counted once, as the browser counts), and `form:"autocomplete=…,inputmode=…"` tell the browser
+  with a textarea's line break counted once, as the browser counts; a
+  stored text posted back unchanged is not checked, as the browser does not
+  check it, so a bound added later does not block saving the form), and `form:"autocomplete=…,inputmode=…"` tell the browser
   what to fill in and which keyboard to show.
 - **Several files per field, and file previews.** A `[]string`, `[][]byte` or
   `[]*multipart.FileHeader` field takes a multiple file input and binds every
@@ -815,6 +820,11 @@ API is still free to change.
 
 ### Fixed
 
+- **A submit that fails no longer shows its uploads as stored.** The
+  request's temporary files are removed with the response, so the re-rendered
+  form said "Leave empty to keep it" about a file the next submit no longer
+  had. The handler now renders the file fields as loaded, and a required one
+  asks for the file again.
 - **`highlight.TokenizeGo` keeps a block comment or raw string of a CRLF
   source whole.** go/scanner strips their carriage returns, so the token
   ended short and its tail was highlighted as code.

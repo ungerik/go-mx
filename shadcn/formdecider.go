@@ -91,7 +91,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		if tag.Widget == "datepicker" && in.Type == "date" && !tag.Readonly {
 			if selected, ok := datePickerValue(in.Value); ok {
 				return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
-					datePickerField(path, selected, tag, errs),
+					&datePickerField{path: path, selected: selected, tag: tag, errs: errs},
 				)
 			}
 		}
@@ -174,7 +174,11 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), tag.Sensitive && kind.KeepsStoredWhenBlank() && !mx.KeepsStoredValue(tag, kind, value)))
 	}
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
-	mx.AddDescribedBy(input, describedBy...)
+	if picker, ok := input.(*datePickerField); ok {
+		picker.describedBy = describedBy
+	} else {
+		mx.AddDescribedBy(input, describedBy...)
+	}
 	return fieldWrap(invalid, parts...)
 }
 
@@ -268,7 +272,11 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), false))
 	}
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
-	mx.AddDescribedBy(input, describedBy...)
+	if picker, ok := input.(*datePickerField); ok {
+		picker.describedBy = describedBy
+	} else {
+		mx.AddDescribedBy(input, describedBy...)
+	}
 	return fieldWrap(len(errs) > 0, parts...)
 }
 
@@ -581,9 +589,35 @@ func ContextWithDatePickerOptions(ctx context.Context, options func(path mx.Fiel
 // picked; opts.Name is set to the path. It is what the picker renders in its
 // popover, and what the handler behind opts.MonthURL answers with, passing
 // the zero selected: the picker carries the picked day into the new month.
+// Its hidden input carries the hx-trigger="change" of every other control
+// of the form, as the calendar script fires change on it for a picked day.
 func DatePickerCalendar(path mx.FieldPath, opts CalendarOptions, month, selected time.Time) *mx.Element {
 	opts.Name = string(path)
-	return CalendarWith(opts, month, selected, html.Class("border-0"))
+	calendar := CalendarWith(opts, month, selected, html.Class("border-0"))
+	addCalendarInputTrigger(calendar)
+	return calendar
+}
+
+// addCalendarInputTrigger adds hx-trigger="change" to the first hidden
+// calendar input in c and reports whether it found one.
+func addCalendarInputTrigger(c mx.Component) bool {
+	switch c := c.(type) {
+	case *mx.Element:
+		if i := c.AttribIndex("data-slot"); c.Name == "input" && i >= 0 {
+			if slot, err := c.Attribs[i].AttribValue(context.Background()); err == nil && slot == "calendar-input" {
+				c.Attribs = append(c.Attribs, hx.Trigger("change"))
+				return true
+			}
+		}
+		return addCalendarInputTrigger(c.Children)
+	case mx.Components:
+		for _, child := range c {
+			if addCalendarInputTrigger(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // datePickerValue returns the date of a date input's value, the zero time
@@ -596,52 +630,67 @@ func datePickerValue(value string) (time.Time, bool) {
 	return t, err == nil
 }
 
-// datePickerField renders a form:"widget=datepicker" field as upstream's
+// datePickerField is a form:"widget=datepicker" field rendered as upstream's
 // DatePicker recipe: a [PopoverTrigger] labelled by the field's [FieldLabel]
 // that shows the picked day, and a select-mode [Calendar] in the popover,
 // whose hidden input submits the day as 2006-01-02, the date input's value.
-func datePickerField(path mx.FieldPath, selected time.Time, tag mx.FormTag, errs []error) mx.Component {
-	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-		opts := CalendarOptions{}
-		if options, ok := ctx.Value(ctxKeyDatePickerOptions{}).(func(mx.FieldPath) CalendarOptions); ok && options != nil {
-			opts = options(path)
-		}
-		dayLabel := opts.DayLabel
-		if dayLabel == nil {
-			dayLabel = func(d time.Time) string { return d.Format(time.DateOnly) }
-		}
-		month := selected
-		if month.IsZero() {
-			month = cmp.Or(opts.Today, time.Now())
-		}
-		text := CalendarText(string(path))
-		switch {
-		case !selected.IsZero():
-			text.Children = mx.Components{mx.Text(dayLabel(selected))}
-		case tag.Placeholder != "":
-			text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
-			text.Children = mx.Components{mx.Text(tag.Placeholder)}
-		default:
-			text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
-			text.Children = mx.Components{labelText(func(l Labels) string { return l.FormPickDate })}
-		}
-		popoverID := string(path) + "-calendar"
-		trigger := PopoverTrigger(popoverID,
-			html.ID(string(path)),
-			html.Class(ButtonClasses(ButtonOutline, SizeDefault)+" w-full justify-start text-left font-normal"),
-			iconCalendar(),
-			text,
-		)
-		if len(errs) > 0 {
-			trigger.Attribs = append(trigger.Attribs, mx.NewAttrib("aria-invalid", "true"))
-		}
-		return Popover(
-			trigger,
-			PopoverContent(popoverID, "", html.Class("w-auto p-0"),
-				DatePickerCalendar(path, opts, month, selected),
-			),
-		).Render(ctx, w)
-	})
+//
+// It builds its markup while rendering, as it reads
+// [ContextWithDatePickerOptions], where [mx.AddDescribedBy] cannot reach
+// the trigger, so shadcnFieldMarked sets describedBy, the ids of the help
+// and error messages, for it to link itself.
+type datePickerField struct {
+	path        mx.FieldPath
+	selected    time.Time
+	tag         mx.FormTag
+	errs        []error
+	describedBy []string
+}
+
+func (d *datePickerField) Render(ctx context.Context, w mx.Writer) error {
+	path, selected, tag, errs := d.path, d.selected, d.tag, d.errs
+	opts := CalendarOptions{}
+	if options, ok := ctx.Value(ctxKeyDatePickerOptions{}).(func(mx.FieldPath) CalendarOptions); ok && options != nil {
+		opts = options(path)
+	}
+	dayLabel := opts.DayLabel
+	if dayLabel == nil {
+		dayLabel = func(d time.Time) string { return d.Format(time.DateOnly) }
+	}
+	month := selected
+	if month.IsZero() {
+		month = cmp.Or(opts.Today, time.Now())
+	}
+	text := CalendarText(string(path))
+	switch {
+	case !selected.IsZero():
+		text.Children = mx.Components{mx.Text(dayLabel(selected))}
+	case tag.Placeholder != "":
+		text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
+		text.Children = mx.Components{mx.Text(tag.Placeholder)}
+	default:
+		text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
+		text.Children = mx.Components{labelText(func(l Labels) string { return l.FormPickDate })}
+	}
+	popoverID := string(path) + "-calendar"
+	trigger := PopoverTrigger(popoverID,
+		html.ID(string(path)),
+		html.Class(ButtonClasses(ButtonOutline, SizeDefault)+" w-full justify-start text-left font-normal"),
+		iconCalendar(),
+		text,
+	)
+	if len(errs) > 0 {
+		trigger.Attribs = append(trigger.Attribs, mx.NewAttrib("aria-invalid", "true"))
+	}
+	if len(d.describedBy) > 0 {
+		trigger.Attribs = append(trigger.Attribs, mx.NewAttrib("aria-describedby", strings.Join(d.describedBy, " ")))
+	}
+	return Popover(
+		trigger,
+		PopoverContent(popoverID, "", html.Class("w-auto p-0"),
+			DatePickerCalendar(path, opts, month, selected),
+		),
+	).Render(ctx, w)
 }
 
 // readonlyInputClasses give a readonly text, number, date or textarea input

@@ -483,7 +483,18 @@ func chartCartesianSVG(kind ChartKind, data ChartData, series []chartSeriesInfo,
 					chartAttr("width", max(barW, 0)), chartAttr("height", y1-y0),
 					title(i, s),
 				)
-				if !stacked || si == len(series)-1 {
+				// A stack rounds only the bar that ends it on its side of
+				// zero: the last one of its sign with a height, so neither a
+				// zero-height bar nor one below zero takes the corners.
+				rounded := !stacked || v != 0
+				if stacked {
+					for _, above := range series[si+1:] {
+						if w := above.Values[i]; w != 0 && (w >= 0) == (v >= 0) {
+							rounded = false
+						}
+					}
+				}
+				if rounded {
 					rect.Attribs = append(rect.Attribs, chartAttr("rx", min(4, barW/2)))
 				}
 				g.Children = append(g.Children, rect)

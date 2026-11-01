@@ -8,6 +8,26 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 
 ## mx reflected forms
 
+### Core repeatable texts are English only
+
+**What:** Let the texts the core package renders for a repeatable field,
+"Add row", "Remove" and the empty readonly field's "None"
+(`RepeatableNoRowsText`), follow the request's language.
+
+**Why:** A shadcn form translates every built-in string through `Labels`,
+but these three come from the core `renderRepeatable`, which has no access
+to them, so a German form shows English row buttons.
+
+**Context:** `repeatableAddButton`, `renderRepeatableRow` and the
+`RepeatableNoRowsText` line in `repeatable.go`. A context hook read at render
+time (as shadcn's `ContextWithLabels`) would let a renderer install them.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## Completed
+
 ### The date picker trigger is not described by its errors and help
 
 **What:** Give the trigger button of a `form:"widget=datepicker"` field the
@@ -27,6 +47,7 @@ Pass the ids into the closure, or build the trigger outside it. Found by the
 **Effort:** S
 **Priority:** P3
 **Depends on:** None
+**Completed:** 2026-11-01 — `datePickerField` is a component type that `shadcnFieldMarked` hands the help, stored-value and error ids, so the trigger links them with `aria-describedby`; `DatePickerCalendar` gives its hidden input `hx-trigger="change"`, which the calendar script fires on a picked day, also in a `MonthURL` fragment.
 
 ### A file uploaded with a failing submit is shown as kept
 
@@ -49,26 +70,7 @@ Found by the /ship review (2026-11-01).
 **Effort:** M
 **Priority:** P3
 **Depends on:** None
-
-### Core repeatable texts are English only
-
-**What:** Let the texts the core package renders for a repeatable field,
-"Add row", "Remove" and the empty readonly field's "None"
-(`RepeatableNoRowsText`), follow the request's language.
-
-**Why:** A shadcn form translates every built-in string through `Labels`,
-but these three come from the core `renderRepeatable`, which has no access
-to them, so a German form shows English row buttons.
-
-**Context:** `repeatableAddButton`, `renderRepeatableRow` and the
-`RepeatableNoRowsText` line in `repeatable.go`. A context hook read at render
-time (as shadcn's `ContextWithLabels`) would let a renderer install them.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
-## Completed
+**Completed:** 2026-11-01 — the handler copies the loaded values of the file fields, also in repeatable rows, before it binds a POST, and puts them back before every failed submit renders the form again (validation errors, `FieldErrors` or another error from `onSubmit`, and a row command); a file field of a row that was not loaded becomes empty. The form shows what is stored, and a required file input asks for the file again.
 
 ### Port cva's `defineConfig` / `onComplete` hook
 

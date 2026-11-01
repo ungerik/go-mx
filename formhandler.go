@@ -326,6 +326,7 @@ func ReflectFormHandlerRedirecting[T any](
 				respondLoadError(w, r, err)
 				return
 			}
+			files := snapshotFiles(target)
 			d := pickDecider(r)
 			origins := rowOrigins{}
 			// Repeatable add/remove buttons submit a __cmd__ value with
@@ -342,12 +343,14 @@ func ReflectFormHandlerRedirecting[T any](
 				if sensitiveTextPosted(target, requestFormValues(r)) {
 					formMsg = FormRetypeSensitiveMessage
 				}
+				files.restore(target, origins)
 				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
 				render(w, r, target, nil, formMsg, origins)
 				return
 			}
 			fieldErrs := parseAndValidate(target, d, r, origins)
 			if len(fieldErrs) > 0 {
+				files.restore(target, origins)
 				render(w, r, target, fieldErrs, "", origins)
 				return
 			}
@@ -376,6 +379,7 @@ func ReflectFormHandlerRedirecting[T any](
 					// What the FieldErrors came joined with, such as a
 					// failed audit write, is not shown.
 					reportHiddenParts(r.Context(), err)
+					files.restore(target, origins)
 					render(w, r, target, perField, "", origins)
 					return
 				}
@@ -386,6 +390,7 @@ func ReflectFormHandlerRedirecting[T any](
 				}
 			}
 			if err != nil {
+				files.restore(target, origins)
 				render(w, r, target, nil, FormErrorText(r.Context(), err), origins)
 				return
 			}
@@ -471,6 +476,96 @@ func outOfBandFragments(r *http.Request) Components {
 	oob.mu.Lock()
 	defer oob.mu.Unlock()
 	return slices.Clone(oob.comps)
+}
+
+// loadedFiles holds the values of a form's file fields as loaded, before a
+// POST binds its uploads: by path, and for the cells of a repeatable field
+// by the index of the loaded row.
+type loadedFiles struct {
+	fields map[FieldPath]reflect.Value
+	rows   map[FieldPath][]map[FieldPath]reflect.Value
+}
+
+// snapshotFiles copies the values of target's file fields, also those in
+// the rows of its repeatable fields.
+func snapshotFiles(target any) loadedFiles {
+	files := loadedFiles{fields: map[FieldPath]reflect.Value{}, rows: map[FieldPath][]map[FieldPath]reflect.Value{}}
+	for visit := range ReflectFormFields(target) {
+		switch {
+		case visit.Kind == FieldKindFile:
+			files.fields[visit.Path] = copiedValue(visit.Value)
+		case visit.Kind == FieldKindRepeatable && visit.Value.Kind() == reflect.Slice:
+			structType := repeatableStructType(visit.Value.Type())
+			if structType == nil {
+				continue
+			}
+			rows := make([]map[FieldPath]reflect.Value, visit.Value.Len())
+			for i := range rows {
+				rows[i] = map[FieldPath]reflect.Value{}
+				row := rowStructValue(visit.Value.Index(i), structType)
+				for cell := range ReflectFormFields(row.Addr().Interface()) {
+					if cell.Kind == FieldKindFile {
+						rows[i][cell.Path] = copiedValue(cell.Value)
+					}
+				}
+			}
+			files.rows[visit.Path] = rows
+		}
+	}
+	return files
+}
+
+// restore sets target's file fields back to their loaded values before a
+// failed submit renders the form again. The request's uploads are removed
+// with its response and the browser does not send them again, so the form
+// must not show them as stored, and a file input left empty must not keep
+// them. A file field of a row that was not loaded, such as an added one,
+// becomes empty. Repeatable rows are matched to loaded ones by origins.
+func (files loadedFiles) restore(target any, origins rowOrigins) {
+	for visit := range ReflectFormFields(target) {
+		switch {
+		case visit.Kind == FieldKindFile:
+			if loaded, ok := files.fields[visit.Path]; ok && visit.Value.CanSet() {
+				visit.Value.Set(loaded)
+			}
+		case visit.Kind == FieldKindRepeatable && visit.Value.Kind() == reflect.Slice:
+			rowsOrigin, recorded := origins[visit.Path]
+			structType := repeatableStructType(visit.Value.Type())
+			// A field that was not posted keeps the loaded rows, and with
+			// fewer rows than origins it is unknown which one came from where.
+			if !recorded || structType == nil || len(rowsOrigin) > visit.Value.Len() {
+				continue
+			}
+			loadedRows := files.rows[visit.Path]
+			for i := range visit.Value.Len() {
+				origin := -1
+				if i < len(rowsOrigin) {
+					origin = rowsOrigin[i]
+				}
+				row := rowStructValue(visit.Value.Index(i), structType)
+				for cell := range ReflectFormFields(row.Addr().Interface()) {
+					if cell.Kind != FieldKindFile || !cell.Value.CanSet() {
+						continue
+					}
+					if origin >= 0 && origin < len(loadedRows) {
+						if loaded, ok := loadedRows[origin][cell.Path]; ok {
+							cell.Value.Set(loaded)
+							continue
+						}
+					}
+					cell.Value.SetZero()
+				}
+			}
+		}
+	}
+}
+
+// copiedValue returns a settable copy of v that a later Set on v does not
+// change.
+func copiedValue(v reflect.Value) reflect.Value {
+	c := reflect.New(v.Type()).Elem()
+	c.Set(v)
+	return c
 }
 
 // sensitiveTextPosted reports whether form posted text for one of target's
