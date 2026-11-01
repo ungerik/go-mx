@@ -58,7 +58,7 @@ Regenerate the gallery after changing any `shadcn` component or
 `cmd/shadcn-gallery/examples/*.go`:
 
 ```bash
-go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
 ```
 
 The `Gallery up to date` CI job (`.github/workflows/go.yml`) runs this exact

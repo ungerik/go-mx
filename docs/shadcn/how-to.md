@@ -342,8 +342,8 @@ os.WriteFile("index.html", []byte(buf.String()), 0o644)
 For a whole site, the `cmd/shadcn-gallery` command does exactly this with its
 `-out` flag — see
 [its source](https://github.com/ungerik/go-mx/tree/main/cmd/shadcn-gallery) for a
-worked example, including a `-base` flag that prefixes links for hosting under a
-URL sub-path (like GitHub Pages project pages).
+worked example, whose pages link to each other relatively, so they work under
+any URL sub-path (like GitHub Pages project pages) and opened from disk.
 
 ### Verification
 

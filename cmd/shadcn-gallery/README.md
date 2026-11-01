@@ -18,15 +18,16 @@ The static output is the same pages the server serves — `dist/index.html` plus
 after the page, `dist/fragments/<path>`: the calendar examples set
 `CalendarOptions.MonthURL`, and every month they can navigate to is
 pre-rendered there (`examples/fragments.go`), so month navigation works on a
-static host. The export replaces the whole `fragments` directory. By default the pages link to each other with
-root-absolute URLs (`/`, `/components/…`), so serve the directory from a web root
+static host. The export replaces the whole `fragments` directory. The pages link to each other with
+relative URLs that name the `index.html` files (`components/button/index.html`,
+`../../index.html`), so the directory works served from any URL path, such as a
+GitHub Pages project page, and opened straight from disk. The server answers
+the same `…/index.html` paths. From disk, browsers refuse the `fetch` of a
+calendar's month fragments, so month navigation needs the directory served
 (e.g. `python3 -m http.server` inside `./dist`).
 
-To host under a URL **sub-path** (such as a GitHub Pages project page), pass
-`-base` so every in-gallery link is prefixed:
-
 ```bash
-go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
 ```
 
 This is exactly how the gallery committed under [`docs/shadcn/gallery/`](../../docs/shadcn/gallery/)

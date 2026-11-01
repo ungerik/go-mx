@@ -14,13 +14,12 @@
 //	go run ./cmd/shadcn-gallery                      # serve on http://localhost:8080
 //	go run ./cmd/shadcn-gallery -out ./dist          # write static files to ./dist, then exit
 //	go run ./cmd/shadcn-gallery -static-highlight …   # either mode, highlighting the Code tab server-side
-//	go run ./cmd/shadcn-gallery -out ./dist -base /go-mx/shadcn/gallery   # static export for a URL sub-path
 //
 // In both modes -static-highlight chooses server-side (highlight package) over
-// client-side (Shiki) Code-tab highlighting. The static output (-out) links pages
-// with root-absolute URLs, so serve the directory from a web root (e.g.
-// `python3 -m http.server` inside it); -base prefixes those links for hosting
-// under a URL sub-path such as a GitHub Pages project page.
+// client-side (Shiki) Code-tab highlighting. The pages link to each other with
+// relative URLs naming the index.html files, so the static output (-out) works
+// served from any URL path, such as a GitHub Pages project page, and opened
+// from disk.
 package main
 
 import (
@@ -28,7 +27,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/cmd/shadcn-gallery/examples"
@@ -644,14 +642,9 @@ func main() {
 	addr := flag.String("addr", ":8080", "listen address when serving")
 	out := flag.String("out", "",
 		"if set, write the gallery as static HTML files into this directory and exit, instead of serving")
-	base := flag.String("base", "",
-		"URL sub-path the static export (-out) is hosted under, e.g. /go-mx/shadcn/gallery for a GitHub Pages project page; prefixed to every in-gallery link")
 	flag.BoolVar(&staticHighlight, "static-highlight", false,
 		"highlight the Code tab server-side with the highlight package instead of client-side Shiki")
 	flag.Parse()
-
-	linkBase = strings.TrimRight(*base, "/")
-	examples.FragmentBase = linkBase + "/fragments"
 
 	reg := NewRegistry(docs())
 
@@ -663,9 +656,11 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+	index := func(w http.ResponseWriter, r *http.Request) {
 		page(reg, "", "Components", indexContent(reg)).HandleHTTP(w, r)
-	})
+	}
+	mux.HandleFunc("GET /{$}", index)
+	mux.HandleFunc("GET /index.html", index)
 	mux.HandleFunc("GET /fragments/{path...}", func(w http.ResponseWriter, r *http.Request) {
 		for _, f := range examples.Fragments() {
 			if f.Path == r.PathValue("path") {
@@ -678,14 +673,16 @@ func main() {
 		}
 		http.NotFound(w, r)
 	})
-	mux.HandleFunc("GET /components/{slug}", func(w http.ResponseWriter, r *http.Request) {
+	component := func(w http.ResponseWriter, r *http.Request) {
 		d := reg.Lookup(r.PathValue("slug"))
 		if d == nil {
 			http.NotFound(w, r)
 			return
 		}
 		page(reg, d.Slug, d.Title, componentContent(d)).HandleHTTP(w, r)
-	})
+	}
+	mux.HandleFunc("GET /components/{slug}", component)
+	mux.HandleFunc("GET /components/{slug}/index.html", component)
 
 	fmt.Printf("listening on %s\n", *addr)
 	fmt.Printf("open http://localhost%s\n", *addr)

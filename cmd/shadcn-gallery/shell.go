@@ -20,16 +20,18 @@ import (
 //     JavaScript or CDN dependency for the code blocks (see staticCodeBlock).
 var staticHighlight bool
 
-// linkBase is prefixed to every in-gallery link (the sidebar logo, the sidebar
-// component links, the index cards). It is "" when serving, so links are
-// root-absolute ("/", "/components/…"); the -base flag sets it to the hosting
-// sub-path (e.g. "/go-mx/shadcn/gallery") for a static export served under a GitHub
-// Pages project page, where the site does not live at the domain root.
-var linkBase string
-
-// link builds an in-gallery href by prefixing [linkBase]. path always starts
-// with "/", so link("/") is the index and link("/components/x") a component.
-func link(path string) string { return linkBase + path }
+// link returns the relative href of the gallery page at path, such as
+// "index.html" or "components/button/index.html", from the page of
+// currentSlug: the index ("") or a component page, which sits two directories
+// deeper. Relative links with the file name spelled out work wherever the
+// pages are: served by this command, hosted under any URL sub-path, or
+// opened from disk, where a directory link would show a file listing.
+func link(currentSlug, path string) string {
+	if currentSlug == "" {
+		return path
+	}
+	return "../../" + path
+}
 
 // themeCSS is the shadcn/ui new-york-v4 globals.css, injected into a
 // <style type="text/tailwindcss"> block that the @tailwindcss/browser CDN build
@@ -115,7 +117,7 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 		html.Aside(html.Class("w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground"),
 			html.DivClass("sticky top-0 flex h-screen flex-col",
 				html.DivClass("flex items-center justify-between border-b px-4 py-3",
-					html.AHRef(link("/"), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
+					html.AHRef(link(currentSlug, "index.html"), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
 					shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM,
 						html.OnClick("localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'"),
 						"Theme"),
@@ -140,7 +142,7 @@ func sidebarLinks(reg *Registry, currentSlug string) mx.Component {
 		if d.Slug == currentSlug {
 			cls = "block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground"
 		}
-		return html.AHRef(link("/components/"+d.Slug), html.Class(cls), d.Title)
+		return html.AHRef(link(currentSlug, "components/"+d.Slug+"/index.html"), html.Class(cls), d.Title)
 	})
 }
 
@@ -153,7 +155,7 @@ func indexContent(reg *Registry) mx.Component {
 			"A go-mx rebuild of the shadcn/ui component docs — every preview is rendered server-side in Go, with its source shown alongside."),
 		html.DivClass("mt-8 grid gap-4 sm:grid-cols-2",
 			mx.ForEach(reg.Docs, func(d ComponentDoc) mx.Component {
-				return html.AHRef(link("/components/"+d.Slug),
+				return html.AHRef(link("", "components/"+d.Slug+"/index.html"),
 					html.Class("rounded-lg border p-4 transition-colors hover:bg-accent"),
 					html.DivClass("font-medium", d.Title),
 					html.PClass("mt-1 text-sm text-muted-foreground", d.Description),

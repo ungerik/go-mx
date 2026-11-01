@@ -14,8 +14,8 @@ import (
 // writeStatic renders the whole gallery to dir as static HTML files — the same
 // pages the server serves: the index at <dir>/index.html and each component at
 // <dir>/components/<slug>/index.html. The pages link to each other with
-// root-absolute URLs ("/", "/components/…"), so dir is meant to be served from a
-// web root (e.g. `python3 -m http.server` inside it).
+// relative URLs naming those files, so dir works served from any URL path and
+// opened from disk.
 func writeStatic(reg *Registry, dir string) error {
 	n := 0
 	write := func(relPath string, doc *html.Document) error {

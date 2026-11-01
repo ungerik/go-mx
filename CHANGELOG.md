@@ -578,6 +578,11 @@ API is still free to change.
 
 ### Changed
 
+- **The gallery's pages link to each other relatively**, naming the
+  `index.html` files (`components/button/index.html`, `../../index.html`), so
+  `cmd/shadcn-gallery -out` writes a site that works under any URL path and
+  opened from disk. The `-base` flag is gone; the server answers the same
+  `…/index.html` paths.
 - **A static `shadcn.Calendar`'s days are text, not buttons.** As
   react-day-picker renders days without a mode, a calendar without a `Name`
   shows each day's number with its `DayLabel` as screen-reader text and names

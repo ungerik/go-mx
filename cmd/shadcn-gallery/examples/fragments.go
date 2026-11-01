@@ -6,10 +6,11 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-// FragmentBase is the URL path the gallery serves its fragments under, such
-// as "/fragments" or "/go-mx/shadcn/gallery/fragments". main sets it before
-// the first example renders.
-var FragmentBase = "/fragments"
+// fragmentBase is the URL of the gallery's fragments relative to a
+// component page, the only pages whose examples load them. A fragment swapped
+// into the page resolves its own fragment URLs against the page, so they are
+// relative to it too.
+const fragmentBase = "../../fragments"
 
 // Fragment is a piece of markup the gallery serves on its own, for an
 // example that loads more markup after the page, such as a calendar loading
@@ -31,7 +32,7 @@ func Fragments() []Fragment {
 
 // fragmentURL returns the URL of the fragment at path.
 func fragmentURL(path string) string {
-	return FragmentBase + "/" + path
+	return fragmentBase + "/" + path
 }
 
 // monthURL returns the MonthURL of a calendar whose months are the
