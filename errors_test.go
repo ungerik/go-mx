@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -48,9 +49,17 @@ func TestRespondNonContextError_RevealsWhenConfigured(t *testing.T) {
 	}
 }
 
+// cancelledRequest returns a GET request whose context is done, as the
+// request of a client that has disconnected is.
+func cancelledRequest() *http.Request {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+}
+
 func TestRespondNonContextError_SilentForContextErrors(t *testing.T) {
-	// A canceled context means the client that would read the 500 has
-	// disconnected, so there is nobody to tell — and net/http logs a
+	// A cancelled request context means the client that would read the 500
+	// has disconnected, so there is nobody to tell — and net/http logs a
 	// superfluous WriteHeader for the attempt. The wrapped case is the
 	// realistic one: a cancellation surfaces from a database driver or an HTTP
 	// call with its own message around it, so the check has to unwrap.
@@ -61,7 +70,7 @@ func TestRespondNonContextError_SilentForContextErrors(t *testing.T) {
 		errs.Errorf("calling the pricing service: %w", context.DeadlineExceeded),
 	} {
 		rec := httptest.NewRecorder()
-		RespondNonContextError(rec, httptest.NewRequest(http.MethodGet, "/", nil), err)
+		RespondNonContextError(rec, cancelledRequest(), err)
 		if rec.Body.Len() != 0 {
 			t.Errorf("RespondNonContextError(%v) wrote %q, want nothing", err, rec.Body.String())
 		}
@@ -69,6 +78,23 @@ func TestRespondNonContextError_SilentForContextErrors(t *testing.T) {
 		// committed either.
 		if rec.Code != http.StatusOK {
 			t.Errorf("RespondNonContextError(%v) responded with status %d, want no response at all", err, rec.Code)
+		}
+	}
+}
+
+// A timeout of a call the handler made, such as a query under its own
+// context.WithTimeout, fails with context.DeadlineExceeded while the client
+// still waits: that is a 500, not a client that went away. So is a real
+// error joined with the context.Canceled of a fan-out's own cancel.
+func TestRespondNonContextError_OwnTimeoutIsAServerError(t *testing.T) {
+	for _, err := range []error{
+		errs.Errorf("querying the ledger: %w", context.DeadlineExceeded),
+		errors.Join(errors.New("pricing service: 503"), context.Canceled),
+	} {
+		rec := httptest.NewRecorder()
+		RespondNonContextError(rec, httptest.NewRequest(http.MethodGet, "/", nil), err)
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("RespondNonContextError(%v) responded with status %d, want 500", err, rec.Code)
 		}
 	}
 }
@@ -118,6 +144,18 @@ func newReportRequest(method string, form url.Values) *http.Request {
 func serveReportRequest(h http.Handler, method string, form url.Values) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, newReportRequest(method, form))
+	return rec
+}
+
+// serveCancelledReportRequest serves newReportRequest(method, form) with h
+// under a context that is done, as the request of a client that has
+// disconnected is.
+func serveCancelledReportRequest(h http.Handler, method string, form url.Values) *httptest.ResponseRecorder {
+	r := newReportRequest(method, form)
+	ctx, cancel := context.WithCancel(r.Context())
+	cancel()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, r.WithContext(ctx))
 	return rec
 }
 
@@ -235,9 +273,14 @@ func TestRespondNonContextError_ReportsTheHiddenError(t *testing.T) {
 	rep.checkReported(t, true, hidden)
 
 	rep.reset()
-	RespondNonContextError(httptest.NewRecorder(), newReportRequest(http.MethodGet, nil), fmt.Errorf("querying: %w", context.Canceled))
-	RespondNonContextError(httptest.NewRecorder(), newReportRequest(http.MethodGet, nil), context.DeadlineExceeded)
+	RespondNonContextError(httptest.NewRecorder(), cancelledRequest(), fmt.Errorf("querying: %w", context.Canceled))
+	RespondNonContextError(httptest.NewRecorder(), cancelledRequest(), context.DeadlineExceeded)
 	rep.checkReported(t, false)
+
+	// A timeout of the handler's own call, while the client waits, is reported.
+	timeout := fmt.Errorf("querying: %w", context.DeadlineExceeded)
+	RespondNonContextError(httptest.NewRecorder(), newReportRequest(http.MethodGet, nil), timeout)
+	rep.checkReported(t, true, timeout)
 }
 
 // The hook gets the request's values but not its cancellation, so writing a
@@ -258,9 +301,150 @@ func TestReportHiddenError(t *testing.T) {
 
 	rep.reset()
 	ReportHiddenError(t.Context(), nil)
-	ReportHiddenError(t.Context(), context.Canceled)
-	ReportHiddenError(t.Context(), fmt.Errorf("calling the pricing service: %w", context.DeadlineExceeded))
+	ReportHiddenError(ctx, context.Canceled)
+	ReportHiddenError(ctx, fmt.Errorf("calling the pricing service: %w", context.DeadlineExceeded))
 	rep.checkReported(t, false)
+
+	// The same errors while the request's context is not done come from a
+	// timeout or cancel of the server's own, and are reported.
+	timeout := fmt.Errorf("calling the pricing service: %w", context.DeadlineExceeded)
+	ReportHiddenError(t.Context(), timeout)
+	rep.checkReported(t, false, timeout)
+}
+
+// A sensitive field shows only user messages, all of them, never the text
+// of what wraps them or is joined with them, which is reported, or else the
+// mask, and reports the error it hides.
+func TestMaskSensitiveError(t *testing.T) {
+	rep := recordReports(t)
+	hidden := errors.New(`"hunter2" is too short`)
+	if got := MaskSensitiveError(t.Context(), hidden, "not a valid value"); got != error(FormMessage("not a valid value")) {
+		t.Errorf("MaskSensitiveError = %q, want the mask", got)
+	}
+	rep.checkReported(t, false, hidden)
+
+	rep.reset()
+	wrapped := fmt.Errorf("checking %q: %w", "hunter2", FormMessage("Use at least 12 characters."))
+	if got := MaskSensitiveError(t.Context(), wrapped, "not a valid value"); got != error(FormMessage("Use at least 12 characters.")) {
+		t.Errorf("MaskSensitiveError = %q, want the user message alone", got)
+	}
+	rep.checkReported(t, false)
+
+	quoting := fmt.Errorf("%q has no digit", "hunter2")
+	joined := errors.Join(FormMessage("Use at least 12 characters."), quoting, FormMessage("Add a digit."))
+	got := MaskSensitiveError(t.Context(), joined, "not a valid value")
+	if texts := FieldErrorTexts(got); !slices.Equal(texts, []string{"Use at least 12 characters.", "Add a digit."}) {
+		t.Errorf("MaskSensitiveError of a join shows %q, want both user messages", texts)
+	}
+	rep.checkReported(t, false, quoting)
+}
+
+// asMessage supplies its user message only through an As method.
+type asMessage struct{}
+
+func (asMessage) Error() string { return "internal: rule 7 at db-host-3" }
+
+func (asMessage) As(target any) bool {
+	if m, ok := target.(*UserMessageError); ok {
+		*m = FormMessage("Check the IBAN.")
+		return true
+	}
+	return false
+}
+
+// The user message of a field's error is found as errors.As finds it, also
+// through an As method; an empty one does not hide a real one deeper in the
+// tree; and an error without text still says something.
+func TestFieldErrorTexts_EdgeCases(t *testing.T) {
+	if texts := FieldErrorTexts(asMessage{}); !slices.Equal(texts, []string{"Check the IBAN."}) {
+		t.Errorf("an As method's message: %q", texts)
+	}
+	if msg, ok := UserMessage(errors.Join(FormMessage(""), FormMessage("x"))); !ok || msg != "x" {
+		t.Errorf("UserMessage behind an empty one = %q, %t", msg, ok)
+	}
+	if texts := FieldErrorTexts(errors.Join(FormMessage(""), FormMessage("x"))); !slices.Equal(texts, []string{"x"}) {
+		t.Errorf("FieldErrorTexts behind an empty message: %q", texts)
+	}
+	if texts := FieldErrorTexts(FieldErrors{}); !slices.Equal(texts, []string{"not a valid value"}) {
+		t.Errorf("an error without text: %q", texts)
+	}
+}
+
+// wrappedQuote keeps the quoting error it wraps behind a short text.
+type wrappedQuote struct{ cause error }
+
+func (e wrappedQuote) Error() string { return "invalid code" }
+func (e wrappedQuote) Unwrap() error { return e.cause }
+
+// panicOnError fails the test the moment its text is built.
+type panicOnError struct{}
+
+func (panicOnError) Error() string { panic("Error() built for text far past the bound") }
+
+// The bound of a field's error: for posted text far past it the error's text
+// is never built; a long error of short text is replaced and reported, as no
+// forged value built it; a short error of long text keeps only its text, so
+// the hook does not get the forged value it wraps. A user message is bounded
+// too, and so is each part of an error joined with one.
+func TestBoundFieldError(t *testing.T) {
+	rep := recordReports(t)
+	quote := func(raw string) error { return fmt.Errorf("%q is no code", raw) }
+	long := strings.Repeat("x", 600)
+
+	const notValid = FormMessage("the text is not a valid value")
+	if err := BoundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*MaxFieldErrorLen+64), notValid); err != error(notValid) {
+		t.Errorf("far past the bound: %v", err)
+	}
+	if err := BoundFieldError(t.Context(), quote(long), long, notValid); err != error(notValid) {
+		t.Errorf("a quote of long text: %v", err)
+	}
+	// Built from a value that may be forged, neither error is reported as it
+	// is, only as a stand-in naming its type and lengths.
+	if texts := rep.texts(); len(texts) != 2 || strings.Contains(strings.Join(texts, ""), "xxxx") ||
+		!strings.Contains(texts[0], "mx.panicOnError") || !strings.Contains(texts[0], "not built") || !strings.Contains(texts[1], "613 bytes") {
+		t.Errorf("reported %q, want two stand-ins", texts)
+	}
+	rep.reset()
+	hint := errors.New("cannot parse value into the type: " + long)
+	if err := BoundFieldError(t.Context(), hint, "x", notValid); err != error(notValid) {
+		t.Errorf("a long error of short text: %v", err)
+	}
+	rep.checkReported(t, false, hint)
+	rep.reset()
+	kept := BoundFieldError(t.Context(), wrappedQuote{quote(long)}, long, notValid)
+	if kept.Error() != "invalid code" || errors.Unwrap(kept) != nil {
+		t.Errorf("a short error of long text: %v, wraps %v; want only its text", kept, errors.Unwrap(kept))
+	}
+	short := quote("abc")
+	if err := BoundFieldError(t.Context(), short, "abc", notValid); err != short {
+		t.Errorf("a short error of short text: %v, want it as it is", err)
+	}
+	if msg := FormMessage("Use a shorter code."); BoundFieldError(t.Context(), msg, long, notValid) != error(msg) {
+		t.Error("a short user message must stay as it is")
+	}
+	if err := BoundFieldError(t.Context(), FormMessage(long), long, notValid); err != error(notValid) {
+		t.Errorf("a user message past the bound: %v", err)
+	}
+	joined := errors.Join(FormMessage("Use a shorter code."), quote(long))
+	if texts := FieldErrorTexts(BoundFieldError(t.Context(), joined, long, notValid)); !slices.Equal(texts, []string{"Use a shorter code.", string(notValid)}) {
+		t.Errorf("a part joined with a user message: %q", texts)
+	}
+	wrapped := fmt.Errorf("checking: %w", joined)
+	if texts := FieldErrorTexts(BoundFieldError(t.Context(), wrapped, long, notValid)); !slices.Equal(texts, []string{"Use a shorter code.", string(notValid)}) {
+		t.Errorf("a wrapped join: %q", texts)
+	}
+	shortJoin := errors.Join(FormMessage("a"), errors.New("b"))
+	if err := BoundFieldError(t.Context(), shortJoin, "x", notValid); err != shortJoin {
+		t.Errorf("a short join must stay as it is: %v", err)
+	}
+
+	// A bound too large to multiply means no bound in practice, not none at all.
+	prev := MaxFieldErrorLen
+	t.Cleanup(func() { MaxFieldErrorLen = prev })
+	MaxFieldErrorLen = math.MaxInt
+	if err := BoundFieldError(t.Context(), short, "abc", notValid); err != short {
+		t.Errorf("a bound of MaxInt: %v, want the error as it is", err)
+	}
 }
 
 // addressErrors is a multi-error whose own UserMessage speaks for the

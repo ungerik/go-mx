@@ -121,7 +121,7 @@ func TestComponentHTTPHandler_ReportsErrorsAndPanics(t *testing.T) {
 
 	rep.reset()
 	renderErr = fmt.Errorf("rendering: %w", context.Canceled)
-	serveReportRequest(failing, http.MethodGet, nil)
+	serveCancelledReportRequest(failing, http.MethodGet, nil)
 	rep.checkReported(t, false)
 
 	panicking := ComponentHTTPHandler(ComponentFunc(func(context.Context, Writer) error { panic("nil map in the sidebar") }), DefaultWriterFactory, nil)

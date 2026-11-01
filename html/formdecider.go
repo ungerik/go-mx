@@ -9,14 +9,16 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/big"
 	"net/http"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/domonda/go-errs"
 
 	"github.com/ungerik/go-mx"
 )
@@ -76,13 +78,13 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 		return nil
 	}
 
-	input := renderInput(path, field, value, kind, browserTag(tag, kind, value), errs)
+	input := renderInput(path, field, value, kind, mx.BrowserTag(tag, kind, value), errs)
 	if input == nil {
 		return nil
 	}
 
 	parts := mx.Components{}
-	if labelText := fieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
+	if labelText := mx.FieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
 		// A set has no control with the path as its id: the label names
 		// its group.
 		parts = append(parts, Label(ID(groupLabelID(path)), labelText+":"))
@@ -91,14 +93,29 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	}
 	parts = append(parts, input)
 	if kind == mx.FieldKindBool {
-		if labelText := fieldLabel(field, tag); labelText != "" {
+		if labelText := mx.FieldLabel(field, tag); labelText != "" {
 			parts = append(parts, Label(For(string(path)), " "+labelText))
 		}
 	}
+	// The control is described by its help and each error message, after
+	// what it refers to itself, such as a date's format hint.
+	var describedBy []string
 	if tag.Help != "" {
+		describedBy = append(describedBy, string(path)+"-help")
 		parts = append(parts, mx.NewElement("small",
 			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Attribute{Name: "id", Value: string(path) + "-help"},
 			mx.Text(tag.Help),
+		))
+	}
+	// A sensitive input never shows its value, so it says that one is
+	// stored and that a blank keeps it.
+	if !tag.Readonly && mx.KeepsStoredValue(tag, kind, value) {
+		describedBy = append(describedBy, string(path)+"-stored")
+		parts = append(parts, mx.NewElement("small",
+			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Attribute{Name: "id", Value: string(path) + "-stored"},
+			mx.Text("Leave blank to keep the current value."),
 		))
 	}
 	// A readonly field is never written, so it offers no clear control.
@@ -106,20 +123,26 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	// is how it is emptied, ticked while it is empty so a re-render keeps
 	// a clear the user asked for.
 	sensitive := tag.Sensitive && kind.KeepsStoredWhenBlank()
-	if (isNullable(value) || sensitive) && !tag.Required && !tag.Readonly {
-		parts = append(parts, clearSentinelInput(path, fieldLabel(field, tag), sensitive && !mx.KeepsStoredValue(tag, kind, value)))
+	// An unchecked box stores false, so a database/sql bool such as
+	// sql.NullBool stores its null with the clear control.
+	nullableBool := kind == mx.FieldKindBool && isScanner(value)
+	if (isNullable(value) || sensitive || nullableBool) && !tag.Required && !tag.Readonly {
+		parts = append(parts, clearSentinelInput(path, mx.FieldLabel(field, tag), sensitive && !mx.KeepsStoredValue(tag, kind, value)))
 	}
-	if len(errs) > 0 {
-		for _, e := range errs {
-			for _, text := range mx.FieldErrorTexts(e) {
-				parts = append(parts, mx.NewElement("p",
-					mx.Attribute{Name: "class", Value: "form-error"},
-					mx.Attribute{Name: "data-error", Value: string(path)},
-					mx.Text(text),
-				))
-			}
+	firstError := len(describedBy)
+	for _, e := range errs {
+		for _, text := range mx.FieldErrorTexts(e) {
+			id := string(path) + "-error-" + strconv.Itoa(len(describedBy)-firstError)
+			describedBy = append(describedBy, id)
+			parts = append(parts, mx.NewElement("p",
+				mx.Attribute{Name: "class", Value: "form-error"},
+				mx.Attribute{Name: "id", Value: id},
+				mx.Attribute{Name: "data-error", Value: string(path)},
+				mx.Text(text),
+			))
 		}
 	}
+	mx.AddDescribedBy(input, describedBy...)
 	return parts
 }
 
@@ -128,10 +151,10 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 func renderInput(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
 	switch kind {
 	case mx.FieldKindString:
-		t := stringWidgetType(tag)
-		return inputElement(path, t, displayValue(value, tag), field, tag, errs)
+		t := mx.StringInputType(tag)
+		return inputElement(path, t, mx.FormValueText(value), field, tag, errs)
 	case mx.FieldKindTextarea:
-		return textareaElement(path, displayValue(value, tag), field, tag, errs)
+		return textareaElement(path, mx.FormValueText(value), field, tag, errs)
 	case mx.FieldKindNumber:
 		return numberInput(path, value, tag, errs)
 	case mx.FieldKindBool:
@@ -139,24 +162,24 @@ func renderInput(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	case mx.FieldKindDateTime:
 		return datetimeInput(path, value, tag, errs)
 	case mx.FieldKindFile:
-		return fileInput(path, tag, errs)
+		return fileInput(path, value, tag, errs)
 	case mx.FieldKindEnum:
 		return selectInput(path, value, tag, field, errs)
 	case mx.FieldKindEnumSet:
 		return enumSetInput(path, value, field, tag, errs)
 	case mx.FieldKindCatchAll:
-		return inputElement(path, "text", displayValue(value, tag), field, tag, errs)
+		return inputElement(path, "text", mx.FormValueText(value), field, tag, errs)
 	}
 	return nil
 }
 
-// renderHidden writes the value as displayValue does; a hidden time, such
+// renderHidden writes the value as [mx.FormValueText] does; a hidden time, such
 // as an UpdatedAt kept for optimistic locking, round-trips as RFC 3339.
 func renderHidden(path mx.FieldPath, value reflect.Value) mx.Component {
 	return VoidElement("input",
 		Type("hidden"),
 		Name(string(path)),
-		Value(displayValue(value, mx.FormTag{})),
+		Value(mx.FormValueText(value)),
 	)
 }
 
@@ -221,9 +244,10 @@ func numberInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []
 		Name(string(path)),
 		ID(string(path)),
 	}
-	// A sensitive number never shows its value, like a sensitive text input.
-	if !tag.Sensitive {
-		attribs = append(attribs, Value(displayValue(value, tag)))
+	// A sensitive number never shows its value, like a sensitive text input,
+	// and a null or nil one has none.
+	if text := mx.FormValueText(value); !tag.Sensitive && text != "" {
+		attribs = append(attribs, Value(text))
 	}
 	if tag.Min != "" {
 		attribs = append(attribs, Min(tag.Min))
@@ -253,7 +277,7 @@ func checkboxInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		ID(string(path)),
 		Value("on"),
 	}
-	if isTrueBool(value) {
+	if mx.FormValueChecked(value) {
 		attribs = append(attribs, Checked)
 	}
 	if tag.Readonly {
@@ -344,11 +368,30 @@ func formatHintID(path mx.FieldPath) string {
 	return string(path) + "-format"
 }
 
-func fileInput(path mx.FieldPath, tag mx.FormTag, errs []error) mx.Component {
+func fileInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
 	attribs := []mx.Attrib{
 		Type("file"),
 		Name(string(path)),
 		ID(string(path)),
+	}
+	// The browser labels the input "No file chosen" also while the field
+	// holds a file, which a note next to it says, and that a blank keeps it.
+	name, stored := mx.StoredFile(value)
+	var note mx.Component
+	if stored {
+		text := "A file is stored."
+		if name != "" {
+			text = "Current file: " + name
+		}
+		if !tag.Readonly {
+			text += " Leave empty to keep it."
+		}
+		attribs = append(attribs, mx.NewAttrib("aria-describedby", fileNoteID(path)))
+		note = mx.NewElement("small",
+			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Attribute{Name: "id", Value: fileNoteID(path)},
+			mx.Text(text),
+		)
 	}
 	// A file input cannot be readonly, and a readonly field is never
 	// saved, so it is disabled and asks for nothing.
@@ -361,11 +404,21 @@ func fileInput(path mx.FieldPath, tag mx.FormTag, errs []error) mx.Component {
 	if len(errs) > 0 {
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
-	return Input(attribs...)
+	if note == nil {
+		return Input(attribs...)
+	}
+	return mx.Components{Input(attribs...), note}
+}
+
+// fileNoteID is the id of the note next to a file input whose field holds a
+// file. The lowercase suffix cannot collide with a field path, whose
+// segments are exported Go field names.
+func fileNoteID(path mx.FieldPath) string {
+	return string(path) + "-file"
 }
 
 func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field reflect.StructField, errs []error) mx.Component {
-	selected := displayValue(value, tag)
+	selected := mx.FormValueText(value)
 	attribs := []any{
 		Name(string(path)),
 		ID(string(path)),
@@ -390,19 +443,19 @@ func selectInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, field r
 	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
 	removed := false
-	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
+	options := mx.OptionComponents(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{Value(opt.Value)}
 		if opt.Value == selected {
 			oAttr = append(oAttr, Selected)
 		}
-		oAttr = append(oAttr, mx.Text(displayLabel(opt)))
+		oAttr = append(oAttr, mx.Text(opt.Label()))
 		return Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
 		// Runs before the options render, so they and the preface see the
 		// same selection: an unlisted zero selects the list's own empty
 		// option, if it has one, or the preface's.
-		selected = mx.SelectedOption(value, selected, options)
-		preface := mx.SelectPreface(selected, tag, contextList, options)
+		var preface mx.OptionPreface
+		preface, selected = mx.SelectPreface(value, selected, tag, contextList, options)
 		removed = preface.RemovesValue(tag)
 		return selectPrefaceOption(preface)
 	})
@@ -465,27 +518,27 @@ func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
 }
 
 func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
-	keyType := setKeyType(field.Type)
+	keyType := mx.SetElemType(field.Type)
 	if keyType == nil {
 		return mx.Text("[enum-set: cannot infer key type for " + string(path) + "]")
 	}
-	selectedSet := setSelectedValues(value)
+	members := mx.SetMemberValues(value)
 	contextList := mx.OptionsNeedContext(tag, keyType)
-	items := optionChildren(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
+	items := mx.OptionComponents(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
 		inputAttribs := []mx.Attrib{
 			Type("checkbox"),
 			Name(string(path)),
 			Value(opt.Value),
 		}
-		if _, ok := selectedSet[opt.Value]; ok {
+		if _, ok := slices.BinarySearch(members, opt.Value); ok {
 			inputAttribs = append(inputAttribs, Checked)
 		}
 		if tag.Readonly {
 			inputAttribs = append(inputAttribs, Disabled)
 		}
-		return Label(Input(inputAttribs...), " "+displayLabel(opt))
+		return Label(Input(inputAttribs...), " "+opt.Label())
 	}, func(options []mx.NamedOption) mx.Component {
-		preface := mx.EnumSetPreface(setMemberValues(value), tag, contextList, options)
+		preface := mx.EnumSetPreface(members, tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return optionNote(path, "")
 		}
@@ -499,7 +552,7 @@ func enumSetInput(path mx.FieldPath, value reflect.Value, field reflect.StructFi
 	// offer, which is empty and hidden when there are none (see
 	// optionNote).
 	group := []any{mx.Attribute{Name: "role", Value: "group"}}
-	if fieldLabel(field, tag) != "" {
+	if mx.FieldLabel(field, tag) != "" {
 		group = append(group, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
 	group = append(group, mx.Attribute{Name: "aria-describedby", Value: optionNoteID(path)})
@@ -549,6 +602,14 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			if err := setScalar(value, raw); err != nil {
 				return err
 			}
+			// Checked once bound, so the re-render shows what was posted, as
+			// a number outside its range does. Only the inputs that render
+			// the pattern attribute are held to it.
+			if kind == mx.FieldKindString || kind == mx.FieldKindCatchAll {
+				if err := checkPattern(tag.Pattern, raw); err != nil {
+					return err
+				}
+			}
 			return checkScannedRange(value, raw, tag)
 		})
 	case mx.FieldKindNumber:
@@ -570,7 +631,10 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			}
 			// The range applies on the server too, not only in the browser.
 			// The number stays bound, as a date outside its range does.
-			return checkNumberRange(value, raw, tag)
+			if derefValue := reflect.Indirect(value); derefValue.IsValid() && isScanner(derefValue) {
+				return checkScannedRange(value, raw, tag)
+			}
+			return mx.CheckNumberRange(value, raw, tag)
 		})
 	case mx.FieldKindBool:
 		raw := form.Get(string(path))
@@ -597,7 +661,7 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	case mx.FieldKindEnumSet:
 		vals := form[string(path)]
 		return guardBind(r.Context(), value, strings.Join(vals, ","), tag, func() error {
-			if keyType := setKeyType(field.Type); keyType != nil && mx.OptionsNeedContext(tag, keyType) {
+			if keyType := mx.SetElemType(field.Type); keyType != nil && mx.OptionsNeedContext(tag, keyType) {
 				// The list is the trust boundary for the set, same as a select.
 				// Submitted values outside it are rejected. Members the list
 				// does not offer are not kept: the checkboxes the user saw are
@@ -712,7 +776,7 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 	}
 	for _, v := range vals {
 		if _, ok := allowed[v]; !ok {
-			return fmt.Errorf("%q is not one of the allowed options", v)
+			return errors.New(quotedValue(v) + " is not one of the allowed options")
 		}
 	}
 	return nil
@@ -720,17 +784,21 @@ func rejectUnlistedOptions(options []mx.NamedOption, vals []string) error {
 
 // guardBind runs bind, which writes raw into value and may call the type's
 // own UnmarshalText. A method that panics, as the promoted method of a nil
-// embedded pointer does, is an error instead of a failed request. Its error
-// is bounded by [mx.MaxFieldErrorLen] ([boundFieldError]): an option list,
+// embedded pointer does, is an error instead of a failed request, and is
+// reported with its stack ([mx.ReportHiddenError]). Its error
+// is bounded by [mx.MaxFieldErrorLen] ([mx.BoundFieldError]): an option list,
 // UnmarshalText or strconv error quotes raw whole, into the page, or, where
 // no input shows it, through [mx.ReportError] into the application's logs. A form:"sensitive"
-// field's error reads "not a valid value" ([maskSensitive]), leaving raw out
+// field's error reads "not a valid value" ([mx.MaskSensitiveError]), leaving raw out
 // at any length. (Date and time fields guard their own panics and mask
 // their errors with their format instead.)
 func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.FormTag, bind func() error) (err error) {
 	defer func() {
-		if recover() != nil {
-			err = fmt.Errorf("%q cannot be stored as %s", raw, value.Type())
+		if p := recover(); p != nil {
+			// A bug in the application's type, which the user is told of only
+			// as an invalid value.
+			mx.ReportHiddenError(ctx, errs.AsErrorWithDebugStack(p))
+			err = fmt.Errorf("%s cannot be stored as %s", quotedValue(raw), value.Type())
 		}
 		if err != nil {
 			// A sensitive field's substitute is its mask, whatever its length.
@@ -738,61 +806,61 @@ func guardBind(ctx context.Context, value reflect.Value, raw string, tag mx.Form
 			if tag.Sensitive {
 				substitute = "not a valid value"
 			}
-			err = boundFieldError(ctx, err, raw, substitute)
+			err = mx.BoundFieldError(ctx, err, raw, substitute)
 		}
 		if err != nil && tag.Sensitive {
-			err = maskSensitive(ctx, err, "not a valid value")
+			err = mx.MaskSensitiveError(ctx, err, "not a valid value")
 		}
 	}()
 	return bind()
 }
 
-// boundFieldError is err, the error of binding the posted text raw, bounded
-// by [mx.MaxFieldErrorLen] unless it carries a user message. An error whose
-// text is longer than the bound reads substitute; it is reported when raw is
-// within the bound, as its text was then not built from a forged value. For
-// raw longer than 64 times the bound the text is not built at all, as it may
-// quote raw at several times its size, so even a short error reads
-// substitute. A short error of a long raw keeps its text and nothing else,
-// so what it holds does not reach [mx.ReportError] either. The substitute is
-// a [mx.FormMessage], meant for the user, so it is not reported again.
-func boundFieldError(ctx context.Context, err error, raw string, substitute mx.FormMessage) error {
-	maxLen := mx.MaxFieldErrorLen
-	if _, ok := mx.UserMessage(err); ok || maxLen <= 0 {
-		return err
+// quotedValue returns raw quoted for an error, or "the text" for raw longer
+// than [mx.MaxFieldErrorLen]: the error would be past the bound and dropped
+// anyway ([mx.BoundFieldError]), and quoting first would copy a forged
+// value of any size, %q growing a control byte to four.
+func quotedValue(raw string) string {
+	if maxLen := mx.MaxFieldErrorLen; maxLen > 0 && len(raw) > maxLen {
+		return "the text"
 	}
-	if len(raw)/64 > maxLen {
-		return substitute
+	return strconv.Quote(raw)
+}
+
+// patterns caches the compiled form:"pattern=…" of each tag, nil for one
+// Go cannot compile. The patterns come from struct tags, so they are few.
+var patterns sync.Map // pattern string → *regexp.Regexp
+
+// checkPattern returns a validation error when raw, a non-empty submitted
+// text, does not match pattern, the form:"pattern=…" the input renders as
+// its pattern attribute, so a scripted POST is held to it too. Like the
+// attribute, the pattern must match the whole text and does not apply to
+// an empty one, which form:"required" decides. A pattern Go's RE2 cannot
+// compile, such as one with a JavaScript lookahead, is not checked, as a
+// browser ignores a pattern it cannot compile. The error quotes neither
+// text nor pattern.
+func checkPattern(pattern, raw string) error {
+	if pattern == "" || raw == "" {
+		return nil
 	}
-	text := err.Error()
-	switch {
-	case len(text) > maxLen:
-		if len(raw) <= maxLen {
-			mx.ReportHiddenError(ctx, err)
+	cached, ok := patterns.Load(pattern)
+	if !ok {
+		re, err := regexp.Compile("^(?:" + pattern + ")$")
+		if err != nil {
+			re = nil
 		}
-		return substitute
-	case len(raw) > maxLen:
-		return errors.New(text)
+		cached, _ = patterns.LoadOrStore(pattern, re)
 	}
-	return err
+	if re := cached.(*regexp.Regexp); re != nil && !re.MatchString(raw) {
+		return errors.New("does not match the required format")
+	}
+	return nil
 }
 
-// maskSensitive is the error a form:"sensitive" field shows in place of err,
-// whose text may quote the submitted or stored value: the UserMessage of an
-// [mx.UserMessageError] in it, which quotes nothing, without what it was
-// wrapped or joined with, else mask, with err reported to [mx.ReportError].
-// Either is a [mx.FormMessage], meant for the user, so a later stage neither
-// masks nor reports it again.
-func maskSensitive(ctx context.Context, err error, mask string) error {
-	if msg, ok := mx.UserMessage(err); ok {
-		return mx.FormMessage(msg)
-	}
-	mx.ReportHiddenError(ctx, err)
-	return mx.FormMessage(mask)
-}
-
-// maxNumberLen is the longest text a number field takes.
-const maxNumberLen = 64
+// maxNumberLen is the longest text a number field takes: the longest a
+// float64 is written in by the renderers, strconv.FormatFloat(f, 'f', -1,
+// 64), as for -2.2250738585072014e-308, so every value a field shows can be
+// posted back. An integer takes at most 20 characters.
+const maxNumberLen = 327
 
 // dateFormatError is [mx.DateTimeFormatError] for raw, except for a type
 // that reads only its own spelling, whose format the error cannot name
@@ -800,108 +868,22 @@ const maxNumberLen = 64
 // the user to text the type rejects.
 func dateFormatError(value reflect.Value, tag mx.FormTag, raw string) error {
 	if value.IsValid() && mx.DateTimeInput(value, tag).Format == "" {
-		return errors.New("not a valid value")
+		return mx.FormMessage("not a valid value")
 	}
 	return mx.DateTimeFormatError(tag, raw)
 }
 
-// maxDateTimeLen is the longest text a date, datetime or time field takes,
-// longer than any input sends or a date type spells a date.
-const maxDateTimeLen = 64
-
-// checkNumberRange returns a validation error when value, the number just
-// bound from raw, lies outside the tag's form:"min=…,max=…". The bound
-// value is compared, never raw itself, so whatever text the parser read is
-// checked as it is stored, including the 0 a blank stores in a number that
-// is no pointer (a nil pointer is no number to check). An integer is
-// compared exactly, so an int64 bound above 2^53 holds. A bound that is no
-// valid HTML floating-point number is ignored, as a browser ignores it.
-func checkNumberRange(value reflect.Value, raw string, tag mx.FormTag) error {
-	if tag.Min == "" && tag.Max == "" {
-		return nil
+// maskDateTimeError is [mx.MaskSensitiveError] for err, the error of a
+// form:"sensitive" date or time field, with formatErr, the format to enter,
+// as its mask: a user message in err shows, else formatErr does, kept as the
+// [mx.DateTimeError] it is, so a renderer can still translate it. err is
+// reported where it is hidden.
+func maskDateTimeError(ctx context.Context, err, formatErr error) error {
+	if _, ok := mx.UserMessage(err); ok {
+		return mx.MaskSensitiveError(ctx, err, formatErr.Error())
 	}
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return nil
-		}
-		value = value.Elem()
-	}
-	if raw == "" {
-		raw = displayValue(value, tag) // the 0 the re-render shows
-	}
-	n := new(big.Rat)
-	switch value.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		n.SetInt64(value.Int())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n.SetUint64(value.Uint())
-	case reflect.Float32, reflect.Float64:
-		return checkFloatRange(value.Float(), value.Type().Bits(), raw, tag)
-	default:
-		return nil
-	}
-	if lowest, ok := numberBound(tag.Min); ok && n.Cmp(lowest) < 0 {
-		return rangeError(raw, tag, true)
-	}
-	if highest, ok := numberBound(tag.Max); ok && n.Cmp(highest) > 0 {
-		return rangeError(raw, tag, false)
-	}
-	return nil
-}
-
-// rangeError is the error of a number below (or above) its form:"min=…" (or
-// "max=…"). A form:"sensitive" field's names only the bound, as an
-// [mx.FormMessage], which the masking of its errors lets through.
-func rangeError(raw string, tag mx.FormTag, below bool) error {
-	switch {
-	case tag.Sensitive && below:
-		return mx.FormMessage("must be at least " + tag.Min)
-	case tag.Sensitive:
-		return mx.FormMessage("must be at most " + tag.Max)
-	case below:
-		return fmt.Errorf("%q is less than %s", raw, tag.Min)
-	}
-	return fmt.Errorf("%q is greater than %s", raw, tag.Max)
-}
-
-// checkFloatRange compares a float at its own precision, as a browser
-// compares doubles: compared exactly, the binary value of 99.9 is above
-// the decimal 99.9, so a value on its bound would be rejected. f is finite,
-// as setNumeric rejects the rest.
-func checkFloatRange(f float64, bits int, raw string, tag mx.FormTag) error {
-	if lowest, ok := floatBound(tag.Min, bits); ok && f < lowest {
-		return rangeError(raw, tag, true)
-	}
-	if highest, ok := floatBound(tag.Max, bits); ok && f > highest {
-		return rangeError(raw, tag, false)
-	}
-	return nil
-}
-
-// floatBound reads a min or max as a browser does, rounded as the field's
-// own values are, to a float of the given bits.
-func floatBound(bound string, bits int) (float64, bool) {
-	if !htmlNumber.MatchString(bound) {
-		return 0, false
-	}
-	// Like a browser, a bound past the range of a double is no bound.
-	if _, err := strconv.ParseFloat(bound, 64); err != nil {
-		return 0, false
-	}
-	f, _ := strconv.ParseFloat(bound, bits) // past a float32's range: an infinity
-	return f, true
-}
-
-// htmlNumber matches a valid HTML floating-point number, the only form a
-// browser reads a min or max in.
-var htmlNumber = regexp.MustCompile(`^-?(\d+|\d*\.\d+)([eE][-+]?\d+)?$`)
-
-// numberBound reads a min or max as a browser does.
-func numberBound(bound string) (*big.Rat, bool) {
-	if !htmlNumber.MatchString(bound) {
-		return nil, false
-	}
-	return new(big.Rat).SetString(bound)
+	mx.ReportHiddenError(ctx, err)
+	return formatErr
 }
 
 // bindPointee binds into a new pointee of the pointer value that starts as
@@ -985,8 +967,20 @@ func isScanner(value reflect.Value) bool {
 // rules of a number field: finite and at most maxNumberLen long (the
 // handler checks form:"min=…,max=…", see checkScannedRange).
 func setScanned(value reflect.Value, raw string) error {
-	if raw == displayValue(value, mx.FormTag{}) {
+	if raw == mx.FormValueText(value) {
 		return nil
+	}
+	// Text longer than any number is rejected before a type that scans only
+	// numbers or bools sees it: each failing Scan quotes the text, once as a
+	// string and once as bytes, so a forged value would be copied many times
+	// over into errors that are dropped.
+	if len(raw) > maxNumberLen {
+		if stored, ok := scansOnlyNumbers(value.Type()); ok {
+			if _, isBool := stored.(bool); !isBool {
+				return errors.New("too long for a number")
+			}
+			return scanError(raw, stored)
+		}
 	}
 	// Scanned into a new value: a Scan that fails may still change its
 	// value, and a rejected field keeps the stored one.
@@ -1043,9 +1037,29 @@ func checkScannedRange(value reflect.Value, raw string, tag mx.FormTag) error {
 	}
 	switch n := driverValueOf(value).(type) {
 	case int64, float64:
-		return checkNumberRange(reflect.ValueOf(n), raw, tag)
+		return mx.CheckNumberRange(reflect.ValueOf(n), raw, tag)
 	}
 	return nil
+}
+
+// scansOnlyNumbers reports whether the database/sql type t scans a number
+// but no text, as sql.NullInt64, sql.NullFloat64 and sql.NullBool do, and
+// returns the driver value it holds after scanning one, which tells
+// [scanError] what to ask for. A type whose Scan panics scans nothing.
+func scansOnlyNumbers(t reflect.Type) (stored any, ok bool) {
+	defer func() {
+		if recover() != nil {
+			stored, ok = nil, false
+		}
+	}()
+	if reflect.New(t).Interface().(scanner).Scan("x") == nil {
+		return nil, false
+	}
+	dst := reflect.New(t)
+	if dst.Interface().(scanner).Scan(int64(0)) != nil {
+		return nil, false
+	}
+	return driverValueOf(dst.Elem()), true
 }
 
 // driverValueOf returns the driver value an addressable database/sql value
@@ -1070,9 +1084,11 @@ func driverValueOf(value reflect.Value) any {
 // longer than any number or time is not quoted, so a submission of any size
 // is not echoed into the page.
 func scanError(raw string, stored any) error {
-	subject := fmt.Sprintf("%q is", raw)
-	if len(raw) > maxNumberLen {
-		subject = "the text is"
+	// Checked before quoting, so a forged value is not copied into a text
+	// that is then dropped.
+	subject := "the text is"
+	if len(raw) <= maxNumberLen {
+		subject = strconv.Quote(raw) + " is"
 	}
 	switch stored.(type) {
 	case int64:
@@ -1094,6 +1110,11 @@ func setNumeric(value reflect.Value, raw string) error {
 			return nil
 		}
 		return bindPointee(value, func(v reflect.Value) error { return setNumeric(v, raw) })
+	}
+	// A database/sql type holding a number, such as sql.NullInt64, scans
+	// it, and a blank as its null.
+	if isScanner(value) {
+		return setScanned(value, raw)
 	}
 	if raw == "" && value.CanSet() {
 		value.SetZero()
@@ -1131,14 +1152,18 @@ func setNumeric(value reflect.Value, raw string) error {
 
 func setBool(value reflect.Value, raw string) error {
 	on := raw == "on" || raw == "true" || raw == "1"
+	// A database/sql type holding a bool, such as sql.NullBool, scans it;
+	// its clear control stores the null an unchecked box cannot.
+	if isScanner(value) {
+		return setScanned(value, strconv.FormatBool(on))
+	}
 	if value.Kind() == reflect.Pointer {
 		if !value.CanSet() {
 			return errors.New("pointer not settable")
 		}
-		return bindPointee(value, func(v reflect.Value) error {
-			v.SetBool(on)
-			return nil
-		})
+		// The pointee may be a database/sql type itself, as a
+		// *sql.NullBool's is.
+		return bindPointee(value, func(v reflect.Value) error { return setBool(v, raw) })
 	}
 	value.SetBool(on)
 	return nil
@@ -1148,11 +1173,9 @@ func setTime(ctx context.Context, value reflect.Value, raw string, tag mx.FormTa
 	// Text longer than any date or time input sends is no date. It is
 	// rejected before it is bound, so the re-render does not echo a
 	// submission of any size, and the field keeps its stored value.
-	if len(raw) > maxDateTimeLen {
-		if tag.Sensitive {
-			// The format is all it says, so it is not reported (see below).
-			return mx.FormMessage(dateFormatError(value, tag, raw).Error())
-		}
+	if len(raw) > mx.MaxDateTimeLen {
+		// The format is all it says, a user message, so it is neither
+		// masked nor reported (see below).
 		return dateFormatError(value, tag, raw)
 	}
 	if value.Kind() == reflect.Pointer {
@@ -1225,8 +1248,20 @@ func setTime(ctx context.Context, value reflect.Value, raw string, tag mx.FormTa
 	} else if tag.Sensitive {
 		// A sensitive value is not echoed through the parse error. The format
 		// is all it says, and the type may still read raw in its own spelling,
-		// so it is not reported; a FormMessage is not masked again.
-		parseErr = mx.FormMessage(mx.DateTimeFormatError(tag, raw).Error())
+		// so it is not reported; a user message is not masked again.
+		parseErr = mx.DateTimeFormatError(tag, raw)
+	}
+	// A database/sql type holding a time, such as sql.NullTime, scans it.
+	if isScanner(value) {
+		if parseErr != nil {
+			return mx.DateTimeFormatError(tag, raw)
+		}
+		scanned := reflect.New(value.Type())
+		if err := scanned.Interface().(scanner).Scan(t); err != nil {
+			return mx.DateTimeFormatError(tag, raw)
+		}
+		value.Set(scanned.Elem())
+		return rangeErr
 	}
 	timeType := reflect.TypeFor[time.Time]()
 	if value.Type() == timeType || (value.Kind() == reflect.Struct && value.Type().ConvertibleTo(timeType)) {
@@ -1320,18 +1355,19 @@ func checkOwnTextRange(value reflect.Value, raw string, tag mx.FormTag) error {
 //
 // A method that panics, as the promoted method of a nil embedded pointer
 // does, is an error. A form:"sensitive" field's error does not echo raw
-// ([maskSensitive]).
+// ([mx.MaskSensitiveError]).
 func unmarshalTime(ctx context.Context, value reflect.Value, raw string, t time.Time, parseErr error, tag mx.FormTag) (err error) {
 	typ := value.Type()
 	defer func() {
-		if recover() != nil {
+		if p := recover(); p != nil {
+			mx.ReportHiddenError(ctx, errs.AsErrorWithDebugStack(p))
 			err = fmt.Errorf("%q cannot be stored as %s", raw, typ)
 		}
 		if err != nil && tag.Sensitive {
-			err = maskSensitive(ctx, err, dateFormatError(value, tag, raw).Error())
+			err = maskDateTimeError(ctx, err, dateFormatError(value, tag, raw))
 		}
 	}()
-	if parseErr != nil && textIsRFC3339(typ) {
+	if parseErr != nil && mx.TextIsRFC3339(typ) {
 		return parseErr
 	}
 	// Unmarshal into a copy: a failing UnmarshalText may still change its
@@ -1381,27 +1417,6 @@ func unmarshalTime(ctx context.Context, value reflect.Value, raw string, t time.
 	return err
 }
 
-// textIsRFC3339 reports whether the zero value of t writes its text as
-// RFC 3339, as a time.Time does and so does a type embedding one without
-// text methods of its own. It mirrors the check of [mx.DetectField] rule 14.
-func textIsRFC3339(t reflect.Type) (ok bool) {
-	defer func() {
-		if recover() != nil {
-			ok = false
-		}
-	}()
-	m, isMarshaler := reflect.New(t).Interface().(encoding.TextMarshaler)
-	if !isMarshaler {
-		return false
-	}
-	text, err := m.MarshalText()
-	if err != nil {
-		return false
-	}
-	_, err = time.Parse(time.RFC3339Nano, string(text))
-	return err == nil
-}
-
 // setTimeText binds a submitted date or time into a string-kind field
 // that holds it as text, the counterpart of the
 // text values [mx.DateTimeInput] prefills. [mx.ParseDateTimeInput] checks
@@ -1419,11 +1434,38 @@ func setTimeText(ctx context.Context, value reflect.Value, raw string, tag mx.Fo
 	// An UnmarshalText that panics rejects the value, which stays bound as
 	// posted, as other rejected text does.
 	defer func() {
-		if recover() != nil {
+		if p := recover(); p != nil {
+			mx.ReportHiddenError(ctx, errs.AsErrorWithDebugStack(p))
 			value.SetString(raw)
 			bindErr = mx.DateTimeFormatError(tag, raw)
 		}
 	}()
+	// A type that reads only its own spelling, such as a type DEDate string
+	// taking 02.01.2006, renders as a text input of its own text (its input
+	// asks for no Format), so its UnmarshalText reads what was posted.
+	if mx.DateTimeInput(value, tag).Format == "" {
+		if raw == "" {
+			value.SetZero()
+			return nil
+		}
+		// No form:"min=…,max=…" can be checked on its spelling. The form
+		// renders the tag as an error, and a scripted POST that gets past it
+		// is rejected rather than saved unchecked.
+		if err := mx.DateTimeTagError(value, tag); err != nil {
+			value.SetString(raw)
+			return err
+		}
+		parsed := reflect.New(value.Type())
+		if err := parsed.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(raw)); err != nil {
+			value.SetString(raw)
+			if tag.Sensitive {
+				return mx.MaskSensitiveError(ctx, err, "not a valid value")
+			}
+			return err
+		}
+		value.Set(parsed.Elem())
+		return nil
+	}
 	text, err := mx.ParseDateTimeInput(tag, raw)
 	if err != nil {
 		value.SetString(raw)
@@ -1449,7 +1491,7 @@ func setTimeText(ctx context.Context, value reflect.Value, raw string, tag mx.Fo
 		if err != nil {
 			value.SetString(raw)
 			if tag.Sensitive {
-				return maskSensitive(ctx, err, mx.DateTimeFormatError(tag, raw).Error())
+				return maskDateTimeError(ctx, err, mx.DateTimeFormatError(tag, raw))
 			}
 			return err
 		}
@@ -1461,7 +1503,7 @@ func setTimeText(ctx context.Context, value reflect.Value, raw string, tag mx.Fo
 }
 
 func setEnumSet(value reflect.Value, fieldType reflect.Type, vals []string) error {
-	keyType := setKeyType(fieldType)
+	keyType := mx.SetElemType(fieldType)
 	if keyType == nil {
 		return errors.New("not a recognized set type")
 	}
@@ -1503,29 +1545,6 @@ func derefType(t reflect.Type) reflect.Type {
 	return t
 }
 
-// setKeyType returns the element type of a set-shaped field:
-// map[T]struct{} → T, []T → T, *T of either → T. Returns nil if t is
-// not set-shaped.
-func setKeyType(t reflect.Type) reflect.Type {
-	for t != nil && t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	if t == nil {
-		return nil
-	}
-	switch t.Kind() {
-	case reflect.Map:
-		if t.Elem().Kind() == reflect.Struct && t.Elem().NumField() == 0 {
-			return t.Key()
-		}
-	case reflect.Slice:
-		if t.Elem().Kind() != reflect.Uint8 {
-			return t.Elem()
-		}
-	}
-	return nil
-}
-
 func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 	dst := reflect.New(t).Elem()
 	// TextUnmarshaler before the string-kind assignment. A named string
@@ -1557,202 +1576,7 @@ func stringToType(s string, t reflect.Type) (reflect.Value, error) {
 		dst.SetUint(n)
 		return dst, nil
 	}
-	return reflect.Value{}, fmt.Errorf("cannot convert %q to %s", s, t)
-}
-
-func setSelectedValues(value reflect.Value) map[string]struct{} {
-	members := setMemberValues(value)
-	out := make(map[string]struct{}, len(members))
-	for _, member := range members {
-		out[member] = struct{}{}
-	}
-	return out
-}
-
-// setMemberValues returns each set member in [mx.FormatOptionValue], the
-// same form Enums() options use. Map keys are sorted so the order is
-// stable; slice order is kept.
-func setMemberValues(value reflect.Value) []string {
-	for value.Kind() == reflect.Pointer {
-		if !value.IsValid() || value.IsNil() {
-			return nil
-		}
-		value = value.Elem()
-	}
-	if !value.IsValid() {
-		return nil
-	}
-	switch value.Kind() {
-	case reflect.Map:
-		out := make([]string, 0, value.Len())
-		iter := value.MapRange()
-		for iter.Next() {
-			out = append(out, mx.FormatOptionValue(iter.Key()))
-		}
-		sort.Strings(out)
-		return out
-	case reflect.Slice:
-		out := make([]string, 0, value.Len())
-		for i := range value.Len() {
-			out = append(out, mx.FormatOptionValue(value.Index(i)))
-		}
-		return out
-	default:
-		return nil
-	}
-}
-
-// optionChildren resolves the field's option list via
-// [mx.CollectOptions] and renders each entry through render. Static
-// option lists are resolved immediately so build-time tree enrichment
-// (the hx layer's attribute injection) still sees the elements; option
-// lists that need the request context (form:"options=…" registry
-// entries, [mx.NamedOptionsContextProvider] types) are collected when
-// the component renders, where the context passed to Render is the
-// real request context. A collection error surfaces at render time
-// (deferred-error pattern).
-//
-// prepend, when non-nil, is called with the resolved option list and its
-// result (if non-nil) is rendered before the options. Selects use it for
-// the leading empty option ([mx.SelectPreface]); enum sets use it for the
-// hidden-members note.
-func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
-	assemble := func(options []mx.NamedOption) mx.Components {
-		children := make(mx.Components, 0, len(options)+1)
-		if prepend != nil {
-			if first := prepend(options); first != nil {
-				children = append(children, first)
-			}
-		}
-		for _, opt := range options {
-			children = append(children, render(opt))
-		}
-		return children
-	}
-	if !mx.OptionsNeedContext(tag, t) {
-		options, err := mx.CollectOptions(context.Background(), value, tag, t)
-		if err != nil {
-			return mx.NewErrElement(err)
-		}
-		return assemble(options)
-	}
-	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-		options, err := mx.CollectOptions(ctx, value, tag, t)
-		if err != nil {
-			return err
-		}
-		return assemble(options).Render(ctx, w)
-	})
-}
-
-func displayLabel(o mx.NamedOption) string {
-	if o.Name != "" {
-		return o.Name
-	}
-	return o.Value
-}
-
-// displayValue returns the printable string for value, honoring
-// nullable, time, and TextMarshaler conventions.
-func displayValue(value reflect.Value, tag mx.FormTag) (text string) {
-	_ = tag
-	// A method that panics, as the promoted MarshalText of a nil embedded
-	// pointer does, shows no value instead of failing the render.
-	defer func() {
-		if recover() != nil {
-			text = ""
-		}
-	}()
-	if !value.IsValid() {
-		return ""
-	}
-	if mx.IsNull(value.Interface()) {
-		return ""
-	}
-	v := value
-	for v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return ""
-		}
-		v = v.Elem()
-	}
-	// The zero value of a fixed-size ID is what an empty submission stores
-	// (setScalar), so it is no value, not 00000000-0000-0000-0000-000000000000.
-	if v.Kind() == reflect.Array && v.IsZero() {
-		return ""
-	}
-	// A time, also of a type defined as one, is written as RFC 3339, the
-	// text its parser reads back, zone and fraction included.
-	if isTimeType(v.Type()) {
-		t := v.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time)
-		if t.IsZero() {
-			return ""
-		}
-		return t.Format(time.RFC3339Nano)
-	}
-	if v.CanInterface() {
-		if tm, ok := v.Interface().(encoding.TextMarshaler); ok {
-			b, err := tm.MarshalText()
-			if err == nil {
-				return string(b)
-			}
-		}
-	}
-	if v.CanAddr() {
-		if tm, ok := v.Addr().Interface().(encoding.TextMarshaler); ok {
-			b, err := tm.MarshalText()
-			if err == nil {
-				return string(b)
-			}
-		}
-	}
-	// A database/sql type such as sql.NullInt64 writes the value it holds,
-	// which its Scan reads back (see setScanned).
-	if text, ok := mx.DriverValueText(v); ok {
-		return text
-	}
-	switch v.Kind() {
-	case reflect.String:
-		return v.String()
-	case reflect.Bool:
-		return strconv.FormatBool(v.Bool())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(v.Int(), 10)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatUint(v.Uint(), 10)
-	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(v.Float(), 'f', -1, v.Type().Bits())
-	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.String {
-			parts := make([]string, v.Len())
-			for i := range v.Len() {
-				parts[i] = v.Index(i).String()
-			}
-			return strings.Join(parts, "\n")
-		}
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return string(v.Bytes())
-		}
-	}
-	return fmt.Sprint(v.Interface())
-}
-
-// stringWidgetType returns the input type of a string-kind field. [mx.DetectField]
-// has already put a [mx.FormWidgetHint]'s widget into tag, so the tag is
-// the only place to look.
-func stringWidgetType(tag mx.FormTag) string {
-	switch tag.Widget {
-	case "email", "url", "tel", "password":
-		return tag.Widget
-	}
-	return "text"
-}
-
-func fieldLabel(field reflect.StructField, tag mx.FormTag) string {
-	if tag.Label != "" {
-		return tag.Label
-	}
-	return field.Name
+	return reflect.Value{}, fmt.Errorf("cannot convert %s to %s", quotedValue(s), t)
 }
 
 func isNullable(value reflect.Value) bool {
@@ -1782,45 +1606,6 @@ func isPlainNumber(t reflect.Type) bool {
 		return !reflect.PointerTo(t).Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
 	}
 	return false
-}
-
-// browserTag is the tag the input renders with: a form:"sensitive" input
-// that holds a stored value shows none, and a blank keeps the stored
-// value, so the browser must not demand one; neither must a file input
-// whose field holds a file. The server still rejects a blank required
-// field when nothing is stored.
-func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
-	if tag.Required && (mx.KeepsStoredValue(tag, kind, value) || kind == mx.FieldKindFile && hasStoredFile(value)) {
-		tag.Required = false
-	}
-	return tag
-}
-
-// hasStoredFile reports whether a file field's value holds a file: bytes or
-// a file name. A file input left empty keeps it, so a required one demands
-// no new upload; the handler still rejects a blank with nothing stored.
-func hasStoredFile(value reflect.Value) bool {
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return false
-		}
-		value = value.Elem()
-	}
-	switch value.Kind() {
-	case reflect.String, reflect.Slice:
-		return value.Len() > 0
-	}
-	return false
-}
-
-func isTrueBool(value reflect.Value) bool {
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return false
-		}
-		value = value.Elem()
-	}
-	return value.Kind() == reflect.Bool && value.Bool()
 }
 
 // groupLabelID is the id of the label that names a field's group of

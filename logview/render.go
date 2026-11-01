@@ -64,8 +64,17 @@ func compact(comp mx.Component) mx.Component {
 }
 
 func (c *Config) lineElement(raw string) *mx.Element {
+	if !c.KeepANSI {
+		// Stripped before the cap, so MaxLineLen counts what is shown rather
+		// than color codes, and before parsing, so a record a colorizing tool
+		// printed with raw escapes (jq -C) still parses as one.
+		raw = stripANSI(raw)
+	}
 	raw = c.truncate(raw)
 	if fields, ok := parseRecord(raw, c.maxDepth()); ok {
+		if !c.KeepANSI {
+			stripFieldsANSI(fields)
+		}
 		return c.recordLine(fields)
 	}
 	return c.textLine(raw)

@@ -1,15 +1,12 @@
 package shadcn
 
 import (
-	"cmp"
 	"context"
-	"encoding"
-	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
@@ -67,7 +64,7 @@ var FieldDecider mx.FieldDecider = func(path mx.FieldPath, field reflect.StructF
 func renderShadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error) mx.Component {
 	// The input renders without required when a sensitive value is stored,
 	// as in the html renderer; the label and clear control keep the tag.
-	inputTag := browserTag(tag, kind, value)
+	inputTag := mx.BrowserTag(tag, kind, value)
 	switch kind {
 	case mx.FieldKindString, mx.FieldKindCatchAll:
 		// A catch-all value, such as a registered money type, is a text
@@ -105,9 +102,7 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 			shadcnEnumSet(path, field, value, tag, errs),
 		)
 	case mx.FieldKindFile:
-		return shadcnField(path, field, value, kind, tag, errs,
-			Input(fileAttribs(path, inputTag, errs)...),
-		)
+		return shadcnField(path, field, value, kind, tag, errs, shadcnFile(path, value, inputTag, errs))
 	}
 	return nil
 }
@@ -134,7 +129,7 @@ func shadcnField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 // error, such as a text input holding stored text the parser rejects.
 func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value reflect.Value, kind mx.FieldKind, tag mx.FormTag, errs []error, invalid bool, input mx.Component) mx.Component {
 	parts := make([]any, 0, 4+len(errs))
-	if labelText := fieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
+	if labelText := mx.FieldLabel(field, tag); labelText != "" && kind == mx.FieldKindEnumSet {
 		// A set has no control with the path as its id: the label names
 		// its group.
 		parts = append(parts, FieldLabel(html.ID(groupLabelID(path)), labelText))
@@ -142,17 +137,29 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 		parts = append(parts, FieldLabelFor(string(path), labelText))
 	}
 	parts = append(parts, input)
+	// The control is described by its help and each error message, after
+	// what it refers to itself, such as a date's format hint.
+	var describedBy []string
 	if tag.Help != "" {
-		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
+		describedBy = append(describedBy, string(path)+"-help")
+		parts = append(parts, FieldDescription(html.ID(string(path)+"-help"), mx.Text(tag.Help)))
+	}
+	// A sensitive input never shows its value, so it says that one is
+	// stored and that a blank keeps it.
+	if !tag.Readonly && mx.KeepsStoredValue(tag, kind, value) {
+		describedBy = append(describedBy, string(path)+"-stored")
+		parts = append(parts, FieldDescription(html.ID(string(path)+"-stored"),
+			labelText(func(l Labels) string { return l.FormKeepStoredValue })))
 	}
 	// A readonly field is never written, so it offers no clear control. A
 	// blank sensitive input keeps the stored value, so the clear control is
 	// how it is emptied, ticked while it is empty so a re-render keeps a
 	// clear the user asked for.
 	if !tag.Readonly && isNullable(field, kind, tag) {
-		parts = append(parts, clearControl(path, fieldLabel(field, tag), tag.Sensitive && kind.KeepsStoredWhenBlank() && !mx.KeepsStoredValue(tag, kind, value)))
+		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), tag.Sensitive && kind.KeepsStoredWhenBlank() && !mx.KeepsStoredValue(tag, kind, value)))
 	}
-	parts = appendFieldErrors(parts, path, errs)
+	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
+	mx.AddDescribedBy(input, describedBy...)
 	return fieldWrap(invalid, parts...)
 }
 
@@ -173,16 +180,31 @@ func fieldWrap(invalid bool, children ...any) mx.Component {
 // each error ([mx.FieldErrorTexts]), each tagged data-error=path so a client
 // can target a specific field's message (the same convention the html layer
 // uses).
-func appendFieldErrors(parts []any, path mx.FieldPath, errs []error) []any {
+func appendFieldErrors(parts []any, describedBy []string, path mx.FieldPath, errs []error) ([]any, []string) {
+	firstError := len(describedBy)
 	for _, e := range errs {
-		for _, text := range mx.FieldErrorTexts(e) {
+		// A date or time error is translated from its fields (Labels).
+		if dateTimeErr, ok := e.(*mx.DateTimeError); ok {
+			id := string(path) + "-error-" + strconv.Itoa(len(describedBy)-firstError)
+			describedBy = append(describedBy, id)
 			parts = append(parts, FieldError(
+				html.ID(id),
+				mx.NewAttrib("data-error", string(path)),
+				labelText(func(l Labels) string { return l.dateTimeError(dateTimeErr) }),
+			))
+			continue
+		}
+		for _, text := range mx.FieldErrorTexts(e) {
+			id := string(path) + "-error-" + strconv.Itoa(len(describedBy)-firstError)
+			describedBy = append(describedBy, id)
+			parts = append(parts, FieldError(
+				html.ID(id),
 				mx.NewAttrib("data-error", string(path)),
 				mx.Text(text),
 			))
 		}
 	}
-	return parts
+	return parts, describedBy
 }
 
 func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
@@ -191,7 +213,7 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 		html.ID(string(path)),
 		html.Value("on"),
 	}
-	if isTrueBool(value) {
+	if mx.FormValueChecked(value) {
 		attribs = append(attribs, html.Checked)
 	}
 	if tag.Readonly {
@@ -211,7 +233,7 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 
 	// Control and label sit side by side; description and errors stack below.
 	row := mx.Components{input}
-	if labelText := fieldLabel(field, tag); labelText != "" {
+	if labelText := mx.FieldLabel(field, tag); labelText != "" {
 		row = append(row, FieldLabelFor(string(path), labelText))
 	}
 	parts := []any{
@@ -220,15 +242,23 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 			row,
 		),
 	}
+	var describedBy []string
 	if tag.Help != "" {
-		parts = append(parts, FieldDescription(mx.Text(tag.Help)))
+		describedBy = append(describedBy, string(path)+"-help")
+		parts = append(parts, FieldDescription(html.ID(string(path)+"-help"), mx.Text(tag.Help)))
 	}
-	parts = appendFieldErrors(parts, path, errs)
+	// An unchecked box stores false, so a database/sql bool such as
+	// sql.NullBool stores its null with the clear control.
+	if _, isDriverValue := mx.DriverValueText(reflect.Indirect(value)); isDriverValue && !tag.Required && !tag.Readonly {
+		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), false))
+	}
+	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
+	mx.AddDescribedBy(input, describedBy...)
 	return fieldWrap(len(errs) > 0, parts...)
 }
 
 func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	selected := stringifyValue(value)
+	selected := mx.FormValueText(value)
 	attribs := []any{
 		html.Name(string(path)),
 		html.ID(string(path)),
@@ -251,18 +281,18 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
 	removed := false
-	options := optionChildren(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
+	options := mx.OptionComponents(value, tag, field.Type, func(opt mx.NamedOption) mx.Component {
 		oAttr := []any{html.Value(opt.Value)}
 		if opt.Value == selected {
 			oAttr = append(oAttr, html.Selected)
 		}
-		oAttr = append(oAttr, mx.Text(optionDisplay(opt)))
+		oAttr = append(oAttr, mx.Text(opt.Label()))
 		return html.Option(oAttr...)
 	}, func(options []mx.NamedOption) mx.Component {
 		// Runs before the options render, so they and the preface see the
 		// same selection (see the html renderer).
-		selected = mx.SelectedOption(value, selected, options)
-		preface := mx.SelectPreface(selected, tag, contextList, options)
+		var preface mx.OptionPreface
+		preface, selected = mx.SelectPreface(value, selected, tag, contextList, options)
 		removed = preface.RemovesValue(tag)
 		return selectPrefaceOption(preface)
 	})
@@ -320,13 +350,13 @@ func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
 }
 
 func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	keyType := setKeyType(field.Type)
+	keyType := mx.SetElemType(field.Type)
 	if keyType == nil {
 		return mx.Text("[enum-set: cannot infer key type for " + string(path) + "]")
 	}
-	selected := setMembers(value)
+	members := mx.SetMemberValues(value)
 	contextList := mx.OptionsNeedContext(tag, keyType)
-	items := optionChildren(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
+	items := mx.OptionComponents(reflect.Value{}, tag, keyType, func(opt mx.NamedOption) mx.Component {
 		// The label names the box by its id, derived from the value, so any
 		// value, also one with spaces, makes a valid id.
 		id := mx.KeyedIDValue(path, opt.Value)
@@ -336,7 +366,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 			html.Value(opt.Value),
 			hx.Trigger("change"),
 		}
-		if _, ok := selected[opt.Value]; ok {
+		if _, ok := slices.BinarySearch(members, opt.Value); ok {
 			attribs = append(attribs, html.Checked)
 		}
 		if tag.Readonly {
@@ -345,13 +375,9 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		return mx.NewElement("div",
 			mx.Attribute{Name: "class", Value: "flex items-center gap-2"},
 			Checkbox(attribs...),
-			LabelFor(id, mx.Text(optionDisplay(opt))),
+			LabelFor(id, mx.Text(opt.Label())),
 		)
 	}, func(options []mx.NamedOption) mx.Component {
-		members := make([]string, 0, len(selected))
-		for member := range selected {
-			members = append(members, member)
-		}
 		preface := mx.EnumSetPreface(members, tag, contextList, options)
 		if preface != mx.OptionPrefaceValuesUnavailable {
 			return hiddenOptionNote(path)
@@ -369,7 +395,7 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 		mx.Attribute{Name: "role", Value: "group"},
 		mx.Attribute{Name: "class", Value: "grid grid-cols-2 gap-2"},
 	}
-	if fieldLabel(field, tag) != "" {
+	if mx.FieldLabel(field, tag) != "" {
 		wrapAttribs = append(wrapAttribs, mx.Attribute{Name: "aria-labelledby", Value: groupLabelID(path)})
 	}
 	wrapAttribs = append(wrapAttribs, mx.Attribute{Name: "aria-describedby", Value: optionNoteID(path)})
@@ -380,20 +406,15 @@ func shadcnEnumSet(path mx.FieldPath, field reflect.StructField, value reflect.V
 	return mx.NewElement("div", wrapAttribs...)
 }
 
-// Helpers below are intentionally narrow re-implementations of the
-// html package's display/parse helpers — the dispatch table is small
-// enough that calling private html helpers across packages would be
-// uglier than this short duplication.
-
 func stringAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
-	inputType := stringWidget(tag)
+	inputType := mx.StringInputType(tag)
 	a := []mx.Attrib{
 		html.Type(inputType),
 		html.Name(string(path)),
 		html.ID(string(path)),
 		hx.Trigger("change"),
 	}
-	if val := displayValue(value); val != "" && !tag.Sensitive {
+	if val := mx.FormValueText(value); val != "" && !tag.Sensitive {
 		a = append(a, html.Value(val))
 	}
 	if tag.Placeholder != "" {
@@ -421,9 +442,10 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		html.ID(string(path)),
 		hx.Trigger("change"),
 	}
-	// A sensitive number never shows its value, like a sensitive text input.
-	if !tag.Sensitive {
-		a = append(a, html.Value(displayValue(value)))
+	// A sensitive number never shows its value, like a sensitive text input,
+	// and a null or nil one has none.
+	if text := mx.FormValueText(value); !tag.Sensitive && text != "" {
+		a = append(a, html.Value(text))
 	}
 	if tag.Min != "" {
 		a = append(a, html.Min(tag.Min))
@@ -466,8 +488,14 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 	askFormat := textFallback && !tag.Readonly && in.Format != ""
 	// A caller's placeholder is the only hint for a type that reads only
 	// its own spelling.
-	if placeholder := cmp.Or(tag.Placeholder, in.Format); textFallback && !tag.Readonly && placeholder != "" {
-		a = append(a, html.Placeholder(placeholder))
+	if textFallback && !tag.Readonly {
+		switch {
+		case tag.Placeholder != "":
+			a = append(a, html.Placeholder(tag.Placeholder))
+		case in.Format != "":
+			// The same translated format as the hint below.
+			a = append(a, labelAttrib{name: "placeholder", get: func(l Labels) string { return l.dateTimeFormat(in.Format) }})
+		}
 	}
 	if askFormat {
 		a = append(a, mx.NewAttrib("aria-describedby", formatHintID(path)))
@@ -508,8 +536,7 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 	return mx.Components{
 		Input(a...),
 		FieldDescription(html.ID(formatHintID(path)),
-			labelText(caption),
-			mx.Text(" "+in.Format),
+			labelText(func(l Labels) string { return caption(l) + " " + l.dateTimeFormat(in.Format) }),
 		),
 	}
 }
@@ -539,10 +566,34 @@ func textareaAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 	if len(errs) > 0 {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
 	}
-	if val := displayValue(value); val != "" && !tag.Sensitive {
+	if val := mx.FormValueText(value); val != "" && !tag.Sensitive {
 		a = append(a, mx.Text(val))
 	}
 	return a
+}
+
+// shadcnFile renders a file input and, while the field holds a file, a note
+// next to it saying so ([mx.StoredFile]), as the browser labels the input
+// "No file chosen" either way, and on an editable one that a blank keeps it.
+func shadcnFile(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
+	attribs := fileAttribs(path, tag, errs)
+	name, stored := mx.StoredFile(value)
+	if !stored {
+		return Input(attribs...)
+	}
+	noteID := string(path) + "-file"
+	attribs = append(attribs, mx.NewAttrib("aria-describedby", noteID))
+	note := labelText(func(l Labels) string {
+		text := l.FormStoredFileUnnamed
+		if name != "" {
+			text = strings.Replace(l.FormStoredFile, "%s", name, 1)
+		}
+		if !tag.Readonly {
+			text += " " + l.FormKeepStoredFile
+		}
+		return text
+	})
+	return mx.Components{Input(attribs...), FieldDescription(html.ID(noteID), note)}
 }
 
 func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
@@ -599,103 +650,6 @@ func clearControl(path mx.FieldPath, label string, checked bool) mx.Component {
 	)
 }
 
-// --- shared local helpers (duplicated from html.formdecider, narrow on purpose) ---
-
-// stringWidget returns the input type of a string-kind field. [mx.DetectField]
-// has already put a [mx.FormWidgetHint]'s widget into tag, so the tag is
-// the only place to look.
-func stringWidget(tag mx.FormTag) string {
-	switch tag.Widget {
-	case "email", "url", "tel", "password":
-		return tag.Widget
-	}
-	return "text"
-}
-
-func displayValue(v reflect.Value) (text string) {
-	// A method that panics, as the promoted MarshalText of a nil embedded
-	// pointer does, shows no value instead of failing the render.
-	defer func() {
-		if recover() != nil {
-			text = ""
-		}
-	}()
-	if !v.IsValid() {
-		return ""
-	}
-	if v.CanInterface() && mx.IsNull(v.Interface()) {
-		return ""
-	}
-	x := v
-	for x.Kind() == reflect.Pointer {
-		if x.IsNil() {
-			return ""
-		}
-		x = x.Elem()
-	}
-	// The zero value of a fixed-size ID is what an empty submission stores,
-	// so it is no value, not 00000000-0000-0000-0000-000000000000.
-	if x.Kind() == reflect.Array && x.IsZero() {
-		return ""
-	}
-	// A time, also of a type defined as one, is written as RFC 3339, the
-	// text its parser reads back, zone and fraction included.
-	if x.Kind() == reflect.Struct && x.Type().ConvertibleTo(reflect.TypeFor[time.Time]()) {
-		t := x.Convert(reflect.TypeFor[time.Time]()).Interface().(time.Time)
-		if t.IsZero() {
-			return ""
-		}
-		return t.Format(time.RFC3339Nano)
-	}
-	if x.CanInterface() {
-		if tm, ok := x.Interface().(encoding.TextMarshaler); ok {
-			if b, err := tm.MarshalText(); err == nil {
-				return string(b)
-			}
-		}
-	}
-	if x.CanAddr() {
-		if tm, ok := x.Addr().Interface().(encoding.TextMarshaler); ok {
-			if b, err := tm.MarshalText(); err == nil {
-				return string(b)
-			}
-		}
-	}
-	// A database/sql type such as sql.NullInt64 writes the value it holds,
-	// which the html parser's Scan reads back.
-	if text, ok := mx.DriverValueText(x); ok {
-		return text
-	}
-	switch x.Kind() {
-	case reflect.String:
-		return x.String()
-	case reflect.Bool:
-		return strconv.FormatBool(x.Bool())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(x.Int(), 10)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatUint(x.Uint(), 10)
-	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(x.Float(), 'f', -1, x.Type().Bits())
-	case reflect.Slice:
-		if x.Type().Elem().Kind() == reflect.String {
-			parts := make([]string, x.Len())
-			for i := range x.Len() {
-				parts[i] = x.Index(i).String()
-			}
-			return strings.Join(parts, "\n")
-		}
-		if x.Type().Elem().Kind() == reflect.Uint8 {
-			return string(x.Bytes())
-		}
-	}
-	return fmt.Sprint(x.Interface())
-}
-
-func stringifyValue(v reflect.Value) string {
-	return displayValue(v)
-}
-
 func isNullable(field reflect.StructField, kind mx.FieldKind, tag mx.FormTag) bool {
 	if tag.Required {
 		return false
@@ -710,140 +664,12 @@ func isNullable(field reflect.StructField, kind mx.FieldKind, tag mx.FormTag) bo
 	return tag.Sensitive && kind.KeepsStoredWhenBlank()
 }
 
-// browserTag is the tag an input renders with: a form:"sensitive" input
-// that holds a stored value shows none, and a blank keeps the stored
-// value, so the browser must not demand one, nor for a file input whose
-// field holds a file (see the html renderer).
-func browserTag(tag mx.FormTag, kind mx.FieldKind, value reflect.Value) mx.FormTag {
-	if tag.Required && (mx.KeepsStoredValue(tag, kind, value) || kind == mx.FieldKindFile && hasStoredFile(value)) {
-		tag.Required = false
-	}
-	return tag
-}
-
-// hasStoredFile reports whether a file field's value holds a file: bytes or
-// a file name. A file input left empty keeps it, so a required one demands
-// no new upload; the handler still rejects a blank with nothing stored.
-func hasStoredFile(value reflect.Value) bool {
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return false
-		}
-		value = value.Elem()
-	}
-	switch value.Kind() {
-	case reflect.String, reflect.Slice:
-		return value.Len() > 0
-	}
-	return false
-}
-
-func isTrueBool(v reflect.Value) bool {
-	for v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return false
-		}
-		v = v.Elem()
-	}
-	return v.Kind() == reflect.Bool && v.Bool()
-}
-
-func fieldLabel(field reflect.StructField, tag mx.FormTag) string {
-	if tag.Label != "" {
-		return tag.Label
-	}
-	return field.Name
-}
-
-func setKeyType(t reflect.Type) reflect.Type {
-	for t != nil && t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	if t == nil {
-		return nil
-	}
-	switch t.Kind() {
-	case reflect.Map:
-		if t.Elem().Kind() == reflect.Struct && t.Elem().NumField() == 0 {
-			return t.Key()
-		}
-	case reflect.Slice:
-		if t.Elem().Kind() != reflect.Uint8 {
-			return t.Elem()
-		}
-	}
-	return nil
-}
-
-func setMembers(v reflect.Value) map[string]struct{} {
-	out := map[string]struct{}{}
-	for v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return out
-		}
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Map:
-		iter := v.MapRange()
-		for iter.Next() {
-			out[mx.FormatOptionValue(iter.Key())] = struct{}{}
-		}
-	case reflect.Slice:
-		for i := range v.Len() {
-			out[mx.FormatOptionValue(v.Index(i))] = struct{}{}
-		}
-	}
-	return out
-}
-
-// optionChildren resolves the field's option list via
-// [mx.CollectOptions] and renders each entry through render. Static
-// option lists are resolved immediately; option lists that need the
-// request context (form:"options=…" registry entries,
-// [mx.NamedOptionsContextProvider] types) are collected when the
-// component renders, where the context passed to Render is the real
-// request context. A collection error surfaces at render time
-// (deferred-error pattern).
-//
-// prepend, when non-nil, is called with the resolved option list and its
-// result (if non-nil) is rendered before the options. Selects use it for
-// the leading empty option ([mx.SelectPreface]); enum sets use it for the
-// hidden-members note.
-func optionChildren(value reflect.Value, tag mx.FormTag, t reflect.Type, render func(opt mx.NamedOption) mx.Component, prepend func(options []mx.NamedOption) mx.Component) mx.Component {
-	assemble := func(options []mx.NamedOption) mx.Components {
-		children := make(mx.Components, 0, len(options)+1)
-		if prepend != nil {
-			if first := prepend(options); first != nil {
-				children = append(children, first)
-			}
-		}
-		for _, opt := range options {
-			children = append(children, render(opt))
-		}
-		return children
-	}
-	if !mx.OptionsNeedContext(tag, t) {
-		options, err := mx.CollectOptions(context.Background(), value, tag, t)
-		if err != nil {
-			return mx.NewErrElement(err)
-		}
-		return assemble(options)
-	}
-	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-		options, err := mx.CollectOptions(ctx, value, tag, t)
-		if err != nil {
-			return err
-		}
-		return assemble(options).Render(ctx, w)
-	})
-}
-
-func optionDisplay(o mx.NamedOption) string {
-	if o.Name != "" {
-		return o.Name
-	}
-	return o.Value
+// FormMessage renders a message above a reflected form, such as an onSubmit
+// error or an error no input shows, as a destructive [Alert], so it stands
+// out like the field errors in red: it is often the only sign that a save
+// failed. A shadcn form sets it as its mx.ReflectFormConfig.FormMessage.
+func FormMessage(text string) mx.Component {
+	return Alert(AlertDestructive, AlertDescription(mx.Text(text)))
 }
 
 // SectionCard wraps the per-section group of fields in a shadcn Card.

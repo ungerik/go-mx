@@ -2,6 +2,7 @@ package mx
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -28,7 +29,10 @@ type FormTag struct {
 	// field with the same Section name into one card.
 	Section string
 
-	// Pattern is a regex constraint applied to string-shaped inputs.
+	// Pattern is a regex constraint applied to string-shaped inputs: the
+	// input's pattern attribute, and checked by html.FieldDecider's parser
+	// too, anchored to the whole text as the attribute is. An empty text is
+	// not checked (see Required), nor is a pattern Go's RE2 cannot compile.
 	Pattern string
 
 	// Options names an options provider registered with
@@ -42,8 +46,8 @@ type FormTag struct {
 	Options string
 
 	// Min, Max, Step are numeric / range constraints. Empty when
-	// absent. On a date or time field the finest step is one second:
-	// fractional seconds are not supported.
+	// absent. On a date or time field the finest step is a millisecond,
+	// the finest fraction an input's value holds.
 	Min, Max, Step string
 
 	// Required forces the value to be non-empty / not-null at submit
@@ -69,6 +73,14 @@ type FormTag struct {
 	// never displays it. Useful for IDs and version columns.
 	Hidden bool
 
+	// Key marks a record's identity, such as the ID column of a
+	// repeatable row. Like Hidden it renders as a hidden input, which
+	// form:"key" implies, but like Readonly a submitted value is never
+	// written into it: in a repeatable row the submitted key names the
+	// loaded row the submitted row edits, and a row whose key names none
+	// is a new row with a zero key. See repeatable.go.
+	Key bool
+
 	// Skip means do not render or parse this field at all
 	// (form:"-" or form:"widget=skip").
 	Skip bool
@@ -79,6 +91,11 @@ type FormTag struct {
 	// have no cells; it is a no-op on any other field shape. See
 	// repeatable.go.
 	Repeatable bool
+
+	// MaxRows caps the rows of a repeatable field (form:"maxrows=N"): the
+	// add-row button is hidden at the cap, and a POST with more rows is
+	// rejected before any row is bound. 0 means [DefaultMaxRows].
+	MaxRows int
 }
 
 // ParseFormTag parses the form:"..." tag from a struct field. The
@@ -143,11 +160,39 @@ func ParseFormTagString(raw string) FormTag {
 			tag.Readonly = !hasEq || boolish(val, true)
 		case "hidden":
 			tag.Hidden = !hasEq || boolish(val, true)
+		case "key":
+			tag.Key = !hasEq || boolish(val, true)
+			tag.Hidden = tag.Hidden || tag.Key
 		case "repeatable":
 			tag.Repeatable = !hasEq || boolish(val, true)
+		case "maxrows":
+			if n, err := strconv.Atoi(val); err == nil && n > 0 {
+				tag.MaxRows = n
+			}
 		}
 	}
 	return tag
+}
+
+// FieldLabel returns the label of a reflected form field: its
+// form:"label=…", or the Go field name.
+func FieldLabel(field reflect.StructField, tag FormTag) string {
+	if tag.Label != "" {
+		return tag.Label
+	}
+	return field.Name
+}
+
+// StringInputType returns the input type of a [FieldKindString] field:
+// the tag's widget when it is email, url, tel or password, else text.
+// [DetectField] has already put a [FormWidgetHint]'s widget into the tag,
+// so the tag is the only place to look.
+func StringInputType(tag FormTag) string {
+	switch tag.Widget {
+	case "email", "url", "tel", "password":
+		return tag.Widget
+	}
+	return "text"
 }
 
 // splitFormTag splits raw at commas that are NOT inside a value-quoted

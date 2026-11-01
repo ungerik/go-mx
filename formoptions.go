@@ -1,6 +1,10 @@
 package mx
 
-import "reflect"
+import (
+	"context"
+	"reflect"
+	"slices"
+)
 
 // OptionPreface is the extra control a reflected option field renders
 // ahead of its option list. The zero value, [OptionPrefaceNone], renders
@@ -78,48 +82,41 @@ func (p OptionPreface) RemovesValue(tag FormTag) bool {
 // [OptionPrefaceEmpty] (optional or readonly). An optional select that already has a listed value yields
 // [OptionPrefaceClear]. A list that already contains an empty option is
 // left alone.
-func SelectPreface(selected string, tag FormTag, contextList bool, options []NamedOption) OptionPreface {
+//
+// selected is the text of value, the field's stored value. shown is the
+// option value the select marks selected: selected itself, or "" for the
+// zero value when the list offers no option for it. An enum whose zero is
+// none of its options, such as an iota+1 constant or an int64 key from a
+// list, holds no choice at its zero: it shows the leading "(none)" or
+// "Choose…" option, as an empty select stores it, not an unavailable value
+// that saving removes.
+func SelectPreface(value reflect.Value, selected string, tag FormTag, contextList bool, options []NamedOption) (preface OptionPreface, shown string) {
 	hasEmpty, inList := optionListFacts(selected, options)
+	if !inList && value.IsValid() && value.IsZero() {
+		selected = ""
+	}
 	// A select with no selected option submits its first option. Any stored
 	// value the list does not offer, including a sensitive one and a value
 	// whose list came back empty, gets the generic disabled placeholder so
 	// that submit does not invent a choice. The placeholder does not echo
 	// the value.
 	if selected != "" && !inList && (contextList || tag.Required) {
-		return OptionPrefaceUnavailable
+		return OptionPrefaceUnavailable, selected
 	}
 	if hasEmpty {
-		return OptionPrefaceNone
+		return OptionPrefaceNone, selected
 	}
 	if selected == "" {
 		// A readonly select is never submitted, so it prompts no choice.
 		if tag.Required && !tag.Readonly {
-			return OptionPrefaceChoose
+			return OptionPrefaceChoose, selected
 		}
-		return OptionPrefaceEmpty
+		return OptionPrefaceEmpty, selected
 	}
 	if !tag.Required && (inList || !contextList) {
-		return OptionPrefaceClear
+		return OptionPrefaceClear, selected
 	}
-	return OptionPrefaceNone
-}
-
-// SelectedOption returns the option value a single-value select shows for
-// value, whose text is selected: selected itself, or "" for the zero value
-// when the list offers no option for it. An enum whose zero is none of its
-// options, such as an iota+1 constant or an int64 key from a list, holds no
-// choice at its zero: it shows the leading "(none)" or "Choose…" option, as
-// an empty select stores it, not an unavailable value that saving removes.
-func SelectedOption(value reflect.Value, selected string, options []NamedOption) string {
-	if selected == "" || !value.IsValid() || !value.IsZero() {
-		return selected
-	}
-	for _, opt := range options {
-		if opt.Value == selected {
-			return selected
-		}
-	}
-	return ""
+	return OptionPrefaceNone, selected
 }
 
 // EnumSetPreface decides the note an enum-set checkbox group renders
@@ -164,4 +161,76 @@ func optionValueSet(options []NamedOption) map[string]struct{} {
 		allowed[opt.Value] = struct{}{}
 	}
 	return allowed
+}
+
+// SetMemberValues returns the members of a set-shaped value (see
+// [SetElemType]) in [FormatOptionValue], the form option values use,
+// sorted so a renderer looks an option up with [slices.BinarySearch]. A
+// nil value or one of another shape has none.
+func SetMemberValues(value reflect.Value) []string {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return nil
+		}
+		value = value.Elem()
+	}
+	var members []string
+	switch value.Kind() {
+	case reflect.Map:
+		members = make([]string, 0, value.Len())
+		iter := value.MapRange()
+		for iter.Next() {
+			members = append(members, FormatOptionValue(iter.Key()))
+		}
+	case reflect.Slice:
+		members = make([]string, 0, value.Len())
+		for i := range value.Len() {
+			members = append(members, FormatOptionValue(value.Index(i)))
+		}
+	}
+	slices.Sort(members)
+	return members
+}
+
+// OptionComponents resolves the option list of a field via
+// [CollectOptions] and renders each entry through render. A static option
+// list is resolved immediately, so build-time tree enrichment (the hx
+// layer's attribute injection) still sees the elements; a list that needs
+// the request context (form:"options=…" registry entries,
+// [NamedOptionsContextProvider] types, see [OptionsNeedContext]) is
+// collected when the component renders, where the context passed to
+// Render is the real request context. A collection error surfaces at
+// render time (deferred-error pattern).
+//
+// prepend, when non-nil, is called with the resolved option list and its
+// result, if non-nil, is rendered before the options. Selects use it for
+// the leading empty option ([SelectPreface]); enum sets use it for the
+// note on hidden members ([EnumSetPreface]).
+func OptionComponents(value reflect.Value, tag FormTag, t reflect.Type, render func(opt NamedOption) Component, prepend func(options []NamedOption) Component) Component {
+	assemble := func(options []NamedOption) Components {
+		children := make(Components, 0, len(options)+1)
+		if prepend != nil {
+			if first := prepend(options); first != nil {
+				children = append(children, first)
+			}
+		}
+		for _, opt := range options {
+			children = append(children, render(opt))
+		}
+		return children
+	}
+	if !OptionsNeedContext(tag, t) {
+		options, err := CollectOptions(context.Background(), value, tag, t)
+		if err != nil {
+			return NewErrElement(err)
+		}
+		return assemble(options)
+	}
+	return ComponentFunc(func(ctx context.Context, w Writer) error {
+		options, err := CollectOptions(ctx, value, tag, t)
+		if err != nil {
+			return err
+		}
+		return assemble(options).Render(ctx, w)
+	})
 }

@@ -10,10 +10,11 @@
 // cva compiles a [Config] — a base class string plus a table of variants,
 // optional compound variants and defaults — into a [Variants] function that
 // resolves a props map to a concatenated class string. It is a faithful port
-// of class-variance-authority v0.7.1.
+// of class-variance-authority v0.7.1, plus [Compose] from its successor
+// cva v1.0.0-beta, which merges several resolvers into one.
 //
 // Like the original, cva only concatenates classes; it does not resolve
-// Tailwind conflicts. Compose it with a tailwind-merge step (such as
+// Tailwind conflicts. Follow it with a tailwind-merge step (such as
 // shadcn.Cn) the way shadcn/ui composes cva with its cn helper.
 package cva
 
@@ -60,8 +61,9 @@ type Variants func(props map[string]string) string
 // Two deliberate divergences from the JavaScript original: variant class order
 // follows sorted variant names rather than declaration order (Go maps are
 // unordered; the resolved class set is identical, and callers tailwind-merge
-// it anyway), and cva's compose, defineConfig hooks and VariantProps helper
-// are not ported.
+// it anyway), and cva's defineConfig hooks and VariantProps helper are not
+// ported (the package README says what replaces VariantProps). [Compose]
+// merges several resolvers.
 func New(config Config) Variants {
 	variantNames := make([]string, 0, len(config.Variants))
 	for name := range config.Variants {

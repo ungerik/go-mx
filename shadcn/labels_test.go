@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
 )
 
 // renderWith renders a component with ctx and a double-quote CheckedWriter,
@@ -54,6 +55,17 @@ var germanLabels = Labels{
 	FormValuesNotAvailableReadonly: "(einige aktuelle Werte sind nicht verfügbar)",
 	FormExpectedFormat:             "Erwartetes Format:",
 	FormInvalidFormat:              "Nicht im erwarteten Format:",
+	FormStoredFile:                 "Aktuelle Datei: %s",
+	FormStoredFileUnnamed:          "Eine Datei ist gespeichert.",
+	FormKeepStoredFile:             "Leer lassen, um sie zu behalten.",
+	FormKeepStoredValue:            "Leer lassen, um den aktuellen Wert zu behalten.",
+	FormDateFormat:                 "JJJJ-MM-TT",
+	FormDateTimeFormat:             "JJJJ-MM-TTTHH:MM",
+	FormTimeFormat:                 "HH:MM Uhr",
+	FormDateTimeNotInFormat:        "Nicht im Format %s",
+	FormDateTimeTooEarly:           "Früher als %s",
+	FormDateTimeTooLate:            "Später als %s",
+	FormDateTimeOutsideRange:       "Nicht zwischen %s und %s",
 }
 
 // labelCase pairs a component that renders built-in strings with the exact
@@ -207,15 +219,77 @@ var labelCases = []labelCase{
 		name:    "FormExpectedFormat",
 		comp:    dateStructWithOwnText,
 		fields:  []string{"FormExpectedFormat"},
-		english: []string{">Expected format: YYYY-MM-DD<"},
-		german:  []string{">Erwartetes Format: YYYY-MM-DD<"},
+		english: []string{">Expected format: YYYY-MM-DD<", `placeholder="YYYY-MM-DD"`},
+		german:  []string{">Erwartetes Format: JJJJ-MM-TT<", `placeholder="JJJJ-MM-TT"`},
 	}, {
 		name:    "FormInvalidFormat",
 		comp:    dateWithStoredText,
 		fields:  []string{"FormInvalidFormat"},
 		english: []string{">Not in the expected format: YYYY-MM-DD<"},
-		german:  []string{">Nicht im erwarteten Format: YYYY-MM-DD<"},
+		german:  []string{">Nicht im erwarteten Format: JJJJ-MM-TT<"},
+	}, {
+		name: "FormStoredFile",
+		comp: func() mx.Component {
+			return shadcnFile(mx.FieldPath("Scan"), reflect.ValueOf("scan.pdf"), mx.FormTag{}, nil)
+		},
+		fields:  []string{"FormStoredFile", "FormKeepStoredFile"},
+		english: []string{">Current file: scan.pdf Leave empty to keep it.<"},
+		german:  []string{">Aktuelle Datei: scan.pdf Leer lassen, um sie zu behalten.<"},
+	}, {
+		name: "FormStoredFileUnnamed",
+		comp: func() mx.Component {
+			return shadcnFile(mx.FieldPath("Scan"), reflect.ValueOf([]byte("%PDF")), mx.FormTag{Readonly: true}, nil)
+		},
+		fields:  []string{"FormStoredFileUnnamed"},
+		english: []string{">A file is stored.<"},
+		german:  []string{">Eine Datei ist gespeichert.<"},
+	}, {
+		name: "FormKeepStoredValue",
+		comp: func() mx.Component {
+			type form struct {
+				Token string `form:"sensitive"`
+			}
+			f := &form{Token: "secret"}
+			v := reflect.ValueOf(f).Elem()
+			field := v.Type().Field(0)
+			return FieldDecider("Token", field, v.Field(0)).Render("Token", field, v.Field(0), nil)
+		},
+		fields:  []string{"FormKeepStoredValue"},
+		english: []string{">Leave blank to keep the current value.<"},
+		german:  []string{">Leer lassen, um den aktuellen Wert zu behalten.<"},
+	}, {
+		name: "FormDateTimeNotInFormat",
+		comp: func() mx.Component {
+			return dateTimeErrors(
+				mx.DateTimeFormatError(mx.FormTag{Widget: "date"}, "x"),
+				mx.DateTimeFormatError(mx.FormTag{Widget: "datetime"}, "x"),
+				mx.DateTimeFormatError(mx.FormTag{Widget: "time"}, "x"),
+			)
+		},
+		fields:  []string{"FormDateTimeNotInFormat", "FormDateFormat", "FormDateTimeFormat", "FormTimeFormat"},
+		english: []string{">Not in the format YYYY-MM-DD<", ">Not in the format YYYY-MM-DDTHH:MM<", ">Not in the format HH:MM<"},
+		german:  []string{">Nicht im Format JJJJ-MM-TT<", ">Nicht im Format JJJJ-MM-TTTHH:MM<", ">Nicht im Format HH:MM Uhr<"},
+	}, {
+		name: "FormDateTimeRange",
+		comp: func() mx.Component {
+			day := mx.FormTag{Widget: "date", Min: "2026-01-01", Max: "2026-12-31"}
+			night := mx.FormTag{Widget: "time", Min: "22:00", Max: "06:00"}
+			return dateTimeErrors(
+				mx.CheckDateTimeRange(day, "x", time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)),
+				mx.CheckDateTimeRange(day, "x", time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC)),
+				mx.CheckDateTimeRange(night, "x", time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC)),
+			)
+		},
+		fields:  []string{"FormDateTimeTooEarly", "FormDateTimeTooLate", "FormDateTimeOutsideRange"},
+		english: []string{">Earlier than 2026-01-01<", ">Later than 2026-12-31<", ">Not between 22:00 and 06:00<"},
+		german:  []string{">Früher als 2026-01-01<", ">Später als 2026-12-31<", ">Nicht zwischen 22:00 und 06:00<"},
 	},
+}
+
+// dateTimeErrors renders errs as the errors of a field.
+func dateTimeErrors(errs ...error) mx.Component {
+	parts, _ := appendFieldErrors(nil, nil, "Due", errs)
+	return mx.Components{html.Div(parts...)}
 }
 
 // dateStructWithOwnText builds a reflected date field holding a date

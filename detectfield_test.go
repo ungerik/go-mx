@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -442,6 +443,75 @@ func TestDetectField_TimeLikeStructs(t *testing.T) {
 		// Its own text methods are not time.Time's RFC 3339.
 		{"Date", FieldKindCatchAll},
 		{"Money", FieldKindCatchAll},
+	} {
+		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {
+			t.Errorf("DetectField(%s) = %s, want %s", tt.field, kind, tt.want)
+		}
+	}
+}
+
+// SetElemType is the one definition of a set-shaped field that DetectField
+// and both renderers share: a []byte is text, not a set of bytes.
+func TestSetElemType(t *testing.T) {
+	for _, tc := range []struct {
+		typ  reflect.Type
+		want reflect.Type
+	}{
+		{reflect.TypeFor[map[colorEnum]struct{}](), reflect.TypeFor[colorEnum]()},
+		{reflect.TypeFor[[]colorEnum](), reflect.TypeFor[colorEnum]()},
+		{reflect.TypeFor[*[]int](), reflect.TypeFor[int]()},
+		{reflect.TypeFor[[]byte](), nil},
+		{reflect.TypeFor[map[string]bool](), nil},
+		{reflect.TypeFor[colorEnum](), nil},
+		{reflect.TypeFor[any](), nil},
+		{nil, nil},
+	} {
+		if got := SetElemType(tc.typ); got != tc.want {
+			t.Errorf("SetElemType(%v) = %v, want %v", tc.typ, got, tc.want)
+		}
+	}
+}
+
+func TestTextIsRFC3339(t *testing.T) {
+	for _, tc := range []struct {
+		typ  reflect.Type
+		want bool
+	}{
+		{reflect.TypeFor[time.Time](), true},
+		{reflect.TypeFor[soleTime](), true},
+		// Its own text methods are not time.Time's RFC 3339.
+		{reflect.TypeFor[dateOnlyTime](), false},
+		{reflect.TypeFor[string](), false},
+	} {
+		if got := TextIsRFC3339(tc.typ); got != tc.want {
+			t.Errorf("TextIsRFC3339(%v) = %v, want %v", tc.typ, got, tc.want)
+		}
+	}
+}
+
+// A database/sql type is detected by the value its Scan reads: a bool, a
+// number or a time gets that widget, text stays a text input.
+func TestDetectField_SQLNullKinds(t *testing.T) {
+	type form struct {
+		Flag    sql.NullBool
+		Count   sql.NullInt64
+		Rate    sql.NullFloat64
+		At      sql.NullTime
+		Note    sql.NullString
+		Generic sql.Null[int64]
+		Ptr     *sql.NullBool
+	}
+	for _, tt := range []struct {
+		field string
+		want  FieldKind
+	}{
+		{"Flag", FieldKindBool},
+		{"Count", FieldKindNumber},
+		{"Rate", FieldKindNumber},
+		{"At", FieldKindDateTime},
+		{"Note", FieldKindCatchAll},
+		{"Generic", FieldKindNumber},
+		{"Ptr", FieldKindBool},
 	} {
 		if kind, _ := detectKind(t, &form{}, tt.field); kind != tt.want {
 			t.Errorf("DetectField(%s) = %s, want %s", tt.field, kind, tt.want)

@@ -9,6 +9,9 @@ Attribute values are typed wherever htmx constrains them, so an invalid swap
 style or a misspelled boolean is caught in Go instead of silently emitting a
 broken attribute.
 
+The [docs site](https://ungerik.github.io/go-mx/hx/) has a tutorial and how-to
+guides for `hx` and for streaming components over Server-Sent Events.
+
 ```go
 import (
     "github.com/ungerik/go-mx/html"

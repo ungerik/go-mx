@@ -6,13 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -870,6 +873,271 @@ func (p prioEnum) Validate() error {
 	return nil
 }
 
+// rankEnum is an int enum with an option list and no validation chain.
+type rankEnum int
+
+func (rankEnum) Enums() []rankEnum { return []rankEnum{1, 2} }
+
+// laxEnum lists one value but its validator accepts more, as a type keeping
+// a retired value saveable does.
+type laxEnum string
+
+func (laxEnum) EnumStrings() []string { return []string{"current"} }
+
+func (laxEnum) Validate() error { return nil }
+
+// An enum without a validator of its own is checked against its static
+// option list on the server, a single value and the members of a set alike:
+// a forged value, also a forged zero that is no option, is rejected without
+// being quoted. A type with a validator decides itself.
+func TestReflectFormHandler_StaticEnumWithoutValidator(t *testing.T) {
+	type record struct {
+		Color colorEnum
+		Rank  rankEnum
+		Lax   laxEnum
+		Tags  []colorEnum
+	}
+	base := newTestDecider()
+	decider := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		if field.Name == "Tags" {
+			beh.Parse = func(path FieldPath, field reflect.StructField, value reflect.Value, r *http.Request) error {
+				tags := reflect.MakeSlice(value.Type(), 0, len(r.PostForm[string(path)]))
+				for _, tag := range r.PostForm[string(path)] {
+					tags = reflect.Append(tags, reflect.ValueOf(colorEnum(tag)))
+				}
+				value.Set(tags)
+				return nil
+			}
+		}
+		return beh
+	}
+	var saved *record
+	h := ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, decider)
+	post := func(values map[string][]string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{}
+		for name, vals := range values {
+			form.Set(PresentSentinelName(FieldPath(name)), "1")
+			form[name] = vals
+		}
+		saved = nil
+		return postForm(t, h, form)
+	}
+	valid := map[string][]string{"Color": {"red"}, "Rank": {"2"}, "Lax": {"retired"}, "Tags": {"red", "blue"}}
+	if rec := post(valid); rec.Code != http.StatusSeeOther || saved == nil {
+		t.Fatalf("listed values: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	for _, tc := range []struct{ field, value string }{
+		{"Color", "purple"},
+		{"Rank", "42"},
+		{"Rank", "0"},
+		{"Tags", "purple"},
+	} {
+		values := maps.Clone(valid)
+		values[tc.field] = []string{tc.value}
+		rec := post(values)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK || saved != nil || !strings.Contains(body, `data-error="`+tc.field+`">not one of the allowed options<`) {
+			t.Errorf("%s=%q: status %d, saved %+v, body %s", tc.field, tc.value, rec.Code, saved, body)
+		}
+	}
+}
+
+// quotingCode's Validate quotes the value, as a go-enum Validate does.
+type quotingCode string
+
+func (c quotingCode) Validate() error {
+	if c != "ok" {
+		return fmt.Errorf("%#v is no valid code", c)
+	}
+	return nil
+}
+
+// A validation error is bounded by MaxFieldErrorLen like a parse error: a
+// forged value of any size is not quoted into the page, and the error of a
+// long value is reported only as a stand-in, as its text was built from the
+// forged value.
+func TestReflectFormHandler_ValidationErrorBounded(t *testing.T) {
+	rep := recordReports(t)
+	type record struct{ Code quotingCode }
+	h := ReflectFormHandler(nil, func(context.Context, *record) error { return nil }, newTestDecider())
+	form := url.Values{}
+	form.Set(PresentSentinelName("Code"), "1")
+	long := strings.Repeat("x", 2*MaxFieldErrorLen)
+	form.Set("Code", long)
+	// The test decider shows the value; only the error is checked here.
+	body := postForm(t, h, form).Body.String()
+	if !strings.Contains(body, `data-error="Code">the text is not a valid value<`) || strings.Contains(body, "no valid code") {
+		t.Errorf("want the substitute, not the quote: %s", body)
+	}
+	if texts := rep.texts(); len(texts) != 1 || strings.Contains(texts[0], "xxxx") || !strings.Contains(texts[0], "for 1024 bytes of posted text") {
+		t.Errorf("reported %q, want one stand-in naming the lengths", texts)
+	}
+	form.Set("Code", "short")
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, `&quot;short&quot; is no valid code`) {
+		t.Errorf("a short value's error must show as it is: %s", body)
+	}
+}
+
+// A sensitive field shows its mask once, also where BoundFieldError already
+// put the mask in place of a long error and another error is masked.
+func TestValidateField_SensitiveMaskOnce(t *testing.T) {
+	type record struct {
+		Code quotingCode `form:"sensitive"`
+	}
+	long := strings.Repeat("x", 2*MaxFieldErrorLen)
+	r := &record{Code: quotingCode(long)}
+	for visit := range ReflectFormFields(r) {
+		beh := FieldBehavior{Validate: func(FieldPath, reflect.StructField, reflect.Value) error { return errors.New("short") }}
+		errs := validateField(withoutReports(t.Context()), visit, beh, visit.Path, long, false)
+		if len(errs) != 1 || errs[0].Error() != "not a valid value" {
+			t.Errorf("errors %q, want the mask once", errs)
+		}
+	}
+}
+
+// A browser always sends a rendered field's sentinel. A scripted POST that
+// leaves it out keeps the value unchecked, so the 0 a submit-only form's
+// new(T) starts a number with is still rejected for a required number and
+// for one whose range does not include it; a stored number is kept, so a
+// partial update that posts a subset of the fields keeps working.
+func TestReflectFormHandler_UnsentZeroNumberChecked(t *testing.T) {
+	type record struct {
+		Name  string
+		Count int `form:"required"`
+		Floor int `form:"min=1"`
+		Free  int `form:"min=0"`
+	}
+	var saved *record
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	submitOnly := ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, newTestDecider())
+	rec := postForm(t, submitOnly, form)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || saved != nil ||
+		!strings.Contains(body, `data-error="Count">required<`) || !strings.Contains(body, `data-error="Floor">&quot;0&quot; is less than 1<`) ||
+		strings.Contains(body, `data-error="Free"`) {
+		t.Errorf("submit-only: status %d, saved %+v, body %s", rec.Code, saved, body)
+	}
+
+	partial := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Count: 3, Floor: 2}, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		newTestDecider(),
+	)
+	if rec := postForm(t, partial, form); rec.Code != http.StatusSeeOther || saved == nil || saved.Count != 3 || saved.Floor != 2 {
+		t.Errorf("partial update: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// An internal error onSubmit joins with its FieldErrors, such as a failed
+// audit write, is not shown, so it is reported, once.
+func TestReflectFormHandler_ErrorJoinedWithFieldErrorsReported(t *testing.T) {
+	rep := recordReports(t)
+	audit := errors.New("audit log: disk full")
+	h := ReflectFormHandler(
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error {
+			return errors.Join(FieldErrors{"Name": FormMessage("Name is taken.")}, audit)
+		},
+		newTestDecider(),
+	)
+	body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String()
+	if !strings.Contains(body, `data-error="Name">Name is taken.<`) || strings.Contains(body, "disk full") {
+		t.Errorf("want only the field error in %s", body)
+	}
+	rep.checkReported(t, true, audit)
+}
+
+// A decider's Validate that returns a FieldErrors without an entry, or with
+// only nil ones, reports no error, as onSubmit's does not.
+func TestReflectFormHandler_EmptyFieldErrorsFromValidateIsNoError(t *testing.T) {
+	base := newTestDecider()
+	decider := func(path FieldPath, field reflect.StructField, value reflect.Value) FieldBehavior {
+		beh := base(path, field, value)
+		beh.Validate = func(FieldPath, reflect.StructField, reflect.Value) error { return FieldErrors{"Name": nil} }
+		return beh
+	}
+	saved := false
+	h := ReflectFormHandler(nil, func(context.Context, *sampleStruct) error { saved = true; return nil }, decider)
+	if rec := postForm(t, h, validSampleForm()); rec.Code != http.StatusSeeOther || !saved {
+		t.Errorf("status %d, saved %t, body %s", rec.Code, saved, rec.Body.String())
+	}
+}
+
+// ReflectFormConfig.FormMessage renders the messages above the form, so a
+// renderer can style them; the default is a paragraph with a data-slot hook.
+func TestReflectFormHandler_FormMessageHook(t *testing.T) {
+	h := ReflectFormHandlerWith(
+		ReflectFormConfig{FormMessage: func(text string) Component {
+			return NewElement("div", Attribute{Name: "class", Value: "alert"}, Text(text))
+		}},
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return FormMessage("Try again later.") },
+		newTestDecider(),
+	)
+	if body := postForm(t, h, validSampleForm()).Body.String(); !strings.Contains(body, `<div class="alert">Try again later.</div>`) {
+		t.Errorf("want the configured message in %s", body)
+	}
+}
+
+// A sensitive input never shows what was typed into it, so an add-row or
+// remove-row click that posted such text says it must be typed again.
+func TestReflectFormHandler_RowCommandRetypeSensitive(t *testing.T) {
+	type record struct {
+		Token string          `form:"sensitive"`
+		Lines []sensitiveLine `form:"repeatable"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { return &record{Token: "stored"}, nil },
+		func(context.Context, *record) error { return nil },
+		newTestDecider(),
+	)
+	for _, tc := range []struct {
+		name, token, row string
+		want             bool
+	}{
+		{"nothing typed", "", "", false},
+		{"top-level text", "typed", "", true},
+		{"row text", "", "typed", true},
+	} {
+		form := url.Values{}
+		form.Set(PresentSentinelName("Token"), "1")
+		form.Set("Token", tc.token)
+		addRow(form, "Lines", 0, map[string]string{"Token": tc.row})
+		form.Set(sentinelCommand, AddRowCommand("Lines"))
+		body := postForm(t, h, form).Body.String()
+		if got := strings.Contains(body, FormRetypeSensitiveMessage); got != tc.want {
+			t.Errorf("%s: message shown %t, want %t: %s", tc.name, got, tc.want, body)
+		}
+	}
+}
+
+// Row cells are looked up under the submitted row indices, which have gaps
+// where the client dropped a row's markup, not under the rebuilt rows' dense
+// ones.
+func TestReflectFormHandler_RowCommandRetypeSensitiveIndexGap(t *testing.T) {
+	type record struct {
+		Lines []sensitiveLine `form:"repeatable"`
+	}
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) {
+			return &record{Lines: []sensitiveLine{{}, {}, {}}}, nil
+		},
+		func(context.Context, *record) error { return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	addRow(form, "Lines", 0, map[string]string{"Token": ""})
+	addRow(form, "Lines", 2, map[string]string{"Token": "typed"})
+	form.Set(sentinelCommand, AddRowCommand("Lines"))
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, FormRetypeSensitiveMessage) {
+		t.Errorf("text typed into row 2 must ask to retype it: %s", body)
+	}
+}
+
 // An added row's required cell cannot be skipped by leaving out its
 // sentinel. (The "(none)" of an optional int enum is covered with the html
 // decider, which binds an empty select.)
@@ -1092,6 +1360,38 @@ func TestReflectFormHandler_MiddlewareParseFailureRejected(t *testing.T) {
 	override(0).ServeHTTP(rec, req)
 	if rec.Code == http.StatusSeeOther || saved != nil {
 		t.Errorf("a multipart body the middleware stopped reading: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// A file part past MaxMemory goes to a temporary file; a temp directory
+// the server cannot write to is its own failure, answered with a 500 and
+// reported, not the client's 400.
+func TestReflectFormHandler_TempFileFailureIsAServerError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("os.TempDir reads TMP on Windows")
+	}
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+	rep := recordReports(t)
+	h := ReflectFormHandlerWith(
+		ReflectFormConfig{MaxMemory: 1 << 10},
+		func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil },
+		func(context.Context, *sampleStruct) error { return nil },
+		newTestDecider(),
+	)
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, _ := mw.CreateFormFile("File", "big.bin")
+	_, _ = part.Write(bytes.Repeat([]byte("x"), 64<<10))
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", rec.Code)
+	}
+	if got := rep.got(); len(got) != 1 {
+		t.Errorf("reported %q, want the temp file error", rep.texts())
 	}
 }
 
@@ -1418,7 +1718,7 @@ func TestReflectFormHandler_UnshownErrorsAtFormLevel(t *testing.T) {
 		form.Set("Name", "n")
 		addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
 		body := postForm(t, h, form).Body.String()
-		if !strings.Contains(body, `<p role="alert"`+c.want) || strings.Contains(body, "pq:") {
+		if !strings.Contains(body, `<p role="alert" data-slot="form-message"`+c.want) || strings.Contains(body, "pq:") {
 			t.Errorf("%s: body %s, want %s", c.name, body, c.want)
 		}
 	}
@@ -1827,6 +2127,43 @@ func TestReflectFormHandler_SensitiveMessagesAndNilFieldErrors(t *testing.T) {
 	}
 }
 
+// onSubmit's FieldErrors entry for a sensitive field, at the top level or
+// in a row, is masked like the field's own errors: it may quote the stored
+// value a blank submission kept. A user message shows as it is, and every
+// hidden entry is reported.
+func TestReflectFormHandler_SensitiveFieldErrorsMasked(t *testing.T) {
+	rep := recordReports(t)
+	h := ReflectFormHandler(
+		func(context.Context) (*sensitiveRecord, error) {
+			return &sensitiveRecord{Password: "pw-SECRET", PIN: 1234, Lines: []sensitiveLine{{"row-SECRET"}}}, nil
+		},
+		func(_ context.Context, r *sensitiveRecord) error {
+			return FieldErrors{
+				"Password":      fmt.Errorf("password %q rejected", r.Password),
+				"Lines-0-Token": fmt.Errorf("token %q rejected", r.Lines[0].Token),
+				"PIN":           fmt.Errorf("checking %d: %w", r.PIN, FormMessage("PIN expired")),
+			}
+		},
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Password"), "1")
+	form.Set("Password", "")
+	addRow(form, "Lines", 0, map[string]string{"Token": ""})
+	// The test decider shows values; only the errors are checked here.
+	rec := postForm(t, h, form)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || strings.Contains(body, "rejected") || strings.Count(body, ">not a valid value<") != 2 {
+		t.Errorf("status %d, body %s; want two masked errors", rec.Code, body)
+	}
+	if !strings.Contains(body, ">PIN expired<") || strings.Contains(body, "checking") {
+		t.Errorf("a sensitive field's user message must show alone: %s", body)
+	}
+	if got := len(rep.got()); got != 2 {
+		t.Errorf("reported %d errors, want the 2 masked ones", got)
+	}
+}
+
 // An error of a repeatable field itself, such as one asking for at least
 // one row, shows inside its box, after the legend.
 func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
@@ -1919,7 +2256,7 @@ func TestReflectFormHandler_HiddenFieldErrorShown(t *testing.T) {
 	form.Set(PresentSentinelName("ID"), "1")
 	form.Set("ID", "x")
 	rec := postForm(t, h, form)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert">`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert" data-slot="form-message">`) {
 		t.Errorf("status %d, body %s; want the hidden field's error as a form-level message", rec.Code, rec.Body.String())
 	}
 }
@@ -2014,7 +2351,8 @@ func TestReflectFormHandler_NonFormBodyRejected(t *testing.T) {
 
 // An onSubmit error with a UserMessage method shows its UserMessage, bare,
 // wrapped or joined with another error, and is not reported: the user sees
-// it. Any other error shows the generic message and is reported once with
+// it. An internal error joined with it is reported, as the page does not
+// show it. Any other error shows the generic message and is reported once with
 // the request's context, also when it is revealed. A context error, such as
 // a downstream call's timeout, is not reported, but the form still shows a
 // message: the generic one, or the error's text when it is revealed.
@@ -2027,17 +2365,21 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 		newTestDecider(),
 	)
 	domain := ibanError{"DE00 1234"}
+	deadlock := errors.New("pq: deadlock detected")
 	for _, submitErr = range []error{
 		domain,
 		fmt.Errorf("saving partner 7: %w", domain),
-		errors.Join(errors.New("pq: deadlock detected"), domain),
+		errors.Join(deadlock, domain),
 	} {
 		body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String()
-		if !strings.Contains(body, `<p role="alert">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
+		if !strings.Contains(body, `<p role="alert" data-slot="form-message">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
 			t.Errorf("%v: want only the UserMessage in %s", submitErr, body)
 		}
 	}
-	rep.checkReported(t, true)
+	// The page shows the user message alone, so the internal error joined
+	// with it is reported; the text wrapping one is not.
+	rep.checkReported(t, true, deadlock)
+	rep.reset()
 
 	submitErr = errors.New("pq: connection refused to 10.0.0.5")
 	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, FormErrorMessage) {
@@ -2053,15 +2395,19 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 
 	rep.reset()
 	submitErr = fmt.Errorf("pricing at 10.0.0.5: %w", context.DeadlineExceeded)
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">pricing at 10.0.0.5: context deadline exceeded</p>`) {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">pricing at 10.0.0.5: context deadline exceeded</p>`) {
 		t.Errorf("a revealed context error must show its text: %s", body)
 	}
 	RevealInternalServerErrors = false
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">`+FormErrorMessage+`</p>`) || strings.Contains(body, "10.0.0.5") {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`+FormErrorMessage+`</p>`) || strings.Contains(body, "10.0.0.5") {
 		t.Errorf("a context error must show the generic message: %s", body)
 	}
+	// A timeout of onSubmit's own call, while the client waits, is reported.
+	rep.checkReported(t, true, submitErr, submitErr)
+
+	rep.reset()
 	submitErr = fmt.Errorf("saving: %w", context.Canceled)
-	serveReportRequest(h, http.MethodPost, validSampleForm())
+	serveCancelledReportRequest(h, http.MethodPost, validSampleForm())
 	rep.checkReported(t, false)
 }
 
@@ -2186,7 +2532,7 @@ func TestReflectFormHandler_SensitiveValidatorErrors(t *testing.T) {
 	form = url.Values{}
 	form.Set(PresentSentinelName("Key"), "1")
 	form.Set("Key", "forged-SECRET")
-	if body := serveReportRequest(hidden, http.MethodPost, form).Body.String(); !strings.Contains(body, `<p role="alert">`) || strings.Contains(body, "invalid key") {
+	if body := serveReportRequest(hidden, http.MethodPost, form).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`) || strings.Contains(body, "invalid key") {
 		t.Errorf("want a message above the form that does not quote the value in %s", body)
 	}
 	if got, want := rep.texts(), []string{`invalid key "forged-SECRET"`}; !slices.Equal(got, want) {
@@ -2222,8 +2568,10 @@ func TestReflectFormHandler_ReportsLoadError(t *testing.T) {
 
 	rep.reset()
 	loadErr = fmt.Errorf("loading: %w", context.Canceled)
-	serveReportRequest(h, http.MethodGet, nil)
+	serveCancelledReportRequest(h, http.MethodGet, nil)
 	rep.checkReported(t, false)
+	serveReportRequest(h, http.MethodGet, nil)
+	rep.checkReported(t, true, loadErr)
 }
 
 // A form that fails to render answers a 500 and reports the render error.
@@ -2296,7 +2644,7 @@ func TestReflectFormHandler_BlankUserMessageIsHidden(t *testing.T) {
 		func(context.Context, *sampleStruct) error { return blankMessageError{} },
 		newTestDecider(),
 	)
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert">`+FormErrorMessage+`</p>`) {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`+FormErrorMessage+`</p>`) {
 		t.Errorf("want the generic message in %s", body)
 	}
 	rep.checkReported(t, true, blankMessageError{})

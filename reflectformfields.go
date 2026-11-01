@@ -130,11 +130,7 @@ fields:
 			if tag.Section != "" {
 				next = tag.Section
 			} else if tag.Nested {
-				if tag.Label != "" {
-					next = tag.Label
-				} else {
-					next = field.Name
-				}
+				next = FieldLabel(field, tag)
 			}
 			if !walkFormFields(sub, path, next, depth+1, readonly || tag.Readonly, yield) {
 				return false

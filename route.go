@@ -2,6 +2,7 @@ package mx
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -20,8 +21,10 @@ type Route interface {
 	// If empty then the route handles all methods.
 	Methods() []string
 
-	// Path or the route with placeholders replaced by named values.
-	Path(values ...map[string]any) string
+	// Path returns the URL path of the route: the path of its pattern with
+	// every wildcard replaced by the value of the same name in values. It
+	// returns an error rather than a path with a wildcard left in it.
+	Path(values map[string]any) (string, error)
 
 	Register(mux *http.ServeMux)
 }
@@ -137,92 +140,91 @@ func (r *TypedRoute[T]) Methods() []string {
 	return []string{method}
 }
 
-// Path or the route with placeholders replaced by named values.
-func (r *TypedRoute[T]) Path(values ...map[string]any) string {
-	// TODO
-	// p := JoinAbsPath(append(r.parentPatterns, r.pattern))
-	// for _, values := range values {
-	// 	for name, value := range values {
-	// 		valueStr, err := FormatPathValue(name, value)
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
-	// 		p = strings.Replace(p, "{"+name+"}", valueStr, 1)
-	// 	}
-	// }
-	// return p
+// Path returns the URL path of the route: the path of its pattern, without
+// the method and host, with every wildcard replaced by the value of the same
+// name in values, formatted with [FormatPathValue].
+//
+// The wildcards are those of http.ServeMux: a {name} segment takes one escaped
+// value, a {name...} segment takes a value whose slashes separate segments
+// (each escaped on its own, so a slash in the value stays a separator), and
+// {$} only anchors the pattern and is dropped, keeping the trailing slash
+// before it.
+//
+// A wildcard without a value and a value without a wildcard are both errors:
+// the first would leave a "{name}" in the URL, and the second is almost always
+// a misspelt name that would leave the wildcard it meant without its value. So
+// is a value that formats as a "." or ".." segment, which would resolve to
+// another path.
+func (r *TypedRoute[T]) Path(values map[string]any) (string, error) {
+	p := patternPath(r.pattern)
+	// A pattern may name a host before its path, as in "example.com/blog/".
+	if i := strings.IndexByte(p, '/'); i > 0 {
+		p = p[i:]
+	}
+	segments := strings.Split(p, "/")
+	used := make(map[string]struct{}, len(values))
+	for i, segment := range segments {
+		if len(segment) < 2 || segment[0] != '{' || segment[len(segment)-1] != '}' {
+			continue
+		}
+		name := segment[1 : len(segment)-1]
+		if name == "$" {
+			segments[i] = ""
+			continue
+		}
+		name, remainder := strings.CutSuffix(name, "...")
+		value, ok := values[name]
+		if !ok {
+			return "", errs.Errorf("no value for wildcard %q of route pattern %q", name, r.pattern)
+		}
+		used[name] = struct{}{}
+		if !remainder {
+			formatted, err := formatPathSegment(r.pattern, name, value)
+			if err != nil {
+				return "", err
+			}
+			segments[i] = formatted
+			continue
+		}
+		parts := strings.Split(fmt.Sprint(value), "/")
+		for j, part := range parts {
+			formatted, err := formatPathSegment(r.pattern, name, part)
+			if err != nil {
+				return "", err
+			}
+			parts[j] = formatted
+		}
+		segments[i] = strings.Join(parts, "/")
+	}
+	if len(used) < len(values) {
+		for name := range values {
+			if _, ok := used[name]; !ok {
+				return "", errs.Errorf("route pattern %q has no wildcard %q", r.pattern, name)
+			}
+		}
+	}
+	return strings.Join(segments, "/"), nil
+}
 
-	return r.pattern
+// formatPathSegment formats value as one segment of a path of pattern with
+// [FormatPathValue]. Escaping leaves "." and ".." as they are, and a client
+// or http.ServeMux resolves such a segment to another path, so either is an
+// error.
+func formatPathSegment(pattern, name string, value any) (string, error) {
+	formatted, err := FormatPathValue(name, value)
+	if err != nil {
+		return "", err
+	}
+	if formatted == "." || formatted == ".." {
+		return "", errs.Errorf("value %q for wildcard %q of route pattern %q is a dot segment", formatted, name, pattern)
+	}
+	return formatted, nil
 }
 
 // Register registers the route on mux under its pattern.
 func (r *TypedRoute[T]) Register(mux *http.ServeMux) {
 	mux.Handle(r.Pattern(), r)
 }
-
-// type NestedRoute interface {
-// 	Route
-
-// 	ParentPatterns() []string
-// 	SetParentPatterns([]string)
-// }
-
-// func NewRoute(pattern string, handler http.Handler, methods ...string) *nestedRoute {
-// 	if m := patternMethod(pattern); m != "" {
-// 		if len(methods) > 0 {
-// 			panic("NewRoute: can't have methods in pattern and as argument")
-// 		}
-// 		methods = strings.Split(m, ",")
-// 	}
-// 	if strings.Contains(pattern, "..") {
-// 		panic("NewRoute: pattern contains '..'")
-// 	}
-// 	for i, m := range methods {
-// 		methods[i] = strings.ToUpper(m)
-// 	}
-// 	return &nestedRoute{
-// 		Handler: handler,
-// 		pattern: pattern,
-// 		methods: methods,
-// 	}
-// }
-
-// type nestedRoute struct {
-// 	http.Handler
-// 	parentPatterns []string
-// 	pattern        string
-// 	methods        []string
-// }
-
-// func (r *nestedRoute) ParentPatterns() []string {
-// 	return r.parentPatterns
-// }
-
-// func (r *nestedRoute) SetParentPatterns(parentPatterns []string) {
-// 	r.parentPatterns = parentPatterns
-// }
-
-// func (r *nestedRoute) Pattern() string {
-// 	return r.pattern
-// }
-
-// func (r *nestedRoute) Methods() []string {
-// 	return r.methods
-// }
-
-// func (r *nestedRoute) Path(values ...map[string]any) string {
-// 	p := JoinAbsPath(append(r.parentPatterns, r.pattern))
-// 	for _, values := range values {
-// 		for name, value := range values {
-// 			valueStr, err := FormatPathValue(name, value)
-// 			if err != nil {
-// 				panic(err)
-// 			}
-// 			p = strings.Replace(p, "{"+name+"}", valueStr, 1)
-// 		}
-// 	}
-// 	return p
-// }
 
 func patternMethod(pattern string) string {
 	if i := strings.IndexAny(pattern, " \t"); i != -1 {

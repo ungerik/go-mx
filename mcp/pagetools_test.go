@@ -133,7 +133,8 @@ type searchOutput struct {
 }
 
 type listOutput struct {
-	Pages []mxmcp.PageInfo `json:"pages"`
+	Pages      []mxmcp.PageInfo `json:"pages"`
+	NextCursor string           `json:"next_cursor"`
 }
 
 type getOutput struct {
@@ -448,6 +449,24 @@ func TestSearchPagesSnippetAfterMultibyteText(t *testing.T) {
 	require.Contains(t, output.Results[0].Snippet, "NEEDLE here")
 }
 
+func TestSearchPagesByteContent(t *testing.T) {
+	// []byte content, as a GlobPageSource yields, is lowered as string
+	// content is: multi-byte upper case and an invalid byte included.
+	long := strings.Repeat("GRÖSSENÄNDERUNG \xff ", 30) + "NEEDLE here " + strings.Repeat("more text ", 40)
+	page := markdownPage("/long", "Long", "", "")
+	page.Content = []byte(long)
+	session := connect(t, pages{page}, testSite(), mxmcp.PageToolsOptions{})
+
+	for _, query := range []string{"grössenänderung", "needle"} {
+		var output searchOutput
+		call(t, session, "search_pages", map[string]any{"query": query}, &output)
+		require.Len(t, output.Results, 1, query)
+	}
+	var output searchOutput
+	call(t, session, "search_pages", map[string]any{"query": "needle"}, &output)
+	require.Contains(t, output.Results[0].Snippet, "NEEDLE here")
+}
+
 func TestSearchPagesRanksTitleThenDescriptionThenText(t *testing.T) {
 	// Listed worst first, so a tie would keep the wrong order.
 	session := connect(t, pages{
@@ -531,6 +550,64 @@ func TestListPages(t *testing.T) {
 	require.Empty(t, output.Pages)
 }
 
+// list_pages returns a bounded number of pages and a cursor to the rest.
+// Regression: it returned every public page at once, megabytes for a large
+// site, sent twice by the SDK, which overflowed an agent's context.
+func TestListPagesLimitAndCursor(t *testing.T) {
+	session := connect(t, testPages(), testSite(), mxmcp.PageToolsOptions{})
+
+	var output listOutput
+	result := call(t, session, "list_pages", map[string]any{"limit": 4}, &output)
+	require.False(t, result.IsError)
+	require.Equal(t, []string{
+		"https://example.com/en/faq",
+		"https://example.com/de/faq",
+		"https://example.com/en/about",
+		"https://example.com/en-GB/about",
+	}, urls(output.Pages))
+	require.NotEmpty(t, output.NextCursor)
+
+	cursor := output.NextCursor
+	output = listOutput{}
+	call(t, session, "list_pages", map[string]any{"limit": 4, "cursor": cursor}, &output)
+	require.Equal(t, []string{"https://example.com/blog/hello", "https://example.com/go/tour"}, urls(output.Pages))
+	require.Empty(t, output.NextCursor, "the last pages have no cursor to more")
+
+	// The positions count only the pages of the language asked for.
+	output = listOutput{}
+	call(t, session, "list_pages", map[string]any{"language": "en", "limit": 2}, &output)
+	require.Equal(t, []string{"https://example.com/en/faq", "https://example.com/en/about"}, urls(output.Pages))
+	call(t, session, "list_pages", map[string]any{"language": "en", "limit": 2, "cursor": output.NextCursor}, &output)
+	require.Equal(t, []string{"https://example.com/en-GB/about", "https://example.com/blog/hello"}, urls(output.Pages))
+
+	for _, cursor := range []string{"x", "-1", "99999999999999999999"} {
+		result := call(t, session, "list_pages", map[string]any{"cursor": cursor}, nil)
+		require.True(t, result.IsError, cursor)
+		require.Contains(t, text(t, result), "cursor", cursor)
+	}
+
+	// Without a limit DefaultListLimit pages are listed, and never more than
+	// MaxListLimit.
+	var many pages
+	for i := range mxmcp.MaxListLimit + 10 {
+		many = append(many, markdownPage(fmt.Sprintf("/p/%d", i), "Page", "", "text"))
+	}
+	session = connect(t, many, testSite(), mxmcp.PageToolsOptions{})
+	output = listOutput{}
+	call(t, session, "list_pages", nil, &output)
+	require.Len(t, output.Pages, mxmcp.DefaultListLimit)
+	call(t, session, "list_pages", map[string]any{"limit": 10 * mxmcp.MaxListLimit}, &output)
+	require.Len(t, output.Pages, mxmcp.MaxListLimit)
+	require.NotEmpty(t, output.NextCursor)
+
+	// A source failing after the last page listed still fails the call, as
+	// it fails every other call.
+	session = connect(t, errorSource{}, testSite(), mxmcp.PageToolsOptions{})
+	result = call(t, session, "list_pages", map[string]any{"limit": 1}, nil)
+	require.True(t, result.IsError)
+	require.Contains(t, text(t, result), "unavailable")
+}
+
 func TestListPagesLanguageIsNotAPlainPrefix(t *testing.T) {
 	// "ary" (Moroccan Arabic) starts with "ar" but is no variant of it.
 	ary := markdownPage("/ary/faq", "FAQ", "", "text")
@@ -599,6 +676,68 @@ func TestGetPage(t *testing.T) {
 			require.Equal(t, "https://example.com/en/faq.md", output.Page.MarkdownURL)
 			require.Equal(t, "FAQ", output.Page.Title)
 		})
+	}
+}
+
+// get_page builds the URLs of the page asked for only, comparing every other
+// page by its path. Regression: it built the full description of every
+// public page while looking for one, a few milliseconds per call for a site
+// of a thousand pages, and reported a broken page it was not asked for.
+func TestGetPageBuildsOnlyTheMatch(t *testing.T) {
+	var described atomic.Int32
+	recorder := new(errorRecorder)
+	source := append(testPages(), markdownPage("/broken.md", "Broken", "", "text"))
+	session := connect(t, source, testSite(), mxmcp.PageToolsOptions{
+		Language: func(page *web.Page) string {
+			described.Add(1)
+			return "en"
+		},
+		OnError: recorder.onError,
+	})
+	for _, path := range []string{"/en/faq", "https://example.com/en/faq.md"} {
+		described.Store(0)
+		result := call(t, session, "get_page", map[string]any{"path": path}, nil)
+		require.False(t, result.IsError, path)
+		require.Equal(t, int32(1), described.Load(), path)
+	}
+	require.Empty(t, recorder.recorded())
+}
+
+// get_page finds a page by every address the other tools return, also below
+// a BaseURL with a path, for an index page and for a path with characters
+// that are escaped in its URLs.
+func TestGetPageAddresses(t *testing.T) {
+	site := &web.Site{BaseURL: "https://example.com/docs", Title: "Docs", Lang: "en"}
+	source := pages{
+		markdownPage("/", "Home", "", "home"),
+		markdownPage("/blog/", "Blog", "", "blog"),
+		markdownPage("/café", "Café", "", "coffee"),
+		markdownPage("/100%25", "Percent", "", "percent"),
+	}
+	session := connect(t, source, site, mxmcp.PageToolsOptions{})
+
+	var list listOutput
+	call(t, session, "list_pages", nil, &list)
+	require.Len(t, list.Pages, len(source))
+	for i, page := range source {
+		info := list.Pages[i]
+		markdownPath, err := web.MarkdownPath(page.Path)
+		require.NoError(t, err)
+		for _, path := range []string{page.Path, markdownPath, info.URL, info.MarkdownURL} {
+			var output getOutput
+			result := call(t, session, "get_page", map[string]any{"path": path}, &output)
+			require.False(t, result.IsError, "%s: %s", path, text(t, result))
+			require.Equal(t, page.Title, output.Page.Title, path)
+		}
+	}
+	require.Equal(t, "https://example.com/docs/caf%C3%A9.md", list.Pages[2].MarkdownURL)
+
+	// The path below the BaseURL is no address of a page, nor is a URL on
+	// another host or one with a query.
+	for _, path := range []string{"/docs/blog/", "https://example.com/blog/", "https://example.com/docsblog/", "https://other.example/docs/blog/", "https://example.com/docs/blog/?x", "/%zz"} {
+		result := call(t, session, "get_page", map[string]any{"path": path}, nil)
+		require.True(t, result.IsError, path)
+		require.Equal(t, mxmcp.ErrPageNotFound.Error(), text(t, result), path)
 	}
 }
 

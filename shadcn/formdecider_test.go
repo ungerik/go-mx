@@ -465,7 +465,7 @@ func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
 	}
 }
 
-// Value: protects=a static shadcn enum select leads with Choose… when required and empty, and with an unselected (none) when an optional value is listed; fails_when=optionChildren skips the preface on lists that do not need context, so the browser submits the first option or the value cannot be cleared; why_new=shadcn preface tests use registry lists only and TestShadcn_EnumUsesShadcnSelect does not assert the leading option; seam=none; no_claim=html static selects are covered in html/formdecider_test.go
+// Value: protects=a static shadcn enum select leads with Choose… when required and empty, and with an unselected (none) when an optional value is listed; fails_when=mx.OptionComponents skips the preface on lists that do not need context, so the browser submits the first option or the value cannot be cleared; why_new=shadcn preface tests use registry lists only and TestShadcn_EnumUsesShadcnSelect does not assert the leading option; seam=none; no_claim=html static selects are covered in html/formdecider_test.go
 func TestShadcn_StaticSelectRendersPreface(t *testing.T) {
 	out := renderShadcn(t, &formSample{Color: "green"}, "Color", nil)
 	if !strings.Contains(out, `<option value="">(none)</option>`) {
@@ -562,7 +562,7 @@ func (id marshaledID) MarshalText() ([]byte, error) {
 	return fmt.Appendf(nil, "%02x%02x%02x%02x", id[0], id[1], id[2], id[3]), nil
 }
 
-// Value: protects=a shadcn enum-set checkbox is checked when the stored key's MarshalText equals the option value; fails_when=setMembers uses fmt.Sprint, so that checkbox renders unchecked and a later save drops the member; why_new=the html round-trip does not render shadcn checkboxes and shadcn enum-set tests use plain strings; seam=none; no_claim=parse and preserve stay in the html FieldDecider
+// Value: protects=a shadcn enum-set checkbox is checked when the stored key's MarshalText equals the option value; fails_when=mx.SetMemberValues uses fmt.Sprint, so that checkbox renders unchecked and a later save drops the member; why_new=the html round-trip does not render shadcn checkboxes and shadcn enum-set tests use plain strings; seam=none; no_claim=parse and preserve stay in the html FieldDecider
 func TestShadcn_EnumSetChecksMarshaledMember(t *testing.T) {
 	type idForm struct {
 		IDs map[marshaledID]struct{} `form:"options=test-shadcn-partners"`
@@ -627,9 +627,9 @@ func TestShadcn_EnumSetWithRegistryOptions(t *testing.T) {
 	}
 }
 
-// The shadcn renderer keeps its own displayValue, so the zero uuid.UUID and
-// the zero time.Time must render as no value here too: the select leads with
-// Choose… and the inputs stay empty.
+// The zero uuid.UUID and the zero time.Time render as no value in the shadcn
+// renderer too ([mx.FormValueText]): the select leads with Choose… and the
+// inputs stay empty.
 func TestShadcn_ZeroValueRendersAsNoValue(t *testing.T) {
 	partner := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
@@ -1548,5 +1548,79 @@ func TestShadcn_OwnSpellingPlaceholder(t *testing.T) {
 		if !strings.Contains(out, `placeholder="TT.MM.JJJJ"`) || strings.Contains(out, "YYYY-MM-DD") {
 			t.Errorf("%s: own-spelling placeholder: %s", name, out)
 		}
+	}
+}
+
+// Each message of an error joining several renders as a FieldError of its
+// own, and the text joined with them as the field shows it.
+func TestShadcn_SeveralMessagesPerError(t *testing.T) {
+	err := errors.Join(mx.FormMessage("Use at least 12 characters."), mx.FormMessage("Add a digit."))
+	out := renderShadcn(t, &formSample{Name: "x"}, "Name", []error{err})
+	if got := strings.Count(out, `data-slot="field-error"`); got != 2 {
+		t.Errorf("%d FieldErrors, want 2: %s", got, out)
+	}
+	for _, text := range []string{"Use at least 12 characters.", "Add a digit."} {
+		if !strings.Contains(out, ">"+text+"<") {
+			t.Errorf("missing %q in %s", text, out)
+		}
+	}
+}
+
+// A form-level message renders as a destructive Alert, styled like the
+// field errors, with the alert role screen readers announce.
+func TestShadcn_FormMessage(t *testing.T) {
+	var b strings.Builder
+	if err := FormMessage("The form could not be saved.").Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `data-slot="alert"`) || !strings.Contains(out, `role="alert"`) || !strings.Contains(out, "text-destructive") || !strings.Contains(out, ">The form could not be saved.<") {
+		t.Errorf("FormMessage rendered %s", out)
+	}
+}
+
+// Each kind of control is described by the field's help and error
+// messages: a text input, a switch and a checkbox set's group.
+func TestShadcn_DescribedByHelpAndErrors(t *testing.T) {
+	type form struct {
+		Name     string                 `form:"help=Your full name"`
+		Active   bool                   `form:"help=Shown on the site"`
+		Features map[colorEnum]struct{} `form:"help=Pick any"`
+	}
+	errs := []error{mx.FormMessage("not allowed")}
+	for _, field := range []string{"Name", "Active", "Features"} {
+		out := renderShadcn(t, &form{}, field, errs)
+		want := `aria-describedby="` + field + `-help ` + field + `-error-0"`
+		if field == "Features" {
+			want = `aria-describedby="Features-note Features-help Features-error-0"`
+		}
+		if !strings.Contains(out, want) || !strings.Contains(out, `id="`+field+`-help"`) || !strings.Contains(out, `id="`+field+`-error-0"`) {
+			t.Errorf("%s: want %s in %s", field, want, out)
+		}
+	}
+}
+
+// yesNo is a bool whose text is "yes" or "no".
+type yesNo bool
+
+func (b yesNo) MarshalText() ([]byte, error) {
+	if b {
+		return []byte("yes"), nil
+	}
+	return []byte("no"), nil
+}
+
+// A named bool is checked by its value, not its text, so saving the form
+// unchanged keeps true.
+func TestShadcn_SwitchNamedBoolWithText(t *testing.T) {
+	type form struct {
+		Agree yesNo
+	}
+	// The classes hold "checked:" variants, so the attribute is matched.
+	if out := renderShadcn(t, &form{Agree: true}, "Agree", nil); !strings.Contains(out, ` checked="checked"`) {
+		t.Errorf("want checked: %s", out)
+	}
+	if out := renderShadcn(t, &form{}, "Agree", nil); strings.Contains(out, ` checked="checked"`) {
+		t.Errorf("want unchecked: %s", out)
 	}
 }

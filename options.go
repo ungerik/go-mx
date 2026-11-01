@@ -2,7 +2,6 @@ package mx
 
 import (
 	"context"
-	"encoding"
 	"fmt"
 	"reflect"
 	"sync"
@@ -23,6 +22,15 @@ type OptionsProvider interface {
 type NamedOption struct {
 	Name  string
 	Value string
+}
+
+// Label returns the text an option shows: its Name, or its Value for an
+// option without a name.
+func (o NamedOption) Label() string {
+	if o.Name != "" {
+		return o.Name
+	}
+	return o.Value
 }
 
 // NamedOptionsProvider is implemented by types that offer a list of
@@ -279,19 +287,8 @@ func FormatOptionValue(v reflect.Value) string {
 		}
 		v = v.Elem()
 	}
-	if v.CanInterface() {
-		if tm, ok := v.Interface().(encoding.TextMarshaler); ok {
-			if b, err := tm.MarshalText(); err == nil {
-				return string(b)
-			}
-		}
-	}
-	if v.CanAddr() {
-		if tm, ok := v.Addr().Interface().(encoding.TextMarshaler); ok {
-			if b, err := tm.MarshalText(); err == nil {
-				return string(b)
-			}
-		}
+	if text, ok := callMarshalText(v); ok {
+		return text
 	}
 	if v.CanInterface() {
 		return fmt.Sprint(v.Interface())

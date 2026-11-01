@@ -5,8 +5,8 @@ Streamed log lines rendered as a readable, searchable surface.
 Logs are mostly structured JSON today, and a raw JSON line is unreadable at
 stream speed. `logview` parses each line and renders it as its fields — the
 timestamp and level promoted, everything else as `key=value` with the value
-colored by its JSON type — plus the surface those lines stream into: a filter, a
-pause toggle, and a scroll area that follows the stream until you scroll up.
+colored by its JSON type — plus the surface those lines stream into: a filter
+that can search the whole log on the server, a pause toggle, and a scroll area that follows the stream until you scroll up.
 
 ```
 11:53:27.781  debug  request started   method=POST path=/api/invoices/42 request_id=c9e90fab
@@ -77,10 +77,74 @@ Send a burst as one event with `Lines(...)` rather than one event per line: htmx
 inserts a fragment's element children individually, so a batch costs one flush
 and one swap instead of forty.
 
+`View` moves `sse-connect` and `sse-close` (and their `data-` spellings) from
+the root to an inner element that holds the scroll area and the error sink but
+not the toolbar; `hx-ext` stays on the root, where htmx inherits it. That is
+the element a search replaces, below.
+
+## Searching the whole log
+
+By default the filter hides the lines in the view that do not match. It cannot
+see the lines `MaxLines` already dropped or the backlog behind the stream, so a
+reader who types `panic` and sees nothing has learned only that no panic is on
+screen.
+
+Set `SearchParam` to turn it into a search the handler answers:
+
+```go
+cfg := &logview.Config{SearchParam: "q"}
+```
+
+When the reader stops typing (400 ms after the last keystroke) the view
+reconnects with the filter as the `q` parameter of the stream URL
+(`/logs/stream?q=panic`), and clearing the filter reconnects without it. The
+handler answers a search the way it answers `mx.LastEventID` — the matching
+lines of its history, then the matching live ones — and `Matches` is the test
+to use, because it is the one the filter applies in the browser:
+
+```go
+query := r.URL.Query().Get(cfg.SearchParam)
+for line := range tail(r.Context(), mx.LastEventID(r)) {
+    if !cfg.Matches(line.Text, query) {
+        continue
+    }
+    // send it as above
+}
+```
+
+`Matches` compares the line *as rendered*, case-insensitively: the reader types
+`status=200` because that is what the view shows for `"status":200`, and never
+sees escape sequences or JSON quoting. It renders the line to find out, so a
+handler searching a large store should narrow the candidates with its own index
+first.
+
+While the reconnect is pending the filter still hides the non-matching lines
+already on screen, so typing gets feedback at once. A search resumes a paused
+view, since it is a request to see its results. A reconnect of the search (a
+dropped connection) keeps the parameter and sends `Last-Event-ID`, so the ids
+must stay those of the underlying log, not of the search result.
+
+The view reconnects by replacing the connecting element with an empty copy
+through `htmx.swap`: htmx's cleanup of the old element is what makes the SSE
+extension close its `EventSource`, and processing the new one opens the next. A
+handler that ignores the parameter still works — it sends everything, and the
+filter hides what does not match. A view without `sse-connect` (one fed by a
+connection above it, or by ordinary swaps) keeps the client-side filter.
+
 ## How a line is rendered
 
 A line is one JSON object or it is not. Only one JSON object renders as
 fields; the record itself gets no surrounding braces.
+
+ANSI escape sequences are removed first — SGR colors, the other CSI sequences
+(cursor movement, erase), OSC strings such as terminal hyperlinks, and the
+short ESC sequences — both from the raw line, so a record a colorizing tool
+printed with raw escapes (`jq -C`) still parses as one, and from the decoded
+strings of a record, which is where docker's json-file driver puts them as
+`\u001b[31m`. A browser would show them as `[31m` garbage, and the one thing
+color encodes in a log, severity, is what the view colors already, so the
+colors are dropped rather than mapped onto the theme. No text is lost, which is
+why stripping is the default; `KeepANSI` keeps the sequences as text.
 
 | Whole line | Rendered as |
 | ------------------------------ | ------------------------------------- |
@@ -124,10 +188,12 @@ during program setup.
 | `Prefix` | CSS class prefix (default `log-`) |
 | `TimeKey`, `LevelKey`, `MessageKey` | the field names a record is read with |
 | `Levels` | level vocabulary for plain-text lines |
+| `KeepANSI` | keep terminal escape sequences as text instead of removing them |
 | `QuoteText` | quote JSON string values |
 | `MaxDepth`, `MaxLineLen`, `MaxLines` | the limits below |
 | `Height` | scroll area height, a preference — see below |
 | `Event` | SSE event name; read it back with `EventName()` |
+| `SearchParam` | stream URL parameter that makes the filter a server-side search |
 | `Theme` | colors, level styles, level icons |
 | `Labels` | the strings the view renders on its own |
 
@@ -231,7 +297,8 @@ any other script.
   range can span the several spans a field is split into — `status=200` is
   three. Style it through `ClassMatch`, which `Theme.CSS` emits as a
   `::highlight()` rule. A browser without the API filters without highlighting.
-- **Filter** hides non-matching lines with `data-mx-log-nomatch`. Pausing and
+- **Filter** hides non-matching lines with `data-mx-log-nomatch` — the lines
+  in the view only, unless `SearchParam` makes it a search (see above). Pausing and
   filtering are two independent reasons to hide one line, which is why each has
   its own attribute — resuming must not reveal a line the filter excludes — and
   why both are hidden by a stylesheet rule rather than the `hidden` property,
@@ -245,10 +312,9 @@ any other script.
 
 ## Non-goals
 
-- **ANSI escape sequences** are not interpreted; a stream carrying them shows
-  them as text.
-- **The filter searches the DOM, not the backlog.** A search over everything
-  belongs in the handler, as a parameter of the stream URL.
+- **ANSI colors are removed, not rendered.** Mapping the 16 terminal colors
+  onto a `Theme` would need a decision about how they relate to the level
+  styles, for a signal the view already shows.
 - **A carriage return is a line break here, not a terminal overwrite,** so a
   progress-bar line renders as several lines.
 

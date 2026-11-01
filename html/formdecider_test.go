@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	stdhtml "html"
-	"math"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +17,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1930,10 +1930,10 @@ func TestReflectFormHandler_DateStringErrorKeepsStoredText(t *testing.T) {
 	if saved || rec.Code != http.StatusOK {
 		t.Fatalf("POST of a stored non-date: status %d, saved %t; want the form re-rendered with 200", rec.Code, saved)
 	}
-	if want := `<p class="form-error" data-error="Due">&quot;06.07.2026&quot; is not a date in the format YYYY-MM-DD</p>`; !strings.Contains(body, want) {
+	if want := `<p class="form-error" id="Due-error-0" data-error="Due">&quot;06.07.2026&quot; is not a date in the format YYYY-MM-DD</p>`; !strings.Contains(body, want) {
 		t.Errorf("want the bind error at the field %s, got %s", want, body)
 	}
-	if want := `<input type="text" name="Due" id="Due" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Due-format" aria-invalid="true"/>`; !strings.Contains(body, want) {
+	if want := `<input type="text" name="Due" id="Due" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Due-format Due-error-0" aria-invalid="true"/>`; !strings.Contains(body, want) {
 		t.Errorf("want the stored text re-rendered %s, got %s", want, body)
 	}
 }
@@ -2405,7 +2405,7 @@ func TestReflectFormHandler_DateOutOfRangeRejected(t *testing.T) {
 	}
 	for _, want := range []string{
 		`&quot;1900-01-01&quot; is earlier than 2026-01-01`,
-		`<input type="date" name="Day" id="Day" value="1900-01-01" min="2026-01-01" max="2026-12-31" aria-invalid="true"/>`,
+		`<input type="date" name="Day" id="Day" value="1900-01-01" min="2026-01-01" max="2026-12-31" aria-invalid="true" aria-describedby="Day-error-0"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("want %s in %s", want, body)
@@ -3052,7 +3052,7 @@ func TestFieldDecider_NumberRangeOnServer(t *testing.T) {
 		{"B", "9007199254740993", `"9007199254740993" is greater than 9007199254740992`},
 		// The stored value is compared, whatever text the parser read.
 		{"M", "1e-1000001", `"1e-1000001" is less than 1`},
-		{"G", strings.Repeat("1", 65), "too long for a number"},
+		{"G", strings.Repeat("1", maxNumberLen+1), "too long for a number"},
 		// A bound a browser would not read is no bound.
 		{"H", "99", ""},
 		{"F", "3", `"3" is greater than 2.5`},
@@ -3787,9 +3787,8 @@ func (c *prefixedCode) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// A database/sql number renders as a text input without min or max, so the
-// server is all that holds it to its range, also behind a pointer and for
-// a float.
+// A database/sql number is held to its range on the server too, also behind
+// a pointer and for a float.
 func TestFieldDecider_ScannedRangePointerAndFloat(t *testing.T) {
 	type form struct {
 		Ptr  *sql.NullInt64  `form:"min=0,max=10"`
@@ -3868,8 +3867,7 @@ func TestReflectFormHandler_SQLNullRules(t *testing.T) {
 		{"Rate", strings.Repeat("1", maxNumberLen+1), "too long for a number"},
 		{"Count", "50", "10"},
 		{"Count", "abc", `&quot;abc&quot; is not a whole number`},
-		{"At", "nope", "is not a time in RFC 3339 format"},
-		{"Flag", "yes", `&quot;yes&quot; is not true or false`},
+		{"At", "nope", `&quot;nope&quot; is not a date and time in the format YYYY-MM-DDTHH:MM`},
 	} {
 		if rec, got := post(c.field, c.raw); rec.Code == http.StatusSeeOther || got != nil || !strings.Contains(rec.Body.String(), c.msg) {
 			t.Errorf("%s=%q: status %d, saved %v; want rejected with %q in %s", c.field, c.raw, rec.Code, got != nil, c.msg, rec.Body.String())
@@ -4188,7 +4186,7 @@ func TestReflectFormHandler_HiddenNumberEdges(t *testing.T) {
 	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
 	tampered := submittedValues(get.Body.String())
 	tampered.Set("Version", "7x")
-	if rec := postValues(t, h, tampered); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), `<p role="alert">`) {
+	if rec := postValues(t, h, tampered); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), `<p role="alert" data-slot="form-message">`) {
 		t.Errorf("a hidden number that is no number: status %d, saved %+v", rec.Code, saved)
 	}
 	vals := submittedValues(get.Body.String())
@@ -5380,7 +5378,7 @@ func TestReflectFormHandler_OwnSpellingDateNullAndSensitive(t *testing.T) {
 	body := get.Body.String()
 	for _, want := range []string{
 		`<input type="text" name="Due" id="Due" placeholder="TT.MM.JJJJ"/>`,
-		`<input type="text" name="Secret" id="Secret"/>`,
+		`<input type="text" name="Secret" id="Secret" aria-describedby="Secret-stored"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("want %s in %s", want, body)
@@ -5924,7 +5922,7 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
 	rec = httptest.NewRecorder()
 	hidden(rec, req)
-	if body := rec.Body.String(); !strings.Contains(body, `<p role="alert">not a valid value</p>`) || strings.Contains(body, "SECRET") {
+	if body := rec.Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">not a valid value</p>`) || strings.Contains(body, "SECRET") {
 		t.Errorf("want the masked message above the form in %s", body)
 	}
 	if len(reported) != 1 || !strings.Contains(reported[0], "invalid syntax") {
@@ -5932,7 +5930,8 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	}
 
 	// Text longer than any number is rejected unparsed, so the report does
-	// not quote a forged value of any size.
+	// not quote a forged value of any size: a short stand-in says that a long
+	// error was hidden.
 	reported = nil
 	type keyRecord struct {
 		ID   int `form:"hidden"`
@@ -5952,8 +5951,8 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
 	rec = httptest.NewRecorder()
 	keyed(rec, req)
-	if body := rec.Body.String(); len(reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) || len(body) > 10000 {
-		t.Errorf("reported %d errors of %d bytes, page of %d bytes; want the bounded verdict above the form, nothing reported", len(reported), len(strings.Join(reported, "")), len(body))
+	if body := rec.Body.String(); len(reported) != 1 || strings.Contains(reported[0], "9x9x") || len(reported[0]) > 200 || !strings.Contains(body, `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) || len(body) > 10000 {
+		t.Errorf("reported %q, page of %d bytes; want the bounded verdict above the form and a short stand-in reported", reported, len(body))
 	}
 }
 
@@ -5993,8 +5992,8 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 	}
 	vals := submittedValues(get.Body.String())
 	vals.Set("Code", strings.Repeat("x", 4096))
-	if body := postValues(t, h, vals).Body.String(); len(*reported) != 0 || !strings.Contains(body, `<p role="alert">the text is not a valid value</p>`) {
-		t.Errorf("reported %d errors of %d bytes; want the bounded verdict above the form, nothing reported", len(*reported), len(strings.Join(*reported, "")))
+	if body := postValues(t, h, vals).Body.String(); len(*reported) != 1 || strings.Contains((*reported)[0], "xxxx") || !strings.Contains(body, `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) {
+		t.Errorf("reported %q; want the bounded verdict above the form and a short stand-in reported", *reported)
 	}
 
 	// The bound is mx.MaxFieldErrorLen: 0 or less means none.
@@ -6005,53 +6004,6 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 	postValues(t, h, vals)
 	if len(*reported) != 1 || len((*reported)[0]) < 4096 {
 		t.Errorf("unbounded: reported %d errors of %d bytes, want the whole quote", len(*reported), len(strings.Join(*reported, "")))
-	}
-}
-
-// wrappedQuote keeps the quoting error it wraps behind a short text.
-type wrappedQuote struct{ cause error }
-
-func (e wrappedQuote) Error() string { return "invalid code" }
-func (e wrappedQuote) Unwrap() error { return e.cause }
-
-// The bound of a field's error: for posted text far past it the error's text
-// is never built; a long error of short text is replaced and reported, as no
-// forged value built it; a short error of long text keeps only its text, so
-// the hook does not get the forged value it wraps.
-func TestBoundFieldError(t *testing.T) {
-	reported := recordReports(t)
-	quote := func(raw string) error { return fmt.Errorf("%q is no code", raw) }
-	long := strings.Repeat("x", 600)
-
-	const notValid = mx.FormMessage("the text is not a valid value")
-	if err := boundFieldError(t.Context(), panicOnError{}, strings.Repeat("x", 64*mx.MaxFieldErrorLen+64), notValid); err != error(notValid) {
-		t.Errorf("far past the bound: %v", err)
-	}
-	if err := boundFieldError(t.Context(), quote(long), long, notValid); err.Error() != "the text is not a valid value" || len(*reported) != 0 {
-		t.Errorf("a quote of long text: %v, reported %q", err, *reported)
-	}
-	hint := errors.New("cannot parse value into the type: " + long)
-	if err := boundFieldError(t.Context(), hint, "x", notValid); err.Error() != "the text is not a valid value" || len(*reported) != 1 || (*reported)[0] != hint.Error() {
-		t.Errorf("a long error of short text: %v, reported %d", err, len(*reported))
-	}
-	kept := boundFieldError(t.Context(), wrappedQuote{quote(long)}, long, notValid)
-	if kept.Error() != "invalid code" || errors.Unwrap(kept) != nil {
-		t.Errorf("a short error of long text: %v, wraps %v; want only its text", kept, errors.Unwrap(kept))
-	}
-	short := quote("abc")
-	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
-		t.Errorf("a short error of short text: %v, want it as it is", err)
-	}
-	if msg := mx.FormMessage(strings.Repeat("m", 600)); boundFieldError(t.Context(), msg, long, notValid) != error(msg) {
-		t.Error("a user message must stay as it is")
-	}
-
-	// A bound too large to multiply means no bound in practice, not none at all.
-	prev := mx.MaxFieldErrorLen
-	t.Cleanup(func() { mx.MaxFieldErrorLen = prev })
-	mx.MaxFieldErrorLen = math.MaxInt
-	if err := boundFieldError(t.Context(), short, "abc", notValid); err != short {
-		t.Errorf("a bound of MaxInt: %v, want the error as it is", err)
 	}
 }
 
@@ -6068,11 +6020,6 @@ func TestFieldDecider_SensitiveMaskIgnoresErrorLength(t *testing.T) {
 		}
 	}
 }
-
-// panicOnError fails the test the moment its text is built.
-type panicOnError struct{}
-
-func (panicOnError) Error() string { panic("Error() built for text far past the bound") }
 
 // addressList is text a textarea holds, whose UnmarshalText rejects it with
 // a short message that quotes nothing.
@@ -6130,7 +6077,7 @@ func TestReflectFormHandler_FieldErrorShowsUserMessage(t *testing.T) {
 		FieldDecider,
 	)
 	body = postValues(t, joined, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
-	if !strings.Contains(body, `data-error="Name">too short</p><p class="form-error" data-error="Name">no digits</p>`) {
+	if !strings.Contains(body, `data-error="Name">too short</p><p class="form-error" id="Name-error-1" data-error="Name">no digits</p>`) {
 		t.Errorf("want one error element per message in %s", body)
 	}
 }
@@ -6154,7 +6101,7 @@ func TestFieldDecider_SensitiveTimeFormatNotReported(t *testing.T) {
 	for _, raw := range []string{"x-SECRET", strings.Repeat("x", 70) + "-SECRET"} {
 		*reported = nil
 		body := postValues(t, h, url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {raw}}).Body.String()
-		if !strings.Contains(body, `<p role="alert">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
+		if !strings.Contains(body, `<p role="alert" data-slot="form-message">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
 			t.Errorf("%d bytes: reported %q, body %s; want the format above the form, nothing reported", len(raw), *reported, body)
 		}
 	}
@@ -6233,5 +6180,347 @@ func TestFieldDecider_SensitiveDateUserMessage(t *testing.T) {
 		if _, ok := mx.UserMessage(err); !ok {
 			t.Errorf("%s: the mask %v is no FormMessage, so a hidden field would report it again", field, err)
 		}
+	}
+}
+
+// A binder's error quotes the posted text only within the bound, so a
+// forged value of any size is never copied into an error that is dropped.
+func TestQuotedValue(t *testing.T) {
+	if got := quotedValue("a\"b"); got != `"a\"b"` {
+		t.Errorf("quotedValue = %s, want the quote", got)
+	}
+	if got := quotedValue(strings.Repeat("x", mx.MaxFieldErrorLen+1)); got != "the text" {
+		t.Errorf("quotedValue of long text = %q, want \"the text\"", got)
+	}
+	options := []mx.NamedOption{{Value: "a"}}
+	if err := rejectUnlistedOptions(options, []string{strings.Repeat("x", 1<<20)}); err == nil || err.Error() != "the text is not one of the allowed options" {
+		t.Errorf("rejectUnlistedOptions of a forged value: %v", err)
+	}
+}
+
+// Text longer than any number is rejected before a type that scans only
+// numbers or bools scans it, whose errors would quote it again and again.
+func TestSetScanned_LongTextNotScanned(t *testing.T) {
+	for _, tc := range []struct {
+		typ  reflect.Type
+		want bool
+	}{
+		{reflect.TypeFor[sql.NullInt64](), true},
+		{reflect.TypeFor[sql.NullFloat64](), true},
+		{reflect.TypeFor[sql.NullBool](), true},
+		{reflect.TypeFor[sql.NullString](), false},
+		{reflect.TypeFor[sql.NullTime](), false},
+	} {
+		if _, got := scansOnlyNumbers(tc.typ); got != tc.want {
+			t.Errorf("scansOnlyNumbers(%v) = %v, want %v", tc.typ, got, tc.want)
+		}
+	}
+
+	forged := strings.Repeat("1x", 1<<19) // 1 MiB
+	var count sql.NullInt64
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	err := setScanned(reflect.ValueOf(&count).Elem(), forged)
+	runtime.ReadMemStats(&after)
+	if err == nil || err.Error() != "too long for a number" {
+		t.Errorf("setScanned = %v, want too long for a number", err)
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 1<<20 {
+		t.Errorf("rejecting a forged 1 MiB number allocated %d bytes", allocated)
+	}
+	var flag sql.NullBool
+	if err := setScanned(reflect.ValueOf(&flag).Elem(), forged); err == nil || err.Error() != "the text is not true or false" {
+		t.Errorf("setScanned of a bool = %v", err)
+	}
+	var text sql.NullString
+	if err := setScanned(reflect.ValueOf(&text).Elem(), forged); err != nil || text.String != forged {
+		t.Errorf("a long text must still scan: %v", err)
+	}
+}
+
+// panickyCode is a text field of its own whose UnmarshalText panics.
+type panickyCode struct{ code string }
+
+func (c panickyCode) MarshalText() ([]byte, error) { return []byte(c.code), nil }
+
+func (*panickyCode) UnmarshalText([]byte) error { panic("nil receiver") }
+
+// A panic a binding guard recovers, a bug in the application's type, is
+// reported with its stack; the field shows only that the value is invalid.
+func TestFieldDecider_RecoveredPanicReported(t *testing.T) {
+	reported := recordReports(t)
+	type form struct {
+		Code panickyCode
+		Day  panickyText `form:"widget=date"`
+	}
+	f := &form{}
+	for _, field := range []string{"Code", "Day"} {
+		*reported = nil
+		if err := parseFieldValue(t, f, field, "2026-06-14"); err == nil {
+			t.Errorf("%s: a panicking UnmarshalText must reject the value", field)
+		}
+		if len(*reported) != 1 || !strings.Contains((*reported)[0], "nil receiver") || !strings.Contains((*reported)[0], "goroutine") {
+			t.Errorf("%s: reported %q, want the panic with its stack", field, *reported)
+		}
+	}
+}
+
+// A float the renderer writes with more than 64 characters, as it writes
+// 1e64 or more in full, can be posted back, in a number field and in a
+// database/sql one; the longest float64 the renderer writes is the limit.
+func TestFieldDecider_LongFloatRoundTrips(t *testing.T) {
+	type form struct {
+		Big  float64
+		Rate sql.NullFloat64
+	}
+	big := 1e64
+	smallest := -2.2250738585072014e-308
+	for _, v := range []float64{big, smallest} {
+		f := &form{}
+		text := strconv.FormatFloat(v, 'f', -1, 64)
+		if err := parseFieldValue(t, f, "Big", text); err != nil || f.Big != v {
+			t.Errorf("Big %q (%d characters): error %v, stored %v", text, len(text), err, f.Big)
+		}
+		if err := parseFieldValue(t, f, "Rate", text); err != nil || !f.Rate.Valid || f.Rate.Float64 != v {
+			t.Errorf("Rate %q: error %v, stored %+v", text, err, f.Rate)
+		}
+	}
+	if len(strconv.FormatFloat(smallest, 'f', -1, 64)) != maxNumberLen {
+		t.Errorf("maxNumberLen %d is not the longest float64 text", maxNumberLen)
+	}
+}
+
+// form:"pattern=…" is checked on the server like the attribute: anchored to
+// the whole text, not for an empty one, and not at all for a pattern RE2
+// cannot compile. The posted text stays bound for the re-render.
+func TestFieldDecider_PatternOnServer(t *testing.T) {
+	type form struct {
+		Code   string `form:"pattern=[A-Z]{3}"`
+		Ahead  string `form:"pattern=(?=x)x"`
+		Secret string `form:"pattern=[0-9]+,sensitive"`
+	}
+	f := &form{}
+	for _, tc := range []struct {
+		field, raw string
+		ok         bool
+	}{
+		{"Code", "ABC", true},
+		{"Code", "ABCD", false},
+		{"Code", "xABC", false},
+		{"Code", "", true},
+		{"Ahead", "anything", true},
+		{"Secret", "12a", false},
+	} {
+		err := parseFieldValue(t, f, tc.field, tc.raw)
+		if (err == nil) != tc.ok {
+			t.Errorf("%s=%q: error %v, want ok %t", tc.field, tc.raw, err, tc.ok)
+		}
+		if err != nil && strings.Contains(err.Error(), tc.raw) {
+			t.Errorf("%s=%q: the error quotes the text: %v", tc.field, tc.raw, err)
+		}
+	}
+	if err := parseFieldValue(t, f, "Code", "ABCD"); err == nil || f.Code != "ABCD" {
+		t.Errorf("a rejected text must stay bound: error %v, Code %q", err, f.Code)
+	}
+}
+
+// A field's control is described by its help and each of its error
+// messages, so a screen reader reads them with it, also after what it refers to already, such as a date's format
+// hint.
+func TestFieldDecider_DescribedByHelpAndErrors(t *testing.T) {
+	type form struct {
+		Name string `form:"help=Your full name"`
+		Due  string `form:"widget=date"`
+	}
+	f := &form{Due: "06.07.2026"}
+	errs := []error{errors.Join(mx.FormMessage("too short"), mx.FormMessage("no digits"))}
+	render := func(field string, errs []error) string {
+		t.Helper()
+		v := reflect.ValueOf(f).Elem()
+		sf, _ := v.Type().FieldByName(field)
+		beh := FieldDecider(mx.FieldPath(field), sf, v.FieldByName(field))
+		return renderToString(t, beh.Render(mx.FieldPath(field), sf, v.FieldByName(field), errs))
+	}
+	out := render("Name", errs)
+	if !strings.Contains(out, `aria-describedby="Name-help Name-error-0 Name-error-1"`) ||
+		!strings.Contains(out, `id="Name-help"`) || !strings.Contains(out, `id="Name-error-1"`) {
+		t.Errorf("Name: %s", out)
+	}
+	if out := render("Due", errs); !strings.Contains(out, `aria-describedby="Due-format Due-error-0 Due-error-1"`) {
+		t.Errorf("Due: %s", out)
+	}
+}
+
+// A file field holding a file says so next to the picker, which the browser
+// labels "No file chosen" either way, with the file's name when the field
+// holds one, and on an editable field that a blank keeps it.
+func TestFieldDecider_StoredFileNote(t *testing.T) {
+	type form struct {
+		Scan  string `form:"widget=file"`
+		Data  []byte `form:"widget=file,readonly"`
+		Empty string `form:"widget=file"`
+	}
+	f := &form{Scan: "scan.pdf", Data: []byte("%PDF")}
+	if out := renderFieldHTML(t, f, "Scan"); !strings.Contains(out, `aria-describedby="Scan-file"`) || !strings.Contains(out, `id="Scan-file">Current file: scan.pdf Leave empty to keep it.<`) {
+		t.Errorf("Scan: %s", out)
+	}
+	if out := renderFieldHTML(t, f, "Data"); !strings.Contains(out, `>A file is stored.<`) || strings.Contains(out, "Leave empty") {
+		t.Errorf("Data: %s", out)
+	}
+	if out := renderFieldHTML(t, f, "Empty"); strings.Contains(out, "Empty-file") {
+		t.Errorf("Empty: %s", out)
+	}
+}
+
+// A sensitive input never shows its value, so while one is stored it says
+// that a blank keeps it, linked to the control; with nothing stored, or on
+// a readonly field, it says nothing.
+func TestFieldDecider_SensitiveStoredCaption(t *testing.T) {
+	type form struct {
+		Token  string `form:"sensitive"`
+		Empty  string `form:"sensitive"`
+		Locked string `form:"sensitive,readonly"`
+	}
+	f := &form{Token: "secret", Locked: "secret"}
+	if out := renderFieldHTML(t, f, "Token"); !strings.Contains(out, `aria-describedby="Token-stored"`) || !strings.Contains(out, `id="Token-stored">Leave blank to keep the current value.<`) || strings.Contains(out, "secret") {
+		t.Errorf("Token: %s", out)
+	}
+	for _, field := range []string{"Empty", "Locked"} {
+		if out := renderFieldHTML(t, f, field); strings.Contains(out, "Leave blank") {
+			t.Errorf("%s: %s", field, out)
+		}
+	}
+}
+
+// deDateText holds a date as text in its own spelling, which its
+// UnmarshalText reads, and no ISO date a date input sends.
+type deDateText string
+
+func (d *deDateText) UnmarshalText(text []byte) error {
+	if _, err := time.Parse("02.01.2006", string(text)); err != nil {
+		return errors.New("not a date like 06.07.2026")
+	}
+	*d = deDateText(text)
+	return nil
+}
+
+// A string date type that reads only its own spelling renders as a text
+// input of its own text, without a format to enter, and binds what was
+// posted through its UnmarshalText, so it can be saved.
+func TestFieldDecider_OwnSpellingStringDate(t *testing.T) {
+	type form struct {
+		Due deDateText `form:"widget=date"`
+	}
+	f := &form{Due: "06.07.2026"}
+	out := renderFieldHTML(t, f, "Due")
+	if !strings.Contains(out, `type="text"`) || !strings.Contains(out, `value="06.07.2026"`) || strings.Contains(out, "YYYY-MM-DD") || strings.Contains(out, "aria-invalid") {
+		t.Errorf("render: %s", out)
+	}
+	if err := parseFieldValue(t, f, "Due", "01.08.2026"); err != nil || f.Due != "01.08.2026" {
+		t.Errorf("bind its own spelling: error %v, stored %q", err, f.Due)
+	}
+	if err := parseFieldValue(t, f, "Due", "2026-08-01"); err == nil || f.Due != "2026-08-01" {
+		t.Errorf("an ISO date must be rejected and stay bound: error %v, stored %q", err, f.Due)
+	}
+	if err := parseFieldValue(t, f, "Due", ""); err != nil || f.Due != "" {
+		t.Errorf("a blank: error %v, stored %q", err, f.Due)
+	}
+}
+
+// A database/sql type gets the widget of the value it holds: sql.NullBool a
+// checkbox with a clear control for its null, sql.NullInt64 a number input
+// with its range, sql.NullTime the datetime widget; sql.NullString stays a
+// text input. Each binds back through its Scan, a blank as its null.
+func TestFieldDecider_SQLNullWidgets(t *testing.T) {
+	type form struct {
+		Flag  sql.NullBool
+		Count sql.NullInt64 `form:"min=0,max=10"`
+		At    sql.NullTime
+		Note  sql.NullString
+	}
+	at := time.Date(2026, 7, 6, 9, 5, 0, 0, time.UTC)
+	f := &form{Flag: sql.NullBool{Bool: true, Valid: true}, Count: sql.NullInt64{Int64: 3, Valid: true}, At: sql.NullTime{Time: at, Valid: true}, Note: sql.NullString{String: "n", Valid: true}}
+	for field, want := range map[string][]string{
+		"Flag":  {`type="checkbox" name="Flag" id="Flag" value="on" checked="checked"`, `name="__clear__Flag"`},
+		"Count": {`type="number" name="Count" id="Count" value="3" min="0" max="10"`},
+		"At":    {`type="datetime-local" name="At" id="At" value="2026-07-06T09:05:00"`},
+		"Note":  {`type="text" name="Note" id="Note" value="n"`},
+	} {
+		out := renderFieldHTML(t, f, field)
+		for _, w := range want {
+			if !strings.Contains(out, w) {
+				t.Errorf("%s: want %s in %s", field, w, out)
+			}
+		}
+	}
+	for _, b := range []struct {
+		field, raw string
+		check      func() bool
+	}{
+		{"Flag", "", func() bool { return f.Flag == sql.NullBool{Valid: true} }},
+		{"Flag", "on", func() bool { return f.Flag == sql.NullBool{Bool: true, Valid: true} }},
+		{"Count", "7", func() bool { return f.Count == sql.NullInt64{Int64: 7, Valid: true} }},
+		{"Count", "", func() bool { return !f.Count.Valid }},
+		{"At", "2026-08-01T10:00", func() bool { return f.At.Valid && f.At.Time.Equal(time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC)) }},
+		{"At", "", func() bool { return !f.At.Valid }},
+	} {
+		if err := parseFieldValue(t, f, b.field, b.raw); err != nil || !b.check() {
+			t.Errorf("bind %s %q: error %v, form %+v", b.field, b.raw, err, f)
+		}
+	}
+	if err := parseFieldValue(t, f, "Count", "11"); err == nil {
+		t.Error("a sql number outside its range must be rejected")
+	}
+}
+
+// No min or max can be checked on a string date type's own spelling. The
+// form fails on GET, and a scripted POST that gets past it is rejected
+// rather than saved unchecked.
+func TestFieldDecider_OwnSpellingStringDateBounded(t *testing.T) {
+	type form struct {
+		Due deDateText `form:"widget=date,min=2026-01-01"`
+	}
+	f := &form{}
+	if err := parseFieldValue(t, f, "Due", "01.01.1990"); err == nil {
+		t.Errorf("a bounded own-spelling date was bound unchecked: %q", f.Due)
+	}
+}
+
+// A *sql.NullBool is a checkbox like a sql.NullBool, and binds through the
+// pointee's Scan.
+func TestFieldDecider_PointerSQLNullBool(t *testing.T) {
+	type form struct {
+		Flag *sql.NullBool
+	}
+	f := &form{}
+	if err := parseFieldValue(t, f, "Flag", "on"); err != nil || f.Flag == nil || *f.Flag != (sql.NullBool{Bool: true, Valid: true}) {
+		t.Errorf("on: error %v, stored %+v", err, f.Flag)
+	}
+	if err := parseFieldValue(t, f, "Flag", ""); err != nil || f.Flag == nil || *f.Flag != (sql.NullBool{Valid: true}) {
+		t.Errorf("off: error %v, stored %+v", err, f.Flag)
+	}
+}
+
+// yesNo is a bool whose text is "yes" or "no".
+type yesNo bool
+
+func (b yesNo) MarshalText() ([]byte, error) {
+	if b {
+		return []byte("yes"), nil
+	}
+	return []byte("no"), nil
+}
+
+// A named bool is checked by its value, not its text, so saving the form
+// unchanged keeps true.
+func TestFieldDecider_CheckboxNamedBoolWithText(t *testing.T) {
+	type form struct {
+		Agree yesNo
+	}
+	if out := renderFieldHTML(t, &form{Agree: true}, "Agree"); !strings.Contains(out, "checked") {
+		t.Errorf("want checked: %s", out)
+	}
+	if out := renderFieldHTML(t, &form{}, "Agree"); strings.Contains(out, "checked") {
+		t.Errorf("want unchecked: %s", out)
 	}
 }

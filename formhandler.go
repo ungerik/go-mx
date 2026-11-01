@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io/fs"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -45,19 +47,26 @@ var FormSubmitLabel = "Save"
 // Reassign to change it globally.
 var FormErrorMessage = "The form could not be saved."
 
+// FormRetypeSensitiveMessage is the form-level message an add-row or
+// remove-row click re-renders the form with when text was typed into a
+// form:"sensitive" input: the input never shows its value, and the save
+// that follows reads the input, so the text must be typed again. Reassign
+// to change or translate it globally.
+var FormRetypeSensitiveMessage = "A value typed into a hidden input, such as a password, is not shown again: type it again before saving."
+
 // MaxFieldErrorLen bounds the error a field shows, and reports through
-// [ReportError], for a value a user posted: the parse error of a text,
-// number, select or checkbox-set field of html.FieldDecider (and of the
-// deciders built on it, such as shadcn's) whose text is longer than this many
-// bytes and carries no [UserMessage] reads "the text is not a valid value"
-// instead, as such an error typically quotes the posted text whole, a forged
-// value of any size included. A short error of a long value shows as it is,
-// up to text 64 times the bound (32 KiB by default), past which the error's
-// text is not built at all, as it may quote the text at several times its
-// size: a type that rejects such large values returns a [UserMessageError]
-// to keep its message. (Date and time fields take no text longer than 64
-// bytes at all.) 0 or less means no bound. Reassign at init time to change
-// it globally.
+// [ReportError], for a value a user posted: a parse or validation error of
+// a reflected form field, of any decider, whose text is longer than this
+// many bytes reads "the text is not a valid value" instead
+// ([BoundFieldError]), as such an error typically quotes the posted text
+// whole, a forged value of any size included; so does a user message past
+// the bound, and each part of an error joined with one. A short error of a
+// long value shows as it is, up to text 64 times the bound (32 KiB by
+// default), past which the error's text is not built at all, as it may
+// quote the text at several times its size: a type that rejects such large
+// values returns a short [UserMessageError] to keep its message. (Date and
+// time fields take no text longer than 64 bytes at all.) 0 or less means no
+// bound. Reassign at init time to change it globally.
 var MaxFieldErrorLen = 512
 
 // FormMessage is an error whose text is meant for the user, the
@@ -106,6 +115,12 @@ type ReflectFormConfig struct {
 
 	// SubmitLabel overrides [FormSubmitLabel] for this handler only.
 	SubmitLabel string
+
+	// FormMessage renders a message above the form, such as an onSubmit
+	// error or an error no input shows, so a renderer can style it: the
+	// shadcn renderer's is shadcn.FormMessage, a destructive Alert. nil
+	// renders a <p role="alert" data-slot="form-message">.
+	FormMessage func(text string) Component
 }
 
 // ReflectFormHandler builds an http.Handler that renders, parses, and
@@ -233,6 +248,10 @@ func ReflectFormHandlerRedirecting[T any](
 	if submitLabel == "" {
 		submitLabel = FormSubmitLabel
 	}
+	formMessage := cfg.FormMessage
+	if formMessage == nil {
+		formMessage = formMessageComponent
+	}
 
 	pickDecider := func(r *http.Request) FieldDecider {
 		if len(decider) > 0 && decider[0] != nil {
@@ -247,7 +266,7 @@ func ReflectFormHandlerRedirecting[T any](
 		if cfg.Action != nil {
 			action = cfg.Action(r)
 		}
-		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, submitLabel, action, origins)
+		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, submitLabel, action, origins, formMessage)
 		writeFormResponse(w, r, comp)
 	}
 
@@ -267,6 +286,14 @@ func ReflectFormHandlerRedirecting[T any](
 			// would save the unchanged record and drop the user's edits.
 			loaded := r.MultipartForm
 			if parseErr := parseFormBody(w, r, maxMem, maxUpload); parseErr != nil {
+				// The multipart parser writes a file part past MaxMemory to a
+				// temporary file; a temp directory that is full or missing is
+				// the server's failure, a 500 that is reported, not the
+				// client's malformed body, which never yields a PathError.
+				if _, ok := errors.AsType[*fs.PathError](parseErr); ok {
+					RespondNonContextError(w, r, parseErr)
+					return
+				}
 				status := http.StatusBadRequest
 				var tooLarge *http.MaxBytesError
 				switch {
@@ -301,8 +328,12 @@ func ReflectFormHandlerRedirecting[T any](
 				// The command saves nothing and shows no error, so the errors
 				// of this parse, which the next save reports, are not reported.
 				parseAndValidate(target, d, r.WithContext(withoutReports(r.Context())), origins)
+				formMsg := ""
+				if sensitiveTextPosted(target, requestFormValues(r)) {
+					formMsg = FormRetypeSensitiveMessage
+				}
 				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
-				render(w, r, target, nil, "", origins)
+				render(w, r, target, nil, formMsg, origins)
 				return
 			}
 			fieldErrs := parseAndValidate(target, d, r, origins)
@@ -313,14 +344,25 @@ func ReflectFormHandlerRedirecting[T any](
 			redirect, err := onSubmit(r.Context(), target)
 			if fe, ok := errors.AsType[FieldErrors](err); ok {
 				// A nil entry, as from FieldErrors{"Name": validate(x)} with a
-				// valid x, is no error.
+				// valid x, is no error. A form:"sensitive" field's entry may
+				// quote the value it keeps off the page, after a blank
+				// submission the stored one, so it is masked as the field's
+				// own errors are.
 				perField := map[FieldPath][]error{}
+				sensitive := sensitiveFieldPaths(target)
 				for p, e := range fe {
-					if e != nil {
-						perField[p] = []error{e}
+					if e == nil {
+						continue
 					}
+					if sensitive[p] {
+						e = MaskSensitiveError(r.Context(), e, "not a valid value")
+					}
+					perField[p] = []error{e}
 				}
 				if len(perField) > 0 {
+					// What the FieldErrors came joined with, such as a
+					// failed audit write, is not shown.
+					reportHiddenParts(r.Context(), err)
 					render(w, r, target, perField, "", origins)
 					return
 				}
@@ -353,6 +395,83 @@ func ReflectFormHandlerRedirecting[T any](
 	}
 }
 
+// sensitiveTextPosted reports whether form posted text for one of target's
+// form:"sensitive" fields, which a re-render does not show again.
+//
+// A repeatable row's cells are looked up under the row indices the form
+// submitted, which have gaps where the client dropped a row, not under the
+// rebuilt rows' dense ones. A cell path's sensitivity comes from its type,
+// so a path sensitive in one row is sensitive in every row that has it.
+func sensitiveTextPosted(target any, form map[string][]string) bool {
+	posted := func(path FieldPath) bool {
+		vals := form[string(path)]
+		return len(vals) > 0 && vals[0] != ""
+	}
+	for visit := range ReflectFormFields(target) {
+		if visit.Tag.Sensitive && posted(visit.Path) {
+			return true
+		}
+		if visit.Kind != FieldKindRepeatable || visit.Value.Kind() != reflect.Slice {
+			continue
+		}
+		structType := repeatableStructType(visit.Value.Type())
+		if structType == nil {
+			continue
+		}
+		cells := map[FieldPath]bool{}
+		addCells := func(row reflect.Value) {
+			for cv := range ReflectFormFields(row.Addr().Interface()) {
+				if cv.Tag.Sensitive {
+					cells[cv.Path] = true
+				}
+			}
+		}
+		// A new row covers the cells of a row that was not rebuilt, as when
+		// the form posted more rows than form:"maxrows" allows.
+		addCells(reflect.New(structType).Elem())
+		for i := range visit.Value.Len() {
+			addCells(rowStructValue(visit.Value.Index(i), structType))
+		}
+		for _, index := range repeatableRowIndices(form, visit.Path) {
+			row := visit.Path.Append(strconv.Itoa(index))
+			for cell := range cells {
+				if posted(row.Append(string(cell))) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// sensitiveFieldPaths returns the paths of the form:"sensitive" fields of
+// target, a form widget=password one included, and of the sensitive cells
+// of its repeatable rows under their row paths ("Lines-0-Token").
+func sensitiveFieldPaths(target any) map[FieldPath]bool {
+	paths := map[FieldPath]bool{}
+	for visit := range ReflectFormFields(target) {
+		if visit.Tag.Sensitive {
+			paths[visit.Path] = true
+		}
+		if visit.Kind != FieldKindRepeatable || visit.Value.Kind() != reflect.Slice {
+			continue
+		}
+		structType := repeatableStructType(visit.Value.Type())
+		if structType == nil {
+			continue
+		}
+		for i := range visit.Value.Len() {
+			row := rowStructValue(visit.Value.Index(i), structType)
+			for cv := range ReflectFormFields(row.Addr().Interface()) {
+				if cv.Tag.Sensitive {
+					paths[visit.Path.Append(strconv.Itoa(i)).Append(string(cv.Path))] = true
+				}
+			}
+		}
+	}
+	return paths
+}
+
 // parseAndValidate walks target, applies the form's submitted values
 // onto it (only for fields whose __present sentinel is set), and runs
 // each per-field [FieldBehavior.Validate]. Returns a map of paths to
@@ -379,82 +498,105 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 	return out
 }
 
-// validateField runs the validation chain (see [validateBound]) and then
-// the decider-supplied Validate on a bound field value, at the top level
-// and in a repeatable row alike. The errors of a form:"sensitive" field
-// read "not a valid value", and are reported ([ReportHiddenError]): a
-// type's own message may quote the value, which after a blank submission is
-// the stored one. A [UserMessageError], such as a password rule, is meant
-// for the user and shows as its UserMessage.
-func validateField(ctx context.Context, visit FieldVisit, beh FieldBehavior, path FieldPath, blank bool) []error {
-	errs := validateBound(visit.Kind, visit.Value, blank)
+// validateField runs the validation chain and then the decider-supplied
+// Validate on a bound field value, at the top level and in a repeatable row
+// alike.
+//
+// A blank optional enum, one submitted empty ([sentBlank]), is "no choice",
+// not an invalid constant: go-enum Validate rejects the zero string, which
+// would make the leading "(none)" option impossible to save, so the chain
+// is skipped (a decider Validate still runs: that hook is the caller's, not
+// the type's enum check). An enum zero bound from text that was not empty,
+// such as a forged "0", is validated. The elements of an enum set carry the
+// enum's Validate, not the map or slice holding them, so a set is validated
+// element by element unless it validates itself. An enum type without a
+// validation chain of its own is checked against its static option list
+// ([checkStaticOptions]).
+//
+// Each error is bounded by [MaxFieldErrorLen] ([BoundFieldError]): a type's
+// Validate may quote the value, as a go-enum one does with %#v, a forged one
+// of any size included. raw is the posted text the bound measures. The
+// errors of a form:"sensitive" field read "not a valid value", and are
+// reported ([MaskSensitiveError]): a type's own message may quote the
+// value, which after a blank submission is the stored one. A
+// [UserMessageError], such as a password rule, is meant for the user and
+// shows as its UserMessage.
+func validateField(ctx context.Context, visit FieldVisit, beh FieldBehavior, path FieldPath, raw string, blank bool) []error {
+	var errs []error
+	if visit.Kind != FieldKindEnum || !blank {
+		errs = RunValidationChain(visit.Value)
+		if len(errs) == 0 {
+			switch visit.Kind {
+			case FieldKindEnum:
+				errs = checkStaticOptions(ctx, visit.Value, visit.Tag, visit.Field.Type, FormatOptionValue(visit.Value))
+			case FieldKindEnumSet:
+				errs = validateSetElements(visit.Value)
+				if elemType := SetElemType(visit.Field.Type); len(errs) == 0 && elemType != nil {
+					errs = checkStaticOptions(ctx, reflect.Value{}, visit.Tag, elemType, SetMemberValues(visit.Value)...)
+				}
+			}
+		}
+	}
 	if beh.Validate != nil {
-		if err := beh.Validate(path, visit.Field, visit.Value); err != nil {
+		// A FieldErrors without an entry, or with only nil ones, is no error,
+		// as onSubmit's is not.
+		err := beh.Validate(path, visit.Field, visit.Value)
+		if fieldErrs, ok := err.(FieldErrors); ok && fieldErrs.Error() == "" {
+			err = nil
+		}
+		if err != nil {
 			errs = append(errs, err)
 		}
+	}
+	for i, err := range errs {
+		errs[i] = BoundFieldError(ctx, err, raw, fieldErrorSubstitute(visit.Tag))
 	}
 	if !visit.Tag.Sensitive || len(errs) == 0 {
 		return errs
 	}
+	const mask FormMessage = "not a valid value"
 	var shown []error
 	masked := false
 	for _, err := range errs {
-		// Only the message itself: an error wrapping or joined with it may
-		// quote the value.
-		if msg, ok := UserMessage(err); ok {
-			shown = append(shown, FormMessage(msg))
-			continue
-		}
-		ReportHiddenError(ctx, err)
-		if !masked {
-			// Meant for the user: where no input shows it, it goes above the
-			// form as it is, neither hidden nor reported again.
-			shown = append(shown, FormMessage("not a valid value"))
+		// Meant for the user: where no input shows it, it goes above the
+		// form as it is, neither hidden nor reported again.
+		msg := MaskSensitiveError(ctx, err, string(mask))
+		// Every hidden error is reported, the mask is shown once, also
+		// where BoundFieldError already put it in place of an error.
+		if msg == error(mask) {
+			if masked {
+				continue
+			}
 			masked = true
 		}
+		shown = append(shown, msg)
 	}
 	return shown
-}
-
-// validateBound runs the validation chain on a bound field value, at the
-// top level and in a repeatable row alike. A blank optional enum, one
-// submitted empty ([sentBlank]), is "no choice", not an invalid constant:
-// go-enum Validate rejects the zero string, which would make the leading
-// "(none)" option impossible to save (a decider Validate still runs: that
-// hook is the caller's, not the type's enum check). An enum zero bound
-// from text that was not empty, such as a forged "0", is validated. The
-// elements of an enum set carry the enum's Validate, not the map or slice
-// holding them, so a set is validated element by element unless it
-// validates itself.
-func validateBound(kind FieldKind, value reflect.Value, blank bool) []error {
-	if kind == FieldKindEnum && blank {
-		return nil
-	}
-	chainErrs := RunValidationChain(value)
-	if len(chainErrs) == 0 && kind == FieldKindEnumSet {
-		chainErrs = validateSetElements(value)
-	}
-	return chainErrs
 }
 
 // parseField applies one submitted value onto cv.Value, for a top-level
 // field (srcCell and dstCell are its path) and a repeatable row's cell
 // (srcCell is the submitted cell path, dstCell its path in the rebuilt
-// rows): readonly skip (the value stays as loaded, or as the row started),
+// rows): readonly and key skip (the value stays as loaded, or as the row started),
 // __present gate (the mass-assignment allowlist), __clear handling,
 // keepsStored, decider Parse, required check, then the validation chain
 // and decider Validate. Errors are keyed by dstCell.
 func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string][]string, srcCell, dstCell FieldPath, out map[FieldPath][]error) {
-	if cv.Tag.Readonly {
+	if cv.Tag.Readonly || cv.Tag.Key {
 		// Never a submitted value, not even the null of __clear.
 		return
 	}
 	// A value not sent is left alone, but an empty required one, as in a
-	// submit-only form's new(T) or an added row, is still an error. The
-	// sentinel is checked first: a field that was not sent costs no decider
-	// call, so a POST of bare row markers stays cheap.
+	// submit-only form's new(T) or an added row, is still an error. So is
+	// the 0 such a form starts a number that is no pointer with, which a
+	// browser always sends, for a required number or one whose range does
+	// not include it. The sentinel is checked first: a field that was not
+	// sent costs no decider call, so a POST of bare row markers stays cheap.
 	present := sentinelSet(form, PresentSentinelName(srcCell))
-	if !present && !(cv.Tag.Required && isBlank(cv.Kind, cv.Value)) {
+	zeroNumber := cv.Kind == FieldKindNumber && cv.Value.Kind() != reflect.Pointer && cv.Value.IsZero()
+	unsentBlank := cv.Tag.Required && (isBlank(cv.Kind, cv.Value) || zeroNumber)
+	unsentOutOfRange := zeroNumber && CheckNumberRange(cv.Value, "", cv.Tag) != nil
+	if !present && !unsentBlank && !unsentOutOfRange {
 		return
 	}
 	beh := d(srcCell, cv.Field, cv.Value)
@@ -465,7 +607,11 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		return
 	}
 	if !present {
-		out[dstCell] = append(out[dstCell], errors.New("required"))
+		if unsentBlank {
+			out[dstCell] = append(out[dstCell], errors.New("required"))
+		} else {
+			out[dstCell] = append(out[dstCell], CheckNumberRange(cv.Value, "", cv.Tag))
+		}
 		return
 	}
 	keep := true // a blank sensitive input may keep the stored value
@@ -486,8 +632,17 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		}
 		keep = false
 	}
+	// The posted text the bound of a field's errors measures, of a checkbox
+	// set all its values.
+	raw := strings.Join(form[string(srcCell)], ",")
 	if beh.Parse != nil && !(keep && keepsStored(cv.Tag, cv.Kind, cv.Value, form, srcCell)) {
 		if err := beh.Parse(srcCell, cv.Field, cv.Value, r); err != nil {
+			// Every decider's parse error is bounded and masked as
+			// html.FieldDecider's own are, which this leaves unchanged.
+			err = BoundFieldError(r.Context(), err, raw, fieldErrorSubstitute(cv.Tag))
+			if cv.Tag.Sensitive {
+				err = MaskSensitiveError(r.Context(), err, "not a valid value")
+			}
 			out[dstCell] = append(out[dstCell], err)
 			return
 		}
@@ -498,7 +653,7 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		out[dstCell] = append(out[dstCell], errors.New("required"))
 		return
 	}
-	if errs := validateField(r.Context(), cv, beh, dstCell, blank); len(errs) > 0 {
+	if errs := validateField(r.Context(), cv, beh, dstCell, raw, blank); len(errs) > 0 {
 		out[dstCell] = append(out[dstCell], errs...)
 	}
 }
@@ -641,12 +796,14 @@ func FormMaxMemory(ctx context.Context) int64 {
 // Unlike a 500, the form is re-rendered also for a context.Canceled or
 // context.DeadlineExceeded, which may come from a call onSubmit made while
 // the client is still there, so it gets a message like any other error; it
-// is not reported.
+// is reported unless the request's context is done, the client having
+// disconnected.
 func FormErrorText(ctx context.Context, err error) string {
 	if err == nil {
 		return ""
 	}
 	if msg, ok := UserMessage(err); ok {
+		reportHiddenParts(ctx, err)
 		return msg
 	}
 	ReportHiddenError(ctx, err)
@@ -676,6 +833,47 @@ func sentBlank(cv FieldVisit, form url.Values, path FieldPath, parsed bool) bool
 		return form.Get(string(path)) == "" && (cv.Value.IsZero() || isEffectivelyEmpty(cv.Value))
 	}
 	return isEffectivelyEmpty(cv.Value)
+}
+
+// fieldErrorSubstitute is the text [BoundFieldError] shows for an error of
+// a field with tag that is too long to show: a form:"sensitive" field's
+// mask, whatever its length.
+func fieldErrorSubstitute(tag FormTag) FormMessage {
+	if tag.Sensitive {
+		return "not a valid value"
+	}
+	return "the text is not a valid value"
+}
+
+// checkStaticOptions returns an error when one of vals, the option values
+// ([FormatOptionValue]) a bound enum or the members of an enum set hold, is
+// not in the static option list of t, the enum or set element type: a
+// forged value, which a type with a validation chain of its own rejects
+// itself. A list that needs the request context ([OptionsNeedContext]) is
+// checked by the parser while it binds, and a type with a validation chain
+// is trusted to know its values, which may be more than its list offers.
+// value is the bound enum, whose own provider methods offer the list, or
+// invalid for a set.
+func checkStaticOptions(ctx context.Context, value reflect.Value, tag FormTag, t reflect.Type, vals ...string) []error {
+	if len(vals) == 0 || OptionsNeedContext(tag, t) || hasValidationChain(t) {
+		return nil
+	}
+	options, err := CollectOptions(ctx, value, tag, t)
+	if err != nil || len(options) == 0 {
+		// A type without options is no enum to check.
+		return nil
+	}
+	allowed := make(map[string]bool, len(options))
+	for _, opt := range options {
+		allowed[opt.Value] = true
+	}
+	for _, v := range vals {
+		if !allowed[v] {
+			// The value is not quoted: it is forged, of any length.
+			return []error{errors.New("not one of the allowed options")}
+		}
+	}
+	return nil
 }
 
 // validateSetElements runs [RunValidationChain] on every element of a
@@ -830,7 +1028,7 @@ func selfSubmitAction(r *http.Request) string {
 // submit button is appended so the form is usable out of the box;
 // renderers can layer their own buttons on top by returning extra
 // children.
-func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins) Component {
+func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins, formMessage func(string) Component) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
@@ -846,7 +1044,7 @@ func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, f
 		consumed = map[FieldPath]bool{}
 	)
 	if formMsg != "" {
-		messages = append(messages, formMessageComponent(formMsg))
+		messages = append(messages, formMessage(formMsg))
 	}
 	for visit := range ReflectFormFields(target) {
 		var wrapped Component
@@ -916,7 +1114,7 @@ func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, f
 		for _, err := range fieldErrs[path] {
 			if msg := FormErrorText(ctx, err); !shownMsgs[msg] {
 				shownMsgs[msg] = true
-				messages = append(messages, formMessageComponent(msg))
+				messages = append(messages, formMessage(msg))
 			}
 		}
 	}
@@ -994,10 +1192,14 @@ func defaultSubmitButton() Component {
 	)
 }
 
-// formMessageComponent emits a top-level <p role="alert">msg</p>.
+// formMessageComponent emits a top-level <p role="alert" data-slot="form-message">msg</p>,
+// the default of [ReflectFormConfig.FormMessage].
 func formMessageComponent(msg string) Component {
 	return NewElement("p",
 		Attribute{Name: "role", Value: "alert"},
+		// A hook for styling, as the message is often the only sign that a
+		// save failed.
+		Attribute{Name: "data-slot", Value: "form-message"},
 		Text(msg),
 	)
 }

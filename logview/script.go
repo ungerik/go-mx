@@ -26,6 +26,13 @@ const (
 	attrBadge    = dataPrefix + "badge"
 	attrMaxLines = dataPrefix + "max-lines"
 	attrLevel    = dataPrefix + "level"
+	// attrStream marks the element that holds the connection attributes, and
+	// attrError the error sink inside it, which a reconnect empties.
+	attrStream = dataPrefix + "stream"
+	attrError  = dataPrefix + "error"
+	// attrSearch is set on the root when [Config.SearchParam] is, and its value
+	// is the query parameter the filter is sent to the stream URL as.
+	attrSearch = dataPrefix + "search"
 
 	// attrPaused is the paused state on the view root. It is what a stylesheet
 	// keys off, so the button's caption is free to name the next action rather
@@ -63,6 +70,12 @@ const stickyThresholdPx = shadcn.StickToBottomDefaultThresholdPx
 // once instead of once per keystroke.
 const filterDebounceMs = 120
 
+// searchDebounceMs delays the reconnect a [Config.SearchParam] search makes.
+// It is longer than the filter's delay because a reconnect costs a request and
+// a backlog: the client-side filter gives feedback on what is already there
+// while the reader is still typing, and the search replaces it once they stop.
+const searchDebounceMs = 400
+
 // logViewScript implements pausing, filtering and the line cap for a
 // [Config.View]. Like shadcn's stick-to-bottom script it defines itself once
 // per page behind a guard and runs the scan unguarded, so a view swapped in
@@ -86,12 +99,21 @@ const filterDebounceMs = 120
 // what resumes: scrolling back to the bottom undoes a pause the scroll caused,
 // while a pause the button caused was asked for explicitly and only the button
 // takes it back.
+//
+// A search ([Config.SearchParam]) reconnects by replacing the connecting
+// element with an empty copy whose sse-connect carries the query. The swap goes
+// through htmx.swap rather than replaceWith, because htmx's cleanup of the old
+// element is what makes the SSE extension close its EventSource, and htmx's
+// processing of the new one is what opens the next. The line container and the
+// scroll area are then new elements, so the observer and the scroll listener
+// are bound again.
 var logViewScript = /*js*/ `
 if(!window.mxLogView){
 window.mxLogView=function(root){
 if(root.mxLog)return;root.mxLog=1;
-var lines=root.querySelector('[` + attrLines + `]');if(!lines)return;
-var area=lines.parentElement;
+var lines,area,observer=new MutationObserver(added);
+if(!bind())return;
+var param=root.getAttribute('` + attrSearch + `')||'';
 var filter=root.querySelector('[` + attrFilter + `]');
 var pause=root.querySelector('[` + attrPause + `]');
 var status=root.querySelector('[` + attrStatus + `]');
@@ -189,8 +211,18 @@ countPending();
 // numbers a real scroll would have given.
 if(area)area.dispatchEvent(new Event('scroll'));
 }
-new MutationObserver(function(records){
-var added=0;
+// bind finds the line container and its scroll area and attaches the observer
+// and the scroll listener to them, once at start and again after a search has
+// replaced both.
+function bind(){
+lines=root.querySelector('[` + attrLines + `]');if(!lines)return false;
+area=lines.parentElement;
+observer.disconnect();observer.observe(lines,{childList:true});
+if(area&&!area.mxLogScroll){area.mxLogScroll=1;area.addEventListener('scroll',scrolled,{passive:true});}
+return true;
+}
+function added(records){
+var n=0;
 for(var i=0;i<records.length;i++){
 var nodes=records[i].addedNodes;
 for(var j=0;j<nodes.length;j++){
@@ -198,13 +230,38 @@ var el=nodes[j];
 if(el.nodeType!==1)continue;
 refresh(el);
 if(paused)el.setAttribute('` + attrPending + `','');
-added++;
+n++;
 }
 }
-if(!added)return;
+if(!n)return;
 trim();
 countPending();
-}).observe(lines,{childList:true});
+}
+// search reconnects the stream with the filter as a query parameter, so the
+// handler answers with everything that matches rather than everything recent.
+// It does nothing unless the root asks for it, the stream has a URL, and htmx
+// can swap: without a connection to replace, the filter stays the client-side
+// filter it always is.
+function search(){
+var stream=root.querySelector('[` + attrStream + `]');
+if(!param||!stream||!window.htmx||!htmx.swap)return;
+var attr=stream.hasAttribute('sse-connect')?'sse-connect':'data-sse-connect';
+var url=stream.getAttribute(attr);if(!url)return;
+var u=new URL(url,document.baseURI),q=filter?filter.value.trim():'';
+if((u.searchParams.get(param)||'')===q)return;
+if(q)u.searchParams.set(param,q);else u.searchParams.delete(param);
+var next=stream.cloneNode(true);
+next.setAttribute(attr,u.origin===location.origin?u.pathname+u.search+u.hash:u.href);
+// The copy starts empty: the lines it had are the old answer, and an error
+// reported on the old connection is not one of the new.
+next.querySelectorAll('[` + attrLines + `],[` + attrError + `]').forEach(function(el){el.textContent='';});
+// A new search is a request to see its results, so it does not stay paused
+// behind a badge counting them.
+setPaused(false);
+for(var i=0,c=lines.children;i<c.length;i++)unmark(c[i]);
+htmx.swap(stream,next.outerHTML,{swapStyle:'outerHTML',transition:false});
+bind();
+}
 function setPaused(on,fromScroll){
 if(paused===on)return;
 paused=on;
@@ -228,7 +285,7 @@ trim();
 // live rather than remembered: the rendered height changes for reasons that
 // never reach a scroll listener.
 function atBottom(){return !area||area.scrollHeight-area.scrollTop-area.clientHeight<=` + strconv.Itoa(stickyThresholdPx) + `;}
-if(area)area.addEventListener('scroll',function(){
+function scrolled(){
 // Scrolling up is a request to read what is on screen, so it holds the stream
 // the same way the button does, and scrolling back to the bottom is the request
 // to stop reading. Only a pause the scroll caused resumes that way: one the
@@ -236,14 +293,17 @@ if(area)area.addEventListener('scroll',function(){
 // Trimming cannot trigger either: removing lines from the top shrinks
 // scrollHeight and scrollTop together, leaving the gap unchanged.
 if(!atBottom())setPaused(true,true);else if(byScroll)setPaused(false);
-},{passive:true});
+}
 if(pause)pause.addEventListener('click',function(){setPaused(!paused);});
 if(filter){
-var timer;
+var timer,searchTimer;
 filter.addEventListener('input',function(){
 clearTimeout(timer);timer=setTimeout(filtered,` + strconv.Itoa(filterDebounceMs) + `);
+if(param){clearTimeout(searchTimer);searchTimer=setTimeout(search,` + strconv.Itoa(searchDebounceMs) + `);}
 });
 filtered();
+// A filter the browser restored on a back navigation is searched for at once.
+search();
 }
 };
 window.mxLogViewScan=function(r){

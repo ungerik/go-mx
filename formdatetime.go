@@ -4,6 +4,8 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -27,8 +29,9 @@ type DateTimeInputSpec struct {
 	Format string
 
 	// Step is the step attribute; "" renders none. It is the tag's step, or
-	// "1" when the value is not a whole number of minutes after the min: the
-	// default step of 60 seconds, counted from min, would reject it.
+	// "1" when the value is not a whole number of minutes after the min, and
+	// "any" when it is not a whole number of seconds: the default step of 60
+	// seconds, counted from min, would reject it.
 	Step string
 
 	// Invalid reports that the text input holds stored text the parser
@@ -76,12 +79,13 @@ func (s DateTimeInputSpec) TextFallback() bool {
 // Through any pointers:
 //
 //  1. A Format(string) string method is asked for the text in the input
-//     type's layout ([time.DateOnly], 2006-01-02T15:04:05 or
-//     [time.TimeOnly]); without one, a MarshalText method gives the text.
+//     type's layout ([time.DateOnly], 2006-01-02T15:04:05.999 or
+//     15:04:05.999); without one, a MarshalText method gives the text.
 //  2. Otherwise text written in one of the input type's own forms is
-//     shown. The forms have no zone and carry seconds only when they are
-//     not zero: 2006-01-02, 2006-01-02T15:04[:05] and 15:04[:05]. Zero
-//     seconds are dropped, as a browser does.
+//     shown. The forms have no zone and carry seconds, and a fraction of
+//     up to three digits, only when they are not zero: 2006-01-02,
+//     2006-01-02T15:04[:05[.sss]] and 15:04[:05[.sss]]. Zero seconds are
+//     dropped, as a browser does.
 //  3. Empty text or a null value renders no value, and so does a Format
 //     answer of "" for stored text that is a zero date. For stored text
 //     that is any other valid value, such as posted text kept after a
@@ -108,8 +112,13 @@ func DateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		// from the value attribute when there is no valid min.
 		tt := timeTexts[spec.Type]
 		if lowest, hasMin := tt.parse(tag.Min); hasMin {
-			if t, hasValue := tt.parse(spec.Value); hasValue && t.Sub(lowest)%time.Minute != 0 {
-				spec.Step = "1"
+			if t, hasValue := tt.parse(spec.Value); hasValue {
+				switch offset := t.Sub(lowest); {
+				case offset%time.Second != 0:
+					spec.Step = "any"
+				case offset%time.Minute != 0:
+					spec.Step = "1"
+				}
 			}
 		}
 	}
@@ -139,7 +148,11 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		v = v.Elem()
 	}
 	if ownSpelling {
-		if text, ok := marshaledText(v); ok {
+		if v.Kind() == reflect.String && !ImplementsTextMarshaler(v.Type()) {
+			if !IsNull(safeInterface(v)) {
+				spec.Value = v.String()
+			}
+		} else if text, ok := marshaledText(v); ok {
 			spec.Value = text
 		}
 		return spec
@@ -155,6 +168,17 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 			spec.Time = t
 		}
 		return spec
+	}
+	// A database/sql type holding a time, such as sql.NullTime, writes it
+	// in RFC 3339, and a null as no value.
+	if text, ok := DriverValueText(v); ok {
+		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
+			spec.Value = t.Format(tt.layouts[0])
+			spec.Time = t
+		}
+		if text == "" || spec.Value != "" {
+			return spec
+		}
 	}
 	if text, ok := marshaledText(v); ok {
 		// RFC 3339 is the text of an embedded time.Time.
@@ -200,13 +224,17 @@ func DateTimeTagError(value reflect.Value, tag FormTag) error {
 
 // readsOwnSpellingOnly reports whether t, through pointers, is a type with
 // text methods that reads only its own spelling, such as 02.01.2006, not
-// what an input of tt sends: no string kind, which holds the input's text,
-// and no time.Time or wrapper of one.
+// what an input of tt sends: no time.Time or wrapper of one, and no string
+// kind without an UnmarshalText, which holds the input's text. A string
+// kind's text is the string itself, so it needs no MarshalText.
 func readsOwnSpellingOnly(t reflect.Type, tt timeText) bool {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	if t.Kind() == reflect.String || (t.Kind() == reflect.Struct && isTimeLike(t)) {
+	if t.Kind() == reflect.Struct && isTimeLike(t) {
+		return false
+	}
+	if t.Kind() == reflect.String && !ImplementsTextUnmarshaler(t) {
 		return false
 	}
 	// The answer depends only on the type and the input type, and finding
@@ -215,7 +243,7 @@ func readsOwnSpellingOnly(t reflect.Type, tt timeText) bool {
 	if own, ok := ownSpellingTypes.Load(key); ok {
 		return own.(bool)
 	}
-	own := ImplementsTextMarshaler(t) && ImplementsTextUnmarshaler(t) && !readsInputText(t, tt)
+	own := (t.Kind() == reflect.String || ImplementsTextMarshaler(t)) && ImplementsTextUnmarshaler(t) && !readsInputText(t, tt)
 	ownSpellingTypes.Store(key, own)
 	return own
 }
@@ -298,10 +326,11 @@ func innerTime(v reflect.Value) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// DateTimeInputLayout returns the layout, with seconds, of the input type
-// the tag's widget renders: [time.DateOnly], 2006-01-02T15:04:05 or
-// [time.TimeOnly]. A parser can hand a type's UnmarshalText a submitted
-// value in it, since the inputs leave out zero seconds.
+// DateTimeInputLayout returns the layout, with seconds and, where they are
+// not zero, milliseconds, of the input type the tag's widget renders:
+// [time.DateOnly], 2006-01-02T15:04:05.999 or 15:04:05.999. A parser can
+// hand a type's UnmarshalText a submitted value in it, since the inputs
+// leave out zero seconds.
 func DateTimeInputLayout(tag FormTag) string {
 	return timeTexts[dateTimeInputType(tag)].layouts[0]
 }
@@ -340,23 +369,89 @@ func ParseDateTimeInput(tag FormTag, raw string) (string, error) {
 	return tt.shortest(t), nil
 }
 
-// maxQuotedDateTimeLen is the longest submitted text a date or time error
-// quotes: longer than any text a date, datetime or time input sends, or a
-// date type's own spelling. Longer text is no date, and quoting it would
-// echo a submission of any size into the page, %q growing a control byte
-// to four.
-const maxQuotedDateTimeLen = 64
+// MaxDateTimeLen is the longest text a date, datetime or time field takes:
+// longer than any text such an input sends, or a date type's own spelling.
+// Longer text is no date. A parser rejects it before binding, so the
+// re-render does not echo a submission of any size, and an error does not
+// quote it, %q growing a control byte to four.
+const MaxDateTimeLen = 64
+
+// DateTimeProblem is what is wrong with a submitted date or time
+// ([DateTimeError]).
+type DateTimeProblem int
+
+const (
+	// DateTimeNotInFormat is text that is no value of the input type.
+	DateTimeNotInFormat DateTimeProblem = iota
+	// DateTimeTooEarly is a value before the form:"min=…".
+	DateTimeTooEarly
+	// DateTimeTooLate is a value after the form:"max=…".
+	DateTimeTooLate
+	// DateTimeOutsideRange is a time outside a range that wraps past
+	// midnight, such as min=22:00,max=06:00: after max and before min.
+	DateTimeOutsideRange
+)
+
+// DateTimeError is the validation error of a submitted date or time, which
+// [DateTimeFormatError] and [CheckDateTimeRange] return. Its Error and
+// UserMessage are the English message; a renderer translates it from its
+// fields, as the shadcn renderer does with its Labels. It is a user
+// message, meant for the user, and quotes the submitted text only where
+// that may be echoed.
+type DateTimeError struct {
+	// Problem is what is wrong with the value.
+	Problem DateTimeProblem
+	// Value is the submitted text the message quotes, "" for a
+	// form:"sensitive" field and for text longer than any input sends.
+	Value string
+	// Format is the format of the input type to enter, YYYY-MM-DD,
+	// YYYY-MM-DDTHH:MM or HH:MM.
+	Format string
+	// Min and Max are the tag's form:"min=…,max=…".
+	Min, Max string
+
+	noun string
+}
+
+// Error returns the English message, such as `"06.07.2026" is not a date in
+// the format YYYY-MM-DD` or "earlier than 2026-01-01".
+func (e *DateTimeError) Error() string {
+	subject := ""
+	if e.Value != "" {
+		subject = strconv.Quote(e.Value) + " is "
+	}
+	switch e.Problem {
+	case DateTimeTooEarly:
+		return subject + "earlier than " + e.Min
+	case DateTimeTooLate:
+		return subject + "later than " + e.Max
+	case DateTimeOutsideRange:
+		return subject + "later than " + e.Max + " and earlier than " + e.Min
+	}
+	return subject + "not " + e.noun + " in the format " + e.Format
+}
+
+// UserMessage returns the English message, so the error shows as it is,
+// also at a form:"sensitive" field, whose Value is empty.
+func (e *DateTimeError) UserMessage() string { return e.Error() }
 
 // DateTimeFormatError is the validation error for raw, a submission that is
 // no value of the tag's input type: it names the expected format. A
 // form:"sensitive" field's error leaves raw out, so the value is not echoed
 // into the page, and so does one for text longer than any input sends.
 func DateTimeFormatError(tag FormTag, raw string) error {
+	return newDateTimeError(DateTimeNotInFormat, tag, raw)
+}
+
+// newDateTimeError returns the [DateTimeError] of problem for raw, a
+// submission to a field with tag.
+func newDateTimeError(problem DateTimeProblem, tag FormTag, raw string) *DateTimeError {
 	tt := timeTexts[dateTimeInputType(tag)]
-	if tag.Sensitive || len(raw) > maxQuotedDateTimeLen {
-		return fmt.Errorf("not %s in the format %s", tt.noun, tt.format)
+	e := &DateTimeError{Problem: problem, Format: tt.format, Min: tag.Min, Max: tag.Max, noun: tt.noun}
+	if !tag.Sensitive && len(raw) <= MaxDateTimeLen {
+		e.Value = raw
 	}
-	return fmt.Errorf("%q is not %s in the format %s", raw, tt.noun, tt.format)
+	return e
 }
 
 // CheckDateTimeRange returns a validation error when t, parsed from the
@@ -372,10 +467,6 @@ func DateTimeFormatError(tag FormTag, raw string) error {
 func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 	inputType := dateTimeInputType(tag)
 	tt := timeTexts[inputType]
-	subject := fmt.Sprintf("%q is ", raw)
-	if tag.Sensitive || len(raw) > maxQuotedDateTimeLen {
-		subject = ""
-	}
 	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 	switch inputType {
 	case "time":
@@ -391,15 +482,15 @@ func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 	highest, hasMax := tt.parse(tag.Max)
 	if inputType == "time" && hasMin && hasMax && highest.Before(lowest) {
 		if t.Before(lowest) && t.After(highest) {
-			return fmt.Errorf("%slater than %s and earlier than %s", subject, tag.Max, tag.Min)
+			return newDateTimeError(DateTimeOutsideRange, tag, raw)
 		}
 		return nil
 	}
 	if hasMin && t.Before(lowest) {
-		return fmt.Errorf("%searlier than %s", subject, tag.Min)
+		return newDateTimeError(DateTimeTooEarly, tag, raw)
 	}
 	if hasMax && t.After(highest) {
-		return fmt.Errorf("%slater than %s", subject, tag.Max)
+		return newDateTimeError(DateTimeTooLate, tag, raw)
 	}
 	return nil
 }
@@ -423,20 +514,29 @@ type timeText struct {
 	noun    string
 }
 
+// timeTexts holds the text form of each input type. The first layout of a
+// datetime or time writes seconds and a fraction of up to three digits only
+// where they are not zero, as an input with a step under a second sends
+// them; an input's value takes no more digits.
 var timeTexts = map[string]timeText{
 	"date":           {[]string{time.DateOnly}, "YYYY-MM-DD", "a date"},
-	"datetime-local": {[]string{"2006-01-02T15:04:05", "2006-01-02T15:04"}, "YYYY-MM-DDTHH:MM", "a date and time"},
-	"time":           {[]string{time.TimeOnly, "15:04"}, "HH:MM", "a time"},
+	"datetime-local": {[]string{"2006-01-02T15:04:05.999", "2006-01-02T15:04"}, "YYYY-MM-DDTHH:MM", "a date and time"},
+	"time":           {[]string{"15:04:05.999", "15:04"}, "HH:MM", "a time"},
 }
 
 // parse returns the time text stands for, when text is written exactly in
 // one of the layouts. Exactly means formatting the parsed time gives text
-// back, which rules out fractional seconds that time.Parse would otherwise
-// accept.
+// back, up to trailing zeros of a fraction, which rules out a fraction of
+// more than three digits, which time.Parse would otherwise accept and an
+// input's value cannot hold.
 func (tt timeText) parse(text string) (time.Time, bool) {
+	trimmed := text
+	if i := strings.LastIndexByte(text, '.'); i >= 0 {
+		trimmed = strings.TrimSuffix(strings.TrimRight(text, "0"), ".")
+	}
 	for _, layout := range tt.layouts {
 		t, err := time.Parse(layout, text)
-		if err == nil && t.Format(layout) == text {
+		if err == nil && t.Format(layout) == trimmed {
 			return t, true
 		}
 	}
@@ -444,9 +544,9 @@ func (tt timeText) parse(text string) (time.Time, bool) {
 }
 
 // shortest writes t in the shortest layout that holds it, without seconds
-// when they are zero.
+// when they and their fraction are zero.
 func (tt timeText) shortest(t time.Time) string {
-	if t.Second() != 0 {
+	if t.Second() != 0 || t.Nanosecond() != 0 {
 		return t.Format(tt.layouts[0])
 	}
 	return t.Format(tt.layouts[len(tt.layouts)-1])

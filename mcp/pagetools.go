@@ -7,9 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"math"
+	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/domonda/go-errs"
@@ -34,6 +38,15 @@ const (
 	// words is refused rather than scanned. Repeated words count once.
 	MaxQueryBytes = 256
 	MaxQueryWords = 16
+
+	// DefaultListLimit is the number of pages list_pages returns when the
+	// call does not ask for another limit.
+	DefaultListLimit = 50
+
+	// MaxListLimit is the most pages list_pages returns, whatever limit the
+	// call asks for. The pages after them are listed by further calls with
+	// the next_cursor of the previous one.
+	MaxListLimit = 200
 
 	// DefaultMaxResponseBytes is the size get_page truncates a page at when
 	// PageToolsOptions.MaxResponseBytes is zero.
@@ -85,8 +98,8 @@ type PageToolsOptions struct {
 	// page), or a page whose URLs or Markdown alternate cannot be built and
 	// is left out of the results. A call the client cancelled is no error
 	// and is not reported. A broken page is reported again by every call
-	// that reads it, so a hook writing to a log should deduplicate or
-	// rate-limit. Nil ignores them.
+	// that searches or lists it or asks for it by its path, so a hook
+	// writing to a log should deduplicate or rate-limit. Nil ignores them.
 	OnError func(ctx context.Context, err error)
 }
 
@@ -113,10 +126,13 @@ type searchPagesOutput struct {
 
 type listPagesInput struct {
 	Language string `json:"language,omitempty" jsonschema:"only list pages in this BCP 47 language, like en or de"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"the maximum number of pages: 50 when not given, at most 200"`
+	Cursor   string `json:"cursor,omitempty" jsonschema:"the next_cursor of the previous call, to list the pages after the ones it returned"`
 }
 
 type listPagesOutput struct {
-	Pages []PageInfo `json:"pages" jsonschema:"the public pages"`
+	Pages      []PageInfo `json:"pages" jsonschema:"the public pages, in the order of the site"`
+	NextCursor string     `json:"next_cursor,omitempty" jsonschema:"set if there are more pages; pass it as the cursor of another call to list them"`
 }
 
 type getPageInput struct {
@@ -136,7 +152,11 @@ type getPageOutput struct {
 //     first, with a snippet around a match. It returns [DefaultSearchLimit]
 //     results unless asked for another number, at most [MaxSearchLimit], and
 //     refuses a query beyond [MaxQueryBytes] or [MaxQueryWords].
-//   - list_pages(language?) lists all of them.
+//   - list_pages(language?, limit?, cursor?) lists them in source order,
+//     [DefaultListLimit] at a time unless asked for another number, at most
+//     [MaxListLimit], with a next_cursor to pass to the call listing the
+//     next ones. The cursor is the position in the list, so a page added or
+//     removed between two calls moves the pages after it by one.
 //   - get_page(path) returns the Markdown alternate of one page (see
 //     [web.Site.MarkdownAlternate]), truncated at
 //     PageToolsOptions.MaxResponseBytes.
@@ -156,7 +176,8 @@ type getPageOutput struct {
 // source should pass a cached one. The site builds the URLs, and is usually
 // the source as well. The markdown_url of a page and the note on a truncated
 // one point at [web.Site.MarkdownAlternateURL], so the site should serve the
-// alternates there (see [web.Site.ServeMarkdown]).
+// alternates there, by setting web.Site.MarkdownAlternates for
+// [web.Site.RegisterRoutes] or with [web.Site.ServeMarkdown].
 //
 // Passing the source is what exposes it: a nil source registers nothing and
 // returns an error, as does a nil server or a site that does not validate.
@@ -193,7 +214,7 @@ func AddPageTools(server *sdk.Server, source web.PageSource, site *web.Site, opt
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "list_pages",
 		Title:       "List pages",
-		Description: "List all public pages of " + of + ", optionally only those in one language. Read one with get_page.",
+		Description: "List the public pages of " + of + ", optionally only those in one language. If next_cursor is set, there are more: call again with it as the cursor. Read one with get_page.",
 		Annotations: readOnly,
 	}, recovered(tools, tools.listPages))
 	sdk.AddTool(server, &sdk.Tool{
@@ -232,46 +253,109 @@ type pageTools struct {
 
 // publicPage is a page the tools may return, with what they need of it.
 type publicPage struct {
-	page     *web.Page
-	info     PageInfo
-	markdown []byte
+	page *web.Page
+	info PageInfo
 }
 
-// publicPages iterates the public pages of the source in source order, keeping
-// only those matching the language filter (see [languageFilter]) if it is not
-// empty. A page whose URLs or Markdown
-// alternate cannot be built is reported to OnError and left out, so that one
-// broken page does not take every other page offline with it, and so that no
-// tool lists a page get_page cannot return.
+// text returns the Markdown source of the page: string content as it is,
+// []byte content copied. It is only read by search_pages, so the other tools
+// copy no content at all.
+func (p publicPage) text() string {
+	switch content := p.page.Content.(type) {
+	case string:
+		return content
+	case []byte:
+		return string(content)
+	}
+	return ""
+}
+
+// lowerText returns the Markdown source in lower case, as strings.ToLower
+// does: string content in lower case already is not copied at all, and
+// []byte content is copied once, not into a string first and lowered again.
+func (p publicPage) lowerText() string {
+	switch content := p.page.Content.(type) {
+	case string:
+		return strings.ToLower(content)
+	case []byte:
+		var b strings.Builder
+		b.Grow(len(content))
+		for len(content) > 0 {
+			if c := content[0]; c < utf8.RuneSelf {
+				if 'A' <= c && c <= 'Z' {
+					c += 'a' - 'A'
+				}
+				b.WriteByte(c)
+				content = content[1:]
+				continue
+			}
+			// An invalid byte becomes U+FFFD, as in strings.ToLower.
+			r, size := utf8.DecodeRune(content)
+			b.WriteRune(unicode.ToLower(r))
+			content = content[size:]
+		}
+		return b.String()
+	}
+	return ""
+}
+
+// sourcePages iterates the pages of the source, read with content, ending
+// with the error of a failing source or of ctx. A call the client gave up on
+// stops between pages, rather than reading and searching the rest of the
+// source for no one.
+func (t *pageTools) sourcePages(ctx context.Context) iter.Seq2[*web.Page, error] {
+	return func(yield func(*web.Page, error) bool) {
+		for page, err := range t.source.Pages(ctx, true) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+			if !yield(page, nil) {
+				return
+			}
+		}
+	}
+}
+
+// publicPage returns page as a page the tools may return, with ok false if
+// it is not public, does not match the language filter (see
+// [languageFilter]) if that is not empty, or if its URLs or Markdown
+// alternate cannot be built. Such a broken page is reported to OnError and
+// left out, so that one broken page does not take every other page offline
+// with it, and so that no tool lists a page get_page cannot return.
+func (t *pageTools) publicPage(ctx context.Context, page *web.Page, language string) (publicPage, bool) {
+	if !page.Indexable() || !page.HasMarkdownSource() {
+		return publicPage{}, false
+	}
+	info, err := t.pageInfo(page)
+	if err != nil {
+		t.reportError(ctx, err)
+		return publicPage{}, false
+	}
+	if !matchesLanguage(info.Language, language) {
+		return publicPage{}, false
+	}
+	return publicPage{page: page, info: info}, true
+}
+
+// publicPages iterates the public pages of the source in source order (see
+// [pageTools.publicPage]).
 func (t *pageTools) publicPages(ctx context.Context, language string) iter.Seq2[publicPage, error] {
 	return func(yield func(publicPage, error) bool) {
-		for page, err := range t.source.Pages(ctx, true) {
+		for page, err := range t.sourcePages(ctx) {
 			if err != nil {
 				yield(publicPage{}, err)
 				return
 			}
-			// A call the client gave up on stops between pages, rather
-			// than reading and searching the rest of the source for no one.
-			if err := ctx.Err(); err != nil {
-				yield(publicPage{}, err)
-				return
-			}
-			if !page.Indexable() {
-				continue
-			}
-			markdown, ok := page.MarkdownSource()
+			public, ok := t.publicPage(ctx, page, language)
 			if !ok {
 				continue
 			}
-			info, err := t.pageInfo(page)
-			if err != nil {
-				t.reportError(ctx, err)
-				continue
-			}
-			if !matchesLanguage(info.Language, language) {
-				continue
-			}
-			if !yield(publicPage{page: page, info: info, markdown: markdown}, nil) {
+			if !yield(public, nil) {
 				return
 			}
 		}
@@ -380,7 +464,7 @@ func (t *pageTools) searchPages(ctx context.Context, _ *sdk.CallToolRequest, inp
 		if m.at < 0 {
 			output.Results[i].Snippet = oneLine(m.page.info.Description)
 		} else {
-			output.Results[i].Snippet = excerpt(string(m.page.markdown), m.at)
+			output.Results[i].Snippet = excerpt(m.page.text(), m.at)
 		}
 	}
 	return nil, output, nil
@@ -393,8 +477,7 @@ func (t *pageTools) searchPages(ctx context.Context, _ *sdk.CallToolRequest, inp
 func searchPage(page publicPage, words []string) (score, at int) {
 	title := strings.ToLower(page.info.Title)
 	description := strings.ToLower(page.info.Description)
-	// Lowered as bytes, so the source is copied once per query, not twice.
-	text := bytes.ToLower(page.markdown)
+	text := page.lowerText()
 	first := -1
 	for _, word := range words {
 		wordScore := 0
@@ -404,10 +487,9 @@ func searchPage(page publicPage, words []string) (score, at int) {
 		if strings.Contains(description, word) {
 			wordScore += descriptionScore
 		}
-		w := []byte(word)
-		if i := bytes.Index(text, w); i >= 0 {
+		if i := strings.Index(text, word); i >= 0 {
 			// Counted from the first match on rather than from the start.
-			wordScore += min(1+bytes.Count(text[i+len(w):], w), maxTextScore)
+			wordScore += min(1+strings.Count(text[i+len(word):], word), maxTextScore)
 			if first < 0 || i < first {
 				first = i
 			}
@@ -422,7 +504,7 @@ func searchPage(page publicPage, words []string) (score, at int) {
 	}
 	// Lower-casing maps every rune to exactly one rune, but not always to one
 	// of the same byte length, so the offset is returned as a rune index.
-	return score, utf8.RuneCount(text[:first])
+	return score, utf8.RuneCountInString(text[:first])
 }
 
 // excerpt returns about [snippetRunes] runes of text around the rune index
@@ -457,11 +539,49 @@ func (t *pageTools) listPages(ctx context.Context, _ *sdk.CallToolRequest, input
 	if err != nil {
 		return nil, listPagesOutput{}, err
 	}
-	for page, err := range t.publicPages(ctx, language) {
+	offset := 0
+	if input.Cursor != "" {
+		// The cursor is the position of the first page to list, bounded so
+		// that adding the limit cannot overflow.
+		offset, err = strconv.Atoi(input.Cursor)
+		if err != nil || offset < 0 || offset > math.MaxInt32 {
+			return nil, listPagesOutput{}, errors.New("the cursor is not a next_cursor list_pages returned")
+		}
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = DefaultListLimit
+	}
+	limit = min(limit, MaxListLimit)
+
+	index := 0 // of the next public page in the list
+	more := false
+	for page, err := range t.sourcePages(ctx) {
 		if err != nil {
 			return nil, listPagesOutput{}, t.unavailable(ctx, err)
 		}
-		output.Pages = append(output.Pages, page.info)
+		// The rest of the source is still read after the last page listed,
+		// so that a source failing half way fails every call alike, but
+		// nothing more is built for it.
+		if more {
+			continue
+		}
+		// The pages before the cursor are checked like the listed ones, so
+		// that the positions count the same pages in every call.
+		public, ok := t.publicPage(ctx, page, language)
+		if !ok {
+			continue
+		}
+		switch {
+		case index >= offset+limit:
+			more = true
+		case index >= offset:
+			output.Pages = append(output.Pages, public.info)
+		}
+		index++
+	}
+	if more {
+		output.NextCursor = strconv.Itoa(offset + limit)
 	}
 	return nil, output, nil
 }
@@ -470,21 +590,27 @@ func (t *pageTools) getPage(ctx context.Context, _ *sdk.CallToolRequest, input g
 	if input.Path == "" {
 		return nil, getPageOutput{}, errors.New("the path is empty")
 	}
+	candidates := t.requestedPaths(input.Path)
 	var found *publicPage
-	for page, err := range t.publicPages(ctx, "") {
+	for page, err := range t.sourcePages(ctx) {
 		if err != nil {
 			return nil, getPageOutput{}, t.unavailable(ctx, err)
 		}
 		// The rest of the source is still read after a match, so that a
 		// source failing half way fails every call alike instead of only the
-		// ones for pages behind the failure.
-		if found != nil {
+		// ones for pages behind the failure. Only a page whose path can be
+		// the one asked for is checked and gets its URLs built.
+		if found != nil || !slices.Contains(candidates, decodedPath(page.Path)) {
 			continue
 		}
-		markdownPath, _ := web.MarkdownPath(page.page.Path)
-		if input.Path == page.page.Path || input.Path == markdownPath ||
-			input.Path == page.info.URL || input.Path == page.info.MarkdownURL {
-			found = &page
+		public, ok := t.publicPage(ctx, page, "")
+		if !ok {
+			continue
+		}
+		markdownPath, _ := web.MarkdownPath(page.Path)
+		if input.Path == page.Path || input.Path == markdownPath ||
+			input.Path == public.info.URL || input.Path == public.info.MarkdownURL {
+			found = &public
 		}
 	}
 	if found == nil {
@@ -503,6 +629,47 @@ func (t *pageTools) getPage(ctx context.Context, _ *sdk.CallToolRequest, input g
 	// JSON-escaped — as it would be with the Markdown in the output struct.
 	result := &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(markdown)}}}
 	return result, getPageOutput{Page: found.info, Truncated: truncated}, nil
+}
+
+// requestedPaths returns the decoded page paths the path argument of
+// get_page can name: the argument itself, below the BaseURL if it is a URL
+// of the site, and if that is a Markdown path also the page path it was
+// derived from (see [web.MarkdownPath]). It is worked out once per call, so
+// that each page of the source is only compared by its path, and a page
+// passing that comparison is still matched exactly against the addresses
+// the other tools return.
+func (t *pageTools) requestedPaths(arg string) []string {
+	p := arg
+	if root, err := t.site.URL("/"); err == nil {
+		if rest, ok := strings.CutPrefix(arg, strings.TrimSuffix(root, "/")); ok && strings.HasPrefix(rest, "/") {
+			p = rest
+		}
+	}
+	decoded, err := url.PathUnescape(p)
+	if err != nil {
+		// No page path has an invalid escape.
+		return nil
+	}
+	if dir, ok := strings.CutSuffix(decoded, "/index.md"); ok {
+		return []string{decoded, dir + "/"}
+	}
+	if page, ok := strings.CutSuffix(decoded, ".md"); ok {
+		return []string{decoded, page}
+	}
+	return []string{decoded}
+}
+
+// decodedPath returns a page path with its percent escapes decoded, the way
+// requestedPaths decodes the argument of get_page.
+func decodedPath(p string) string {
+	if !strings.Contains(p, "%") {
+		return p
+	}
+	decoded, err := url.PathUnescape(p)
+	if err != nil {
+		return p
+	}
+	return decoded
 }
 
 // truncate cuts markdown to at most maxBytes, on a line break if there is one

@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -50,6 +51,8 @@ func TestPageMarkdownSource(t *testing.T) {
 			source, ok := tt.page.MarkdownSource()
 			require.Equal(t, tt.wantOK, ok)
 			require.Equal(t, tt.want, string(source))
+			// The check without the copy agrees with the ok result.
+			require.Equal(t, tt.wantOK, tt.page.HasMarkdownSource())
 		})
 	}
 }
@@ -126,4 +129,18 @@ func TestPageValidate(t *testing.T) {
 			require.ErrorContains(t, tt.page.Validate(), tt.wantErr)
 		})
 	}
+}
+
+// HasMarkdownSource is the check of the callers that do not read the
+// source, like llms.txt and the filters of the MCP page tools, which ran
+// it for every page of the site. Regression: they asked MarkdownSource,
+// which copies string content on every call.
+func TestPageHasMarkdownSourceDoesNotCopy(t *testing.T) {
+	page := web.Page{ContentType: mx.ContentTypeMarkdown, Content: strings.Repeat("x", 16<<10)}
+	allocs := testing.AllocsPerRun(100, func() { page.HasMarkdownSource() })
+	// mime.ParseMediaType allocates its parameter map, but nothing near
+	// the 16 KiB of the content.
+	require.Less(t, allocs, 5.0)
+	copies := testing.AllocsPerRun(100, func() { page.MarkdownSource() })
+	require.Greater(t, copies, allocs)
 }

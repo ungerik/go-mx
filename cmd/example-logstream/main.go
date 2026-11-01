@@ -19,9 +19,12 @@
 //   - Press Split to put a second viewer beside the first. Each opens its own
 //     connection to the same stream, so filtering or pausing one leaves the
 //     other streaming — two subscribers, one source.
-//   - Type in the filter to hide the lines that do not match and highlight the
-//     match in the ones that do. It filters the lines already received, not the
-//     backlog behind the stream.
+//   - Type in the filter to search the log. The lines on screen that do not
+//     match are hidden at once, and when you stop typing the view reconnects
+//     with the filter as the q parameter of the stream URL, so the server
+//     answers with every match still in its history and then with the live
+//     lines that match — a panic that scrolled out of the view is found too.
+//     Clear the filter to go back to the whole log.
 //   - Scroll up to read something. That pauses on its own: lines keep arriving
 //     and are held back, counted by the badge, and the button becomes Resume.
 //   - Press Pause instead to hold the stream without leaving the bottom.
@@ -46,6 +49,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,7 +70,9 @@ const (
 	// "everything after this".
 	ringSize = 500
 	// backlogLines is how much of the log a fresh reader is shown before the
-	// live lines start, the way `tail -n` opens with the recent past.
+	// live lines start, the way `tail -n` opens with the recent past. A search
+	// is not capped by it: it shows every match in the history, since finding
+	// the old ones is the point of searching.
 	backlogLines = 40
 	// keepaliveInterval has to be below the shortest idle timeout on the path —
 	// proxy, load balancer and browser each have one. A log stream is idle most
@@ -78,13 +84,15 @@ const (
 )
 
 // view configures the renderer. MessageKey is set because the generated records
-// are shaped like log/slog's, where the message field is "msg". Height is left
+// are shaped like log/slog's, where the message field is "msg". SearchParam
+// makes the filter a search the stream handler answers. Height is left
 // at its default because the page below makes the view a flex item filling the
 // window, which overrides it.
 var view = &logview.Config{
-	MessageKey: "msg",
-	MaxLines:   400,
-	Theme:      themeWithFatalIcon(),
+	MessageKey:  "msg",
+	MaxLines:    400,
+	SearchParam: "q",
+	Theme:       themeWithFatalIcon(),
 }
 
 // themeWithFatalIcon demonstrates [logview.LevelStyle.Image]: the two levels
@@ -147,20 +155,28 @@ func (s *source) publish(text string) {
 	}
 }
 
-// subscribe returns the lines after seq that are still in the history, plus a
-// channel of everything published from now on. Both are taken under one lock,
-// so no line can fall between them or arrive on both.
-func (s *source) subscribe(after int64, all bool) (backlog []entry, live <-chan entry, cancel func()) {
+// subscribe returns the lines of the history that match, plus a channel of
+// everything published from now on. Both are taken under one lock, so no line
+// can fall between them or arrive on both.
+//
+// A resuming reader gets every matching line after seq; a fresh one gets the
+// last backlogLines matching lines, or every one when it is searching. match
+// filters only the backlog: the live channel carries every line, and the
+// caller filters it the same way, so the generator never waits on a search.
+func (s *source) subscribe(after int64, resuming, searching bool, match func(string) bool) (backlog []entry, live <-chan entry, cancel func()) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	for _, e := range s.ring {
-		if all && e.seq <= after {
+		if resuming && e.seq <= after {
+			continue
+		}
+		if !match(e.text) {
 			continue
 		}
 		backlog = append(backlog, e)
 	}
-	if !all && len(backlog) > backlogLines {
+	if !resuming && !searching && len(backlog) > backlogLines {
 		backlog = backlog[len(backlog)-backlogLines:]
 	}
 
@@ -288,7 +304,17 @@ func streamHandler(src *source, fail bool) http.HandlerFunc {
 		// tells a reconnect from a fresh reader.
 		after, resuming := resumeAfter(mx.LastEventID(r))
 
-		backlog, live, unsubscribe := src.subscribe(after, resuming)
+		// The view sends its filter as this parameter and reconnects whenever
+		// it changes, so a search is answered like a resume: the matching
+		// lines of the history, then the matching live ones. view.Matches is
+		// the test the filter applies in the browser, so the server sends
+		// exactly what the filter would show. A browser reconnect of a search
+		// keeps the parameter and sends its Last-Event-ID too, and gets the
+		// matches after it.
+		query := r.URL.Query().Get(view.SearchParam)
+		match := func(text string) bool { return view.Matches(text, query) }
+
+		backlog, live, unsubscribe := src.subscribe(after, resuming, strings.TrimSpace(query) != "", match)
 		defer unsubscribe()
 
 		sse, err := mx.NewSSEResponse(w, nil)
@@ -346,6 +372,12 @@ func streamHandler(src *source, fail bool) http.HandlerFunc {
 			case <-ctx.Done():
 				return
 			case e := <-live:
+				if !match(e.text) {
+					// Not counted as sent, so -fail still fires after
+					// failAfter lines the reader actually saw.
+					sent--
+					continue
+				}
 				event := mx.SSEEvent{
 					Name: view.EventName(),
 					ID:   strconv.FormatInt(e.seq, 10),

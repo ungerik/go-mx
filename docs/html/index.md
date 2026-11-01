@@ -21,7 +21,7 @@ html.Div(html.Class("card"),
 
 It is the foundation the other packages build on:
 [`svg`](https://github.com/ungerik/go-mx/blob/main/svg/README.md) mirrors it for
-SVG, [`hx`](https://pkg.go.dev/github.com/ungerik/go-mx/hx) adds htmx attributes,
+SVG, [`hx`](../hx/) adds htmx attributes and streaming,
 and [`shadcn`](../shadcn/) ports styled components on top.
 
 This documentation follows the [Diátaxis](https://diataxis.fr) framework.

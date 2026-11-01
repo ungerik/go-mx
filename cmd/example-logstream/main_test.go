@@ -20,6 +20,13 @@ import (
 // much of it it wants rather than reading to EOF.
 func collect(t *testing.T, src *source, fail bool, lastEventID string, want int) string {
 	t.Helper()
+	return collectQuery(t, src, fail, "", lastEventID, want)
+}
+
+// collectQuery is collect with a query string, such as the search parameter
+// the view adds when its filter changes.
+func collectQuery(t *testing.T, src *source, fail bool, query, lastEventID string, want int) string {
+	t.Helper()
 
 	srv := httptest.NewServer(streamHandler(src, fail))
 	defer srv.Close()
@@ -27,7 +34,7 @@ func collect(t *testing.T, src *source, fail bool, lastEventID string, want int)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+query, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,6 +210,99 @@ func TestStreamLiveLinesFollowTheBacklog(t *testing.T) {
 	}
 }
 
+func TestStreamSearchAnswersWithTheMatchingHistory(t *testing.T) {
+	// A search reaches past the backlog a fresh reader is shown: the match is
+	// older than the last backlogLines lines, which is the line a client-side
+	// filter could never have found.
+	lines := []string{`{"level":"error","msg":"panic: nil map"}`}
+	for i := range backlogLines + 5 {
+		lines = append(lines, `{"level":"info","msg":"line `+strconv.Itoa(i)+`"}`)
+	}
+	src := sourceWith(lines...)
+
+	if out := collect(t, src, false, "", 2); strings.Contains(out, "panic: nil map") {
+		t.Fatalf("the test needs the match outside the plain backlog, but it was sent:\n%s", out)
+	}
+	out := collectQuery(t, src, false, "?q=PANIC", "", 2)
+	if !strings.Contains(out, "panic: nil map") {
+		t.Errorf("the search did not find the old match:\n%s", out)
+	}
+	if strings.Contains(out, ">line ") {
+		t.Errorf("the search sent lines that do not match:\n%s", out)
+	}
+	// The id is the matching line's own sequence number, so a reconnect of the
+	// search resumes after it.
+	if !strings.Contains(out, "id: 0\n") {
+		t.Errorf("the search result does not carry the match's id:\n%s", out)
+	}
+}
+
+func TestStreamSearchMatchesTheRenderedLine(t *testing.T) {
+	// The reader searches for what the view shows, "status=500", not for the
+	// raw JSON, which reads "status":500.
+	src := sourceWith(`{"msg":"request finished","status":500}`, `{"msg":"request finished","status":200}`)
+	out := collectQuery(t, src, false, "?q=status%3D500", "", 2)
+	if !strings.Contains(out, ">500<") || strings.Contains(out, ">200<") {
+		t.Errorf("the search did not match on the rendered text:\n%s", out)
+	}
+}
+
+func TestStreamSearchResumes(t *testing.T) {
+	// A browser reconnect of a search keeps the parameter and sends the last id,
+	// and gets the matches after it, not the ones it already has.
+	src := sourceWith(`{"msg":"hit one"}`, `{"msg":"miss"}`, `{"msg":"hit two"}`)
+	out := collectQuery(t, src, false, "?q=hit", "0", 2)
+	if !strings.Contains(out, "hit two") || strings.Contains(out, "hit one") || strings.Contains(out, ">miss<") {
+		t.Errorf("resuming a search sent the wrong lines:\n%s", out)
+	}
+}
+
+func TestStreamSearchFiltersLiveLines(t *testing.T) {
+	src := sourceWith(`{"msg":"hit backlog"}`)
+
+	srv := httptest.NewServer(streamHandler(src, false))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"?q=hit", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	r := bufio.NewReader(resp.Body)
+	readFrame := func() string {
+		t.Helper()
+		var b strings.Builder
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				t.Fatalf("reading a frame: %v\ngot so far:\n%s", err, b.String())
+			}
+			b.WriteString(line)
+			if line == "\n" {
+				return b.String()
+			}
+		}
+	}
+
+	readFrame() // retry
+	readFrame() // the backlog
+	src.publish(`{"msg":"miss live"}`)
+	src.publish(`{"msg":"hit live"}`)
+	got := readFrame()
+	if !strings.Contains(got, "hit live") {
+		t.Errorf("the next event is not the matching live line: %s", got)
+	}
+	if strings.Contains(got, "miss live") {
+		t.Errorf("a live line that does not match was sent: %s", got)
+	}
+}
+
 func TestStreamFailureTravelsInBandAndCloses(t *testing.T) {
 	// By the time this fails, a 200 and several lines are on the wire, so the
 	// failure can only be an event. And it has to close the stream: a browser
@@ -281,6 +381,7 @@ func TestPageWiresTheViewToTheStream(t *testing.T) {
 		`sse-swap="` + logview.DefaultEvent + `"`,
 		`sse-swap="` + mx.SSEEventError + `"`,
 		`data-mx-log-view=""`,
+		`data-mx-log-search="q"`, // the filter is a search the handler answers
 		`data-stick-to-bottom=""`,
 		".log-line[data-mx-log-pending]", // the stylesheet the view needs
 		"window.mxLogView",

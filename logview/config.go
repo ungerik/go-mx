@@ -94,6 +94,16 @@ type Config struct {
 	// turns the detection off.
 	Levels []string
 
+	// KeepANSI renders terminal escape sequences as text instead of removing
+	// them. Off by default, so a line is stripped of SGR color codes and the
+	// other ANSI sequences before it is parsed, in a plain-text line and in the
+	// decoded strings of a JSON record alike: a browser shows the sequence as
+	// "[31m" garbage, and the one thing color encodes in a log, severity, is
+	// what the view already colors. Removing them drops no text, which is why
+	// stripping is the default rather than an opt-in. Set it to see the bytes a
+	// line actually carries.
+	KeepANSI bool
+
 	// QuoteText renders JSON string values in quotes. Off by default: the
 	// value's color already says it is a string, and quotes around every
 	// message are noise.
@@ -126,6 +136,21 @@ type Config struct {
 	// Event is the SSE event name a [Config.View] subscribes to and that the
 	// handler must pass to [mx.SSEResponse.Send]. "" means [DefaultEvent].
 	Event string
+
+	// SearchParam turns the view's filter into a search of the whole log: the
+	// query parameter of the stream URL that the filter's text is sent as. A
+	// change of filter then reconnects the stream with the parameter set, and
+	// the handler answers it with the lines that match, from its backlog and
+	// live, the way it answers mx.LastEventID with the lines after an id.
+	// [Config.Matches] is the test to answer it with, because it is the one the
+	// filter applies in the browser.
+	//
+	// Empty, the default, keeps the filter in the browser, where it can only
+	// see the lines the view still holds: not the ones [Config.MaxLines]
+	// dropped, and not the backlog behind the stream. Searching needs a handler
+	// that reads the parameter, which is why it is an opt-in. A handler that
+	// ignores it still works, since the browser filters what it sends.
+	SearchParam string
 
 	// Theme is the appearance of the view. The zero Theme means [DarkTheme].
 	Theme Theme
@@ -254,3 +279,6 @@ func Lines(raw ...string) mx.Component { return Default.Lines(raw...) }
 
 // View renders a streaming log view using [Default].
 func View(attribsChildren ...any) *mx.Element { return Default.View(attribsChildren...) }
+
+// Matches reports whether raw matches query using [Default].
+func Matches(raw, query string) bool { return Default.Matches(raw, query) }

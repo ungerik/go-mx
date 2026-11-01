@@ -326,9 +326,143 @@ API is still free to change.
     keep it as secret as that value. `mx.ReportHiddenError(ctx, err)` reports
     through the same rules, for a decider or handler of the application that
     hides an error.
+- **The reflected-form rules a custom renderer needs are exported from `mx`,
+  so `html` and `shadcn` no longer keep copies of them that drift apart.**
+  `mx.FormValueText` is the text an input shows for a field value, the text the
+  `html` parser reads back, and `mx.FormValueChecked` whether its checkbox is
+  checked; `mx.OptionComponents` renders a field's option list,
+  resolving a context list while rendering; `mx.SetElemType` and
+  `mx.SetMemberValues` tell a set-shaped field and its members;
+  `mx.BrowserTag` drops HTML `required` where a blank keeps the stored value;
+  `mx.MaskSensitiveError` is the error a `form:"sensitive"` field shows;
+  `mx.TextIsRFC3339`, `mx.MaxDateTimeLen`, `mx.FieldLabel`,
+  `mx.StringInputType` and `NamedOption.Label` complete the set.
+- **`form:"key"` matches repeatable rows by the record they stand for.** A
+  key, such as a row's ID, renders as a hidden input but is never written from
+  the POST, and a submitted row starts from the loaded row whose key it sends.
+  Rows were matched by client-controlled position markers, so a tampered POST
+  could save one row's `form:"readonly"` cells, or a stored secret, under
+  another row's `form:"hidden"` ID, and an `onSubmit` updating by ID wrote
+  them to the wrong record. A key naming no loaded row now makes a new row
+  with a zero key, and the values follow the record also when the stored rows
+  changed order between the GET and the POST. A top-level key keeps its
+  loaded value too. Rows without a key keep the position markers.
+- **`web.GlobPageSource.Confine` keeps a source inside its `Dir`.** It globs
+  and reads through an `os.Root`: a relative symlink that stays below `Dir` is
+  followed, a file reached through any other symlink fails the source, a
+  directory reached through one is not searched, and a `Pattern` reaching
+  above `Dir` with `..` is an error. Set it for content that people who may
+  not read the server can write; `Dir` stays trusted by default, because
+  deploy tools symlink content directories.
+
+- **`form:"maxrows=N"` and `mx.DefaultMaxRows` cap a repeatable field.** Rows
+  were bounded only by Go's form limits, so one 218 KB POST of forged row
+  markers rendered a 6 MB page and allocated about 127 MB, and a row whose
+  cell failed made one `mx.ReportError` call per forged row. A field now takes
+  at most `mx.DefaultMaxRows` rows (1000), or the cap of its tag: the add-row
+  button is gone at the cap, a forged add-row click past it adds nothing, and
+  a POST with more rows is rejected before any row is bound.
+- **`web.GlobPageSource.MaxFileSize` limits the size of a page file.** Every
+  Markdown file was read whole, also for a sitemap, and no file had a limit,
+  so a huge, sparse or growing file cost its size in memory on every request.
+  A file past `web.DefaultMaxPageFileSize` (10 MiB), or the source's own
+  limit, now fails the source, and a sitemap, llms.txt or page list reads only
+  the head of a Markdown file holding its front matter.
+
+- **Form fields say more, in markup screen readers read.** A field's help
+  text and each of its error messages get ids that the control's
+  `aria-describedby` lists, after what it referred to already, such as a
+  date's format hint, so a screen reader reads them with the control
+  (`role="alert"` on server-rendered markup is not announced on a full page
+  load); `mx.AddDescribedBy` does it for a decider of the application. A file
+  field holding a file says so next to the picker, which the browser labels
+  "No file chosen" either way, with its name (`mx.StoredFile`) and that a
+  blank keeps it; a `form:"sensitive"` input holding a value says that a
+  blank keeps it; and an add-row or remove-row click after text was typed
+  into a sensitive input says it must be typed again
+  (`mx.FormRetypeSensitiveMessage`). shadcn takes the captions from the new
+  `Labels.FormStoredFile`, `FormStoredFileUnnamed`, `FormKeepStoredFile` and
+  `FormKeepStoredValue`.
+- **Form-level messages can be styled.** `ReflectFormConfig.FormMessage`
+  renders the messages above a form, and `shadcn.FormMessage` renders them
+  as a destructive `Alert`; the default paragraph carries
+  `data-slot="form-message"`.
+- **Date and time errors and formats can be translated.** The errors of a
+  date or time field are `mx.DateTimeError` values (with the
+  `mx.DateTimeProblem` and the bounds), user messages a renderer translates;
+  shadcn takes the formats and messages from the new `Labels.FormDateFormat`,
+  `FormDateTimeFormat`, `FormTimeFormat`, `FormDateTimeNotInFormat`,
+  `FormDateTimeTooEarly`, `FormDateTimeTooLate` and
+  `FormDateTimeOutsideRange`, and shows the same translated format as the
+  placeholder and in the hint of a text fallback.
+- **Datetime and time inputs keep milliseconds.** A fraction of up to three
+  digits, which an input with a step under a second sends, is read and
+  written back, so a `form:"step=…"` down to a millisecond works; a value
+  that is no whole number of seconds after `min` gets `step="any"`.
+- **`mx.CheckNumberRange` and `mx.BoundFieldError` are exported** for a
+  decider of the application, the range check and the error bound the
+  reflected forms apply to every field.
+- **`cva.Compose` merges several variant resolvers into one.** A component
+  can build on another component's variant table instead of restating it;
+  every part gets the same props, and the `"class"` override is added once at
+  the end (ported from cva v1.0.0-beta).
+- **`logview` can search the whole log on the server.** With
+  `Config.SearchParam` set, changing the filter reconnects the stream with
+  the filter as a query parameter, and the handler answers with the matching
+  history and live lines, tested with the new `Config.Matches`, the same
+  rendered-text match the browser filter applies. `cmd/example-logstream`
+  demonstrates it.
+- **A docs-site section for `hx` and streaming.** A live-feed tutorial and
+  how-to guides cover the htmx attributes, `mx.SSEResponse`, `mx.KeyedID`,
+  the `hx.SSE*` attributes, `shadcn.StickToBottom` and `logview`.
+- **`Site.RegisterRoutes` can serve llms.txt and the Markdown alternates.**
+  Set `Site.LLMsTxtOptions` to serve the llms.txt of `Site.LLMsTxt` at
+  `/llms.txt` below the BaseURL (also available as the `Site.HandleLLMsTxt`
+  handler), and `Site.MarkdownAlternates` to serve every public Markdown
+  page's alternate at its `MarkdownPath`, with a content hash as ETag. Both
+  are opt-in. Each alternate gets an exact route when `RegisterRoutes` runs,
+  and whether the page is public is checked on every request.
+- **`Page.HasMarkdownSource` checks for a Markdown alternate without copying
+  the content.** `Site.LLMsTxt`, `Site.ServeMarkdown` and the MCP page tools
+  use it instead of `MarkdownSource`, which copies string content on every
+  call.
 
 ### Changed
 
+- **A `database/sql` type gets the widget of the value it holds.** A
+  `sql.NullBool` is a checkbox with a clear control for its null, a
+  `sql.NullInt64` or `sql.NullFloat64` a number input with its `min`, `max`
+  and `step`, and a `sql.NullTime` the datetime widget, instead of a text input
+  of the driver value; a blank number or time stores the null. One holding
+  text, such as `sql.NullString`, stays a text input. `DetectField` decides by
+  what the type's `Scan` reads.
+- **The MCP `list_pages` tool pages its results.** It returns 50 pages unless
+  asked for another `limit`, at most 200 (`DefaultListLimit`, `MaxListLimit`),
+  and sets `next_cursor` when more remain, to be passed back as `cursor`.
+  Before, it returned every public page at once.
+- **`get_page` compares pages by path and builds the URLs of the requested
+  page only.** It no longer builds a description of every public page per
+  call, and it reports a broken page to `OnError` only when that page was
+  asked for.
+- **`logview.View` connects its stream on an inner element instead of the
+  root.** `sse-connect` and `sse-close` move to the element holding the scroll
+  area and error sink (`hx-ext` stays on the root), so a search can reconnect
+  without replacing the toolbar.
+- **`mx.Route.Path` returns an error and takes a single values map.**
+  `Path(values map[string]any) (string, error)` replaces
+  `Path(values ...map[string]any) string`.
+- **`mx.MaskSensitiveError` returns an `error`** holding every user message
+  of the masked error, joined when there are several, each kept as the error
+  it is where its text is its message.
+- **A timeout of the server's own call is a 500, not a client that went
+  away.** `mx.RespondNonContextError`, `mx.SSEResponse.SendError`,
+  `mx.ReportHiddenError` and the reflected forms took every
+  `context.Canceled` or `context.DeadlineExceeded` for a disconnected client,
+  so a database query under its own `context.WithTimeout` answered an empty
+  200 and was never reported. Only such an error while the request's context
+  is done is now silent; the same errors while the client still waits are
+  answered with a 500 (or an error event) and reported, and so is a real
+  error joined with a `context.Canceled` of a fan-out's own cancel.
 - **`mx.RespondNonContextError` takes the request: `RespondNonContextError(w, r,
   err)`.** It now passes the error to `mx.ReportError`, which needs the
   request's context, and the former `(w, err)` had none to give. A sibling
@@ -467,6 +601,9 @@ API is still free to change.
 
 ### Removed
 
+- **The commented-out `reflectroutes.go`, `writereflect.go` and nested-route
+  code.** Explicit `mx.Route`/`TypedRoute` registration and the typed
+  attribute constructors replace them.
 - **`hx.EventNoSSESourceError`.** htmx's `sse` extension never raises
   `htmx:noSSESourceError` — it does not check nesting at all, so an `sse-swap`
   element with no `sse-connect` above it subscribes to nothing silently. The
@@ -474,6 +611,91 @@ API is still free to change.
 
 ### Fixed
 
+- **`form:"pattern=…"` is checked on the server.** It was only the input's
+  pattern attribute, so a scripted POST stored any string. html.FieldDecider's
+  parser now holds a string field to it, anchored to the whole text as the
+  attribute is; an empty text and a pattern Go's RE2 cannot compile are not
+  checked.
+- **A missing `__present` sentinel no longer skips `required` and `min` of a
+  number.** The 0 a submit-only form's `new(T)` starts a number with is still
+  rejected for a required number and for one whose range does not include it
+  (`mx.CheckNumberRange`); a stored number is kept, so a partial update keeps
+  working.
+- **A float written with more than 64 characters can be saved again.** The
+  renderers write 1e64 and more in full, and the number fields took no more
+  than 64 characters; they now take up to 327, the longest float64 written
+  out.
+- **A text-held date type that reads only its own spelling can be saved.** A
+  `type DEDate string` whose `UnmarshalText` takes `02.01.2006` showed its
+  text as not in the expected format and rejected every save; it now renders
+  as a text input of its own text and binds what was posted through its
+  `UnmarshalText`.
+- **A failing temporary file of an upload is a 500.** A full or missing temp
+  directory answered every upload with the client's 400 and was not
+  reported; it is now a 500 that reaches `mx.ReportError`.
+- **More hidden errors are reported.** A panic a binding guard recovers, a
+  bug in the application's type, is reported with its stack; an internal
+  error joined with a user message or with `onSubmit`'s `FieldErrors`, such
+  as a failed audit write, is reported while the page shows the message; and
+  a long error of long posted text, which `mx.BoundFieldError` hides, is
+  reported as a stand-in naming its type and lengths, which quotes nothing
+  of a value that may be forged.
+- **The user message at a field is found in every error.** A message an `As`
+  method supplies now shows at a field too, an empty message no longer hides
+  one deeper in the tree, a `form:"sensitive"` field shows every message of a
+  joined error, not only the first, an error without text reads "not a valid
+  value", and a decider's `Validate` returning an empty `FieldErrors` is no
+  error.
+- **`logview` strips ANSI escape sequences instead of showing them as text.**
+  Colour codes and other terminal sequences are removed from plain-text lines
+  and from decoded JSON strings before parsing; `Config.KeepANSI` keeps them.
+- **`TypedRoute.Path` fills in the pattern's wildcards.** It used to return
+  the raw pattern, placeholders and all; it now fills `{name}`, `{name...}`
+  and `{$}` with escaped values and reports a missing or unknown name as an
+  error.
+- **`GlobPageSource` can be cancelled inside the glob and the reads.**
+  Directories are read in batches and files in 64 KiB chunks, with the
+  context checked in between. Only a single stalled system call still blocks.
+- **`GlobPageSource.Dir` is no longer a pattern.** A directory named like
+  `content[prod]` is globbed below as named; only `Pattern` holds wildcards.
+- **`GlobPageSource` opens each page file once and reads the file it
+  checked.** The open does not block on a named pipe (O_NONBLOCK on Unix). A
+  page file that cannot be opened now fails the source even when no content
+  is read.
+- **`GlobPageSource` errors no longer leak URI credentials.** A non-local
+  `Dir` is printed without user info, query or fragment, and a local `Dir` URI
+  with user info (a Windows UNC path) is refused before any error prints it.
+- **A static enum without a validator rejects a value its list does not
+  offer.** Only a type's own `Validate` or `Valid` rejected a forged value, so
+  a forged `"42"`, or a `"0"` for a required enum whose zero is no option,
+  was saved for a hand-written `Enums()` type, a single value or the member of
+  an enum set. The form handler now checks such a type against its static
+  option list, as the parser already checked a context list; a type with a
+  validation method of its own is trusted to know its values.
+- **A `form:"sensitive"` field masks `onSubmit`'s `mx.FieldErrors` entry.**
+  After a blank submission the record holds the stored secret, and an entry
+  such as `fmt.Errorf("token %q rejected", r.Token)` showed it at the field.
+  It now reads its user message or "not a valid value", and is reported, as
+  the field's own errors are, also for a cell of a repeatable row.
+- **Every error a field shows is bounded by `mx.MaxFieldErrorLen`.** Only the
+  `html` parse errors were, so a forged 200 KB value showed whole in the error
+  of a go-enum `Validate`, which quotes it, and a checkbox set gave one such
+  error per forged element. The bound now applies to every decider's parse
+  errors and to validation errors, part by part, user messages included; the
+  new `mx.BoundFieldError` applies it for a decider of the application. The
+  `html` binders no longer quote a forged value before the bound drops it: a
+  12 MB value in a `sql.NullInt64` field allocated about 1.1 GB, and about
+  380 MB in a context-option select or a type whose `UnmarshalText` panics.
+- **`web.GlobPageSource` reports a directory it cannot read.** A `Dir` with
+  mode `000`, or an unreadable directory a wildcard matched (`*/*.md`), gave
+  an empty source with a nil error, so an empty sitemap, llms.txt and MCP page
+  list. Both now fail the source; a hidden directory is not searched unless
+  the pattern names its dot. A `Pattern` without `Dir` that names a hidden
+  directory with an escaped dot, like `/srv/site/\.well-known/*.txt`, gave
+  pages without a path, which failed the sitemap; its pages now get paths
+  below the prefix before the escape, as with `Dir`. With `Confine`, a
+  symlinked directory leading out of `Dir` fails the source too, instead of
+  being skipped.
 - **The date, datetime and time widgets work on fields that hold the value as text.** A `string`, `*string` or named string type (a date type with an underlying string) tagged `form:"widget=date"`, `widget=datetime` or `widget=time` rendered an empty input, so editing a saved record showed no value, and every non-empty submit failed with `cannot assign time to <type>`. Now, in both the `html` and the `shadcn` renderer, the input shows the stored value: a `Format(string) string` method is asked for it, and otherwise text in the input's own form is shown. That form has no zone and carries seconds only when they are not zero: `2006-01-02`, `2006-01-02T15:04[:05]` and `15:04[:05]`. A submitted value is stored in that same form, through `UnmarshalText` when the type has it, so zero seconds are dropped and other seconds are kept. An empty submission stores the zero value, which a required field still rejects, and `form:"min=…,max=…"` is checked on the server. Stored text the input cannot show, such as another spelling (`06.07.2026`), an invalid value or a time with a zone, renders in a `type="text"` input with the same name instead of a blank input that would clear it on the next save. The text input is marked `aria-invalid` from the start, in `shadcn` together with its `Field` (unless the field is readonly, so never saved), and has the format to enter (`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM` or `HH:MM`) as its placeholder (unless a `form:"placeholder=…"` sets one) and in a hint below it, linked with `aria-describedby`, which reads "Not in the expected format" when the stored text is invalid (until a submit's field error says so), so not only the color says so; shadcn takes the hint's captions from the new `Labels.FormExpectedFormat` and `Labels.FormInvalidFormat`. Posting such text back fails with a field error naming the format, so nothing is saved, and the form keeps showing the posted text, also in a repeatable row after an add-row or remove-row click. A `Format` method that answers invalid text with `""` gets the text input too, and a string type without `Format` shows its `MarshalText`. A value that is not a whole number of minutes after the field's `min` gets `step="1"`, so the browser accepts it unchanged; a `form:"step=…"` tag sets the step itself. A GET followed by an unchanged POST stores exactly the value the GET showed. The new `mx.DateTimeInput` and `mx.ParseDateTimeInput` make these decisions for both renderers (with `mx.DateTimeInputLayout` and `mx.DateTimeFormatError` for a custom one), and `time.Time` fields render and bind as before, apart from the sensitive masking, server-side range, `step` and pointer changes below.
 - **Date structs and types that wrap `time.Time` keep their value in a date or time input.** A type such as `civil.Date` that declares the date widget rendered a blank date input, so an unchanged save stored the zero value. Its `MarshalText` now fills the input under the same rules as text, and its zero or null value renders none. Types that wrap `time.Time`, a type defined as `time.Time` or a struct embedding it (whose `MarshalText` is RFC 3339), render and bind like a `time.Time`: the defined type takes the parsed time converted, and the embedded time is set through its `UnmarshalText` with RFC 3339 when the type does not read the input's own form, and a result that reports itself null afterwards (`IsNull`, or a `driver.Valuer` answering nil) is refused, so a struct holding a validity flag next to an embedded time is never half set, while a nullable time with its own RFC 3339 `UnmarshalText`, such as `null.Time`, binds. A time-of-day or date-and-time struct whose text needs seconds, such as `civil.Time`, gets the submitted value with seconds, since the inputs leave zero seconds out. A nil embedded time pointer renders an empty input instead of panicking and takes a submitted date. Untagged, a struct embedding `time.Time` with text methods of its own, such as a date-only one, stays a text input through them, as before; with a date widget it is a date struct. A null result of any bind step is refused, so a posted RFC 3339 value cannot half set a flagged struct either, and a wrapped time only takes what the input sends, not its own RFC 3339 text. A string type whose `UnmarshalText` needs seconds, as a `civil.Time` held as text does, gets them when the input leaves zero seconds out. A date struct reads its own text back first, so a struct whose text the picker cannot show renders it in a text input that is not marked invalid, and an unchanged save keeps the value, also in a repeatable row after an add-row or remove-row click. A `min` or `max` on such a field is checked on the value as the input shows it; text the input can only show as text cannot be checked, so with a bound set it is rejected with the format to enter and its input is marked invalid. A date type whose `UnmarshalText` reads only its own spelling, such as `02.01.2006`, cannot take what the picker sends: it renders as a text input of its own text without a format hint (a `form:"placeholder=…"` names its format), also when null or sensitive, and a `min` or `max` on it fails the form when it is shown, with the new `mx.DateTimeTagError`, instead of rejecting every save. A date type that is no struct, such as an integer day count with text methods, binds through its `UnmarshalText` too, instead of failing with `cannot assign time`. A date or time field bound through a pointer gets a new pointee, so a rejected value never reaches a record a shallow-copying `load` shares with a store. A registered single-value struct that holds no time, such as a money type, is now a text input through `MarshalText`/`UnmarshalText` instead of a date and time field, and an untagged type defined as `time.Time` is detected as one. `shadcn` renders every such catch-all value as a styled text input in a `Field`, like a string, instead of the unstyled `html` fallback.
 - **A `form:"sensitive"` date or time field no longer shows its value.** The date, datetime and time inputs echoed a sensitive `time.Time`, and the new text path would have echoed the stored text. Like a sensitive text input, the field now renders empty, and its validation errors no longer quote the posted value.
@@ -507,13 +729,13 @@ API is still free to change.
 - **An upload is read into memory only up to `MaxMemory`.** A file field read the whole upload into a buffer of its size, whatever `ReflectFormConfig.MaxMemory` said, so one large POST could exhaust memory. A larger file is now a field error; the new `mx.FormMaxMemory(ctx)` tells a decider the limit.
 - **The note on unlisted checkbox-set members says they are removed.** It read "(some current values are not available)", although saving drops them; it now says "(… and are removed when you save)", in `html` and in `shadcn.Labels.FormValuesNotAvailable`. A readonly set, which is never saved and keeps them, still reads "(some current values are not available)" (`shadcn.Labels.FormValuesNotAvailableReadonly`).
 - **A select whose stored value the list no longer offers says that saving removes it.** Its disabled placeholder "(current value not available)" submits nothing, so a save clears an optional select's value without a word. An optional, editable select now has the note "The current value is removed when you save." below it, as the checkbox set has; a required one, which rejects the blank, and a readonly one, which is never saved, have none. The new `OptionPreface.RemovesValue` tells a renderer when to say so for a select or a checkbox set, and shadcn takes the note from the new `Labels.FormValueRemovedOnSave`.
-- **A hidden or catch-all `database/sql` type such as `sql.NullInt64` can be saved.** It rendered as a Go struct (`{42 true}`), which nothing could read back, so every save of the form failed. Both renderers now show the value it holds (a time in RFC 3339, a null as nothing), and the `html` parser reads it back with the type's `Scan`, as text, as bytes for a JSON column whose `Scan` takes only those, or as a time; an unchanged value is kept as it is, so a valid empty string stays valid and a time keeps its zone. A number follows the rules of a number field: it must be finite, at most 64 characters long and within `form:"min=…,max=…"`. Text that does not scan says what to enter ("not a whole number", "not true or false", an RFC 3339 example) instead of quoting the driver, and the clear control empties the value with `Scan(nil)`. Only a type a driver reads and writes this way is shown so: one with its own `MarshalText`, `UnmarshalText` or `String`, such as a `null.String` or a money type that shows major units but stores cents, keeps using those, and bytes an input cannot hold unchanged (invalid UTF-8, a NUL) are not shown at all, so such a field fails visibly instead of being changed by a save. The new `mx.DriverValueText` gives a custom renderer the same text.
+- **A hidden or catch-all `database/sql` type such as `sql.NullInt64` can be saved.** It rendered as a Go struct (`{42 true}`), which nothing could read back, so every save of the form failed. Both renderers now show the value it holds (a time in RFC 3339, a null as nothing), and the `html` parser reads it back with the type's `Scan`, as text, as bytes for a JSON column whose `Scan` takes only those, or as a time; an unchanged value is kept as it is, so a valid empty string stays valid and a time keeps its zone. A number follows the rules of a number field: it must be finite, at most 327 characters long (the longest float64 written out) and within `form:"min=…,max=…"`. Text that does not scan says what to enter ("not a whole number", "not true or false", an RFC 3339 example) instead of quoting the driver, and the clear control empties the value with `Scan(nil)`. Only a type a driver reads and writes this way is shown so: one with its own `MarshalText`, `UnmarshalText` or `String`, such as a `null.String` or a money type that shows major units but stores cents, keeps using those, and bytes an input cannot hold unchanged (invalid UTF-8, a NUL) are not shown at all, so such a field fails visibly instead of being changed by a save. The new `mx.DriverValueText` gives a custom renderer the same text.
 - **The labels of a shadcn checkbox set name their boxes.** Each label pointed at an id no checkbox had, so the boxes had no accessible name and a click on an option's caption did nothing. Each box now has an id derived from the field and its value with `mx.KeyedIDValue`, valid also for a value with spaces.
 - **A checkbox set's field label names its group.** In both renderers the label pointed with `for` at an id no element had, and the group of boxes had no accessible name. The label now has an id that the group's `aria-labelledby` names.
 - **A blank required `*sql.NullString` no longer crashes the request.** The required check called `Value` through the nil pointer and panicked; `mx.IsNull` now reads a nil pointer as null first.
 - **A field a decider renders as nothing is not written by a POST.** A decider that hides a field from a user by returning a nil `Render`, or a `Render` that returns nil, still had the field bound when a crafted POST added its `__present` sentinel and a value. The handler now asks `Render` with a render probe and leaves such a field alone, so a per-request decider can hide a field without also clearing its `Parse`; every decider in a chain is asked, nested hiding wrappers included. The probe holds no errors, as a GET's render, and `mx.IsRenderProbe` lets a `Render` answer it without building markup, as the built-in deciders do, so binding a POST costs no markup. A `form:"repeatable"` field is hidden the same way, by a nil `Render` for its path: its rows are then neither rendered nor rebuilt, and a forged row command does nothing.
 - **A required enum whose zero is an option saves it.** A required select could not save a constant whose value is the zero, such as `Low = iota` or an option `"0"`, from any list (`Enums`, `EnumStrings`, `NamedOptions`, `Options`, `form:"options=…"`); a blank choice is now told from the submitted text. A non-empty value that binds the zero of an enum without such a constant is validated, not taken as "no choice".
-- **An enum with nothing chosen shows "(none)" or "Choose…".** An enum whose zero is none of its options, such as an `iota+1` enum or an `int64` key from a list, showed "(current value not available)" and a note that saving removes it on a new record; its zero now selects the list's own empty option or the leading "(none)" ("Choose…" when required; a readonly select prompts no choice). The new `mx.SelectedOption` decides it for a renderer.
+- **An enum with nothing chosen shows "(none)" or "Choose…".** An enum whose zero is none of its options, such as an `iota+1` enum or an `int64` key from a list, showed "(current value not available)" and a note that saving removes it on a new record; its zero now selects the list's own empty option or the leading "(none)" ("Choose…" when required; a readonly select prompts no choice). `mx.SelectPreface` decides it for a renderer: it takes the field's value and returns the option the select shows along with the preface.
 - **A required file field that holds a file does not demand a new upload.** Its input rendered HTML `required`, so the browser blocked every save of the edit form until the user picked the file again, although a blank file input keeps the stored file.
 - **An option list that fails while a POST is read shows no internal error.** A context option list (`form:"options=…"` with a provider) failing during the parse put its error text, a go-errs call stack included, next to the field; it now shows the `UserMessage` of an `mx.UserMessageError` it returned, such as an `mx.FormMessage`, or `mx.FormErrorMessage` unless `mx.RevealInternalServerErrors` is set, also in a `form:"sensitive"` field.
 - **Rejected date text is not echoed back without a bound.** Date or time text longer than any input sends (64 bytes) is rejected without being bound into the re-render or quoted in the error, as a `database/sql` number's error does not quote long text, so one large POST cannot grow into a larger page.

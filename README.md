@@ -110,8 +110,8 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`logview`** — streamed log lines rendered as a readable surface: a JSON
   record becomes promoted time and level plus `key=value` pairs colored by JSON
   type, a non-JSON line becomes plain text with its level word colored, and
-  `logview.View` adds the filter, pause and scroll-anchored viewport they stream
-  into. Fed by `mx.SSEResponse`. See [logview/README.md](logview/README.md).
+  `logview.View` adds the filter (a server-side search with
+  `Config.SearchParam`), pause and scroll-anchored viewport they stream into. Fed by `mx.SSEResponse`. See [logview/README.md](logview/README.md).
 - **`pdf`** — native PDF rendering mirroring the `html` component model, with
   the [`codeberg.org/go-pdf/fpdf`](https://codeberg.org/go-pdf/fpdf) engine
   inlined so there is no external PDF dependency: `pdf.Document`,
@@ -272,17 +272,21 @@ mx.ReportError = func(ctx context.Context, err error) {
 }
 ```
 
-A parse error longer than `mx.MaxFieldErrorLen` (512 bytes by default) reads
-"the text is not a valid value" (a sensitive field's: "not a valid value")
-unless it carries a user message, as such an error usually quotes the posted
-text, so a forged value cannot flood the page or the hook. For posted text past
-64 times the bound the error's text is not even built, so a type that rejects
-such large values with a message of its own returns it as a user message.
+A parse or validation error longer than `mx.MaxFieldErrorLen` (512 bytes by
+default) reads "the text is not a valid value" (a sensitive field's: "not a
+valid value"), as such an error usually quotes the posted text, so a forged
+value cannot flood the page or the hook; so does a user message past the bound,
+and each part of an error joined with one (`mx.BoundFieldError`). For posted
+text past 64 times the bound the error's text is not even built, so a type that
+rejects such large values with a message of its own returns it as a short user
+message.
 
 It gets each hidden error once, with the request's context (its values, not its
 cancellation), whether or not `mx.RevealInternalServerErrors` is set, and a
 recovered panic with its stack. It does not get an error the user sees, nor a
-`context.Canceled` or `context.DeadlineExceeded`: that client has disconnected.
+`context.Canceled` or `context.DeadlineExceeded` of a request whose context is
+done: that client has disconnected. The same errors from a call with its own
+timeout, while the client still waits, are reported, and answered with a 500.
 A sensitive field's error may quote the value it guards, so a hook that logs
 must keep it as secret as that value. A decider or handler of your own that
 hides an error reports it through `mx.ReportHiddenError(ctx, err)`, which
@@ -312,8 +316,9 @@ date and time field, as it is for numbers. A date type whose `UnmarshalText`
 reads only its own spelling, such as `02.01.2006`, cannot take what a date
 input sends: it renders as a text input of its own text with no format hint
 (a `form:"placeholder=…"` names its format), and a `min` or `max` on it fails
-the form when it is shown (`mx.DateTimeTagError`). Whole seconds are the finest step: fractional seconds are
-not supported, and neither is a `form:"step=…"` under one second. An input cannot show stored text in another spelling
+the form when it is shown (`mx.DateTimeTagError`). A datetime or time input
+keeps a fraction of up to three digits, so a `form:"step=…"` down to a
+millisecond works. An input cannot show stored text in another spelling
 (`06.07.2026`), an invalid value or a time with a zone, and a blank one would
 clear it on the next save, so such text renders in a text input instead,
 marked invalid, with the format to enter as placeholder and hint. Saving it
@@ -337,18 +342,25 @@ that holds no time, such as a money type, is a plain text input through its
 Slice-of-struct fields tagged `form:"repeatable"` (`[]T` or `[]*T`)
 render as a dynamic list of rows — one per element, with JavaScript-free
 "Add row" / "Remove" buttons — and bind the submitted rows back into the
-slice. A `form:"hidden"` sub-field round-trips a per-row key so `onSubmit`
-can map rows to records; like every hidden value it comes from the client, so
-`onSubmit` must check it against the loaded record before trusting it. A submitted row starts as a copy of the loaded row
-it came from, through add-row and remove-row clicks too: a `form:"readonly"`
-sub-field keeps its loaded value, a rejected cell behaves as the same
-top-level field does (it keeps the stored value, or shows the posted text
-where the field keeps that), and a cell that was not sent stays as loaded; an
-added row starts at the zero value. Rows are matched by position through
-client-controlled markers, so a tampered POST can reorder rows, and the stored
-rows can change between the GET and the POST: restore server-controlled
-columns in `onSubmit` by the row key, and an `onSubmit` that fails must not
-reorder or remove the rows.
+slice. Mark the record's identity in a row, such as its ID, `form:"key"`: a
+key renders as a hidden input but is never written from the POST, and a
+submitted row starts as a copy of the loaded row whose key it sends, through
+add-row and remove-row clicks too. A `form:"readonly"` sub-field keeps its
+loaded value, a rejected cell behaves as the same top-level field does (it
+keeps the stored value, or shows the posted text where the field keeps that),
+and a cell that was not sent stays as loaded. A row whose key names no loaded
+row, such as an added one, starts at the zero value, key included, so
+`onSubmit` can insert it and update the others by key: a tampered POST can
+reorder or drop rows but cannot pair one record's readonly cells with
+another's key, and the values follow the record when the stored rows changed
+between the GET and the POST. Without a key, rows are matched by position
+through client-controlled markers: a `form:"hidden"` row ID then comes from
+the client like every hidden value, so `onSubmit` must check it and restore
+server-controlled columns itself. Either way an `onSubmit` that fails must not
+reorder or remove the rows. A repeatable field takes at most
+`mx.DefaultMaxRows` rows (1000), or the `form:"maxrows=N"` of its tag: the
+add-row button is gone at the cap, and a POST with more rows is rejected
+before any row is bound.
 `form:"readonly"` on the repeatable field itself, or on a section, nested or
 embedded struct, makes everything in it readonly, and `form:"-"` on an
 embedded struct omits its fields.
@@ -360,7 +372,10 @@ context-aware `mx.NamedOptionsContextProvider`, or a `form:"options=name"`
 tag naming a provider registered with `mx.RegisterNamedOptions`. The last
 two are resolved at render time with the request context, so a dropdown can
 be per-request (a tenant-scoped partner list from the database) without the
-field type carrying any UI state:
+field type carrying any UI state. A submitted value is checked against the
+list on the server: a context list while the value is bound, a static one
+when the type has no validation method (`Validate`, `Valid`, `Normalize`) of
+its own, which is trusted to know its values:
 
 ```go
 mx.RegisterNamedOptions("partners", func(ctx context.Context) ([]mx.NamedOption, error) {
@@ -429,7 +444,6 @@ error routing path.
 The `mx` reflection to-do list. Everything else deferred — per package, with
 priorities and context — is in [TODOS.md](TODOS.md).
 
-- [ ] ReflectMarkup()
 - [ ] More ReflectInputOptions
 - [x] Slice-of-struct fields (`form:"repeatable"`)
 - [ ] Rich file upload widget (preview, multi-file, progress)

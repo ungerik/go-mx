@@ -3,6 +3,7 @@ package mx
 import (
 	"encoding"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -15,7 +16,7 @@ import (
 // Detection priority (top-down, first match wins):
 //
 //  1. form:"-" or form:"widget=skip" tag → FieldKindSkip
-//  2. form:"hidden" tag → FieldKindHidden
+//  2. form:"hidden" or form:"key" tag → FieldKindHidden
 //  3. form:"section=..." or form:"nested" tag → FieldKindSection /
 //     FieldKindNested
 //  4. Anonymous embedded struct field, no section/nested tag →
@@ -37,6 +38,9 @@ import (
 // 14. time.Time, a type defined as it, or a struct embedding it as its only
 //     field whose text is RFC 3339 (as it is without text methods of its
 //     own) → FieldKindDateTime (other single-value structs → catch-all)
+//     14.5. a database/sql type holding a bool, a number or a time, such
+//     as sql.NullBool, sql.NullInt64 or sql.NullTime → FieldKindBool,
+//     FieldKindNumber or FieldKindDateTime
 // 15. string / *string / named string types → FieldKindString
 // 16. []string / named-slice-of-string → FieldKindTextarea
 // 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
@@ -165,16 +169,10 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	// how form:"repeatable" handles unsupported shapes.
 	if tag.Options != "" {
 		ft := derefType(field.Type)
-		switch ft.Kind() {
-		case reflect.Map:
-			if ft.Elem().Kind() == reflect.Struct && ft.Elem().NumField() == 0 {
-				return FieldKindEnumSet, tag
-			}
-		case reflect.Slice:
-			if ft.Elem().Kind() != reflect.Uint8 {
-				return FieldKindEnumSet, tag
-			}
-		default:
+		if SetElemType(ft) != nil {
+			return FieldKindEnumSet, tag
+		}
+		if k := ft.Kind(); k != reflect.Map && k != reflect.Slice {
 			return FieldKindEnum, tag
 		}
 	}
@@ -211,22 +209,11 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		return FieldKindEnum, tag
 	}
 
-	// 10-11. set / slice of enum
+	// 10-11. set / slice of enum. A []byte or json.RawMessage-shape is no
+	// set and gets a textarea (rule 17 below).
 	ft := derefType(field.Type)
-	switch ft.Kind() {
-	case reflect.Map:
-		if ft.Elem().Kind() == reflect.Struct && ft.Elem().NumField() == 0 &&
-			(hasEnumMethods(ft.Key()) || hasOptionsProviderInterfaces(ft.Key())) {
-			return FieldKindEnumSet, tag
-		}
-	case reflect.Slice:
-		// []byte / json.RawMessage-shape gets textarea (rule 17 below);
-		// other slice elements that satisfy the enum convention get
-		// the enum-set kind.
-		if ft.Elem().Kind() != reflect.Uint8 &&
-			(hasEnumMethods(ft.Elem()) || hasOptionsProviderInterfaces(ft.Elem())) {
-			return FieldKindEnumSet, tag
-		}
+	if et := SetElemType(ft); et != nil && (hasEnumMethods(et) || hasOptionsProviderInterfaces(et)) {
+		return FieldKindEnumSet, tag
 	}
 
 	// 12. bool / *bool
@@ -251,6 +238,16 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		return FieldKindDateTime, tag
 	}
 
+	// 14.5. a database/sql type such as sql.NullBool, sql.NullInt64 or
+	// sql.NullTime: the kind of the value it holds, a checkbox, a number
+	// input or the datetime widget. One holding text, such as
+	// sql.NullString, stays a text input (the catch-all below).
+	if ft.Kind() == reflect.Struct {
+		if kind := driverValueKind(ft); kind != FieldKindCatchAll {
+			return kind, tag
+		}
+	}
+
 	// 15. string-shaped
 	if ft.Kind() == reflect.String {
 		return FieldKindString, tag
@@ -272,6 +269,45 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 	return FieldKindCatchAll, tag
 }
 
+// driverValueKinds caches [driverValueKind] by type.
+var driverValueKinds sync.Map // reflect.Type → FieldKind
+
+// driverValueKind returns the kind of field a database/sql type renders as,
+// judged by what its Scan reads, as the form binds what was posted through
+// it: FieldKindBool for a type that reads a bool but no number, such as
+// sql.NullBool, FieldKindNumber for one that reads a number, such as
+// sql.NullInt64, and FieldKindDateTime for one that reads only a time.Time,
+// such as sql.NullTime. It is FieldKindCatchAll for a type that reads text,
+// such as sql.NullString, which stays a text input, and for any type that
+// is no database/sql type [DriverValueText] writes.
+func driverValueKind(t reflect.Type) FieldKind {
+	if cached, ok := driverValueKinds.Load(t); ok {
+		return cached.(FieldKind)
+	}
+	kind := FieldKindCatchAll
+	if _, ok := DriverValueText(reflect.New(t).Elem()); ok {
+		scans := func(src any) (ok bool) {
+			defer func() {
+				if recover() != nil {
+					ok = false
+				}
+			}()
+			return reflect.New(t).Interface().(sqlScanner).Scan(src) == nil
+		}
+		switch {
+		case scans("x"):
+		case scans(int64(2)):
+			kind = FieldKindNumber
+		case scans(true):
+			kind = FieldKindBool
+		case scans(time.Time{}):
+			kind = FieldKindDateTime
+		}
+	}
+	driverValueKinds.Store(t, kind)
+	return kind
+}
+
 // isTimeLike reports whether the struct type t holds a time the way a
 // time.Time does: it is time.Time, a type defined as time.Time, or a struct
 // whose only field is an embedded time.Time and whose text is that time's
@@ -282,7 +318,7 @@ func isTimeLike(t reflect.Type) bool {
 	if t.ConvertibleTo(timeType) {
 		return true
 	}
-	return embedsOnlyTime(t) && textIsRFC3339(t)
+	return embedsOnlyTime(t) && TextIsRFC3339(t)
 }
 
 // embedsOnlyTime reports whether the struct type t holds nothing but an
@@ -291,10 +327,12 @@ func embedsOnlyTime(t reflect.Type) bool {
 	return t.NumField() == 1 && t.Field(0).Anonymous && t.Field(0).Type == reflect.TypeFor[time.Time]()
 }
 
-// textIsRFC3339 reports whether the zero value of t writes its text as
+// TextIsRFC3339 reports whether the zero value of t writes its text as
 // RFC 3339, as a time.Time does and so does a type embedding one without
-// text methods of its own.
-func textIsRFC3339(t reflect.Type) (ok bool) {
+// text methods of its own: such a type renders as a date or time input
+// ([DetectField] rule 14), and a parser can bind the input's value through
+// its UnmarshalText.
+func TextIsRFC3339(t reflect.Type) (ok bool) {
 	defer func() {
 		if recover() != nil {
 			ok = false
@@ -310,6 +348,28 @@ func textIsRFC3339(t reflect.Type) (ok bool) {
 	}
 	_, err = time.Parse(time.RFC3339Nano, string(text))
 	return err == nil
+}
+
+// SetElemType returns the element type of a set-shaped field type, one
+// that renders as an enum set of checkboxes: T for map[T]struct{} and for
+// []T other than a []byte, also behind pointers. It returns nil for any
+// other type.
+func SetElemType(t reflect.Type) reflect.Type {
+	t = derefType(t)
+	if t == nil {
+		return nil
+	}
+	switch t.Kind() {
+	case reflect.Map:
+		if t.Elem().Kind() == reflect.Struct && t.Elem().NumField() == 0 {
+			return t.Key()
+		}
+	case reflect.Slice:
+		if t.Elem().Kind() != reflect.Uint8 {
+			return t.Elem()
+		}
+	}
+	return nil
 }
 
 // derefType returns the element type of a pointer chain, stopping at

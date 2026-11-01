@@ -21,6 +21,10 @@ html.Div(html.Class("card"),
 - **[html package docs](html/)** — a tutorial, task-oriented how-to guides, and
   the full reference for the `html` package: the core HTML vocabulary everything
   else builds on.
+- **[hx and streaming docs](hx/)** — a tutorial, how-to guides and the
+  reference for the `hx` htmx attributes and for streaming components to a page
+  over Server-Sent Events: `mx.SSEResponse`, `mx.KeyedID`, the `hx.SSE*`
+  attributes, `shadcn.StickToBottom` and the `logview` log viewer.
 - **[Component gallery](shadcn/gallery/)** — every ported shadcn/ui component, rendered
   server-side in Go and shown next to its source. A pre-rendered static copy of
   the live `cmd/shadcn-gallery` app.
@@ -132,17 +136,18 @@ with the same name on one element), and can pretty-print with
 | `html`       | HTML5 elements (`Div`, `Span`, `Input`, …) and attributes (`Class`, `ID`, …) |
 | `svg`        | SVG elements and attributes, with `xmlns` handling and numeric values |
 | `xml`        | Generic XML markup: `Element`/`Attrib` take any name (no fixed vocabulary), plus `Comment`, `CDATA`, `ProcInst`, the XML declaration and a `Document` |
-| `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, the `sse` extension's attributes (`hx.SSEConnect`, `hx.SSESwap`, `hx.SSEClose`), plus request readers and response-header setters for handlers |
+| `hx`         | [htmx](https://htmx.org) attributes (`hx.Get`, `hx.Post`, …), with typed values where htmx constrains them (a `hx.SwapStyle` enum for `hx.Swap`, `bool` args for `hx.Boost`), `htmx:` event and `htmx-*` class constants, the `sse` extension's attributes (`hx.SSEConnect`, `hx.SSESwap`, `hx.SSEClose`), plus request readers and response-header setters for handlers ([docs](hx/)) |
 | `shadcn`     | A Go port of [shadcn/ui](https://ui.shadcn.com) components, plus the `Cn` class-merge helper and ports of `clsx`, `tailwind-merge` and `cva` |
 | `highlight`  | A dependency-free Go syntax highlighter built from go-mx components   |
-| `logview`    | Streamed log lines as a readable surface: a JSON record renders as promoted time and level plus `key=value` pairs colored by JSON type, with a filter, a pause toggle and a scroll area that follows the stream |
+| `logview`    | Streamed log lines as a readable surface: a JSON record renders as promoted time and level plus `key=value` pairs colored by JSON type, with a filter that can search the whole log on the server, a pause toggle and a scroll area that follows the stream ([streaming docs](hx/)) |
 | `web`        | A site above `html`: pages from a `PageSource`, plus what crawlers and agents read from the public ones — sitemap, robots.txt, canonical and hreflang links, Markdown alternates and `llms.txt` ([knowledge layer](web/knowledge-layer.html)); `web/schemaorg` for typed structured data, embedded with `html.JSONLD` |
 | `mcp`        | A site's public pages as read-only [MCP](https://modelcontextprotocol.io) tools for AI agents, on a server of the official Go SDK; a nested module |
 | `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, embedded files plus XMP metadata for PDF/A-3 e-invoices (ZUGFeRD/Factur-X), and a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
 `Writer`, `If`/`ForEach`) that the others build on, plus `mx.SSEResponse` for
-streaming components to a client as Server-Sent Events. The `doc` package is
+streaming components to a client as Server-Sent Events (see
+[streaming](hx/)). The `doc` package is
 partially implemented.
 
 ## The shadcn port
@@ -163,7 +168,7 @@ documentation for four reader needs:
 
 | Need                         | Where                                            |
 |------------------------------|--------------------------------------------------|
-| **Learn** (tutorial)         | [Build your first page](html/tutorial.html) · [first shadcn page](shadcn/tutorial.html) |
-| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) · [public knowledge layer](web/knowledge-layer.html) |
-| **Look up** (reference)      | [html reference](html/#reference) · [shadcn reference](shadcn/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
-| **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [html design notes](html/#explanation) · [shadcn design notes](shadcn/#explanation) |
+| **Learn** (tutorial)         | [Build your first page](html/tutorial.html) · [first shadcn page](shadcn/tutorial.html) · [live feed with hx and SSE](hx/tutorial.html) |
+| **Do a task** (how-to)       | [html how-to](html/how-to.html) · [shadcn how-to](shadcn/how-to.html) · [hx and streaming how-to](hx/how-to.html) · [public knowledge layer](web/knowledge-layer.html) |
+| **Look up** (reference)      | [html reference](html/#reference) · [shadcn reference](shadcn/#reference) · [hx and streaming reference](hx/#reference) · [pkg.go.dev](https://pkg.go.dev/github.com/ungerik/go-mx) |
+| **Understand** (explanation) | [Why go-mx](why-go-mx.html) · [html design notes](html/#explanation) · [shadcn design notes](shadcn/#explanation) · [streaming design notes](hx/#explanation) |
