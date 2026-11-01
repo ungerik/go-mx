@@ -75,7 +75,7 @@ type sqlScanner interface{ Scan(src any) error }
 // so, and the html parser keeps the stored text when that replacement comes
 // back unchanged.
 func DriverValueText(value reflect.Value) (text string, ok bool) {
-	if !DriverValueType(value.Type()) {
+	if !value.IsValid() || !DriverValueType(value.Type()) {
 		return "", false
 	}
 	dv, ok := driverValue(value)

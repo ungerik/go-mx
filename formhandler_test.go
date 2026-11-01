@@ -2806,6 +2806,18 @@ func TestReflectFormHandler_OutOfBand(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || strings.Contains(rec.Body.String(), "toast") {
 		t.Errorf("a plain submit redirects without fragments, status %d: %s", rec.Code, rec.Body)
 	}
+	// A boosted submit swaps its response into the whole body, which the
+	// form alone would replace, so it redirects to a full page as a plain one.
+	form := url.Values{PresentSentinelName("Name"): {"1"}, "Name": {"boosted"}}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	req.Header.Set("HX-Boosted", "true")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || strings.Contains(rec.Body.String(), "toast") {
+		t.Errorf("a boosted submit redirects without fragments, status %d: %s", rec.Code, rec.Body)
+	}
 	if AddOutOfBand(context.Background(), toast) {
 		t.Error("outside a submit there is nowhere to add fragments")
 	}

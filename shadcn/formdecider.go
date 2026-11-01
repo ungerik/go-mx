@@ -161,7 +161,7 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 			labelText(func(l Labels) string { return l.FormKeepStoredValue })))
 	}
 	// Stored text the input cannot show unchanged says so.
-	if problem, ok := textProblem(kind, value, tag); ok {
+	if problem, ok := html.FieldTextProblem(kind, value, tag); ok {
 		describedBy = append(describedBy, string(path)+"-text")
 		parts = append(parts, FieldDescription(html.ID(string(path)+"-text"),
 			labelText(func(l Labels) string { return l.textProblem(problem) })))
@@ -176,21 +176,6 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
 	mx.AddDescribedBy(input, describedBy...)
 	return fieldWrap(invalid, parts...)
-}
-
-// textProblem reports why the text input or textarea of a string-like
-// field cannot show its stored database/sql text unchanged
-// ([mx.DriverValueTextProblem]); a sensitive field shows none of it.
-func textProblem(kind mx.FieldKind, value reflect.Value, tag mx.FormTag) (mx.TextProblem, bool) {
-	switch {
-	case tag.Sensitive:
-		return 0, false
-	case kind == mx.FieldKindString, kind == mx.FieldKindCatchAll:
-		return mx.DriverValueTextProblem(value, false)
-	case kind == mx.FieldKindTextarea:
-		return mx.DriverValueTextProblem(value, true)
-	}
-	return 0, false
 }
 
 // fieldWrap builds the [Field] root for a decided form field, marking it

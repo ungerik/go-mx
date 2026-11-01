@@ -94,6 +94,19 @@ func TestFunctionCallClassified(t *testing.T) {
 	}
 }
 
+// go/scanner strips the carriage returns of CRLF line breaks from a block
+// comment's and a raw string's literal, so the token must still span the
+// source up to its closing "*/" or backquote, not stop short of it.
+func TestTokenizeGoCRLFTokenSpans(t *testing.T) {
+	tokens := TokenizeGo("/* a\r\nb */\r\nvar s = `x\r\ny`\r\n")
+	if got := classOf(tokens, "/* a\r\nb */"); got != ClassComment {
+		t.Errorf("block comment class = %q, want %q: %q", got, ClassComment, tokens)
+	}
+	if got := classOf(tokens, "`x\r\ny`"); got != ClassString {
+		t.Errorf("raw string class = %q, want %q: %q", got, ClassString, tokens)
+	}
+}
+
 func TestTokenizeGoEmpty(t *testing.T) {
 	if got := TokenizeGo(""); got != nil {
 		t.Errorf("TokenizeGo(\"\") = %v, want nil", got)

@@ -438,7 +438,8 @@ type outOfBand struct {
 //
 // The fragments are rendered after the form, and only when the request comes
 // from htmx (an HX-Request: true header); a plain browser submit, which
-// would show them as part of the page, ignores them. A successful htmx
+// would show them as part of the page, ignores them, and so does a boosted
+// one (HX-Boosted: true), whose response replaces the whole body. A successful htmx
 // submit with fragments and no destination of its own (no URL from onSubmit,
 // no ReflectFormConfig.Redirect) is answered with the form re-rendered from
 // a fresh load, as the redirect's GET would show it, instead of the
@@ -459,10 +460,12 @@ func AddOutOfBand(ctx context.Context, comps ...Component) bool {
 }
 
 // outOfBandFragments returns the fragments onSubmit added for r, an htmx
-// request; for any other request none.
+// request; for any other request none. A boosted submit (HX-Boosted) gets
+// none either: htmx swaps its response into the whole body, which a
+// re-rendered form would replace, so it keeps the redirect to a full page.
 func outOfBandFragments(r *http.Request) Components {
 	oob, ok := r.Context().Value(outOfBandKey{}).(*outOfBand)
-	if !ok || r.Header.Get("HX-Request") != "true" {
+	if !ok || r.Header.Get("HX-Request") != "true" || r.Header.Get("HX-Boosted") == "true" {
 		return nil
 	}
 	oob.mu.Lock()

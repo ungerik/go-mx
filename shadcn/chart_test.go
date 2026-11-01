@@ -121,6 +121,12 @@ func TestChartInvalidData(t *testing.T) {
 			t.Errorf("%s: want a render error", name)
 		}
 	}
+	// A radar chart's maximum too small for a tick step fails the render
+	// like a bar chart's, rather than panicking on an empty tick list.
+	radar := ChartData{Categories: []string{"a", "b", "c"}, Series: []ChartSeries{{Values: []float64{1e-320, 0, 0}}}}
+	if err := Chart(ChartRadar, radar, ChartOptions{}).Render(context.Background(), mx.NewCheckedWriter(&strings.Builder{})); err == nil {
+		t.Error("tiny radar: want a render error")
+	}
 	// A key is an id, which panics when invalid, as other ids do (see
 	// PanicOnInvalidID).
 	func() {

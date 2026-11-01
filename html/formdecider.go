@@ -120,7 +120,7 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 		))
 	}
 	// Stored text the input cannot show unchanged says so.
-	if problem, ok := textProblem(kind, value, tag); ok {
+	if problem, ok := FieldTextProblem(kind, value, tag); ok {
 		describedBy = append(describedBy, string(path)+"-text")
 		parts = append(parts, mx.NewElement("small",
 			mx.Attribute{Name: "class", Value: "form-help"},
@@ -156,10 +156,11 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	return parts
 }
 
-// textProblem reports why the text input or textarea of a string-like
+// FieldTextProblem reports why the text input or textarea of a string-like
 // field cannot show its stored database/sql text unchanged
-// ([mx.DriverValueTextProblem]); a sensitive field shows none of it.
-func textProblem(kind mx.FieldKind, value reflect.Value, tag mx.FormTag) (mx.TextProblem, bool) {
+// ([mx.DriverValueTextProblem]); a sensitive field shows none of it. The
+// renderers of this package and of shadcn share it.
+func FieldTextProblem(kind mx.FieldKind, value reflect.Value, tag mx.FormTag) (mx.TextProblem, bool) {
 	switch {
 	case tag.Sensitive:
 		return 0, false

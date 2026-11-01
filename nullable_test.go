@@ -130,6 +130,8 @@ func TestDriverValueText(t *testing.T) {
 		{"own MarshalText", writesText{n: 3}, "", false},
 		{"no Valuer", struct{ N int }{1}, "", false},
 		{"not a struct", 5, "", false},
+		// The zero reflect.Value has no type to ask, and must not panic.
+		{"no value", nil, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			text, ok := DriverValueText(reflect.ValueOf(tc.value))

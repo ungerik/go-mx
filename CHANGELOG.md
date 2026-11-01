@@ -535,7 +535,8 @@ API is still free to change.
 - **`mx.AddOutOfBand`: out-of-band fragments from `onSubmit`.** An htmx
   submit's response carries them after the form, a toast or an updated row
   elsewhere on the page; a successful one is answered in place instead of
-  redirected, so the fragments arrive.
+  redirected, so the fragments arrive. A boosted submit, whose response
+  replaces the whole body, still redirects.
 - **`mx.FieldPathFromContext` tells `ReportError` which field an error
   belongs to.** The form handler puts each field's path into the context of
   its parse, validation and rendering (`mx.ContextWithFieldPath`).
@@ -814,6 +815,9 @@ API is still free to change.
 
 ### Fixed
 
+- **`highlight.TokenizeGo` keeps a block comment or raw string of a CRLF
+  source whole.** go/scanner strips their carriage returns, so the token
+  ended short and its tail was highlighted as code.
 - **A required time-of-day type whose zero is midnight takes 00:00**, and
   shows a stored midnight, such as `civil.Time`'s.
 - **A required enum that was not sent keeps a stored zero that is one of its

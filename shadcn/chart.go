@@ -305,7 +305,7 @@ func Chart(kind ChartKind, data ChartData, opts ChartOptions, attribsChildren ..
 	}
 	var chart *mx.Element
 	if polar {
-		chart = chartPolarSVG(kind, data, series, opts, width, height, format)
+		chart = chartPolarSVG(kind, data, series, opts, width, height, format, formatCategory)
 	} else {
 		chart = chartCartesianSVG(kind, data, series, opts, width, height, format, formatCategory)
 	}
@@ -572,7 +572,7 @@ func chartCategoryColor(data ChartData, i int) string {
 // chartPolarSVG draws a pie, radar or radial chart in a width × height
 // viewBox: a pie and a radial chart the first series, a slice or ring per
 // category, a radar chart every series over a spoke per category.
-func chartPolarSVG(kind ChartKind, data ChartData, series []chartSeriesInfo, opts ChartOptions, width, height float64, format func(float64) string) *mx.Element {
+func chartPolarSVG(kind ChartKind, data ChartData, series []chartSeriesInfo, opts ChartOptions, width, height float64, format func(float64) string, formatCategory func(string) string) *mx.Element {
 	const fontSize = 12
 	chart := svg.SVG(
 		svg.XMLNS,
@@ -619,7 +619,8 @@ func chartPolarSVG(kind ChartKind, data ChartData, series []chartSeriesInfo, opt
 				continue
 			}
 			sweep := 360 * v / total
-			// A full circle cannot be one arc: it is drawn as two halves.
+			// A full circle cannot be one arc, whose ends would coincide: a
+			// slice of the whole pie stops a hundredth of a degree short.
 			a1 := a + min(sweep, 359.99)
 			x0, y0 := at(outer, a)
 			d := fmt.Sprintf("M%s,%s %s", chartNum(x0), chartNum(y0), arc(outer, a, a1))
@@ -674,6 +675,9 @@ func chartPolarSVG(kind ChartKind, data ChartData, series []chartSeriesInfo, opt
 			}
 		}
 		ticks := chartTicks(0, hi, cmp.Or(opts.Ticks, 4))
+		if len(ticks) < 2 {
+			return mx.NewErrElement(fmt.Errorf("shadcn.Chart: values up to %g have no scale", hi))
+		}
 		hi = ticks[len(ticks)-1]
 		outer := min(width, height)/2 - fontSize*2.5
 		angle := func(i int) float64 { return 360 * float64(i) / float64(n) }
@@ -712,12 +716,8 @@ func chartPolarSVG(kind ChartKind, data ChartData, series []chartSeriesInfo, opt
 				case a > 190 && a < 350:
 					anchor = "end"
 				}
-				label := c
-				if opts.FormatCategory != nil {
-					label = opts.FormatCategory(c)
-				}
 				labels.Children = append(labels.Children, svg.Text(chartAttr("x", x), chartAttr("y", y),
-					mx.NewAttrib("text-anchor", anchor), mx.NewAttrib("dy", "0.32em"), label))
+					mx.NewAttrib("text-anchor", anchor), mx.NewAttrib("dy", "0.32em"), formatCategory(c)))
 			}
 			chart.Children = append(chart.Children, labels)
 		}
