@@ -126,3 +126,13 @@ func TestStickToBottomScriptReadsTheAttribute(t *testing.T) {
 		t.Error("the script no longer reads the threshold from the attribute")
 	}
 }
+
+func TestStickToBottomScriptIgnoresLayoutScrolls(t *testing.T) {
+	// A scroll event that leaves a following element at or below its pinned
+	// position (content grown by a late stylesheet, for example) must re-pin
+	// rather than be judged as the user scrolling away; judging it unstuck a
+	// MessageScroller before it was ever read.
+	if !strings.Contains(stickToBottomScript, "if(stuck&&el.scrollTop>=pinTop-2){") {
+		t.Errorf("scroll handler lost its layout-scroll guard: %s", stickToBottomScript)
+	}
+}

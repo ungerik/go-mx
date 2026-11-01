@@ -215,10 +215,11 @@ control.
 
 A few components render text the caller never passes: the close button inside
 `DialogContent` / `SheetContent`, the `PaginationPrevious` / `PaginationNext`
-captions, the breadcrumb and pagination ellipsis screen-reader text, and the
-default `aria-label`s of `Breadcrumb`, `NavigationMenu`, `Pagination`, the
-`Calendar` month buttons, `CarouselPrevious`, `CarouselNext`, `SidebarTrigger`
-and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
+captions, the breadcrumb and pagination ellipsis screen-reader text, the
+`MessageScrollerButton` text, and the default `aria-label`s of `Breadcrumb`,
+`NavigationMenu`, `Pagination`, the `Calendar` month buttons,
+`CarouselPrevious`, `CarouselNext`, `CodeBlockCopyButton` (with its "Copied"
+state), `SidebarTrigger` and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
 sensitive field, the
 disabled placeholder a select shows when the current value is not in its option
 list and the note below it where saving removes that value, the "Choose…" and "(none)" options on a select with no empty choice, the
@@ -241,7 +242,10 @@ so the language is chosen per request — not per call site.
        CalendarNext:                   "Zum nächsten Monat",
        CarouselPrevious:               "Vorheriges Bild",
        CarouselNext:                   "Nächstes Bild",
+       CodeBlockCopy:                  "Kopieren",
+       CodeBlockCopied:                "Kopiert",
        DialogClose:                    "Schließen",
+       MessageScrollerButton:          "Zum Ende scrollen",
        NavigationMenuNav:              "Hauptnavigation",
        PaginationNav:                  "Seitennummerierung",
        PaginationPrevious:             "Zurück",

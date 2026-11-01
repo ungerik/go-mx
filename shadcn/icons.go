@@ -57,6 +57,24 @@ func iconMinus() *mx.Element {
 	return icon("minus", "", svg.Path(svg.D("M5 12h14")))
 }
 
+// iconChevronDown is the lucide chevron-down icon.
+func iconChevronDown() *mx.Element {
+	return icon("chevron-down", "", svg.Path(svg.D("m6 9 6 6 6-6")))
+}
+
+// iconArrowDown is the lucide arrow-down icon.
+func iconArrowDown() *mx.Element {
+	return icon("arrow-down", "", svg.Path(svg.D("M12 5v14")), svg.Path(svg.D("m19 12-7 7-7-7")))
+}
+
+// iconCopy is the lucide copy icon.
+func iconCopy() *mx.Element {
+	return icon("copy", "",
+		svg.Rect(svg.Width(14), svg.Height(14), svg.X(8), svg.Y(8), svg.RX(2), svg.RY(2)),
+		svg.Path(svg.D("M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2")),
+	)
+}
+
 // iconCheck is the lucide check icon.
 func iconCheck() *mx.Element {
 	return icon("check", "", svg.Path(svg.D("M20 6 9 17l-5-5")))

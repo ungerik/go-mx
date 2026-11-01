@@ -44,6 +44,12 @@ type Labels struct {
 	CarouselPrevious string
 	CarouselNext     string
 
+	// CodeBlockCopy is the aria-label of the icon-only
+	// [CodeBlockCopyButton], and CodeBlockCopied replaces it, and is
+	// announced, for two seconds after a copy.
+	CodeBlockCopy   string
+	CodeBlockCopied string
+
 	// DialogClose is the screen-reader text of the built-in top-right close
 	// button rendered by [DialogContent] and [SheetContent].
 	DialogClose string
@@ -51,6 +57,10 @@ type Labels struct {
 	// NavigationMenuNav is the aria-label of the [NavigationMenu] <nav>
 	// landmark.
 	NavigationMenuNav string
+
+	// MessageScrollerButton is the screen-reader text of the icon-only
+	// [MessageScrollerButton].
+	MessageScrollerButton string
 
 	// PaginationNav is the aria-label of the [Pagination] <nav> landmark.
 	PaginationNav string
@@ -177,8 +187,11 @@ var englishLabels = Labels{
 	CalendarNext:                   "Go to the next month",
 	CarouselPrevious:               "Previous slide",
 	CarouselNext:                   "Next slide",
+	CodeBlockCopy:                  "Copy",
+	CodeBlockCopied:                "Copied",
 	DialogClose:                    "Close",
 	NavigationMenuNav:              "Main",
+	MessageScrollerButton:          "Scroll to end",
 	PaginationNav:                  "pagination",
 	PaginationPrevious:             "Previous",
 	PaginationNext:                 "Next",
@@ -254,8 +267,11 @@ func (l Labels) orDefaults() Labels {
 		CalendarNext:                   cmp.Or(l.CalendarNext, DefaultLabels.CalendarNext, englishLabels.CalendarNext),
 		CarouselPrevious:               cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
 		CarouselNext:                   cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
+		CodeBlockCopy:                  cmp.Or(l.CodeBlockCopy, DefaultLabels.CodeBlockCopy, englishLabels.CodeBlockCopy),
+		CodeBlockCopied:                cmp.Or(l.CodeBlockCopied, DefaultLabels.CodeBlockCopied, englishLabels.CodeBlockCopied),
 		DialogClose:                    cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),
 		NavigationMenuNav:              cmp.Or(l.NavigationMenuNav, DefaultLabels.NavigationMenuNav, englishLabels.NavigationMenuNav),
+		MessageScrollerButton:          cmp.Or(l.MessageScrollerButton, DefaultLabels.MessageScrollerButton, englishLabels.MessageScrollerButton),
 		PaginationNav:                  cmp.Or(l.PaginationNav, DefaultLabels.PaginationNav, englishLabels.PaginationNav),
 		PaginationPrevious:             cmp.Or(l.PaginationPrevious, DefaultLabels.PaginationPrevious, englishLabels.PaginationPrevious),
 		PaginationNext:                 cmp.Or(l.PaginationNext, DefaultLabels.PaginationNext, englishLabels.PaginationNext),

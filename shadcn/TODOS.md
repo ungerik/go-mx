@@ -46,33 +46,8 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 
 ## Open ports
 
-Seven components remain unported. Every one has been triaged; none is
-blocked by another port.
-
-### NativeSelect
-
-**What:** Port upstream's `NativeSelect` as its own component — a separate
-one from the existing `Select`, not a merge.
-
-**Why:** It gives consistent closed-control styling in **all** browsers.
-Our `Select` uses `[appearance:base-select]`, which styles the full picker
-in Chromium 130+ and Safari TP but falls back to native chrome everywhere
-else. NativeSelect is a different design point, not a competing
-implementation, so both should exist and the tradeoff should be
-documented.
-
-**Context:** Triaged 2026-07-07. Upstream ships both as distinct
-components with distinct `data-slot`s (`native-select-wrapper` /
-`native-select` / `native-select-icon`, plus `NativeSelectOption` /
-`NativeSelectOptGroup`). The shape is `appearance-none` plus an overlaid
-chevron icon (from `icons.go`) inside a relative wrapper `<div>`. No Base
-UI selector rewrites are needed — only keepable `has-[select:disabled]:`
-and `data-[size=sm]:` — and the classes live at `style-vega.css`
-`.cn-native-select` / `.cn-native-select-icon`.
-
-**Effort:** S (Cx 2)
-**Priority:** P2
-**Depends on:** None
+Two components remain unported, Chart and Questionnaire. Both have been
+triaged; each is blocked by a design decision, not by another port.
 
 ### Chart
 
@@ -112,103 +87,6 @@ theming-wrapper API shape.
 **Depends on:** None
 **Blocked by:** The design decision above — pick A, B or C and settle the
 API shape before any code.
-
-### Chat/AI group
-
-**What:** Port the coherent chat/AI component set: `Message`, `Bubble`,
-`Attachment` and `MessageScroller`.
-
-**Why:** They are the building blocks for HTMX chat UIs, which is a
-natural fit for this library. Nothing blocks them.
-
-**Context:** Triaged 2026-07-07, port on demand — there is no current
-consumer. Per component:
-
-- **Message** · Cx 2 — pure markup: `MessageGroup` / `Message(align
-  start|end)` / `MessageAvatar` / `MessageContent` / `MessageHeader` /
-  `MessageFooter`. Straight port.
-- **Bubble** · Cx 2 — pure markup: `BubbleGroup` / `Bubble(variant ×7,
-  align)` / `BubbleContent` / `BubbleReactions`. Straight port.
-- **Attachment** · Cx 2–3 — pure markup: `Attachment(Group/Media/Content/
-  Title/Description/Actions/Action/Trigger)`. `useRender` render props →
-  Go composition as usual.
-- **MessageScroller** · Cx 4 — the only behavioral one: wraps the
-  `@shadcn/react/message-scroller` package (stick-to-bottom scrolling +
-  scroll-to-bottom button). Needs one shared inline script (or the CSS
-  `flex-col-reverse` stick-to-bottom idiom); port last, only with a real
-  consumer.
-
-**Effort:** M (Cx 2–4 across the set)
-**Priority:** P4
-**Depends on:** None
-
-### Marker
-
-**What:** Port `Marker` — a labeled inline marker/divider row:
-`Marker(variant default|separator|border)` / `MarkerIcon` /
-`MarkerContent`.
-
-**Why:** Pure markup with no behavior, so it is cheap to add whenever a
-consumer wants it.
-
-**Context:** Triaged 2026-07-07. Fine to port any time; grouped with the
-chat set above because upstream demos it in conversation UIs, so it lands
-naturally alongside them (port on demand).
-
-**Effort:** S (Cx 1–2)
-**Priority:** P4
-**Depends on:** None
-
-### CodeBlock
-
-**What:** Port `CodeBlock` — `CodeBlock(variant default|destructive, size
-default|sm)` / `CodeBlockHeader` / `CodeBlockTitle` / `CodeBlockActions` /
-`CodeBlockCopyButton` / `CodeBlockContent` / `CodeBlockLine` /
-`CodeBlockFooter`.
-
-**Why:** A framed code listing with a title bar and a copy button. The
-`highlight` package already renders the tokens, so a `CodeBlock` would give
-its output a shadcn frame.
-
-**Context:** Triaged 2026-11-01; added upstream 2026-10-14 in the "AI
-elements" batch (shadcn-ui/ui#12307), Base UI registry only. Markup apart
-from `CodeBlockCopyButton`, which writes its `value` to
-`navigator.clipboard` and shows a check icon for two seconds: one small
-shared inline script toggling `data-copied`, the same pattern as the
-other script-backed components. The actions bar fades in on hover and
-focus-within with pure CSS (`group-hover/code-block:opacity-100`). Classes:
-`.cn-code-block*` in `style-vega.css`, reconstructed per the porting guide
-below. Decide whether `CodeBlockContent` takes a `highlight` component
-directly or stays agnostic; `shadcn` must not import `highlight` if
-`highlight` keeps depending only on `mx` and `html` (the reverse import is
-fine).
-
-**Effort:** M (Cx 3)
-**Priority:** P3
-**Depends on:** None
-
-### Trace
-
-**What:** Port `Trace` — a vertical activity trail of tool calls or agent
-steps: `Trace` / `TraceLine` / `TraceIcon` / `TraceTitle` /
-`TraceDescription` / `TraceCollapsible` / `TraceCollapsibleTrigger` /
-`TraceCollapsibleContent`, with a `data-status` (error turns the trigger
-destructive).
-
-**Why:** Pure markup plus a collapsible, so it is cheap, and it fits the
-chat set above: an agent transcript streamed over `mx.SSEResponse` shows
-its steps as a trace.
-
-**Context:** Triaged 2026-11-01; added upstream 2026-10-14 with CodeBlock
-(shadcn-ui/ui#12307). `TraceCollapsible*` wraps upstream's Collapsible, so
-it maps onto our `<details>`-based `Collapsible`; the chevron's
-`group-aria-expanded/…:rotate-90` becomes `group-open:rotate-90` on the
-`<details>`. Classes: `.cn-trace*` in `style-vega.css`. Port on demand,
-alongside the chat set.
-
-**Effort:** S (Cx 2)
-**Priority:** P4
-**Depends on:** None
 
 ### Questionnaire
 
@@ -424,12 +302,113 @@ round-trip; Natural Language (chrono-node) is out of scope.
 **Priority:** P4
 **Depends on:** None
 
+## Chat/AI follow-ups
+
+What the 2026-11-01 port of Marker, Message, Bubble, Attachment, Trace,
+CodeBlock and MessageScroller left out, most useful first.
+
+### Highlighted code cannot be numbered
+
+**What:** A way to split highlighted tokens into lines, for example a
+`highlight.Highlighter.Lines(tokens) []mx.Components` that cuts a token
+spanning a line break (a comment, a raw string) into one span per line, so
+each line can go into a `shadcn.CodeBlockLine`.
+
+**Why:** Line numbers and diff marks need one `CodeBlockLine` per line, and
+upstream's highlighted examples pass exactly that. Today a highlighted
+`CodeBlockContent` gets its tokens wrapped in one `<span>`, which renders
+correctly but cannot carry `CodeBlockLineNumbers` or line variants.
+
+**Context:** The helper belongs in `highlight`, which may not import
+`shadcn` but can return per-line `mx.Components`. `Highlighter.items`
+already walks the tokens once.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### No test runs the CodeBlock copy and MessageScroller scripts
+
+**What:** A browser smoke test that clicks a `CodeBlockCopyButton` (with a
+value, with a multi-line value, and without one inside numbered lines) and
+checks the clipboard text, `data-copied`, the label and the reset after two
+seconds; and that loads a `MessageScroller`, checks it opens pinned to the
+bottom, scrolls up, appends a message, and clicks `MessageScrollerButton`.
+
+**Why:** The Go tests only check the markup and that the script strings
+contain their key parts. Both scripts were verified by hand in Chrome
+against the gallery on 2026-11-01, which is what found the StickToBottom
+unsticking on a late stylesheet and the attribute escaper eating the copy
+value's line breaks.
+
+**Context:** Same harness question as "No test runs the select-mode
+calendar script" above; one harness should cover all three.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Shimmer and scroll-fade come from shadcn's own stylesheet
+
+**What:** Decide whether to offer upstream's `shimmer` text effect and
+`scroll-fade-*` edge masks, which are `@utility` rules in shadcn's
+`tailwind.css` rather than Tailwind utilities: for example as an optional
+CSS string a caller adds to their Tailwind input.
+
+**Why:** A running `TraceLine`, an uploading `Attachment` and several
+upstream examples shimmer; `AttachmentGroup`, `CodeBlockContent` and
+`MessageScrollerViewport` fade their scrolled edges. The port pulses with
+`animate-pulse` instead and drops the fades, because it emits Tailwind
+classes only (see "Decided — stay on inlined utility strings").
+
+**Context:** `shimmer` needs a `@keyframes` rule and `@property`
+registrations, and `scroll-fade-*` scroll-driven animations; neither can be
+written as arbitrary-value classes.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### MessageScroller has no scroll-to-start button
+
+**What:** Port `MessageScrollerButton`'s `direction="start"`, which
+scrolls to the top and shows while the viewport is not at it.
+
+**Why:** Upstream offers it for transcripts read from the top.
+
+**Context:** The end button shows from `StickToBottom`'s `data-stuck`, so
+it needs no script of its own. A start button needs the top position
+tracked, which StickToBottom does not do: a scroll listener setting an
+attribute, or CSS `scroll-state()` container queries once they are
+supported beyond Chromium.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### The hidden scroll-to-end button stays in the tab order
+
+**What:** Take `MessageScrollerButton` out of the tab order while it is
+hidden.
+
+**Why:** Hidden, it is only transparent and click-through, so a keyboard
+user tabs onto an invisible button. Upstream behaves the same.
+
+**Context:** `invisible` would end the fade-out at once, as visibility does
+not transition with `transition-[translate,scale,opacity]`; adding
+`visibility` with `transition-behavior: allow-discrete` keeps it.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## Hard dependency edges (must respect)
 
 ```
 ButtonClasses ─► Pagination, Calendar, Carousel, Combobox, DatePicker
 ToggleClasses ─► ToggleGroup
-Collapsible ───► Accordion
+Collapsible ───► Accordion, Trace
+StickToBottom ─► MessageScroller
 Popover infra ─► Tooltip, HoverCard, Popover, Select, NavigationMenu
 Popover ───────► DropdownMenu ─► ContextMenu, Menubar
 Command ───────► Combobox
@@ -457,7 +436,7 @@ row.
 | `cva/` `New` | [joe-bell/cva](https://github.com/joe-bell/cva) class-variance-authority | v0.7.1 (`45462dd`) | npm `class-variance-authority`; v0.7.1 is still the latest |
 | `cva/` `Config.Composes` | joe-bell/cva `cva` beta | v1.0.0-beta.12 (`1d93698`) | `packages/cva/src/config.ts` and the "cva — composes" tests in `index.test.ts` |
 | components from `new-york-v4` | shadcn-ui/ui `apps/v4/registry/new-york-v4/ui` | frozen; checked at `c0d63c3` (2026-10-31) | `gh api "repos/shadcn-ui/ui/commits?path=apps/v4/registry/new-york-v4/ui&since=<date>"` |
-| components reconstructed from `style-vega.css` (Field, Kbd, Spinner, Empty, Item, ButtonGroup, InputGroup) | shadcn-ui/ui `apps/v4/registry/styles/style-vega.css` + `bases/base/ui` | `c0d63c3` (2026-10-31) | fetch the CSS at the old and new ref and `diff`; check the `.cn-<component>` rules of the ported components |
+| components reconstructed from `style-vega.css` (Field, Kbd, Spinner, Empty, Item, ButtonGroup, InputGroup, NativeSelect, Marker, Message, Bubble, Attachment, Trace, CodeBlock, MessageScroller) | shadcn-ui/ui `apps/v4/registry/styles/style-vega.css` + `bases/base/ui` | `c0d63c3` (2026-10-31) | fetch the CSS at the old and new ref and `diff`; check the `.cn-<component>` rules of the ported components |
 
 Policy for a sync:
 
@@ -886,6 +865,59 @@ on 2026-07-07 with the guide above; the four that remain unported moved to
   React context provider that only informs Base UI JS positioning; in
   server-rendered HTML the native mechanism is the `dir` attribute
   (`html.DirRTL` on any ancestor).
+
+### Phase 7 — chat/AI set and NativeSelect (2026-11-01)
+
+Reconstructed from `bases/base/ui/*.tsx` + `style-vega.css` at `c0d63c3`.
+What none of them reproduces: upstream's `shimmer` and `scroll-fade-*`
+utilities, which live in shadcn's own `tailwind.css` (see "Shimmer and
+scroll-fade come from shadcn's own stylesheet"). Where upstream's React
+`render` prop picks the element (Marker, BubbleContent,
+AttachmentTrigger), an `href` attribute renders an `<a>` and a `type`
+attribute a `<button>` (`renderTag` in `component.go`).
+
+- [x] **NativeSelect** · Cx 2 — `NativeSelect(size)` /
+  `NativeSelectOption(value)` / `NativeSelectOptGroup(label)`. As upstream
+  does with className, a caller class goes to the wrapper, every other
+  attribute to the `<select>`.
+- [x] **Marker** · Cx 1 — `Marker(variant default|separator|border)` /
+  `MarkerIcon` / `MarkerContent`.
+- [x] **Message** · Cx 2 — `MessageGroup` / `Message(align)` /
+  `MessageAvatar` / `MessageContent` / `MessageHeader` / `MessageFooter`.
+  One `ChatAlign` type serves Message, Bubble and BubbleReactions. The
+  header/footer ghost inset is scoped to a ghost bubble, as this port's
+  Button always emits `data-variant` (the Item lesson).
+- [x] **Bubble** · Cx 2 — `BubbleGroup` / `Bubble(variant ×7, align)` /
+  `BubbleContent` / `BubbleReactions(side, align)`.
+- [x] **Attachment** · Cx 2 — `Attachment(state, size, orientation)` +
+  Group/Media(variant)/Content/Title/Description/Actions/Action/Trigger.
+  Shimmer → `animate-pulse`; `scrollbar-none` → arbitrary scrollbar
+  classes.
+- [x] **Trace** · Cx 2 — `Trace` / `TraceLine(status)` / `TraceIcon` /
+  `TraceTitle` / `TraceDescription` / `TraceCollapsible` (our `<details>`
+  Collapsible) / `TraceCollapsibleTrigger` / `TraceCollapsibleContent`.
+  The chevron's `group-aria-expanded/…:rotate-90` became
+  `[details[open]>summary>&]:rotate-90`, so a nested collapsible does not
+  turn it; the row's `in-[a,button]` hover selectors gained `summary`.
+- [x] **CodeBlock** · Cx 3 — `CodeBlock(variant, size)` + Header/Title/
+  Actions/CopyButton(value)/Content/Line(variant)/Footer, plus the
+  `CodeBlockWrap`, `CodeBlockLineNumbers` and `CodeBlockStartLine`
+  attributes for upstream's props. Decided: CodeBlock takes highlighted
+  output as children and does not import `highlight`. The copy button
+  emits one shared script (`mxCodeBlockCopy`); its value is
+  percent-encoded because go-mx's attribute escaping turns line breaks
+  into spaces. The `<code>` is rendered unindented, so an indenting
+  writer cannot add whitespace inside the `<pre>`, and loose children
+  (highlighted tokens) are wrapped in one span so the line grid does not
+  give each token a row.
+- [x] **MessageScroller** · Cx 3 (rated 4 at triage, before
+  `StickToBottom` existed) — `MessageScroller` / `MessageScrollerViewport`
+  / `MessageScrollerContent` / `MessageScrollerItem` /
+  `MessageScrollerButton`. The viewport always carries `StickToBottom`,
+  and the button shows from its `data-stuck` with CSS, so the port adds
+  no script. Porting it found a StickToBottom bug: a scroll event caused
+  by layout (the stylesheet arriving) unstuck the area before it was
+  read; such an event now re-pins.
 
 ### Decided — stay on inlined utility strings (2026-07-07)
 

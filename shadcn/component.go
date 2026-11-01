@@ -84,3 +84,35 @@ func hasHX(e *mx.Element) bool {
 	}
 	return false
 }
+
+// renderTag returns the element name for a part that upstream lets the caller
+// render as another element through React's render prop (Marker,
+// BubbleContent, AttachmentTrigger): "a" when e carries an href, "button"
+// when it carries a type, otherwise fallback. Both attributes are invalid on
+// the fallback <div>, so they cannot be meant for it.
+func renderTag(e *mx.Element, fallback string) string {
+	switch {
+	case e.AttribIndex("href") >= 0:
+		return "a"
+	case e.AttribIndex("type") >= 0:
+		return "button"
+	}
+	return fallback
+}
+
+// takeClassAttribs removes the class attributes from e and returns them, for a
+// component whose caller class belongs on another element than the rest of
+// its attributes, like NativeSelect's wrapper <div>.
+func takeClassAttribs(e *mx.Element) []any {
+	var classes []any
+	kept := e.Attribs[:0]
+	for _, a := range e.Attribs {
+		if a.AttribName() == "class" {
+			classes = append(classes, a)
+		} else {
+			kept = append(kept, a)
+		}
+	}
+	e.Attribs = kept
+	return classes
+}

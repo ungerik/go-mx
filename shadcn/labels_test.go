@@ -35,7 +35,10 @@ var germanLabels = Labels{
 	CalendarNext:                   "Zum nächsten Monat",
 	CarouselPrevious:               "Vorheriges Bild",
 	CarouselNext:                   "Nächstes Bild",
+	CodeBlockCopy:                  "Kopieren",
+	CodeBlockCopied:                "Kopiert",
 	DialogClose:                    "Schließen",
+	MessageScrollerButton:          "Zum Ende scrollen",
 	NavigationMenuNav:              "Hauptnavigation",
 	PaginationNav:                  "Seitennummerierung",
 	PaginationPrevious:             "Zurück",
@@ -115,6 +118,11 @@ var labelCases = []labelCase{
 		english: []string{`aria-label="Next slide"`},
 		german:  []string{`aria-label="Nächstes Bild"`},
 	}, {
+		name: "CodeBlockCopyButton", comp: func() mx.Component { return CodeBlockCopyButton("x") },
+		fields:  []string{"CodeBlockCopy", "CodeBlockCopied"},
+		english: []string{`aria-label="Copy"`, `data-copy-label="Copy"`, `data-copied-label="Copied"`},
+		german:  []string{`aria-label="Kopieren"`, `data-copy-label="Kopieren"`, `data-copied-label="Kopiert"`},
+	}, {
 		name: "DialogContent", comp: func() mx.Component { return DialogContent("dlg") },
 		fields:  []string{"DialogClose"},
 		english: []string{`class="sr-only">Close<`},
@@ -124,6 +132,11 @@ var labelCases = []labelCase{
 		fields:  []string{"DialogClose"},
 		english: []string{`class="sr-only">Close<`},
 		german:  []string{`class="sr-only">Schließen<`},
+	}, {
+		name: "MessageScrollerButton", comp: func() mx.Component { return MessageScrollerButton("", "") },
+		fields:  []string{"MessageScrollerButton"},
+		english: []string{`class="sr-only">Scroll to end<`},
+		german:  []string{`class="sr-only">Zum Ende scrollen<`},
 	}, {
 		name: "NavigationMenu", comp: func() mx.Component { return NavigationMenu() },
 		fields:  []string{"NavigationMenuNav"},
