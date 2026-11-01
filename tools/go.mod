@@ -4,6 +4,8 @@ go 1.26.4
 
 tool github.com/ungerik/go-enum
 
+require golang.org/x/text v0.43.0
+
 require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/ungerik/go-enum v1.3.0 // indirect

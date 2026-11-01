@@ -20,9 +20,9 @@ import (
 // gets the row's focus ring. A [TraceCollapsible] row discloses details.
 //
 // Upstream's shimmer utility on a running row's title comes from shadcn's own
-// tailwind.css, not from Tailwind; this package emits Tailwind classes only,
-// so the title pulses with animate-pulse instead (not under
-// prefers-reduced-motion).
+// tailwind.css, not from Tailwind, so by default the title pulses with
+// animate-pulse instead (not under prefers-reduced-motion); with
+// [UseUtilities] it shimmers.
 func Trace(attribsChildren ...any) *mx.Element {
 	return finish(html.Div(attribsChildren...), "trace",
 		"flex w-full min-w-0 flex-col *:has-[>[data-slot=trace-line]]:flex *:has-[>[data-slot=trace-line]]:w-fit *:has-[>[data-slot=trace-line]]:max-w-full *:has-[>[data-slot=trace-line]]:min-w-0 *:has-[>[data-slot=trace-line]]:text-left *:has-[>[data-slot=trace-line]]:outline-none gap-2 *:has-[>[data-slot=trace-line]]:rounded-md *:has-[>[data-slot=trace-line]]:focus-visible:ring-3 *:has-[>[data-slot=trace-line]]:focus-visible:ring-ring/50")
@@ -105,7 +105,7 @@ func TraceLine(status TraceStatus, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.DataAttr("status", string(status)))
 	}
 	return finish(e, "trace-line",
-		"flex w-fit max-w-full min-w-0 items-center text-muted-foreground transition-colors in-[a,button,summary]:cursor-pointer in-[a:hover,button:hover,summary:hover]:text-foreground data-[status=error]:text-destructive data-[status=error]:in-[a:hover,button:hover,summary:hover]:text-destructive data-[status=pending]:opacity-60 motion-safe:data-[status=running]:*:data-[slot=trace-title]:animate-pulse gap-2 text-sm")
+		"flex w-fit max-w-full min-w-0 items-center text-muted-foreground transition-colors in-[a,button,summary]:cursor-pointer in-[a:hover,button:hover,summary:hover]:text-foreground data-[status=error]:text-destructive data-[status=error]:in-[a:hover,button:hover,summary:hover]:text-destructive data-[status=pending]:opacity-60 "+utilityClasses("data-[status=running]:*:data-[slot=trace-title]:shimmer motion-reduce:shimmer-none", "motion-safe:data-[status=running]:*:data-[slot=trace-title]:animate-pulse")+" gap-2 text-sm")
 }
 
 // traceIconClasses is shared by [TraceIcon] and the chevron of

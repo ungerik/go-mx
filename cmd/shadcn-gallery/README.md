@@ -14,7 +14,11 @@ go run ./cmd/shadcn-gallery -out ./dist   # write static HTML to ./dist, then ex
 ```
 
 The static output is the same pages the server serves — `dist/index.html` plus
-`dist/components/<slug>/index.html`. By default the pages link to each other with
+`dist/components/<slug>/index.html` — and the fragments the examples load
+after the page, `dist/fragments/<path>`: the calendar examples set
+`CalendarOptions.MonthURL`, and every month they can navigate to is
+pre-rendered there (`examples/fragments.go`), so month navigation works on a
+static host. The export replaces the whole `fragments` directory. By default the pages link to each other with
 root-absolute URLs (`/`, `/components/…`), so serve the directory from a web root
 (e.g. `python3 -m http.server` inside `./dist`).
 
@@ -62,6 +66,8 @@ Each preview is a `func() mx.Component` in `examples/`. The files are embedded
 and parsed once at startup (`registry.go`); each example's function body is
 extracted and shown verbatim in the Code tab. The live component and its
 displayed source therefore come from the **same function** and cannot drift.
+An example whose month fragments are rendered by a month-taking function
+names that function as `Example.ShowSource`, and the Code tab shows it.
 
 ## Status
 

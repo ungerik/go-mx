@@ -28,6 +28,8 @@ func TestThemeCSSCoversTheEmittedClasses(t *testing.T) {
 		".log-lines {",
 		".log-line {",
 		".log-multiline {",
+		".log-details > summary {",
+		".log-pretty {",
 		".log-error {",
 		".log-key {",
 		".log-string {",

@@ -48,6 +48,18 @@ type Page struct {
 	// [Site.PageHeaders] as Link headers.
 	Alternates []Alternate
 
+	// FrontMatter holds every field of the front matter the page's source was
+	// written with, keyed by name as written, including those a [PageSource]
+	// maps to the fields above, so a [PageRenderer] can read fields of its
+	// own, like an "image" or a "layout". Nested objects are map[string]any
+	// whatever the format, values otherwise as the YAML, TOML or JSON decoder
+	// of the format made them. It is nil for a page without front matter;
+	// [GlobPageSource] fills it for Markdown files, also when no content is
+	// read. No surface publishes it: the Markdown alternate of a page carries
+	// a header built from the fields above and the Content, which holds no
+	// front matter.
+	FrontMatter map[string]any
+
 	Resources   []fs.File // URLs or file paths
 	ContentType string
 	Content     any // Can be nil if only metadata is needed

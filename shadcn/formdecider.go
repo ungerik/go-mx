@@ -1,12 +1,14 @@
 package shadcn
 
 import (
+	"cmp"
 	"context"
 	"net/http"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
@@ -86,6 +88,13 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		}
 		in := mx.DateTimeInput(value, tag)
 		invalid := len(errs) > 0 || (in.Invalid && !tag.Readonly)
+		if tag.Widget == "datepicker" && in.Type == "date" && !tag.Readonly {
+			if selected, ok := datePickerValue(in.Value); ok {
+				return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
+					datePickerField(path, selected, tag, errs),
+				)
+			}
+		}
 		return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
 			shadcnDateTime(path, in, inputTag, errs),
 		)
@@ -151,6 +160,12 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 		parts = append(parts, FieldDescription(html.ID(string(path)+"-stored"),
 			labelText(func(l Labels) string { return l.FormKeepStoredValue })))
 	}
+	// Stored text the input cannot show unchanged says so.
+	if problem, ok := textProblem(kind, value, tag); ok {
+		describedBy = append(describedBy, string(path)+"-text")
+		parts = append(parts, FieldDescription(html.ID(string(path)+"-text"),
+			labelText(func(l Labels) string { return l.textProblem(problem) })))
+	}
 	// A readonly field is never written, so it offers no clear control. A
 	// blank sensitive input keeps the stored value, so the clear control is
 	// how it is emptied, ticked while it is empty so a re-render keeps a
@@ -161,6 +176,21 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
 	mx.AddDescribedBy(input, describedBy...)
 	return fieldWrap(invalid, parts...)
+}
+
+// textProblem reports why the text input or textarea of a string-like
+// field cannot show its stored database/sql text unchanged
+// ([mx.DriverValueTextProblem]); a sensitive field shows none of it.
+func textProblem(kind mx.FieldKind, value reflect.Value, tag mx.FormTag) (mx.TextProblem, bool) {
+	switch {
+	case tag.Sensitive:
+		return 0, false
+	case kind == mx.FieldKindString, kind == mx.FieldKindCatchAll:
+		return mx.DriverValueTextProblem(value, false)
+	case kind == mx.FieldKindTextarea:
+		return mx.DriverValueTextProblem(value, true)
+	}
+	return 0, false
 }
 
 // fieldWrap builds the [Field] root for a decided form field, marking it
@@ -249,7 +279,7 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 	}
 	// An unchecked box stores false, so a database/sql bool such as
 	// sql.NullBool stores its null with the clear control.
-	if _, isDriverValue := mx.DriverValueText(reflect.Indirect(value)); isDriverValue && !tag.Required && !tag.Readonly {
+	if v := reflect.Indirect(value); v.IsValid() && mx.DriverValueType(v.Type()) && !tag.Required && !tag.Readonly {
 		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), false))
 	}
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
@@ -423,11 +453,12 @@ func stringAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 	if tag.Pattern != "" {
 		a = append(a, html.Pattern(tag.Pattern))
 	}
+	a = append(a, html.TextTagAttribs(tag)...)
 	if tag.Required {
 		a = append(a, html.Required)
 	}
 	if tag.Readonly {
-		a = append(a, html.Readonly)
+		a = append(a, html.Readonly, html.Class(readonlyInputClasses))
 	}
 	if len(errs) > 0 {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
@@ -460,7 +491,7 @@ func numberAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs 
 		a = append(a, html.Required)
 	}
 	if tag.Readonly {
-		a = append(a, html.Readonly)
+		a = append(a, html.Readonly, html.Class(readonlyInputClasses))
 	}
 	if len(errs) > 0 {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
@@ -515,7 +546,7 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 		a = append(a, html.Required)
 	}
 	if tag.Readonly {
-		a = append(a, html.Readonly)
+		a = append(a, html.Readonly, html.Class(readonlyInputClasses))
 	}
 	// Text the parser rejects is invalid from the start: saving it
 	// unchanged fails.
@@ -541,6 +572,99 @@ func shadcnDateTime(path mx.FieldPath, in mx.DateTimeInputSpec, tag mx.FormTag, 
 	}
 }
 
+// ctxKeyDatePickerOptions is the render-context key under which
+// [ContextWithDatePickerOptions] stores the date picker options.
+type ctxKeyDatePickerOptions struct{}
+
+// ContextWithDatePickerOptions returns a derived context that carries the
+// [CalendarOptions] of the date pickers [FieldDecider] renders for
+// form:"widget=datepicker" fields: options returns them for the field at
+// path. Set MonthURL there to let the picker show other months, and
+// Disabled, StartMonth and EndMonth to match the field's form:"min=…" and
+// form:"max=…", which the parser checks either way. The picker sets Name to
+// the field path. Without options the picker shows the month of the field's
+// date, else of Today, else of the current time, with no way to another.
+//
+// The handler behind MonthURL answers with [DatePickerCalendar] for the
+// same path and options.
+func ContextWithDatePickerOptions(ctx context.Context, options func(path mx.FieldPath) CalendarOptions) context.Context {
+	return context.WithValue(ctx, ctxKeyDatePickerOptions{}, options)
+}
+
+// DatePickerCalendar renders the [CalendarWith] of the date picker for the
+// form:"widget=datepicker" field at path, showing month with selected
+// picked; opts.Name is set to the path. It is what the picker renders in its
+// popover, and what the handler behind opts.MonthURL answers with, passing
+// the zero selected: the picker carries the picked day into the new month.
+func DatePickerCalendar(path mx.FieldPath, opts CalendarOptions, month, selected time.Time) *mx.Element {
+	opts.Name = string(path)
+	return CalendarWith(opts, month, selected, html.Class("border-0"))
+}
+
+// datePickerValue returns the date of a date input's value, the zero time
+// for "", and whether the value is a date.
+func datePickerValue(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, true
+	}
+	t, err := time.Parse(time.DateOnly, value)
+	return t, err == nil
+}
+
+// datePickerField renders a form:"widget=datepicker" field as upstream's
+// DatePicker recipe: a [PopoverTrigger] labelled by the field's [FieldLabel]
+// that shows the picked day, and a select-mode [Calendar] in the popover,
+// whose hidden input submits the day as 2006-01-02, the date input's value.
+func datePickerField(path mx.FieldPath, selected time.Time, tag mx.FormTag, errs []error) mx.Component {
+	return mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
+		opts := CalendarOptions{}
+		if options, ok := ctx.Value(ctxKeyDatePickerOptions{}).(func(mx.FieldPath) CalendarOptions); ok && options != nil {
+			opts = options(path)
+		}
+		dayLabel := opts.DayLabel
+		if dayLabel == nil {
+			dayLabel = func(d time.Time) string { return d.Format(time.DateOnly) }
+		}
+		month := selected
+		if month.IsZero() {
+			month = cmp.Or(opts.Today, time.Now())
+		}
+		text := CalendarText(string(path))
+		switch {
+		case !selected.IsZero():
+			text.Children = mx.Components{mx.Text(dayLabel(selected))}
+		case tag.Placeholder != "":
+			text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
+			text.Children = mx.Components{mx.Text(tag.Placeholder)}
+		default:
+			text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
+			text.Children = mx.Components{labelText(func(l Labels) string { return l.FormPickDate })}
+		}
+		popoverID := string(path) + "-calendar"
+		trigger := PopoverTrigger(popoverID,
+			html.ID(string(path)),
+			html.Class(ButtonClasses(ButtonOutline, SizeDefault)+" w-full justify-start text-left font-normal"),
+			iconCalendar(),
+			text,
+		)
+		if len(errs) > 0 {
+			trigger.Attribs = append(trigger.Attribs, mx.NewAttrib("aria-invalid", "true"))
+		}
+		return Popover(
+			trigger,
+			PopoverContent(popoverID, "", html.Class("w-auto p-0"),
+				DatePickerCalendar(path, opts, month, selected),
+			),
+		).Render(ctx, w)
+	})
+}
+
+// readonlyInputClasses give a readonly text, number, date or textarea input
+// a readonly look, as the readonly checkboxes, selects and file inputs of
+// the same form are dimmed by their disabled state; [Input] and [Textarea]
+// themselves stay faithful to upstream, which has no read-only: variant.
+const readonlyInputClasses = "read-only:cursor-default read-only:bg-muted/50 read-only:focus-visible:border-input read-only:focus-visible:ring-0"
+
 // formatHintID is the id of the format hint under a date or time field
 // that fell back to a text input. The lowercase suffix cannot collide with
 // a field path, whose segments are exported Go field names.
@@ -557,11 +681,14 @@ func textareaAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 	if tag.Placeholder != "" {
 		a = append(a, html.Placeholder(tag.Placeholder))
 	}
+	for _, attrib := range html.TextTagAttribs(tag) {
+		a = append(a, attrib)
+	}
 	if tag.Required {
 		a = append(a, html.Required)
 	}
 	if tag.Readonly {
-		a = append(a, html.Readonly)
+		a = append(a, html.Readonly, html.Class(readonlyInputClasses))
 	}
 	if len(errs) > 0 {
 		a = append(a, mx.NewAttrib("aria-invalid", "true"))
@@ -576,10 +703,24 @@ func textareaAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, err
 // next to it saying so ([mx.StoredFile]), as the browser labels the input
 // "No file chosen" either way, and on an editable one that a blank keeps it.
 func shadcnFile(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) mx.Component {
-	attribs := fileAttribs(path, tag, errs)
+	attribs := fileAttribs(path, value, tag, errs)
+	// An editable input previews what it is about to upload, and shows
+	// the progress of an htmx upload.
+	var extras mx.Components
+	if !tag.Readonly {
+		attribs = append(attribs, html.OnChange("mxFilePreview(this)"))
+		extras = mx.Components{
+			html.Div(html.DataAttr("slot", "file-preview"), html.DataAttr("file-preview", string(path)),
+				html.Class("flex flex-wrap items-center gap-2 empty:hidden")),
+			html.Element("progress", html.DataAttr("slot", "file-progress"), html.Hidden,
+				html.Class("h-1.5 w-full overflow-hidden rounded-full accent-primary"),
+				labelAriaLabel(func(l Labels) string { return l.FormUploadProgress })),
+			html.ScriptJS(filePreviewScript),
+		}
+	}
 	name, stored := mx.StoredFile(value)
 	if !stored {
-		return Input(attribs...)
+		return append(mx.Components{Input(attribs...)}, extras...)
 	}
 	noteID := string(path) + "-file"
 	attribs = append(attribs, mx.NewAttrib("aria-describedby", noteID))
@@ -593,15 +734,24 @@ func shadcnFile(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []e
 		}
 		return text
 	})
-	return mx.Components{Input(attribs...), FieldDescription(html.ID(noteID), note)}
+	return append(mx.Components{Input(attribs...), FieldDescription(html.ID(noteID), note)}, extras...)
 }
 
-func fileAttribs(path mx.FieldPath, tag mx.FormTag, errs []error) []mx.Attrib {
+// filePreviewScript is the once-emitted client behavior of an editable
+// reflected file input: mxFilePreview shows a thumbnail of each chosen image
+// (an object URL, revoked when the choice changes) and the name of any
+// other file in the input's data-file-preview element, and an
+// htmx:xhr:progress listener fills the file-progress bars of the form that
+// is uploading, as htmx sends a multipart form with XHR.
+const filePreviewScript = /*js*/ `if(!window.mxFilePreview){window.mxFilePreview=function(i){var p=document.querySelector('[data-file-preview="'+i.id+'"]');if(!p)return;p.querySelectorAll('img').forEach(function(m){URL.revokeObjectURL(m.src);});p.replaceChildren();Array.prototype.forEach.call(i.files||[],function(f){var e;if(f.type.indexOf('image/')===0){e=document.createElement('img');e.src=URL.createObjectURL(f);e.alt=f.name;e.className='size-16 rounded-md border object-cover';}else{e=document.createElement('span');e.textContent=f.name;e.className='text-sm text-muted-foreground';}p.appendChild(e);});};document.addEventListener('htmx:xhr:progress',function(e){var d=e.detail;if(!d||!d.lengthComputable||!e.target.querySelectorAll)return;e.target.querySelectorAll('[data-slot=file-progress]').forEach(function(b){b.hidden=false;b.max=d.total;b.value=d.loaded;});});}`
+
+func fileAttribs(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []error) []mx.Attrib {
 	a := []mx.Attrib{
 		html.Type("file"),
 		html.Name(string(path)),
 		html.ID(string(path)),
 	}
+	a = append(a, html.FileTagAttribs(value, tag)...)
 	// A file input cannot be readonly, and a readonly field is never
 	// saved, so it is disabled and asks for nothing.
 	switch {

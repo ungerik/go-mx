@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground">Scroll Area</a>
@@ -265,7 +267,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-demo-panel-code" aria-labelledby="tab-scroll-area-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">ScrollArea</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;h-48 w-56 rounded-md border p-4 text-sm&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-demo-panel-code" aria-labelledby="tab-scroll-area-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">ScrollArea</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;h-48 w-56 rounded-md border p-4 text-sm&quot;</span>),
 	html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;mb-3 font-medium leading-none&quot;</span>, <span class="hl-string">&quot;Tags&quot;</span>),
 	mx.<span class="hl-function">ForEach</span>([]<span class="hl-type">string</span>{
 		<span class="hl-string">&quot;v1.2.0-beta.50&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.49&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.48&quot;</span>, <span class="hl-string">&quot;v1.2.0-beta.47&quot;</span>,
@@ -274,7 +277,8 @@
 	}, <span class="hl-keyword">func</span>(tag <span class="hl-type">string</span>) mx.Component {
 		<span class="hl-keyword">return</span> html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;border-b py-1.5 last:border-b-0&quot;</span>, tag)
 	}),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -289,7 +293,7 @@
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="flex flex-col items-start gap-3">
                       <div data-slot="scroll-area" data-stick-to-bottom="" class="relative overflow-auto focus-visible:ring-ring/50 transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] [&amp;::-webkit-scrollbar]:size-2.5 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb]:bg-border h-48 w-56 rounded-md border p-4 text-sm">
-                        <script>if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(48,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){if(stuck&&el.scrollTop>=pinTop-2){if(maxTop()-el.scrollTop>1)pin();return;}mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[data-stick-to-bottom]'))window.mxStickToBottom(r);r.querySelectorAll('[data-stick-to-bottom]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);</script>
+                        <script>if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(48,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var top=function(){el.toggleAttribute('data-at-start',el.scrollTop<=1);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();top();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){top();if(stuck&&el.scrollTop>=pinTop-2){if(maxTop()-el.scrollTop>1)pin();return;}mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[data-stick-to-bottom]'))window.mxStickToBottom(r);r.querySelectorAll('[data-stick-to-bottom]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);</script>
                         <div class="mb-3 font-medium leading-none">Build log</div>
                         <div id="_gallery-stick-to-bottom-log">
                           <div class="border-b py-1.5 last:border-b-0">Resolving dependencies</div>
@@ -306,7 +310,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-stick-to-bottom-panel-code" aria-labelledby="tab-scroll-area-stick-to-bottom-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code><span class="hl-comment">// One binding for the element&apos;s id and for the selector the script looks it</span>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-scroll-area-stick-to-bottom-panel-code" aria-labelledby="tab-scroll-area-stick-to-bottom-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code><span class="hl-comment">// One binding for the element&apos;s id and for the selector the script looks it</span>
 <span class="hl-comment">// up by, so editing a part cannot break the append silently.</span>
 logKey := []<span class="hl-type">any</span>{<span class="hl-string">&quot;gallery&quot;</span>, <span class="hl-string">&quot;stick-to-bottom&quot;</span>, <span class="hl-string">&quot;log&quot;</span>}
 logID := mx.<span class="hl-function">KeyedIDValue</span>(logKey...)
@@ -333,7 +338,8 @@ appendLine := <span class="hl-comment">/*js*/</span> <span class="hl-string">`va
 	shadcn.<span class="hl-function">Button</span>(shadcn.ButtonOutline, shadcn.SizeDefault,
 		html.<span class="hl-function">OnClick</span>(appendLine),
 		<span class="hl-string">&quot;Append line&quot;</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

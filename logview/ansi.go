@@ -94,21 +94,5 @@ func skipEscape(s string, i int) int {
 // that way. A value past [Config.MaxDepth] is left as written, since its raw
 // JSON text shows the escape as "\u001b", not as a control character.
 func stripFieldsANSI(fields []field) {
-	for i := range fields {
-		fields[i].key = stripANSI(fields[i].key)
-		stripValueANSI(&fields[i].val)
-	}
-}
-
-func stripValueANSI(v *value) {
-	switch v.kind {
-	case kindString:
-		v.text = stripANSI(v.text)
-	case kindObject:
-		stripFieldsANSI(v.fields)
-	case kindArray:
-		for i := range v.items {
-			stripValueANSI(&v.items[i])
-		}
-	}
+	mapFieldStrings(fields, stripANSI)
 }

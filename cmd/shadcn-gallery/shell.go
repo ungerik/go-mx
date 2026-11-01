@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"strings"
 
@@ -211,46 +210,30 @@ func codeBlock(source string) mx.Component {
 	return dynamicCodeBlock(source)
 }
 
-// dynamicCodeBlock renders the <pre><code> for an example's source and embeds
-// it as raw HTML. The page is written with an indenting CheckedWriter that
-// pretty-prints nested elements; inside a whitespace-preserving <pre> that
-// would inject the ancestor indentation as leading spaces on the first source
-// line. Rendering the block here with a non-indenting writer and inserting the
-// result verbatim keeps the source exactly as written.
+// dynamicCodeBlock renders the <pre><code> for an example's source. The
+// page's indenting CheckedWriter leaves the inside of a <pre> as written.
 //
 // The <pre> carries a dark placeholder background so the block looks right for
 // the moment before Shiki paints; shikiScript then replaces this whole <pre>
 // with Shiki's themed output (see head). The language-go class is both Shiki's
 // selector and its language hint.
 func dynamicCodeBlock(source string) mx.Component {
-	return rawPre(html.Pre(
+	return html.Pre(
 		html.Class("mt-2 overflow-x-auto rounded-md p-4 text-sm leading-relaxed bg-zinc-950 text-zinc-50"),
 		html.Code(html.Class("language-go"), source),
-	), source)
+	)
 }
 
-// staticCodeBlock highlights the source server-side with the highlight package
-// and embeds the result as raw HTML. The block's "hl" class is colored by the
+// staticCodeBlock highlights the source server-side with the highlight
+// package. The block's "hl" class is colored by the
 // theme stylesheet head() injects when staticHighlight is set; that rule also
 // supplies the background, padding and rounding, so only the mt-2 spacing that
-// matches the dynamic block is added here. The same non-indenting render as
-// dynamicCodeBlock keeps the <pre> layout intact.
+// matches the dynamic block is added here.
 func staticCodeBlock(source string) mx.Component {
-	return rawPre(html.Pre(
+	return html.Pre(
 		html.Class(highlight.Default.BlockClass()+" mt-2"),
 		html.Code(highlight.Default.Components(highlight.TokenizeGo(source))),
-	), source)
-}
-
-// rawPre renders block with a non-indenting writer and returns it as raw HTML
-// so the page's indenting writer cannot corrupt the <pre> layout. On the
-// (unreachable for static markup) render error it falls back to plain source.
-func rawPre(block mx.Component, source string) mx.Component {
-	var buf strings.Builder
-	if err := block.Render(context.Background(), mx.NewCheckedWriter(&buf)); err != nil {
-		return html.Code(source)
-	}
-	return html.Raw(buf.String())
+	)
 }
 
 // tabID builds a stable, validateID-safe id for an example's Tabs instance,

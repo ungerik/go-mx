@@ -45,6 +45,30 @@ func CodeBlockDemo() mx.Component {
 	)
 }
 
+// CodeBlockHighlightedLines numbers highlighted code: highlight's Lines cuts
+// the tokens at the line breaks, one CodeBlockLine per line, and one of them
+// is marked.
+func CodeBlockHighlightedLines() mx.Component {
+	content := []any{shadcn.CodeBlockLineNumbers}
+	for i, line := range codeHighlighter.Lines(highlight.TokenizeGo(codeBlockExampleSource)) {
+		variant := shadcn.CodeBlockLineDefault
+		if i == 5 {
+			variant = shadcn.CodeBlockLineHighlighted
+		}
+		content = append(content, shadcn.CodeBlockLine(variant, line))
+	}
+	return html.DivClass("w-full max-w-md",
+		codeTheme(),
+		shadcn.CodeBlock("", "",
+			shadcn.CodeBlockHeader(
+				shadcn.CodeBlockTitle(iconFileText(), "main.go"),
+				shadcn.CodeBlockActions(shadcn.CodeBlockCopyButton("")),
+			),
+			shadcn.CodeBlockContent(content...),
+		),
+	)
+}
+
 // CodeBlockDiff renders numbered lines with diff marks, starting at line 12.
 func CodeBlockDiff() mx.Component {
 	return shadcn.CodeBlock("", "", html.Class("max-w-md"),

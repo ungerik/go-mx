@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
@@ -251,7 +253,9 @@
                     <input data-slot="input" type="email" placeholder="Email" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive max-w-sm"/>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-input-default-panel-code" aria-labelledby="tab-input-default-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre></div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-input-default-panel-code" aria-labelledby="tab-input-default-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -267,7 +271,9 @@
                     <input data-slot="input" type="email" placeholder="Email" disabled="disabled" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive max-w-sm"/>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-input-disabled-panel-code" aria-labelledby="tab-input-disabled-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>), html.Disabled, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre></div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-input-disabled-panel-code" aria-labelledby="tab-input-disabled-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>), html.Disabled, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -283,7 +289,9 @@
                     <input data-slot="input" type="file" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive max-w-sm"/>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-input-file-panel-code" aria-labelledby="tab-input-file-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;file&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre></div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-input-file-panel-code" aria-labelledby="tab-input-file-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;file&quot;</span>), html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>))</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -302,10 +310,12 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-input-with-label-panel-code" aria-labelledby="tab-input-with-label-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;grid w-full max-w-sm items-center gap-1.5&quot;</span>,
+                <div data-slot="tabs-content" role="tabpanel" id="tab-input-with-label-panel-code" aria-labelledby="tab-input-with-label-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;grid w-full max-w-sm items-center gap-1.5&quot;</span>,
 	shadcn.<span class="hl-function">LabelFor</span>(<span class="hl-string">&quot;email&quot;</span>, <span class="hl-string">&quot;Email&quot;</span>),
 	shadcn.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">ID</span>(<span class="hl-string">&quot;email&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Email&quot;</span>)),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

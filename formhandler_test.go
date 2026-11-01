@@ -1078,7 +1078,8 @@ func TestReflectFormHandler_FormMessageHook(t *testing.T) {
 		func(context.Context, *sampleStruct) error { return FormMessage("Try again later.") },
 		newTestDecider(),
 	)
-	if body := postForm(t, h, validSampleForm()).Body.String(); !strings.Contains(body, `<div class="alert">Try again later.</div>`) {
+	if body := postForm(t, h, validSampleForm()).Body.String(); !strings.Contains(body,
+		/*html*/ `<div class="alert">Try again later.</div>`) {
 		t.Errorf("want the configured message in %s", body)
 	}
 }
@@ -1718,7 +1719,8 @@ func TestReflectFormHandler_UnshownErrorsAtFormLevel(t *testing.T) {
 		form.Set("Name", "n")
 		addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
 		body := postForm(t, h, form).Body.String()
-		if !strings.Contains(body, `<p role="alert" data-slot="form-message"`+c.want) || strings.Contains(body, "pq:") {
+		if !strings.Contains(body,
+			/*html*/ `<p role="alert" data-slot="form-message"`+c.want) || strings.Contains(body, "pq:") {
 			t.Errorf("%s: body %s, want %s", c.name, body, c.want)
 		}
 	}
@@ -2176,7 +2178,8 @@ func TestReflectFormHandler_RepeatableFieldErrorShown(t *testing.T) {
 	)
 	form := url.Values{}
 	form.Set(PresentSentinelName("Lines"), "1")
-	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<legend>Lines</legend><input type="hidden" name="__present__Lines" value="1"/><p class="form-error" role="alert" data-error="Lines">add at least one line</p>`) {
+	if rec := postForm(t, h, form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(),
+		/*html*/ `<legend>Lines</legend><input type="hidden" name="__present__Lines" value="1"/><p class="form-error" role="alert" data-error="Lines">add at least one line</p>`) {
 		t.Errorf("status %d, body %s; want the repeatable field's error after its legend", rec.Code, rec.Body.String())
 	}
 }
@@ -2193,7 +2196,8 @@ func TestReflectFormHandler_RepeatableFieldErrorShowsUserMessage(t *testing.T) {
 	)
 	form := url.Values{}
 	form.Set(PresentSentinelName("Lines"), "1")
-	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, `data-error="Lines">add at least one line</p>`) || strings.Contains(body, "db-host-7") {
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body,
+		/*html*/ `data-error="Lines">add at least one line</p>`) || strings.Contains(body, "db-host-7") {
 		t.Errorf("want only the UserMessage in %s", body)
 	}
 }
@@ -2202,7 +2206,7 @@ func TestReflectFormHandler_RepeatableFieldErrorShowsUserMessage(t *testing.T) {
 // form whose rows render "Remove" buttons before Save starts with a default
 // button that saves; a form without row buttons has none.
 func TestReflectFormHandler_DefaultButtonSaves(t *testing.T) {
-	firstButton := regexp.MustCompile(`<button[^>]*>`)
+	firstButton := regexp.MustCompile( /*html*/ `<button[^>]*>`)
 	for _, c := range []struct {
 		name   string
 		target any
@@ -2256,7 +2260,8 @@ func TestReflectFormHandler_HiddenFieldErrorShown(t *testing.T) {
 	form.Set(PresentSentinelName("ID"), "1")
 	form.Set("ID", "x")
 	rec := postForm(t, h, form)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<p role="alert" data-slot="form-message">`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(),
+		/*html*/ `<p role="alert" data-slot="form-message">`) {
 		t.Errorf("status %d, body %s; want the hidden field's error as a form-level message", rec.Code, rec.Body.String())
 	}
 }
@@ -2372,7 +2377,8 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 		errors.Join(deadlock, domain),
 	} {
 		body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String()
-		if !strings.Contains(body, `<p role="alert" data-slot="form-message">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
+		if !strings.Contains(body,
+			/*html*/ `<p role="alert" data-slot="form-message">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
 			t.Errorf("%v: want only the UserMessage in %s", submitErr, body)
 		}
 	}
@@ -2395,11 +2401,13 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 
 	rep.reset()
 	submitErr = fmt.Errorf("pricing at 10.0.0.5: %w", context.DeadlineExceeded)
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">pricing at 10.0.0.5: context deadline exceeded</p>`) {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body,
+		/*html*/ `<p role="alert" data-slot="form-message">pricing at 10.0.0.5: context deadline exceeded</p>`) {
 		t.Errorf("a revealed context error must show its text: %s", body)
 	}
 	RevealInternalServerErrors = false
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`+FormErrorMessage+`</p>`) || strings.Contains(body, "10.0.0.5") {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body,
+		/*html*/ `<p role="alert" data-slot="form-message">`+FormErrorMessage+ /*html*/ `</p>`) || strings.Contains(body, "10.0.0.5") {
 		t.Errorf("a context error must show the generic message: %s", body)
 	}
 	// A timeout of onSubmit's own call, while the client waits, is reported.
@@ -2532,7 +2540,8 @@ func TestReflectFormHandler_SensitiveValidatorErrors(t *testing.T) {
 	form = url.Values{}
 	form.Set(PresentSentinelName("Key"), "1")
 	form.Set("Key", "forged-SECRET")
-	if body := serveReportRequest(hidden, http.MethodPost, form).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`) || strings.Contains(body, "invalid key") {
+	if body := serveReportRequest(hidden, http.MethodPost, form).Body.String(); !strings.Contains(body,
+		/*html*/ `<p role="alert" data-slot="form-message">`) || strings.Contains(body, "invalid key") {
 		t.Errorf("want a message above the form that does not quote the value in %s", body)
 	}
 	if got, want := rep.texts(), []string{`invalid key "forged-SECRET"`}; !slices.Equal(got, want) {
@@ -2644,7 +2653,8 @@ func TestReflectFormHandler_BlankUserMessageIsHidden(t *testing.T) {
 		func(context.Context, *sampleStruct) error { return blankMessageError{} },
 		newTestDecider(),
 	)
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">`+FormErrorMessage+`</p>`) {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body,
+		/*html*/ `<p role="alert" data-slot="form-message">`+FormErrorMessage+ /*html*/ `</p>`) {
 		t.Errorf("want the generic message in %s", body)
 	}
 	rep.checkReported(t, true, blankMessageError{})
@@ -2685,5 +2695,118 @@ func TestFormErrorText_NilError(t *testing.T) {
 		if got := FormErrorText(t.Context(), nil); got != "" {
 			t.Errorf("reveal=%v: FormErrorText(nil) = %q, want none", reveal, got)
 		}
+	}
+}
+
+// The hook can tell which field a reported error belongs to: an error no
+// input shows under its path, and a field's error hidden while validating.
+func TestReflectFormHandler_ReportsFieldPath(t *testing.T) {
+	rep := recordReports(t)
+	h := ReflectFormHandler(
+		func(context.Context) (*hiddenKeyRecord, error) {
+			return &hiddenKeyRecord{Name: "n", Lines: []hiddenKeyLine{{"k", "a"}}}, nil
+		},
+		func(context.Context, *hiddenKeyRecord) error {
+			return FieldErrors{"Nmae": errors.New("pq: row 7 locked")}
+		},
+		hiddenKeyDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Name"), "1")
+	form.Set("Name", "n")
+	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
+	serveReportRequest(h, http.MethodPost, form)
+	if len(rep.ctxs) != 1 {
+		t.Fatalf("want one report, got %d", len(rep.ctxs))
+	}
+	if path, ok := FieldPathFromContext(rep.ctxs[0]); !ok || path != "Nmae" {
+		t.Errorf("want the misspelled path, got %q, %v", path, ok)
+	}
+
+	rep.reset()
+	type record struct{ Code quotingCode }
+	v := ReflectFormHandler(nil, func(context.Context, *record) error { return nil }, newTestDecider())
+	long := url.Values{}
+	long.Set(PresentSentinelName("Code"), "1")
+	long.Set("Code", strings.Repeat("x", 2*MaxFieldErrorLen))
+	postForm(t, v, long)
+	if len(rep.ctxs) != 1 {
+		t.Fatalf("want one report, got %d", len(rep.ctxs))
+	}
+	if path, _ := FieldPathFromContext(rep.ctxs[0]); path != "Code" {
+		t.Errorf("want the field's path, got %q", path)
+	}
+}
+
+// levelEnum's zero, Low, is one of its options.
+type levelEnum int
+
+func (levelEnum) Enums() []levelEnum { return []levelEnum{0, 1, 2} }
+
+// A required enum that was not sent, as in a programmatic POST, keeps a
+// stored zero that is one of its options: it is a choice, not blank. A zero
+// that is no option is still missing.
+func TestReflectFormHandler_UnsentRequiredEnumZeroOption(t *testing.T) {
+	type record struct {
+		Level levelEnum `form:"required"`
+		Prio  prioEnum  `form:"required"`
+	}
+	var saved *record
+	h := ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, newTestDecider())
+	rec := postForm(t, h, url.Values{})
+	body := rec.Body.String()
+	if strings.Contains(body, `data-error="Level"`) {
+		t.Errorf("a listed zero is a value: %s", body)
+	}
+	if !strings.Contains(body, `data-error="Prio">required<`) || saved != nil {
+		t.Errorf("a zero that is no option is missing, status %d: %s", rec.Code, body)
+	}
+}
+
+// onSubmit's out-of-band fragments follow the re-rendered form of an htmx
+// submit, which is answered in place instead of redirected; a plain submit
+// ignores them and redirects as before.
+func TestReflectFormHandler_OutOfBand(t *testing.T) {
+	type record struct{ Name string }
+	stored := record{Name: "old"}
+	toast := NewElement("div", NewAttrib("id", "toast"), NewAttrib("hx-swap-oob", "true"), Text("Saved"))
+	h := ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(ctx context.Context, r *record) error {
+			if !AddOutOfBand(ctx, toast) {
+				t.Error("onSubmit's context must take fragments")
+			}
+			if r.Name == "bad" {
+				return FieldErrors{"Name": FormMessage("not allowed")}
+			}
+			stored = *r
+			return nil
+		},
+		newTestDecider(),
+	)
+	post := func(name string, htmx bool) *httptest.ResponseRecorder {
+		form := url.Values{PresentSentinelName("Name"): {"1"}, "Name": {name}}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if htmx {
+			req.Header.Set("HX-Request", "true")
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	rec := post("new", true)
+	if body := rec.Body.String(); rec.Code != http.StatusOK || !strings.Contains(body, `value="new"`) || !strings.HasSuffix(body, `</form><div id="toast" hx-swap-oob="true">Saved</div>`) {
+		t.Errorf("htmx submit: status %d: %s", rec.Code, body)
+	}
+	if rec := post("bad", true); !strings.Contains(rec.Body.String(), "not allowed") || !strings.Contains(rec.Body.String(), `id="toast"`) {
+		t.Errorf("a failing htmx submit carries the fragments too: %s", rec.Body)
+	}
+	rec = post("plain", false)
+	if rec.Code != http.StatusSeeOther || strings.Contains(rec.Body.String(), "toast") {
+		t.Errorf("a plain submit redirects without fragments, status %d: %s", rec.Code, rec.Body)
+	}
+	if AddOutOfBand(context.Background(), toast) {
+		t.Error("outside a submit there is nowhere to add fragments")
 	}
 }

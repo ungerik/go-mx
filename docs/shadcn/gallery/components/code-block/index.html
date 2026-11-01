@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
@@ -306,8 +308,8 @@ pre.code {
                             </svg>main.go
                           </div>
                           <div data-slot="code-block-actions" class="ms-auto flex shrink-0 items-center [[data-slot=code-block]>&amp;]:absolute [[data-slot=code-block]>&amp;]:z-10 [[data-slot=code-block]>&amp;]:opacity-0 [[data-slot=code-block]>&amp;]:transition-opacity [[data-slot=code-block]>&amp;]:group-focus-within/code-block:opacity-100 [[data-slot=code-block]>&amp;]:group-hover/code-block:opacity-100 [[data-slot=code-block]>&amp;]:pointer-coarse:opacity-100 -my-1 -me-1.5 gap-1 [[data-slot=code-block]>&amp;]:m-0 [[data-slot=code-block]>&amp;]:top-3 [[data-slot=code-block]>&amp;]:end-3 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:top-2 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:end-2 [[data-slot=code-block]>&amp;]:*:[button]:bg-background [[data-slot=code-block]>&amp;]:*:[button]:ring-1 [[data-slot=code-block]>&amp;]:*:[button]:ring-foreground/10">
-                            <button data-slot="code-block-copy-button" type="button" data-variant="ghost" data-size="icon-xs" data-value="package main%0A%0Aimport &quot;fmt&quot;%0A%0Afunc main() {%0A%09fmt.Println(&quot;Hello, go-mx&quot;)%0A}" aria-label="Copy" onclick="mxCodeBlockCopy(this)" data-copy-label="Copy" data-copied-label="Copied" class="[&amp;>.lucide-check]:hidden data-copied:[&amp;>.lucide-copy]:hidden data-copied:[&amp;>.lucide-check]:block inline-flex shrink-0 items-center justify-center gap-2 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 size-6 rounded-md [&amp;_svg:not([class*='size-'])]:size-3 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50">
-                              <script>if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v!=null){v=decodeURIComponent(v);}else{var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}</script>
+                            <button data-slot="code-block-copy-button" type="button" data-variant="ghost" data-size="icon-xs" data-value="package main&#10;&#10;import &quot;fmt&quot;&#10;&#10;func main() {&#10;&#9;fmt.Println(&quot;Hello, go-mx&quot;)&#10;}" aria-label="Copy" onclick="mxCodeBlockCopy(this)" data-copy-label="Copy" data-copied-label="Copied" class="[&amp;>.lucide-check]:hidden data-copied:[&amp;>.lucide-copy]:hidden data-copied:[&amp;>.lucide-check]:block inline-flex shrink-0 items-center justify-center gap-2 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 size-6 rounded-md [&amp;_svg:not([class*='size-'])]:size-3 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50">
+                              <script>if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v==null){var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}</script>
                               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy">
                                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
                                 <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
@@ -329,7 +331,8 @@ pre.code {
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-demo-panel-code" aria-labelledby="tab-code-block-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;w-full max-w-md&quot;</span>,
+                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-demo-panel-code" aria-labelledby="tab-code-block-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;w-full max-w-md&quot;</span>,
 	<span class="hl-function">codeTheme</span>(),
 	shadcn.<span class="hl-function">CodeBlock</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>,
 		shadcn.<span class="hl-function">CodeBlockHeader</span>(
@@ -338,7 +341,117 @@ pre.code {
 		),
 		shadcn.<span class="hl-function">CodeBlockContent</span>(codeHighlighter.<span class="hl-function">Components</span>(highlight.<span class="hl-function">TokenizeGo</span>(codeBlockExampleSource))),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Highlighted line numbers</h3>
+              <div data-slot="tabs" data-tabs="tab-code-block-highlighted-line-numbers" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-code-block-highlighted-line-numbers-panel-preview" id="tab-code-block-highlighted-line-numbers-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-code-block-highlighted-line-numbers','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-code-block-highlighted-line-numbers-panel-code" id="tab-code-block-highlighted-line-numbers-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-code-block-highlighted-line-numbers','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-highlighted-line-numbers-panel-preview" aria-labelledby="tab-code-block-highlighted-line-numbers-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div class="w-full max-w-md">
+                      <style>pre.code {
+	background-color: #f6f8fa;
+	color: #24292e;
+	padding: 1rem;
+	border-radius: 6px;
+	overflow-x: auto;
+	tab-size: 4;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+.code-builtin { color: #e36209 }
+.code-comment { color: #6a737d; font-style: italic }
+.code-constant { color: #005cc5 }
+.code-function { color: #6f42c1 }
+.code-ident { color: #24292e }
+.code-keyword { color: #d73a49 }
+.code-number { color: #005cc5 }
+.code-operator { color: #d73a49 }
+.code-punctuation { color: #24292e }
+.code-string { color: #032f62 }
+.code-type { color: #6f42c1 }
+pre.code {
+	background-color: #0d1117;
+	color: #c9d1d9;
+	padding: 1rem;
+	border-radius: 6px;
+	overflow-x: auto;
+	tab-size: 4;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+.dark .code-builtin { color: #ffa657 }
+.dark .code-comment { color: #8b949e; font-style: italic }
+.dark .code-constant { color: #79c0ff }
+.dark .code-function { color: #d2a8ff }
+.dark .code-ident { color: #c9d1d9 }
+.dark .code-keyword { color: #ff7b72 }
+.dark .code-number { color: #79c0ff }
+.dark .code-operator { color: #ff7b72 }
+.dark .code-punctuation { color: #c9d1d9 }
+.dark .code-string { color: #a5d6ff }
+.dark .code-type { color: #d2a8ff }
+</style>
+                      <div data-slot="code-block" data-variant="default" data-size="default" class="group/code-block relative flex w-full min-w-0 flex-col overflow-hidden rounded-lg text-sm data-[size=sm]:text-xs has-[>[data-slot=code-block-content]:focus-visible]:ring-3 has-[>[data-slot=code-block-content]:focus-visible]:ring-ring/50 border border-input text-foreground dark:bg-input/30 has-[>[data-slot=code-block-content]:focus-visible]:border-ring">
+                        <div data-slot="code-block-header" class="flex min-w-0 shrink-0 items-center *:has-[>[data-slot=code-block-title]]:min-w-0 gap-2 px-4 pt-4 text-muted-foreground group-data-[variant=destructive]/code-block:text-destructive group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:pt-3">
+                          <div data-slot="code-block-title" class="min-w-0 truncate [&amp;_svg]:pointer-events-none [&amp;_svg]:inline-block [&amp;_svg]:align-middle font-sans text-sm font-medium text-foreground group-data-[variant=destructive]/code-block:text-destructive *:[svg]:me-1.5 [&amp;_svg:not([class*='size-'])]:size-4 group-data-[size=sm]/code-block:text-xs group-data-[size=sm]/code-block:[&amp;_svg:not([class*='size-'])]:size-3.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                              <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                              <path d="M10 9H8"></path>
+                              <path d="M16 13H8"></path>
+                              <path d="M16 17H8"></path>
+                            </svg>main.go
+                          </div>
+                          <div data-slot="code-block-actions" class="ms-auto flex shrink-0 items-center [[data-slot=code-block]>&amp;]:absolute [[data-slot=code-block]>&amp;]:z-10 [[data-slot=code-block]>&amp;]:opacity-0 [[data-slot=code-block]>&amp;]:transition-opacity [[data-slot=code-block]>&amp;]:group-focus-within/code-block:opacity-100 [[data-slot=code-block]>&amp;]:group-hover/code-block:opacity-100 [[data-slot=code-block]>&amp;]:pointer-coarse:opacity-100 -my-1 -me-1.5 gap-1 [[data-slot=code-block]>&amp;]:m-0 [[data-slot=code-block]>&amp;]:top-3 [[data-slot=code-block]>&amp;]:end-3 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:top-2 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:end-2 [[data-slot=code-block]>&amp;]:*:[button]:bg-background [[data-slot=code-block]>&amp;]:*:[button]:ring-1 [[data-slot=code-block]>&amp;]:*:[button]:ring-foreground/10">
+                            <button data-slot="code-block-copy-button" type="button" data-variant="ghost" data-size="icon-xs" aria-label="Copy" onclick="mxCodeBlockCopy(this)" data-copy-label="Copy" data-copied-label="Copied" class="[&amp;>.lucide-check]:hidden data-copied:[&amp;>.lucide-copy]:hidden data-copied:[&amp;>.lucide-check]:block inline-flex shrink-0 items-center justify-center gap-2 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 size-6 rounded-md [&amp;_svg:not([class*='size-'])]:size-3 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50">
+                              <script>if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v==null){var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}</script>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy">
+                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                              </svg>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check">
+                                <path d="M20 6 9 17l-5-5"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <pre data-slot="code-block-content" data-numbered="" style="counter-reset: line 0" dir="ltr" tabindex="0" class="min-h-0 min-w-0 [scrollbar-width:thin] overflow-auto text-start font-mono outline-none data-wrap:wrap-break-word data-wrap:whitespace-pre-wrap px-4 py-4 leading-relaxed group-has-data-[slot=code-block-header]/code-block:pt-2 group-has-data-[slot=code-block-footer]/code-block:pb-2 group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:py-3 group-data-[size=sm]/code-block:group-has-data-[slot=code-block-header]/code-block:pt-1.5"><code data-slot="code-block-code" class="grid min-h-lh min-w-max content-start in-data-numbered:grid-cols-[auto_1fr] in-data-wrap:min-w-0"><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0"><span class="code-keyword">package</span> main</span></span><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0">
+</span></span><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0"><span class="code-keyword">import</span> <span class="code-string">&quot;fmt&quot;</span></span></span><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0">
+</span></span><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0"><span class="code-keyword">func</span> <span class="code-function">main</span>() {</span></span><span data-slot="code-block-line" data-variant="highlighted" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3 bg-muted"><span data-slot="code-block-line-content" class="min-w-0">	fmt.<span class="code-function">Println</span>(<span class="code-string">&quot;Hello, go-mx&quot;</span>)</span></span><span data-slot="code-block-line" data-variant="default" class="relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_''] -mx-4 px-4 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-3 group-data-[size=sm]/code-block:px-3"><span data-slot="code-block-line-content" class="min-w-0">}</span></span></code></pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-highlighted-line-numbers-panel-code" aria-labelledby="tab-code-block-highlighted-line-numbers-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>content := []<span class="hl-type">any</span>{shadcn.CodeBlockLineNumbers}
+<span class="hl-keyword">for</span> i, line := <span class="hl-keyword">range</span> codeHighlighter.<span class="hl-function">Lines</span>(highlight.<span class="hl-function">TokenizeGo</span>(codeBlockExampleSource)) {
+	variant := shadcn.CodeBlockLineDefault
+	<span class="hl-keyword">if</span> i == <span class="hl-number">5</span> {
+		variant = shadcn.CodeBlockLineHighlighted
+	}
+	content = <span class="hl-builtin">append</span>(content, shadcn.<span class="hl-function">CodeBlockLine</span>(variant, line))
+}
+<span class="hl-keyword">return</span> html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;w-full max-w-md&quot;</span>,
+	<span class="hl-function">codeTheme</span>(),
+	shadcn.<span class="hl-function">CodeBlock</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>,
+		shadcn.<span class="hl-function">CodeBlockHeader</span>(
+			shadcn.<span class="hl-function">CodeBlockTitle</span>(<span class="hl-function">iconFileText</span>(), <span class="hl-string">&quot;main.go&quot;</span>),
+			shadcn.<span class="hl-function">CodeBlockActions</span>(shadcn.<span class="hl-function">CodeBlockCopyButton</span>(<span class="hl-string">&quot;&quot;</span>)),
+		),
+		shadcn.<span class="hl-function">CodeBlockContent</span>(content...),
+	),
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -361,7 +474,8 @@ pre.code {
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-diff-panel-code" aria-labelledby="tab-code-block-diff-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">CodeBlock</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-diff-panel-code" aria-labelledby="tab-code-block-diff-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">CodeBlock</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
 	shadcn.<span class="hl-function">CodeBlockHeader</span>(shadcn.<span class="hl-function">CodeBlockTitle</span>(<span class="hl-string">&quot;handler.go&quot;</span>)),
 	shadcn.<span class="hl-function">CodeBlockContent</span>(shadcn.CodeBlockLineNumbers, shadcn.<span class="hl-function">CodeBlockStartLine</span>(<span class="hl-number">12</span>),
 		shadcn.<span class="hl-function">CodeBlockLine</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;func handle(w http.ResponseWriter, r *http.Request) {&quot;</span>),
@@ -372,7 +486,8 @@ pre.code {
 		shadcn.<span class="hl-function">CodeBlockLine</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;}&quot;</span>),
 	),
 	shadcn.<span class="hl-function">CodeBlockFooter</span>(<span class="hl-string">&quot;1 line removed, 1 added&quot;</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -389,7 +504,7 @@ pre.code {
                       <div data-slot="code-block" data-variant="default" data-size="sm" class="group/code-block relative flex w-full min-w-0 flex-col overflow-hidden rounded-lg text-sm data-[size=sm]:text-xs has-[>[data-slot=code-block-content]:focus-visible]:ring-3 has-[>[data-slot=code-block-content]:focus-visible]:ring-ring/50 border border-input text-foreground dark:bg-input/30 has-[>[data-slot=code-block-content]:focus-visible]:border-ring">
                         <div data-slot="code-block-actions" class="ms-auto flex shrink-0 items-center [[data-slot=code-block]>&amp;]:absolute [[data-slot=code-block]>&amp;]:z-10 [[data-slot=code-block]>&amp;]:opacity-0 [[data-slot=code-block]>&amp;]:transition-opacity [[data-slot=code-block]>&amp;]:group-focus-within/code-block:opacity-100 [[data-slot=code-block]>&amp;]:group-hover/code-block:opacity-100 [[data-slot=code-block]>&amp;]:pointer-coarse:opacity-100 -my-1 -me-1.5 gap-1 [[data-slot=code-block]>&amp;]:m-0 [[data-slot=code-block]>&amp;]:top-3 [[data-slot=code-block]>&amp;]:end-3 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:top-2 group-data-[size=sm]/code-block:[[data-slot=code-block]>&amp;]:end-2 [[data-slot=code-block]>&amp;]:*:[button]:bg-background [[data-slot=code-block]>&amp;]:*:[button]:ring-1 [[data-slot=code-block]>&amp;]:*:[button]:ring-foreground/10">
                           <button data-slot="code-block-copy-button" type="button" data-variant="ghost" data-size="icon-xs" aria-label="Copy" onclick="mxCodeBlockCopy(this)" data-copy-label="Copy" data-copied-label="Copied" class="[&amp;>.lucide-check]:hidden data-copied:[&amp;>.lucide-copy]:hidden data-copied:[&amp;>.lucide-check]:block inline-flex shrink-0 items-center justify-center gap-2 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 size-6 rounded-md [&amp;_svg:not([class*='size-'])]:size-3 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50">
-                            <script>if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v!=null){v=decodeURIComponent(v);}else{var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}</script>
+                            <script>if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v==null){var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}</script>
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy">
                               <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
                               <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
@@ -407,7 +522,8 @@ pre.code {
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-floating-actions-panel-code" aria-labelledby="tab-code-block-floating-actions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-4&quot;</span>,
+                <div data-slot="tabs-content" role="tabpanel" id="tab-code-block-floating-actions-panel-code" aria-labelledby="tab-code-block-floating-actions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-4&quot;</span>,
 	shadcn.<span class="hl-function">CodeBlock</span>(<span class="hl-string">&quot;&quot;</span>, shadcn.CodeBlockSizeSM,
 		shadcn.<span class="hl-function">CodeBlockActions</span>(shadcn.<span class="hl-function">CodeBlockCopyButton</span>(<span class="hl-string">&quot;&quot;</span>)),
 		shadcn.<span class="hl-function">CodeBlockContent</span>(shadcn.CodeBlockWrap,
@@ -416,7 +532,8 @@ pre.code {
 	shadcn.<span class="hl-function">CodeBlock</span>(shadcn.CodeBlockDestructive, shadcn.CodeBlockSizeSM,
 		shadcn.<span class="hl-function">CodeBlockContent</span>(shadcn.CodeBlockWrap, <span class="hl-string">&quot;panic: runtime error: index out of range [3] with length 3&quot;</span>),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

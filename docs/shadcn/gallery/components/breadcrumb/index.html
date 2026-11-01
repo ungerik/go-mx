@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
@@ -273,7 +275,8 @@
                     </nav>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-breadcrumb-default-panel-code" aria-labelledby="tab-breadcrumb-default-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Breadcrumb</span>(
+                <div data-slot="tabs-content" role="tabpanel" id="tab-breadcrumb-default-panel-code" aria-labelledby="tab-breadcrumb-default-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Breadcrumb</span>(
 	shadcn.<span class="hl-function">BreadcrumbList</span>(
 		shadcn.<span class="hl-function">BreadcrumbItem</span>(shadcn.<span class="hl-function">BreadcrumbLink</span>(html.<span class="hl-function">HRef</span>(<span class="hl-string">&quot;/&quot;</span>), <span class="hl-string">&quot;Home&quot;</span>)),
 		shadcn.<span class="hl-function">BreadcrumbSeparator</span>(),
@@ -281,7 +284,8 @@
 		shadcn.<span class="hl-function">BreadcrumbSeparator</span>(),
 		shadcn.<span class="hl-function">BreadcrumbItem</span>(shadcn.<span class="hl-function">BreadcrumbPage</span>(<span class="hl-string">&quot;Breadcrumb&quot;</span>)),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -334,7 +338,8 @@
                     </nav>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-breadcrumb-with-ellipsis-panel-code" aria-labelledby="tab-breadcrumb-with-ellipsis-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Breadcrumb</span>(
+                <div data-slot="tabs-content" role="tabpanel" id="tab-breadcrumb-with-ellipsis-panel-code" aria-labelledby="tab-breadcrumb-with-ellipsis-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Breadcrumb</span>(
 	shadcn.<span class="hl-function">BreadcrumbList</span>(
 		shadcn.<span class="hl-function">BreadcrumbItem</span>(shadcn.<span class="hl-function">BreadcrumbLink</span>(html.<span class="hl-function">HRef</span>(<span class="hl-string">&quot;/&quot;</span>), <span class="hl-string">&quot;Home&quot;</span>)),
 		shadcn.<span class="hl-function">BreadcrumbSeparator</span>(),
@@ -344,7 +349,8 @@
 		shadcn.<span class="hl-function">BreadcrumbSeparator</span>(),
 		shadcn.<span class="hl-function">BreadcrumbItem</span>(shadcn.<span class="hl-function">BreadcrumbPage</span>(<span class="hl-string">&quot;Breadcrumb&quot;</span>)),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

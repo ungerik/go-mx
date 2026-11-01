@@ -412,8 +412,9 @@ func (s *Site) RenderPage(ctx context.Context, page *Page) (html.Document, error
 //   - the Open Graph tags describing the page, including the article dates for
 //     a published page
 //   - a canonical link and og:url, followed by a link for every [Alternate]
-//     of the page (see [Site.PageHeaders] for the same links as headers).
-//     They are skipped for a page without a Path because there is no URL to
+//     of the page (see [Site.PageHeaders] for the same links as headers)
+//     and an og:locale:alternate tag for every translation, which link
+//     previews offer instead of the hreflang links. They are skipped for a page without a Path because there is no URL to
 //     point at, and for a document that already carries an og:url, which is
 //     taken as the renderer having declared the page URL and its links itself.
 //     That og:url has to be the canonical URL of the page, though, because
@@ -495,9 +496,16 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 		return nil
 	}
 	setMetaPropertyIfEmpty(doc, "og:url", canonical)
-	elements := make(mx.Components, len(links))
-	for i, link := range links {
-		elements[i] = link.element()
+	elements := make(mx.Components, 0, len(links)+len(page.Alternates))
+	for _, link := range links {
+		elements = append(elements, link.element())
+	}
+	// Link previews read the Open Graph locales of the translations, not
+	// their hreflang links. og:locale:alternate repeats once per locale,
+	// which the property map of the document cannot hold, so the tags go
+	// next to the links they are derived from.
+	for _, locale := range openGraphAlternateLocales(page, doc.MetaProperty["og:locale"]) {
+		elements = append(elements, html.Meta(html.Attrib("property", "og:locale:alternate"), html.ContentAttr(locale)))
 	}
 	if doc.HeadCustom == nil {
 		doc.HeadCustom = elements
@@ -743,6 +751,26 @@ func setMetaPropertyIfEmpty(doc *html.Document, property, content string) {
 // language_TERRITORY form used by Open Graph ("de_AT").
 func openGraphLocale(lang string) string {
 	return strings.ReplaceAll(lang, "-", "_")
+}
+
+// openGraphAlternateLocales returns the Open Graph locales of the page's
+// translations, in the order of its Alternates, for og:locale:alternate tags:
+// without the x-default, which names no locale, and without ogLocale, the
+// og:locale of the document, which a renderer may have set to the language
+// of a translation.
+func openGraphAlternateLocales(page *Page, ogLocale string) []string {
+	var locales []string
+	for _, alternate := range page.Alternates {
+		if !alternate.IsTranslation() || strings.EqualFold(alternate.HrefLang, HrefLangDefault) {
+			continue
+		}
+		locale := openGraphLocale(alternate.HrefLang)
+		if strings.EqualFold(locale, ogLocale) {
+			continue
+		}
+		locales = append(locales, locale)
+	}
+	return locales
 }
 
 // formatRFC3339 formats a time as an RFC 3339 timestamp, returning an empty

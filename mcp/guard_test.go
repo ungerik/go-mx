@@ -441,3 +441,110 @@ func TestGuardHandlerBodyLimitOfOuterMiddleware(t *testing.T) {
 	outer(mxmcp.GuardHandler(echoHandler, mxmcp.GuardOptions{})).ServeHTTP(response, request)
 	require.Equal(t, http.StatusRequestEntityTooLarge, response.Code)
 }
+
+func TestGuardHandlerCORS(t *testing.T) {
+	opts := mxmcp.GuardOptions{AllowedOrigins: []string{"https://example.com"}, CORS: true}
+
+	preflight := func(origin string) *http.Request {
+		request := httptest.NewRequest(http.MethodOptions, "/mcp", nil)
+		request.Header.Set("Origin", origin)
+		request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		request.Header.Set("Access-Control-Request-Headers", "content-type, mcp-protocol-version")
+		return request
+	}
+
+	t.Run("preflight of an allowed origin", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			t.Error("the preflight reached the handler")
+		})
+		mxmcp.GuardHandler(next, opts).ServeHTTP(response, preflight("https://example.com"))
+		require.Equal(t, http.StatusNoContent, response.Code)
+		header := response.Header()
+		require.Equal(t, "https://example.com", header.Get("Access-Control-Allow-Origin"))
+		require.Equal(t, "GET, POST, DELETE", header.Get("Access-Control-Allow-Methods"))
+		require.Equal(t, "Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID", header.Get("Access-Control-Allow-Headers"))
+		require.Equal(t, "Mcp-Session-Id", header.Get("Access-Control-Expose-Headers"))
+		require.NotEmpty(t, header.Get("Access-Control-Max-Age"))
+		require.Equal(t, "Origin", header.Get("Vary"))
+		// The endpoint serves public pages, so no cookies are invited along.
+		require.Empty(t, header.Get("Access-Control-Allow-Credentials"))
+	})
+
+	t.Run("preflight of another origin", func(t *testing.T) {
+		response := serveGuarded(opts, preflight("https://evil.example"))
+		require.Equal(t, http.StatusForbidden, response.Code)
+		require.Empty(t, response.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("request of an allowed origin", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0"}`))
+		request.Header.Set("Origin", "https://example.com")
+		response := serveGuarded(opts, request)
+		require.Equal(t, http.StatusOK, response.Code)
+		require.Equal(t, `{"jsonrpc":"2.0"}`, response.Body.String())
+		require.Equal(t, "https://example.com", response.Header().Get("Access-Control-Allow-Origin"))
+		require.Equal(t, "Mcp-Session-Id", response.Header().Get("Access-Control-Expose-Headers"))
+		// Only a preflight gets the preflight answers.
+		require.Empty(t, response.Header().Get("Access-Control-Allow-Methods"))
+	})
+
+	t.Run("error of the guard readable by the page", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`[{"jsonrpc":"2.0"}]`))
+		request.Header.Set("Origin", "https://example.com")
+		response := serveGuarded(opts, request)
+		require.Equal(t, http.StatusBadRequest, response.Code)
+		require.Equal(t, "https://example.com", response.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("request without an origin", func(t *testing.T) {
+		response := serveGuarded(opts, httptest.NewRequest(http.MethodPost, "/mcp", nil))
+		require.Equal(t, http.StatusOK, response.Code)
+		require.Empty(t, response.Header().Get("Access-Control-Allow-Origin"))
+		require.Equal(t, "Origin", response.Header().Get("Vary"))
+	})
+
+	t.Run("OPTIONS that is no preflight", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodOptions, "/mcp", nil)
+		request.Header.Set("Origin", "https://example.com")
+		response := serveGuarded(opts, request)
+		require.Equal(t, http.StatusOK, response.Code, "left to the handler")
+	})
+
+	t.Run("off by default", func(t *testing.T) {
+		opts := opts
+		opts.CORS = false
+		response := serveGuarded(opts, preflight("https://example.com"))
+		require.Equal(t, http.StatusOK, response.Code, "left to the handler")
+		require.Empty(t, response.Header().Get("Access-Control-Allow-Origin"))
+		require.Empty(t, response.Header().Get("Vary"))
+	})
+}
+
+func TestGuardHandlerCORSWithStreamableHTTPHandler(t *testing.T) {
+	// The CORS headers set before the SDK's handler runs survive its response.
+	server := sdk.NewServer(&sdk.Implementation{Name: "test-server", Version: "v0.0.1"}, nil)
+	require.NoError(t, mxmcp.AddPageTools(server, testPages(), testSite(), mxmcp.PageToolsOptions{}))
+	handler := sdk.NewStreamableHTTPHandler(
+		func(*http.Request) *sdk.Server { return server },
+		&sdk.StreamableHTTPOptions{Stateless: true, JSONResponse: true},
+	)
+	httpServer := httptest.NewServer(mxmcp.GuardHandler(handler, mxmcp.GuardOptions{
+		AllowedOrigins: []string{"https://example.com"},
+		CORS:           true,
+	}))
+	defer httpServer.Close()
+
+	request, err := http.NewRequest(http.MethodPost, httpServer.URL, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`))
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	request.Header.Set("Mcp-Protocol-Version", "2025-06-18")
+	request.Header.Set("Origin", "https://example.com")
+	response, err := http.DefaultClient.Do(request)
+	require.NoError(t, err)
+	response.Body.Close()
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	require.Equal(t, "https://example.com", response.Header.Get("Access-Control-Allow-Origin"))
+	require.Equal(t, "Mcp-Session-Id", response.Header.Get("Access-Control-Expose-Headers"))
+}

@@ -2,21 +2,25 @@
 //
 // This file is a Go port of class-variance-authority (cva) v0.7.1,
 // Copyright 2022 Joe Bell, licensed under the Apache License, Version 2.0.
-// Config.Composes is ported from its successor cva v1.0.0-beta.12, same
-// author and license. The library has been reimplemented in Go (a modified
-// derivative work). See THIRD-PARTY-LICENSES.md for the full license text.
+// Config.Composes and DefineConfig are ported from its successor
+// cva v1.0.0-beta.12, same author and license. The library has been
+// reimplemented in Go (a modified derivative work). See
+// THIRD-PARTY-LICENSES.md for the full license text.
 
 // Package cva ports class-variance-authority (cva) to Go.
 //
 // cva compiles a [Config] — a base class string plus a table of variants,
 // optional compound variants and defaults — into a [Variants] function that
 // resolves a props map to a concatenated class string. It is a faithful port
-// of class-variance-authority v0.7.1, plus [Config.Composes] from its
-// successor cva v1.0.0-beta.12, which builds a config on other configs.
+// of class-variance-authority v0.7.1, plus two features of its successor
+// cva v1.0.0-beta.12: [Config.Composes], which builds a config on other
+// configs, and [DefineConfig], which sets the concatenator the resolvers of a
+// [Factory] join their classes with.
 //
-// Like the original, cva only concatenates classes; it does not resolve
+// Like the original, [New] only concatenates classes; it does not resolve
 // Tailwind conflicts. Follow it with a tailwind-merge step (such as
-// shadcn.Cn) the way shadcn/ui composes cva with its cn helper.
+// shadcn.Cn) the way shadcn/ui composes cva with its cn helper, or compile
+// with a [Factory] whose concatenator merges.
 package cva
 
 import (
@@ -62,7 +66,80 @@ type Compound struct {
 // the concatenated class string.
 type Variants func(props map[string]string) string
 
-// New compiles a [Config] into a [Variants] resolver.
+// Options configures the [Factory] that [DefineConfig] returns. It mirrors
+// the options object of cva v1.0.0-beta.12's defineConfig.
+type Options struct {
+	// CX is the class name concatenator every resolver the factory compiles
+	// ends with, and what [Factory.CX] calls. It receives the assembled class
+	// strings verbatim, one argument each and in resolution order — each
+	// composed config's result, the base, one class set per variant, the
+	// matching compound variants, the props "class" override — and its result
+	// is what the resolver returns. Empty strings are left out, so it never
+	// receives one, and it is called even when nothing is left, with no
+	// arguments.
+	//
+	// It is the one place to post-process every generated class string, the
+	// job of the onComplete hook that cva v1.0.0-beta.12 replaced with it:
+	// wrap a tailwind-merge step to resolve conflicts program-wide instead of
+	// at each call site. nil joins the classes with single spaces, which is
+	// what [New] does.
+	CX func(classes ...string) string
+}
+
+// Factory compiles configs with one concatenator: the cva and cx pair that
+// cva v1.0.0-beta.12's defineConfig returns. The zero Factory joins classes
+// with single spaces, like [New].
+type Factory struct {
+	cx func(classes ...string) string
+}
+
+// DefineConfig returns a [Factory] whose resolvers join their classes with
+// options.CX. It ports defineConfig from cva v1.0.0-beta.12, which defines
+// that version's own exports too: cva and cx are defineConfig with clsx as the
+// concatenator, the way [New] is the zero [Factory] here.
+func DefineConfig(options Options) Factory {
+	return Factory{cx: options.CX}
+}
+
+// concat returns the factory's concatenator, the space join when none is set.
+func (f Factory) concat() func(classes ...string) string {
+	if f.cx == nil {
+		return joinClasses
+	}
+	return f.cx
+}
+
+// joinClasses is the default concatenator. It is never passed an empty
+// string, so a plain join yields no double spaces.
+func joinClasses(classes ...string) string {
+	return strings.Join(classes, " ")
+}
+
+// CX passes classes to the factory's concatenator, leaving out the empty
+// ones. It is the cx that defineConfig returns next to cva: the concatenator
+// on its own, for class strings that do not come from a [Config].
+func (f Factory) CX(classes ...string) string {
+	nonEmpty := make([]string, 0, len(classes))
+	for _, cls := range classes {
+		if cls != "" {
+			nonEmpty = append(nonEmpty, cls)
+		}
+	}
+	return f.concat()(nonEmpty...)
+}
+
+// New compiles a [Config] into a [Variants] resolver with the zero
+// [Factory], which joins the classes with single spaces. See [Factory.New]
+// for how a config resolves.
+func New(config Config) Variants {
+	return Factory{}.New(config)
+}
+
+// New compiles a [Config] into a [Variants] resolver that passes the classes
+// it resolves to the factory's concatenator (see [Options.CX]). The composed
+// configs are compiled by the same factory, so the concatenator also runs
+// once per composed config, and each composed result reaches the composer's
+// call as one argument.
 //
 // Resolution follows class-variance-authority v0.7.1, preceded by the composed
 // configs of cva v1.0.0-beta.12 (see [Config.Composes]): the composed configs,
@@ -81,12 +158,13 @@ type Variants func(props map[string]string) string
 // matches them against a "" that overrides the default even though the variant
 // lookup falls back to it (Go callers pass "" for an unset variant, so cva's
 // rule would make a compound on a default miss whenever the variant is unset);
-// and cva's defineConfig options and VariantProps helper are not ported (the
-// package README says what replaces VariantProps).
-func New(config Config) Variants {
+// and cva's VariantProps helper is not ported (the package README says what
+// replaces it).
+func (f Factory) New(config Config) Variants {
+	cx := f.concat()
 	composed := make([]Variants, len(config.Composes))
 	for i, c := range config.Composes {
-		composed[i] = New(c)
+		composed[i] = f.New(c)
 	}
 	defaults := effectiveDefaults(config)
 
@@ -164,7 +242,7 @@ func New(config Config) Variants {
 			parts = append(parts, cls)
 		}
 
-		return strings.Join(parts, " ")
+		return cx(parts...)
 	}
 }
 

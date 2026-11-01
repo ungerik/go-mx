@@ -3,7 +3,6 @@
 package shadcn
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -25,6 +24,17 @@ import (
 // [CodeBlockContent], for Go code the tokens of the highlight package:
 //
 //	shadcn.CodeBlockContent(highlight.Default.Components(highlight.TokenizeGo(src)))
+//
+// or, for line numbers or line marks, one [CodeBlockLine] per line of
+// highlight's Lines:
+//
+//	lines := highlight.Default.Lines(highlight.TokenizeGo(src))
+//	numbered := make([]any, 0, len(lines)+1)
+//	numbered = append(numbered, shadcn.CodeBlockLineNumbers)
+//	for _, line := range lines {
+//		numbered = append(numbered, shadcn.CodeBlockLine("", line))
+//	}
+//	shadcn.CodeBlockContent(numbered...)
 //
 // plus that package's Theme stylesheet for the colors. The dependency points
 // that way on purpose: highlight depends only on mx and html, so that it
@@ -201,8 +211,7 @@ func CodeBlockActions(attribsChildren ...any) *mx.Element {
 
 // codeBlockCopyScript is the once-emitted client behavior behind
 // [CodeBlockCopyButton], the counterpart of upstream's React state: it writes
-// the button's data-value (decoded, see copyValueEscaper), or else the text
-// of the code block around it, to
+// the button's data-value, or else the text of the code block around it, to
 // the clipboard, then sets data-copied (which swaps the copy icon for a
 // check) and the "Copied" label for two seconds. Upstream announces the copy
 // through a polite live region next to each button; here one region per page
@@ -212,13 +221,7 @@ func CodeBlockActions(attribsChildren ...any) *mx.Element {
 // The text of a block numbered by CodeBlockLine rows is joined from the rows'
 // contents, so that the line numbers (CSS counters) stay out and an empty
 // row, which holds a newline, gives an empty line rather than two.
-const codeBlockCopyScript = /*js*/ `if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v!=null){v=decodeURIComponent(v);}else{var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}`
-
-// copyValueEscaper percent-encodes the characters of a [CodeBlockCopyButton]
-// value that go-mx's attribute escaping would replace — a line break becomes
-// a space, a tab two — plus the percent sign itself, so that the script's
-// decodeURIComponent restores the value exactly.
-var copyValueEscaper = strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A", "\t", "%09")
+const codeBlockCopyScript = /*js*/ `if(!window.mxCodeBlockCopy){(function(){var r=document.createElement('span');r.className='sr-only';r.setAttribute('aria-live','polite');(document.body||document.documentElement).appendChild(r);window.mxCodeBlockCopy=function(b){var v=b.dataset.value;if(v==null){var c=b.closest('[data-slot=code-block]');var k=c&&c.querySelector('[data-slot=code-block-code]');var ls=k?k.querySelectorAll('[data-slot=code-block-line-content]'):[];v=ls.length?Array.prototype.map.call(ls,function(l){return l.textContent.replace(/\n$/,'');}).join('\n'):(k?k.textContent:'');}navigator.clipboard.writeText(v).then(function(){b.setAttribute('data-copied','');b.setAttribute('aria-label',b.dataset.copiedLabel);r.textContent=b.dataset.copiedLabel;clearTimeout(b.mxCopyTimer);b.mxCopyTimer=setTimeout(function(){b.removeAttribute('data-copied');b.setAttribute('aria-label',b.dataset.copyLabel);r.textContent='';},2000);}).catch(function(){});};})();}`
 
 // CodeBlockCopyButton renders an icon [Button] (ghost, icon-xs) that copies
 // value to the clipboard, or, when value is "", the text of the [CodeBlock]
@@ -240,7 +243,7 @@ func CodeBlockCopyButton(value string, attribs ...mx.Attrib) *mx.Element {
 	)
 	e := Button(ButtonGhost, SizeIconXS, args...)
 	if value != "" {
-		e.Attribs = append(e.Attribs, html.DataAttr("value", copyValueEscaper.Replace(value)))
+		e.Attribs = append(e.Attribs, html.DataAttr("value", value))
 	}
 	if e.AttribIndex("aria-label") < 0 {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.CodeBlockCopy }))
@@ -279,10 +282,6 @@ func CodeBlockStartLine(n int) mx.Attrib {
 // for the lines; children that are not all CodeBlockLines, such as a run of
 // highlighted tokens, are wrapped in one <span> so they flow as text. The <pre> is focusable (tabindex="0") so the
 // keyboard can scroll it, and the CodeBlock draws its focus ring.
-//
-// The <code> is rendered without the line breaks and indentation an
-// indenting [mx.CheckedWriter] puts before each element, which inside a
-// <pre> would be part of the code.
 func CodeBlockContent(attribsChildren ...any) *mx.Element {
 	e := html.Pre(attribsChildren...)
 	children := flattenComponents(e.Children)
@@ -319,9 +318,9 @@ func CodeBlockContent(attribsChildren ...any) *mx.Element {
 	code := html.Code(html.DataAttr("slot", "code-block-code"),
 		html.Class("grid min-h-lh min-w-max content-start in-data-numbered:grid-cols-[auto_1fr] in-data-wrap:min-w-0"))
 	code.Children = children
-	e.Children = mx.Components{unindented{code}}
+	e.Children = mx.Components{code}
 	return finish(e, "code-block-content",
-		"min-h-0 min-w-0 [scrollbar-width:thin] overflow-auto text-start font-mono outline-none data-wrap:wrap-break-word data-wrap:whitespace-pre-wrap px-4 py-4 leading-relaxed group-has-data-[slot=code-block-header]/code-block:pt-2 group-has-data-[slot=code-block-footer]/code-block:pb-2 group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:py-3 group-data-[size=sm]/code-block:group-has-data-[slot=code-block-header]/code-block:pt-1.5")
+		"min-h-0 min-w-0 [scrollbar-width:thin] overflow-auto text-start font-mono outline-none data-wrap:wrap-break-word data-wrap:whitespace-pre-wrap px-4 py-4 leading-relaxed group-has-data-[slot=code-block-header]/code-block:pt-2 group-has-data-[slot=code-block-footer]/code-block:pb-2 group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:py-3 group-data-[size=sm]/code-block:group-has-data-[slot=code-block-header]/code-block:pt-1.5"+utilityClasses(" scroll-fade-x data-wrap:scroll-fade-y", ""))
 }
 
 // flattenComponents returns cs with every nested [mx.Components] spliced in,
@@ -356,25 +355,6 @@ func allCodeBlockLines(children mx.Components) bool {
 		}
 	}
 	return true
-}
-
-// unindented renders c without the line breaks and indentation an indenting
-// [mx.CheckedWriter] puts before every element, by rendering it through a
-// non-indenting clone of the writer. Any other writer renders c directly.
-type unindented struct{ c mx.Component }
-
-// Render implements [mx.Component].
-func (u unindented) Render(ctx context.Context, w mx.Writer) error {
-	cw, ok := w.(*mx.CheckedWriter)
-	if !ok {
-		return u.c.Render(ctx, w)
-	}
-	var buf bytes.Buffer
-	if err := u.c.Render(ctx, cw.Clone(&buf).WithIndent("", "")); err != nil {
-		return err
-	}
-	_, err := w.Write(buf.Bytes())
-	return err
 }
 
 // CodeBlockLineVariant selects how a [CodeBlockLine] is marked.
@@ -468,7 +448,8 @@ func CodeBlockLine(variant CodeBlockLineVariant, attribsChildren ...any) *mx.Ele
 	v := string(variant.ValidOr(CodeBlockLineDefault))
 	e := html.Span(attribsChildren...)
 	content := html.Span(html.DataAttr("slot", "code-block-line-content"), html.Class("min-w-0"))
-	if len(e.Children) == 0 || len(e.Children) == 1 && e.Children[0] == mx.Text("") {
+	// An empty line of highlighted tokens is an empty mx.Components.
+	if children := flattenComponents(e.Children); len(children) == 0 || len(children) == 1 && children[0] == mx.Text("") {
 		content.Children = mx.Components{mx.Text("\n")}
 	} else {
 		content.Children = e.Children

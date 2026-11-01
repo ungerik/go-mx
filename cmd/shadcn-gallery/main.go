@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/cmd/shadcn-gallery/examples"
 )
 
@@ -153,7 +154,9 @@ func docs() []ComponentDoc {
 			Description: "A date field component that allows users to enter and edit date.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.CalendarDemo},
-				{Name: "German booking", Func: examples.CalendarBookingDemo},
+				{Name: "Range", Func: examples.CalendarRangeDemo, ShowSource: examples.RangeCalendar},
+				{Name: "Month and year selector", Func: examples.CalendarDropdownDemo, ShowSource: examples.DropdownCalendar},
+				{Name: "German booking", Func: examples.CalendarBookingDemo, ShowSource: examples.GermanBookingCalendar},
 			},
 		},
 		{
@@ -173,6 +176,21 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "chart",
+			Title:       "Chart",
+			Description: "Beautiful charts, drawn as SVG in Go — the bars, lines, areas, pies, radars and radial bars of upstream's Recharts examples.",
+			Examples: []Example{
+				{Name: "Bar", Func: examples.ChartBarDemo},
+				{Name: "Bar stacked", Func: examples.ChartBarStacked},
+				{Name: "Line", Func: examples.ChartLineDemo},
+				{Name: "Area stacked", Func: examples.ChartAreaStacked},
+				{Name: "Tooltip", Func: examples.ChartBarTooltip},
+				{Name: "Pie donut", Func: examples.ChartPieDonut},
+				{Name: "Radar", Func: examples.ChartRadarDemo},
+				{Name: "Radial", Func: examples.ChartRadialDemo},
+			},
+		},
+		{
 			Slug:        "checkbox",
 			Title:       "Checkbox",
 			Description: "A control that allows the user to toggle between checked and not checked.",
@@ -188,6 +206,7 @@ func docs() []ComponentDoc {
 			Description: "A framed code listing with a header, actions, a copy button, line numbers and diff lines.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.CodeBlockDemo},
+				{Name: "Highlighted line numbers", Func: examples.CodeBlockHighlightedLines},
 				{Name: "Diff", Func: examples.CodeBlockDiff},
 				{Name: "Floating actions", Func: examples.CodeBlockFloating},
 			},
@@ -238,6 +257,12 @@ func docs() []ComponentDoc {
 			Description: "A date picker component with range and presets — a Popover composed with a Calendar.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.DatePickerDemo},
+				{Name: "Basic", Func: examples.DatePickerBasic},
+				{Name: "Range", Func: examples.DateRangePickerDemo},
+				{Name: "Time picker", Func: examples.DatePickerTime},
+				{Name: "Input", Func: examples.DatePickerInput},
+				{Name: "With presets", Func: examples.DatePickerPresets},
+				{Name: "RTL", Func: examples.DatePickerRTL},
 			},
 		},
 		{
@@ -438,6 +463,17 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "questionnaire",
+			Title:       "Questionnaire",
+			Description: "A multi-step questionnaire with single-choice, multiple-choice, freeform, and skippable questions.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.QuestionnaireDemo},
+				{Name: "Multiple selection", Func: examples.QuestionnaireMultiple},
+				{Name: "Skip and submit", Func: examples.QuestionnaireSkipSubmit},
+				{Name: "Validation", Func: examples.QuestionnaireValidation},
+			},
+		},
+		{
 			Slug:        "radio-group",
 			Title:       "Radio Group",
 			Description: "A set of checkable buttons where no more than one can be checked at a time.",
@@ -615,6 +651,7 @@ func main() {
 	flag.Parse()
 
 	linkBase = strings.TrimRight(*base, "/")
+	examples.FragmentBase = linkBase + "/fragments"
 
 	reg := NewRegistry(docs())
 
@@ -628,6 +665,18 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		page(reg, "", "Components", indexContent(reg)).HandleHTTP(w, r)
+	})
+	mux.HandleFunc("GET /fragments/{path...}", func(w http.ResponseWriter, r *http.Request) {
+		for _, f := range examples.Fragments() {
+			if f.Path == r.PathValue("path") {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				if err := f.Func().Render(r.Context(), mx.NewCheckedWriter(w)); err != nil {
+					log.Print(err)
+				}
+				return
+			}
+		}
+		http.NotFound(w, r)
 	})
 	mux.HandleFunc("GET /components/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		d := reg.Lookup(r.PathValue("slug"))

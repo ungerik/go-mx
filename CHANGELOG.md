@@ -453,7 +453,155 @@ API is still free to change.
   picker is styled only where `appearance: base-select` is supported, it
   styles only the closed control and so looks the same in every browser.
 
+- **`shadcn.Chart`: bar, line and area charts drawn as SVG in Go.**
+  Upstream's Chart themes the SVG Recharts draws in the browser; here
+  `Chart(kind, data, opts)` computes the scales, round axis ticks, grid, bars
+  (grouped or stacked), lines (linear, monotone or step) and areas (stacked
+  or not) server-side, with no script. Series are colored through upstream's
+  `--color-<key>` variables, by default the theme's `--chart-1…5`; each point
+  has a native `<title>` tooltip, and assistive technology reads a visually
+  hidden table of the data instead of the SVG. Four gallery examples.
+- **`shadcn.Calendar` loads other months itself.** With
+  `CalendarOptions.MonthURL` the month buttons, PageUp/PageDown and an arrow
+  key past the grid fetch the month's URL and swap in the calendar it
+  returns, keeping the focus and the picked days, without htmx.
+  `CalendarOptions.CaptionLayout` adds native month and year dropdowns
+  (`MonthName`, `Labels.CalendarMonth`/`CalendarYear`). The gallery serves
+  the months of its calendar examples as pre-rendered static fragments.
+- **Range and multiple selection in `shadcn.Calendar`.**
+  `CalendarOptions.Mode` picks a range (`CalendarRange`, with `RangeEnd`,
+  `EndName` and upstream's range look) or several days (`CalendarMultiple`,
+  with `Selected`, one hidden input per day). New Calendar Range and Month and
+  year selector examples, and a Date Range Picker.
+- **Calendar days say "Today" and "selected" in their names.** Today's
+  accessible name is wrapped in `Labels.CalendarToday` and, in select mode, a
+  selected day's in `Labels.CalendarSelected`, which the script moves with the
+  selection, so a screen reader confirms a pick on the focused button.
+- **`form:"widget=datepicker"`.** `shadcn.FieldDecider` renders the field as
+  the DatePicker recipe, a popover trigger and a select-mode calendar that
+  submits what a date input submits; other renderers show a date input.
+  `shadcn.ContextWithDatePickerOptions` sets the calendar options per field,
+  and `shadcn.DatePickerCalendar` answers its `MonthURL`. The placeholder is
+  `Labels.FormPickDate`.
+- **`highlight.Highlighter.Lines`** cuts highlighted tokens into one
+  `mx.Components` per line, a token spanning lines into one span per line, so
+  highlighted code can be numbered with `shadcn.CodeBlockLine`.
+- **Browser tests for the inline scripts.** `internal/headless` runs a test
+  page in the system's Chrome or Chromium (`--dump-dom`, no Go dependency); the
+  calendar, CodeBlock copy and MessageScroller scripts are tested with it.
+  Without a browser the tests skip, unless `MX_REQUIRE_CHROME` is set, as in
+  CI.
+
+- **`shadcn.Questionnaire`: one question at a time, each step a server round
+  trip.** The port of shadcn/ui's Questionnaire (choice cards, a free-text
+  answer, progress, previous/skip/next/submit) keeps no client state: the
+  form posts the active item's answers with `questionnaire-item` and
+  `questionnaire-action`, and the server answers with the same item and a
+  `QuestionnaireError` or with the next item, over `hx.Post` or a plain form
+  post. Choice cards are native radios and checkboxes; one small shared
+  script makes Enter press Next and letter or number keys pick a choice.
+  With it every component of the shadcn/ui registry is ported.
+- **Pie, radar and radial charts and a styled chart tooltip.** `ChartPie`
+  (a donut with `ChartOptions.Donut`), `ChartRadar` and `ChartRadial` join
+  the bar, line and area kinds, colored per category through
+  `ChartData.CategoryColors` or the theme; `ChartOptions.Tooltip` shows
+  upstream's tooltip card on hovering a category, with CSS alone.
+- **More of react-day-picker in `shadcn.Calendar`.**
+  `CalendarOptions.NumberOfMonths` shows months side by side, sharing the
+  buttons, the selection and the keys; Shift+PageUp/PageDown move a year;
+  `ExcludeDisabled` keeps a range off disabled days; and the script's
+  `calendarPick(name, date, label)` picks a day from outside the calendar,
+  such as a typed date or a preset, while an `<input>` with
+  `data-calendar-text` shows the pick as its value. New DatePicker recipes:
+  Basic, Time picker, Input, With presets and RTL.
+- **`shadcn.UtilitiesCSS` and `shadcn.UseUtilities`: upstream's shimmer and
+  scroll-fade.** The `@utility` rules of shadcn's own stylesheet ship as a
+  CSS string to add to the app's Tailwind input; with `UseUtilities` the
+  components shimmer and fade their scrolled edges as upstream's do instead
+  of pulsing.
+- **`MessageScrollerButton(…, MessageScrollerStart)`**, upstream's
+  scroll-to-start button, shown while the viewport is not at the top
+  (StickToBottom now also sets `data-at-start`).
+- **Text-length, autocomplete and input-mode tag options.**
+  `form:"minlength=…,maxlength=…"` become the input's attributes and are
+  checked on the server (`mx.CheckTextLength`, in UTF-16 code units as the
+  browser counts), and `form:"autocomplete=…,inputmode=…"` tell the browser
+  what to fill in and which keyboard to show.
+- **Several files per field, and file previews.** A `[]string`, `[][]byte` or
+  `[]*multipart.FileHeader` field takes a multiple file input and binds every
+  upload (`mx.MultipleFiles`); a `*multipart.FileHeader` field needs no tag;
+  `form:"accept=…"` limits the picker. shadcn's file input previews the
+  chosen images and shows the progress of an htmx upload.
+- **`mx.AddOutOfBand`: out-of-band fragments from `onSubmit`.** An htmx
+  submit's response carries them after the form, a toast or an updated row
+  elsewhere on the page; a successful one is answered in place instead of
+  redirected, so the fragments arrive.
+- **`mx.FieldPathFromContext` tells `ReportError` which field an error
+  belongs to.** The form handler puts each field's path into the context of
+  its parse, validation and rendering (`mx.ContextWithFieldPath`).
+- **Standard option lists for reflected forms.** The new `stdoptions`
+  package registers ISO 4217 currencies, ISO 639-1 languages and ISO 3166-1
+  alpha-2 countries with `mx.RegisterNamedOptions`, so a field takes
+  `form:"options=iso4217"`, `"iso639-1"` or `"iso3166-1"` after one
+  `stdoptions.Register()` call. Option values are the codes and labels the
+  English or German names from Unicode CLDR 49, picked per request with
+  `stdoptions.ContextWithLanguage` and sorted by their localized name. The
+  data is regenerated from cldr-json by `go generate ./stdoptions`.
+- **`cva.DefineConfig` sets the class concatenator program-wide.** Ported from
+  cva v1.0.0-beta.12: `DefineConfig(cva.Options{CX: ...})` returns a
+  `Factory` whose `New` resolvers pass their assembled classes to `CX` (one
+  argument each, empty ones left out), and `Factory.CX` exposes it directly.
+  That makes it the single place to wire in tailwind-merge; `cva.New` is the
+  zero `Factory` and behaves as before.
+- **`logview.Config.OverwriteCR` reads carriage returns like a terminal.** A
+  progress bar that redraws itself with `\r` renders as its final state
+  instead of one line per redraw, in plain-text lines and in decoded JSON
+  strings alike; a trailing CR or CRLF still ends the line. Off by default,
+  so a log that uses `\r` as a separator loses nothing.
+- **`logview.Config.Expandable` opens a record into its pretty-printed form.**
+  Each JSON record becomes a `<details>` whose summary is the usual compact
+  line and whose body shows the whole record, one field per line with nested
+  objects and arrays indented, styled through the new `ClassDetails` and
+  `ClassPretty`.
+- **Front matter fields of your own survive.** `Page.FrontMatter` holds every
+  field of a Markdown page's front matter, the ones `GlobPageSource` maps to
+  page fields included, with nested objects as `map[string]any` whatever the
+  format, so a `PageRenderer` can read an `image`, `layout` or `aliases`
+  again. Translations now also get an `og:locale:alternate` tag each from
+  `Site.AddPageMetadata`, which link previews read instead of hreflang.
+- **`mcp.GuardOptions.CORS` lets pages on the allowed origins call the
+  endpoint from a browser.** `GuardHandler` answers their preflight with the
+  methods and headers of the Streamable HTTP transport and sets
+  `Access-Control-Allow-Origin` (exposing `Mcp-Session-Id`) on every response
+  to an allowed origin, its own errors included. Credentials are not allowed;
+  CORS stays off by default.
+
 ### Changed
+
+- **A static `shadcn.Calendar`'s days are text, not buttons.** As
+  react-day-picker renders days without a mode, a calendar without a `Name`
+  shows each day's number with its `DayLabel` as screen-reader text and names
+  its table by its month; the days are no longer Tab stops and the selected
+  one says "selected" instead of being `aria-pressed`.
+- **The MessageScroller buttons leave the tab order while hidden**, after
+  fading out.
+- **Readonly text, number, date and textarea inputs of a shadcn form look
+  readonly** (a muted background, no focus ring).
+- **A `database/sql` text an input cannot show is shown and kept.** A NUL or
+  invalid UTF-8 shows as U+FFFD with a note, a line break in a one-line input
+  gets a note, and saving the shown text unchanged keeps the stored text; a
+  new value is scanned, where every save used to fail.
+
+- **Attribute values keep their line breaks and tabs.** The `CheckedWriter`
+  writes them as `&#10;`, `&#13;` and `&#9;` instead of replacing them with
+  spaces, so a script reading an attribute back gets the value written.
+- **An indenting `CheckedWriter` leaves the inside of `pre`, `textarea`,
+  `script` and `style` as written.** It no longer breaks lines and indents
+  there, which changed the shown code of a `<pre>` with element children;
+  `shadcn.CodeBlockContent` no longer needs to render its `<code>` through a
+  non-indenting writer.
+- **A `Today` day's `aria-label` reads "Today, …"** (`Labels.CalendarToday`),
+  also in a static calendar, so tests matching the bare date need updating.
 
 - **`shadcn/twmerge` follows tailwind-merge 3.7.0.** An axis shorthand now
   overrides the logical sides (`ps-2 px-4` → `px-4`, likewise for `my`,
@@ -659,6 +807,20 @@ API is still free to change.
   constant named an event that cannot occur.
 
 ### Fixed
+
+- **A required time-of-day type whose zero is midnight takes 00:00**, and
+  shows a stored midnight, such as `civil.Time`'s.
+- **A required enum that was not sent keeps a stored zero that is one of its
+  options** instead of reporting "required".
+- **A readonly repeatable field with no rows says so** ("None",
+  `mx.RepeatableNoRowsText`) instead of showing an empty box.
+- **The error helpers no longer panic on a nil context or request** once a
+  `ReportError` hook is set.
+- **A missing directory in a `GlobPageSource` pattern is an error, not an
+  empty source.** Like a missing `Dir`, a missing directory in the fixed part
+  of `Pattern` (`blog/*.md` without `blog`) now fails the source. A cancelled
+  context is checked before `Dir` is looked at, so it gets the context's
+  error rather than one of `Dir`.
 
 - **`form:"pattern=…"` is checked on the server.** It was only the input's
   pattern attribute, so a scripted POST stored any string. html.FieldDecider's

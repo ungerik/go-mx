@@ -1039,3 +1039,28 @@ func TestRepeatable_FieldErrorWithSeveralMessages(t *testing.T) {
 		}
 	}
 }
+
+// A readonly repeatable field with no rows says so, as it has no add-row
+// button that would tell "no entries" from a broken render.
+func TestRepeatable_ReadonlyNoRows(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*lockedSheet, error) { return &lockedSheet{}, nil },
+		func(context.Context, *lockedSheet) error { return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); !strings.Contains(body, `<p data-repeatable-empty="Lines">None</p>`) {
+		t.Errorf("want the no-rows line: %s", body)
+	}
+	editable := ReflectFormHandler(
+		func(context.Context) (*auditPart, error) { return &auditPart{}, nil },
+		func(context.Context, *auditPart) error { return nil },
+		newTestDecider(),
+	)
+	get = httptest.NewRecorder()
+	editable.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, "data-repeatable-empty") {
+		t.Errorf("an editable field has its add-row button instead: %s", body)
+	}
+}

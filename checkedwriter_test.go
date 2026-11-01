@@ -112,3 +112,49 @@ func TestCheckedWriterProcInstNewline(t *testing.T) {
 		require.Equal(t, 3, n)
 	})
 }
+
+func TestCheckedWriterIndentPreformatted(t *testing.T) {
+	t.Run("no breaks or indentation inside pre, and pre stays indented itself", func(t *testing.T) {
+		var b strings.Builder
+		w := NewCheckedWriter(&b).WithIndent("", "  ")
+		got := renderTo(t, w, NewElement("div",
+			NewElement("pre", NewElement("code", NewElement("span", Text("a")), Text("\nb"))),
+			NewElement("p", Text("c")),
+		))
+		require.Equal(t, "\n<div>\n  <pre><code><span>a</span>\nb</code></pre>\n  <p>c</p>\n</div>", got)
+	})
+
+	t.Run("textarea, script and style keep their content", func(t *testing.T) {
+		for _, elem := range []string{"textarea", "script", "style"} {
+			var b strings.Builder
+			w := NewCheckedWriter(&b).WithIndent("", "  ")
+			commentAndCDATA := ComponentFunc(func(_ context.Context, w Writer) error {
+				if err := w.Comment("x"); err != nil {
+					return err
+				}
+				return w.CDATA("y")
+			})
+			got := renderTo(t, w, NewElement("div", NewElement(elem, commentAndCDATA)))
+			require.Equal(t, "\n<div>\n  <"+elem+"><!-- x --><![CDATA[y]]></"+elem+">\n</div>", got, elem)
+		}
+	})
+
+	t.Run("a processing instruction inside pre gets no line break", func(t *testing.T) {
+		var b strings.Builder
+		w := NewCheckedWriter(&b).WithIndent("", "  ")
+		got := renderTo(t, w, NewElement("pre", procInst("pi"), Raw("<?b?>\n"), Text("c")))
+		require.Equal(t, "\n<pre><?pi?><?b?>\nc</pre>", got)
+	})
+}
+
+func TestCheckedWriterAttribWhitespace(t *testing.T) {
+	// Line breaks and tabs are written as character references, so the value
+	// a script reads back is the value written.
+	var b strings.Builder
+	got := renderTo(t, NewCheckedWriter(&b), NewElement("p", NewAttrib("data-v", "a\nb\tc\r\nd")))
+	require.Equal(t, `<p data-v="a&#10;b&#9;c&#13;&#10;d"></p>`, got)
+
+	var s strings.Builder
+	got = renderTo(t, NewCheckedWriter(&s).WithSingleQuoteAttribs(), NewElement("p", NewAttrib("data-v", "a\n'b'")))
+	require.Equal(t, `<p data-v='a&#10;&apos;b&apos;'></p>`, got)
+}

@@ -63,6 +63,12 @@ const (
 	// ClassMultiline is a string value containing line breaks, rendered as a
 	// <pre> so a stack trace keeps its indentation.
 	ClassMultiline Class = "multiline"
+	// ClassDetails is the <details> a JSON record is wrapped in under
+	// [Config.Expandable]. Its <summary> is the line as it renders without it.
+	ClassDetails Class = "details"
+	// ClassPretty is the <pre> an expanded record shows: the whole record, one
+	// field per line, nested objects and arrays indented.
+	ClassPretty Class = "pretty"
 
 	// ClassMatch is what the filter matched inside a line. It is the one Class
 	// that is not a class: the matches are a CSS custom highlight, so [Theme.CSS]
@@ -96,6 +102,8 @@ func (c Class) Valid() bool {
 		ClassPunct,
 		ClassText,
 		ClassMultiline,
+		ClassDetails,
+		ClassPretty,
 		ClassMatch:
 		return true
 	}
@@ -142,6 +150,8 @@ func (Class) Enums() []Class {
 		ClassPunct,
 		ClassText,
 		ClassMultiline,
+		ClassDetails,
+		ClassPretty,
 		ClassMatch,
 	}
 }
@@ -170,6 +180,8 @@ func (Class) EnumStrings() []string {
 		"punct",
 		"text",
 		"multiline",
+		"details",
+		"pretty",
 		"match",
 	}
 }
@@ -450,6 +462,19 @@ func (t Theme) CSS(prefix string) string {
 	b.WriteString("}\n")
 
 	fmt.Fprintf(&b, ".%smultiline {\n", prefix)
+	b.WriteString("\tmargin: 0.25rem 0 0.25rem 1rem;\n")
+	b.WriteString("\toverflow-x: auto;\n")
+	b.WriteString("\ttab-size: 4;\n")
+	b.WriteString("\tfont: inherit;\n")
+	b.WriteString("}\n")
+
+	// An expandable record keeps the summary's disclosure marker, which is the
+	// only affordance saying the line opens, and its expanded body is indented
+	// like a multiline value so it reads as part of the line above it.
+	fmt.Fprintf(&b, ".%sdetails > summary {\n", prefix)
+	b.WriteString("\tcursor: pointer;\n")
+	b.WriteString("}\n")
+	fmt.Fprintf(&b, ".%spretty {\n", prefix)
 	b.WriteString("\tmargin: 0.25rem 0 0.25rem 1rem;\n")
 	b.WriteString("\toverflow-x: auto;\n")
 	b.WriteString("\ttab-size: 4;\n")

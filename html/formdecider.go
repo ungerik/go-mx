@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -118,6 +119,15 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 			mx.Text("Leave blank to keep the current value."),
 		))
 	}
+	// Stored text the input cannot show unchanged says so.
+	if problem, ok := textProblem(kind, value, tag); ok {
+		describedBy = append(describedBy, string(path)+"-text")
+		parts = append(parts, mx.NewElement("small",
+			mx.Attribute{Name: "class", Value: "form-help"},
+			mx.Attribute{Name: "id", Value: string(path) + "-text"},
+			mx.Text(textProblemNote(problem)),
+		))
+	}
 	// A readonly field is never written, so it offers no clear control.
 	// A blank sensitive input keeps the stored value, so the clear control
 	// is how it is emptied, ticked while it is empty so a re-render keeps
@@ -144,6 +154,33 @@ func renderField(path mx.FieldPath, field reflect.StructField, value reflect.Val
 	}
 	mx.AddDescribedBy(input, describedBy...)
 	return parts
+}
+
+// textProblem reports why the text input or textarea of a string-like
+// field cannot show its stored database/sql text unchanged
+// ([mx.DriverValueTextProblem]); a sensitive field shows none of it.
+func textProblem(kind mx.FieldKind, value reflect.Value, tag mx.FormTag) (mx.TextProblem, bool) {
+	switch {
+	case tag.Sensitive:
+		return 0, false
+	case kind == mx.FieldKindString, kind == mx.FieldKindCatchAll:
+		return mx.DriverValueTextProblem(value, false)
+	case kind == mx.FieldKindTextarea:
+		return mx.DriverValueTextProblem(value, true)
+	}
+	return 0, false
+}
+
+// textProblemNote is the note under an input that cannot show its stored
+// text unchanged.
+func textProblemNote(problem mx.TextProblem) string {
+	switch problem {
+	case mx.TextProblemNUL:
+		return "The stored text holds a NUL character, shown as \uFFFD; saving it unchanged keeps it."
+	case mx.TextProblemInvalidUTF8:
+		return "The stored text is not valid UTF-8, shown as \uFFFD; saving it unchanged keeps it."
+	}
+	return "The stored text holds line breaks this input cannot show; saving it unchanged keeps it."
 }
 
 // renderInput emits the input element for one field based on its
@@ -203,6 +240,7 @@ func inputElement(path mx.FieldPath, inputType, val string, _ reflect.StructFiel
 	if tag.Pattern != "" {
 		attribs = append(attribs, Pattern(tag.Pattern))
 	}
+	attribs = append(attribs, TextTagAttribs(tag)...)
 	if tag.Required {
 		attribs = append(attribs, Required)
 	}
@@ -215,6 +253,42 @@ func inputElement(path mx.FieldPath, inputType, val string, _ reflect.StructFiel
 	return Input(attribs...)
 }
 
+// FileTagAttribs returns the attributes a file input gets from its field: its
+// form:"accept=…", and multiple for a field of several files
+// ([mx.MultipleFiles]). The renderers of this package and of shadcn share
+// it.
+func FileTagAttribs(value reflect.Value, tag mx.FormTag) []mx.Attrib {
+	var a []mx.Attrib
+	if tag.Accept != "" {
+		a = append(a, Accept(tag.Accept))
+	}
+	if value.IsValid() && mx.MultipleFiles(value.Type()) {
+		a = append(a, Multiple)
+	}
+	return a
+}
+
+// TextTagAttribs returns the attributes a text input or textarea gets from
+// the tag's form:"minlength=…,maxlength=…,autocomplete=…,inputmode=…": the
+// renderers of this package and of shadcn share it. An inputmode that is no
+// [InputMode] defers its error to render time.
+func TextTagAttribs(tag mx.FormTag) []mx.Attrib {
+	var a []mx.Attrib
+	if tag.MinLength > 0 {
+		a = append(a, MinLength(tag.MinLength))
+	}
+	if tag.MaxLength > 0 {
+		a = append(a, MaxLength(tag.MaxLength))
+	}
+	if tag.Autocomplete != "" {
+		a = append(a, AutoComplete(tag.Autocomplete))
+	}
+	if tag.InputMode != "" {
+		a = append(a, InputMode(tag.InputMode))
+	}
+	return a
+}
+
 func textareaElement(path mx.FieldPath, val string, _ reflect.StructField, tag mx.FormTag, errs []error) mx.Component {
 	attribs := []any{
 		Name(string(path)),
@@ -222,6 +296,9 @@ func textareaElement(path mx.FieldPath, val string, _ reflect.StructField, tag m
 	}
 	if tag.Placeholder != "" {
 		attribs = append(attribs, Placeholder(tag.Placeholder))
+	}
+	for _, a := range TextTagAttribs(tag) {
+		attribs = append(attribs, a)
 	}
 	if tag.Required {
 		attribs = append(attribs, Required)
@@ -374,6 +451,7 @@ func fileInput(path mx.FieldPath, value reflect.Value, tag mx.FormTag, errs []er
 		Name(string(path)),
 		ID(string(path)),
 	}
+	attribs = append(attribs, FileTagAttribs(value, tag)...)
 	// The browser labels the input "No file chosen" also while the field
 	// holds a file, which a note next to it says, and that a blank keeps it.
 	name, stored := mx.StoredFile(value)
@@ -610,6 +688,11 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 					return err
 				}
 			}
+			if kind == mx.FieldKindString || kind == mx.FieldKindCatchAll || kind == mx.FieldKindTextarea {
+				if err := mx.CheckTextLength(tag, raw); err != nil {
+					return err
+				}
+			}
 			return checkScannedRange(value, raw, tag)
 		})
 	case mx.FieldKindNumber:
@@ -691,32 +774,67 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		if !ok || len(files) == 0 {
 			return nil
 		}
-		fh := files[0]
-		// String destinations get the filename only.
-		if value.Kind() == reflect.String {
-			value.SetString(fh.Filename)
-			return nil
+		if mx.MultipleFiles(value.Type()) {
+			return setFiles(r.Context(), value, files)
 		}
-		if value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Uint8 {
-			return errors.New("file upload requires []byte or string field")
-		}
-		// The multipart parser keeps a large file on disk; reading it into
-		// memory is bounded like the parse.
-		if limit := mx.FormMaxMemory(r.Context()); fh.Size > limit {
-			return fmt.Errorf("the file is larger than %d bytes", limit)
-		}
-		f, err := fh.Open()
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		buf := make([]byte, fh.Size)
-		if _, err := io.ReadFull(f, buf); err != nil {
-			return err
-		}
-		value.SetBytes(buf)
-		return nil
+		return setFile(value, files[0], mx.FormMaxMemory(r.Context()))
 	}
+	return nil
+}
+
+// setFile binds one upload to a file field: a string gets its file name, a
+// *multipart.FileHeader the upload itself, a []byte its content, read into
+// memory only up to limit bytes, as the multipart parse is bounded.
+func setFile(value reflect.Value, fh *multipart.FileHeader, limit int64) error {
+	switch {
+	case value.Kind() == reflect.String:
+		value.SetString(fh.Filename)
+		return nil
+	case value.Type() == reflect.TypeFor[*multipart.FileHeader]():
+		value.Set(reflect.ValueOf(fh))
+		return nil
+	case value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Uint8:
+		return errors.New("file upload requires a []byte, string or *multipart.FileHeader field")
+	}
+	// The multipart parser keeps a large file on disk; reading it into
+	// memory is bounded like the parse.
+	if fh.Size > limit {
+		return fmt.Errorf("the file is larger than %d bytes", limit)
+	}
+	f, err := fh.Open()
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	buf := make([]byte, fh.Size)
+	if _, err := io.ReadFull(f, buf); err != nil {
+		return err
+	}
+	value.SetBytes(buf)
+	return nil
+}
+
+// setFiles binds the uploads of a multiple file input to a field of several
+// files ([mx.MultipleFiles]), one element per file in the order sent. The
+// contents read into memory are bounded together by [mx.FormMaxMemory].
+func setFiles(ctx context.Context, value reflect.Value, files []*multipart.FileHeader) error {
+	limit := mx.FormMaxMemory(ctx)
+	slice := reflect.MakeSlice(reflect.Indirect(value).Type(), len(files), len(files))
+	for i, fh := range files {
+		if err := setFile(slice.Index(i), fh, limit); err != nil {
+			return err
+		}
+		if slice.Index(i).Kind() == reflect.Slice {
+			limit -= fh.Size
+		}
+	}
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			value.Set(reflect.New(value.Type().Elem()))
+		}
+		value = value.Elem()
+	}
+	value.Set(slice)
 	return nil
 }
 
@@ -948,15 +1066,16 @@ func setScalar(value reflect.Value, raw string) error {
 type scanner interface{ Scan(src any) error }
 
 // isScanner reports whether value is a database/sql type such as
-// sql.NullInt64 that [mx.DriverValueText] writes, and so its Scan method
-// reads back.
+// sql.NullInt64 ([mx.DriverValueType]), whose Scan method reads back what
+// [mx.DriverValueText] writes. It is decided by the type, so a value
+// holding text an input cannot show, such as a NUL, is still scanned.
 func isScanner(value reflect.Value) bool {
-	if !value.CanAddr() {
-		return false
-	}
-	_, ok := mx.DriverValueText(value)
-	return ok
+	return value.CanAddr() && mx.DriverValueType(value.Type())
 }
+
+// lineBreakStripper removes line breaks as a browser does from the value of
+// a one-line input.
+var lineBreakStripper = strings.NewReplacer("\r", "", "\n", "")
 
 // setScanned binds raw to a database/sql type such as sql.NullInt64 with
 // its Scan method, which reads the text [mx.DriverValueText] writes: as a
@@ -967,7 +1086,10 @@ func isScanner(value reflect.Value) bool {
 // rules of a number field: finite and at most maxNumberLen long (the
 // handler checks form:"min=…,max=…", see checkScannedRange).
 func setScanned(value reflect.Value, raw string) error {
-	if raw == mx.FormValueText(value) {
+	// The shown text comes back unchanged also when the input could not
+	// hold the stored text: a NUL or invalid UTF-8 shown as U+FFFD, a line
+	// break a one-line input strips.
+	if shown := mx.FormValueText(value); raw == shown || raw == lineBreakStripper.Replace(shown) {
 		return nil
 	}
 	// Text longer than any number is rejected before a type that scans only
@@ -1202,7 +1324,7 @@ func setTime(ctx context.Context, value reflect.Value, raw string, tag mx.FormTa
 		time.RFC3339,
 	}
 	switch tag.Widget {
-	case "date":
+	case "date", "datepicker":
 		layouts = []string{"2006-01-02"}
 	case "time":
 		layouts = []string{"15:04:05", "15:04"}

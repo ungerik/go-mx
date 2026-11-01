@@ -9,7 +9,8 @@ optional compound variants and defaults) into a `Variants` resolver: a function
 that maps a props map to a concatenated class string. Like the original, it only
 *concatenates* classes — it does not resolve Tailwind conflicts. Compose it with
 a tailwind-merge step (the repo's [`twmerge`](../twmerge/), via
-[`shadcn.Cn`](../cn.go)) the way shadcn/ui composes cva with its `cn` helper.
+[`shadcn.Cn`](../cn.go)) the way shadcn/ui composes cva with its `cn` helper,
+or [choose a concatenator](#choosing-the-concatenator) that merges.
 
 ## Usage
 
@@ -80,6 +81,50 @@ since v0.7.1 has nothing like it; it takes `Config` values because, as
 upstream accepts only `cva()` components, a composed config must expose its
 variants and defaults, which a compiled `Variants` function does not.
 
+## Choosing the concatenator
+
+`cva.DefineConfig` returns a `Factory` whose resolvers end in a concatenator of
+your choosing instead of the plain space join of `cva.New`. It is the one place
+to post-process every class string the factory generates — wire tailwind-merge
+in once instead of at each call site:
+
+```go
+var tw = cva.DefineConfig(cva.Options{
+    CX: func(classes ...string) string {
+        return twmerge.Merge(strings.Join(classes, " "))
+    },
+})
+
+button := tw.New(cva.Config{
+    Base:            "font-semibold bg-gray-200 border rounded",
+    Variants:        map[string]map[string]string{"intent": {"primary": "bg-blue-500 text-white"}},
+    DefaultVariants: map[string]string{"intent": "primary"},
+})
+
+button(map[string]string{"class": "bg-red-500"})
+// → "font-semibold border rounded text-white bg-red-500"
+
+tw.CX("bg-gray-200", "bg-blue-500") // the concatenator on its own
+// → "bg-blue-500"
+```
+
+The concatenator receives the assembled class strings verbatim, one argument
+each, in resolution order: each composed config's result, the base, one class
+set per variant, the matching compound variants, then the `"class"` override.
+Empty strings are left out, so it never sees one, and it is still called when
+nothing is left, with no arguments. Composed configs are compiled by the same
+factory, so the concatenator runs for each of them first and their results
+reach the composer's call as single arguments. A nil `CX`, like the zero
+`Factory`, is the space join: `cva.New(config)` is `cva.Factory{}.New(config)`,
+the way upstream's own `cva` export is `defineConfig({ cx: clsx })`.
+
+`DefineConfig` is ported from cva v1.0.0-beta.12, where a `cx` option replaced
+the earlier `hooks.onComplete` post-processor; an `onComplete` hook is the
+concatenator above that joins first and then transforms the result. The
+shadcn components do not use it — they merge with `shadcn.Cn` at the component
+boundary — so it is for a caller who wants to intercept class generation
+program-wide.
+
 ## Typed variant props instead of `VariantProps`
 
 In TypeScript, `VariantProps<typeof buttonVariants>` derives a props type from
@@ -129,6 +174,8 @@ cva's TypeScript API maps onto Go types one-to-one:
 | `props` object                    | `props` map argument       |
 | `props.class` / `props.className` | the reserved `"class"` key |
 | `config.composes` (v1.0.0-beta.12) | `Config.Composes`  |
+| `defineConfig({ cx })` (v1.0.0-beta.12) | `DefineConfig(Options{CX: ...})` |
+| the `{ cva, cx }` it returns       | `Factory.New`, `Factory.CX` |
 
 The Go types are: `Config.Variants` is `map[string]map[string]string`,
 `CompoundVariants` is `[]Compound`, `DefaultVariants` is `map[string]string`,
@@ -144,7 +191,8 @@ way (Go has no distinct boolean prop type, so cva's boolean-key coercion
 collapses to plain string keys).
 
 The unit tests in [`cva_test.go`](cva_test.go) are derived from
-class-variance-authority v0.7.1's own test suite.
+class-variance-authority v0.7.1's own test suite, and those of `Composes` and
+`DefineConfig` from cva v1.0.0-beta.12's.
 
 ### Deliberate divergences
 
@@ -163,11 +211,15 @@ class-variance-authority v0.7.1's own test suite.
   non-empty props. Here the composed configs, the variants and the compound
   variants all resolve the same value. A compound variant listing `""` still
   matches a variant that neither the props nor the defaults set.
-- **Not ported:** the `defineConfig` options of cva v1.0.0-beta.12 (a custom
-  `cx` concatenator, which replaced the earlier hooks), since `shadcn.Cn`
-  already post-processes classes at the component boundary,
-  and the `VariantProps` type helper, whose role typed variant parameters fill
-  (see [above](#typed-variant-props-instead-of-variantprops)).
+- **The concatenator gets strings only, never an empty one.** Upstream's `cx`
+  receives class values of its own grammar (clsx arrays and objects) and
+  passes an authored `""` or `null` through; a Go `Config` holds strings, and
+  an empty one is indistinguishable from an absent one, so it is left out.
+  A composed config is compiled by the composer's `Factory` rather than
+  keeping the concatenator of the factory that defined it, since `Composes`
+  takes `Config` values, not compiled resolvers.
+- **Not ported:** the `VariantProps` type helper, whose role typed variant
+  parameters fill (see [above](#typed-variant-props-instead-of-variantprops)).
 
 ## License
 

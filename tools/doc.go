@@ -1,7 +1,9 @@
-// Package tools pins the build-time tooling used to maintain go-mx — currently
-// ungerik/go-enum, the code generator for the methods of the //#enum types in
-// every module of the repository — in a separate nested module. Keeping it
-// here means go-enum and its dependency tree are not part of the shipped
+// Package tools pins the build-time tooling used to maintain go-mx — the
+// ungerik/go-enum code generator for the methods of the //#enum types in
+// every module of the repository, and gen-stdoptions, which generates the
+// stdoptions data from Unicode CLDR (go generate ./stdoptions) — in a
+// separate nested module. Keeping them here means go-enum, golang.org/x/text
+// and their dependency trees are not part of the shipped
 // github.com/ungerik/go-mx module that library consumers import.
 //
 // Generation is driven by //go:generate directives in the packages that define

@@ -241,6 +241,12 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			hasFile = hasFile || rowFile
 		}
 	}
+	if readonly && (!slice.IsValid() || slice.Kind() != reflect.Slice || slice.Len() == 0) {
+		children = append(children, NewElement("p",
+			Attribute{Name: "data-repeatable-empty", Value: string(visit.Path)},
+			Text(RepeatableNoRowsText),
+		))
+	}
 	if limit := maxRows(visit.Tag); !readonly && (limit <= 0 || slice.Len() < limit) {
 		children = append(children, repeatableAddButton(visit.Path))
 	}

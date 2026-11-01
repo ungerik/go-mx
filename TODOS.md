@@ -1,18 +1,32 @@
 # TODOS
 
-Deferred work, grouped by component and sorted by priority. The older `mx`
-reflection to-do list lives in `README.md`; the shadcn/ui port build order lives
-in `shadcn/TODOS.md`.
+Deferred work, grouped by component and sorted by priority. The shadcn/ui port
+build order lives in `shadcn/TODOS.md`.
 
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
-## shadcn/cva
+## mx reflected forms
 
-Follow-ons from the initial `cva` port (class-variance-authority v0.7.1). The
-subpackage currently exports only `New(config Config) Variants`
-(`shadcn/cva/cva.go:65`), which covers the variant resolution the ported
-components actually use.
+### Core repeatable texts are English only
+
+**What:** Let the texts the core package renders for a repeatable field,
+"Add row", "Remove" and the empty readonly field's "None"
+(`RepeatableNoRowsText`), follow the request's language.
+
+**Why:** A shadcn form translates every built-in string through `Labels`,
+but these three come from the core `renderRepeatable`, which has no access
+to them, so a German form shows English row buttons.
+
+**Context:** `repeatableAddButton`, `renderRepeatableRow` and the
+`RepeatableNoRowsText` line in `repeatable.go`. A context hook read at render
+time (as shadcn's `ContextWithLabels`) would let a renderer install them.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## Completed
 
 ### Port cva's `defineConfig` / `onComplete` hook
 
@@ -29,11 +43,7 @@ only if a caller needs to intercept class generation program-wide.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-
-## logview
-
-Deliberate omissions from the first version, recorded so they read as decisions
-rather than oversights. The renderer and the view are complete without them.
+**Completed:** 2026-11-01 — Ported cva v1.0.0-beta.12's `defineConfig`, whose `cx` concatenator replaced the `onComplete` hook: `cva.DefineConfig(cva.Options{CX: …})` returns a `Factory` with `New` and `CX`, and `cva.New` is the zero `Factory` (space join); tests transcribed from upstream's `config.test.ts`.
 
 ### A carriage return is a line break, not a terminal overwrite
 
@@ -51,6 +61,7 @@ content.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `Config.OverwriteCR` (opt-in) keeps only the text after the last carriage return of each LF-separated segment, raw lines and decoded record strings alike, before `MaxLineLen`; a trailing CR or CRLF still ends the line.
 
 ### Expandable pretty-printed detail for a record
 
@@ -63,17 +74,13 @@ compact `{k=v k=v}` form is harder to read the deeper it nests.
 **Context:** `<details>` around the line, with the summary being what
 `Config.Line` renders today and the body an indenting variant of the same value
 renderer. The parse already produces an ordered tree, so only the rendering side
-is new. Note the `<pre>` rule: a block with element children inside it is not
-byte-safe under an indenting writer.
+is new. An indenting writer leaves the inside of a `<pre>` as written, so a
+block with element children is safe in it.
 
 **Effort:** M
 **Priority:** P4
 **Depends on:** None
-
-## web knowledge layer
-
-Deliberate omissions from the alternates, Markdown alternates and llms.txt
-work, recorded so they read as decisions rather than oversights.
+**Completed:** 2026-11-01 — `Config.Expandable` (opt-in) wraps each JSON record in a `<details>` whose summary is the compact line and whose body is a `<pre class="log-pretty">` with the whole record indented in the same `key=value` syntax and classes; searched by the filter and `Matches` too.
 
 ### `GlobPageSource` drops front matter fields it does not know
 
@@ -91,6 +98,7 @@ option keeping the raw file as content.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `Page.FrontMatter map[string]any` holds every front matter field of a Markdown page, mapped ones included, with nested objects normalized to `map[string]any` for YAML, TOML and JSON.
 
 ### The context is not checked before the glob
 
@@ -106,6 +114,7 @@ of the /ship review (2026-10-26).
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `GlobPageSource.Pages` checks `ctx.Err()` before anything else, so a cancelled request neither stats `Dir` nor runs the glob and gets the context's error.
 
 ### Only `Dir` is checked to exist, not the fixed prefix of `Pattern`
 
@@ -123,6 +132,7 @@ forms the same result written differently.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `GlobPageSource` checks that the fixed directory part of `Pattern` (before the first wildcard, below `Dir`, through the `os.Root` with `Confine`) exists and is a directory, and fails with a `GlobPageSource.Pattern` error otherwise.
 
 ### No `og:locale:alternate` for translations
 
@@ -140,6 +150,7 @@ into `HeadCustom` next to the alternate links from the same list.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `Site.AddPageMetadata` renders an `og:locale:alternate` meta tag per translation (no x-default, not the document's own `og:locale`) into `HeadCustom` next to the alternate links, from the same `Page.Alternates`.
 
 ### `mcp.GuardHandler` sends no CORS headers
 
@@ -161,53 +172,7 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-
-## mx writer
-
-### Attribute values lose their line breaks and tabs
-
-**What:** Escape a line break in an attribute value as `&#10;` (and a tab as
-`&#9;`) instead of replacing it with a space (two spaces).
-
-**Why:** The replacement is lossy: a value read back with `getAttribute` or
-`dataset` is not the value written. `shadcn.CodeBlockCopyButton` hit it — a
-multi-line copy value reached the clipboard on one line — and now
-percent-encodes its value and decodes it in its script to get around it.
-Any other attribute carrying text for a script (`data-*`, `title`, a
-`value` of a hidden input) loses line breaks the same way.
-
-**Context:** `doubleQuoteAttribEscaper` and `singleQuoteAttribEscaper` in
-`attrib.go`. The replacement may be there to keep a long `class` or `style`
-on one line in indented output; check who relies on it before changing,
-and the golden outputs of the gallery and the tests.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-### Indentation changes the content of `<pre>` and `<textarea>`
-
-**What:** Make an indenting `CheckedWriter` stop breaking lines and
-indenting inside elements whose whitespace is content, at least `pre`,
-`textarea` and `script`.
-
-**Why:** `WithIndent` writes a newline and indentation before every child
-element, which inside a `<pre>` becomes part of the shown code. The
-gallery works around it with `rawPre` (rendering code panes with a second,
-non-indenting writer into raw HTML), and `shadcn.CodeBlockContent` with an
-`unindented` wrapper that does the same for its `<code>`; every other
-`<pre>` with element children is still broken in indented output.
-
-**Context:** `BeginElement`, `Comment`, `CDATA` and `EndElement` in
-`checkedwriter.go` call `Newline` when `indent` is set; they would check
-the element stack for such an element first. Once fixed, both workarounds
-can go.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-## mx reflected forms
+**Completed:** 2026-11-01 — `GuardOptions.CORS`: `GuardHandler` answers preflights of `AllowedOrigins` with 204 (GET, POST, DELETE; Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID; Max-Age 7200) and sets `Access-Control-Allow-Origin`, `Expose-Headers: Mcp-Session-Id` and `Vary: Origin`, without credentials.
 
 ### A readonly repeatable field with no rows renders an empty box
 
@@ -225,6 +190,7 @@ as a shadcn `Labels` field passed down or a `ReflectFormConfig` option.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — the fieldset shows a `<p data-repeatable-empty>` with `mx.RepeatableNoRowsText` ("None", reassignable like `FormErrorMessage`). The core repeatable texts are not per-request localizable; see "Core repeatable texts are English only".
 
 ### shadcn readonly inputs look editable
 
@@ -242,6 +208,7 @@ component stays faithful to upstream.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — readonly text, number, date and textarea inputs of `shadcn.FieldDecider` get `readonlyInputClasses` (`read-only:bg-muted/50 read-only:cursor-default`, no focus ring); `Input` itself stays upstream's.
 
 ### A time-of-day type whose zero is midnight cannot hold 00:00
 
@@ -263,6 +230,7 @@ nullable wrapper to mean "no time".
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — a time widget shows a time-of-day type's text whenever it is not null (`marshaledText`'s `zeroIsValue`), and `sentBlank` decides a parsed time field's blank from the submitted text, so a required time takes 00:00.
 
 ### A `database/sql` text holding a NUL byte cannot be saved
 
@@ -292,6 +260,7 @@ adversarial review.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `mx.DriverValueType` decides the `Scan` path by type; `DriverValueText` writes text an input cannot hold with U+FFFD for NUL and invalid UTF-8, and `setScanned` keeps the stored text when that shown text, or the text without its line breaks, comes back unchanged. `mx.DriverValueTextProblem` drives a note under the input in both renderers (shadcn `Labels.FormTextNUL`, `FormTextInvalidUTF8`, `FormTextLineBreak`).
 
 ### An unsent required enum whose stored zero is an option reads as blank
 
@@ -311,6 +280,7 @@ in the date widget branch's review.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `zeroIsOption` collects the field's options for a zero enum that was not sent, and a listed zero (a non-empty text such as "0") is a value, not blank.
 
 ### A nil request or context panics in the error helpers
 
@@ -327,6 +297,7 @@ defense against misuse.
 **Effort:** XS
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — `ReportHiddenError` (and through it `FormErrorText` and `MaskSensitiveError`) treats a nil context as `context.Background()`, as `RespondNonContextError` does a nil request.
 
 ### `mx.ReportError` gets a field's error without the field's path
 
@@ -344,6 +315,7 @@ passed.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — the field's path rides in the context instead of the error: `mx.ContextWithFieldPath`/`FieldPathFromContext`, set by the form handler while parsing (a decider's `Parse` gets it in its request), validating and showing each field, also for an error under a path no input shows.
 
 ### Backtick HTML literals in tests lack the `/*html*/` prefix
 
@@ -362,8 +334,135 @@ widget branch's review.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
+**Completed:** 2026-11-01 — 174 literals prefixed in `html/formdecider_test.go`, `shadcn/formdecider_test.go`, `shadcn/calendar_test.go` and `formhandler_test.go` by a `go/scanner` pass (own line after a comma).
 
-## Completed
+### Text-length, autocomplete and input-mode tag options
+
+**What:** `form:"…"` tag options for the input attributes a reflected field
+cannot set today: `minlength`/`maxlength` (checked by the parser too, like
+`pattern`), `autocomplete` and `inputmode`.
+
+**Why:** A length limit is the most common constraint after `required`, and
+today it needs a `Validate` method on the struct while `min`/`max` of a
+number come from the tag. `autocomplete` decides whether a browser or password
+manager fills a field correctly (`one-time-code`, `new-password`, `email`).
+
+**Context:** `FormTag` in `formtag.go` holds widget, label, placeholder, help,
+section, pattern, options, min/max/step and the boolean flags. The server-side
+check belongs with the shared form rules (see the completed "Form rules
+duplicated across `mx`, `html` and `shadcn`"), and a forged over-long value
+must be bounded the way `MaxFieldErrorLen` bounds its error. Carried over from
+the README's old "More ReflectInputOptions" line.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-01 — `form:"minlength=…,maxlength=…,autocomplete=…,inputmode=…"`: `FormTag.MinLength`/`MaxLength`/`Autocomplete`/`InputMode`, rendered by `html.TextTagAttribs` in both renderers, and `mx.CheckTextLength` holds text, textarea and catch-all fields to the lengths on the server, in UTF-16 code units.
+
+### Rich file upload widget
+
+**What:** A file field with a preview of the chosen image, several files
+(`multiple` on a slice field) and upload progress.
+
+**Why:** A reflected `file` widget is a bare `<input type="file">`: one file,
+no preview, and a large upload shows nothing until the response comes back.
+
+**Context:** The bind side is in `fieldbehavior.go` and `formhandler.go`
+(multipart parsing, temp files, the "file field holding a file" state). A
+preview needs a small inline script (`URL.createObjectURL`), progress needs
+`XMLHttpRequest` or htmx's `htmx:xhr:progress` event, and multi-file needs a
+slice-of-file field kind on the bind side. shadcn has no file input component
+to transcribe; the look would follow `Input` and `Empty`.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-01 — a `[]string`, `[][]byte` or `[]*multipart.FileHeader` field (`mx.MultipleFiles`) gets a multiple input and binds every upload, a `*multipart.FileHeader` field needs no tag, and `form:"accept=…"` sets the picker's types (`html.FileTagAttribs`). shadcn's editable file input previews the chosen files (image thumbnails, other names) and shows a progress bar for an htmx upload (`Labels.FormUploadProgress`), from one small script.
+
+### Out-of-band fragments in reflected form responses
+
+**What:** Let a `ReflectFormHandler` answer an htmx submit with the form plus
+out-of-band fragments (`hx-swap-oob`), such as a toast, an updated list row or
+a counter elsewhere on the page.
+
+**Why:** After a successful save the page around the form is often stale, and
+the caller has to replace the whole page or send `HX-Trigger` events and
+reload the parts in separate requests.
+
+**Context:** `writeFormResponse` in `formhandler.go` renders one component.
+`hx.SwapOOB`/`hx.SwapOOBTrue` exist, and `mx.KeyedID` gives the targets
+stable ids. The shape could be an `onSubmit` result carrying extra components,
+rendered after the form only when `hx.IsRequest`.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-01 — `mx.AddOutOfBand(ctx, comps...)` from `onSubmit` appends fragments to the response of an htmx submit (`HX-Request: true`); a successful one with fragments and no destination of its own is answered with the form re-rendered from a fresh load instead of the redirect. A plain submit ignores them.
+
+### Standard option lists as named options providers
+
+**What:** A subpackage that registers common option lists with
+`mx.RegisterNamedOptions`: ISO 4217 currencies, ISO 639 languages, ISO 3166
+countries, so a field takes `form:"options=iso4217"`.
+
+**Why:** Every application that has a currency or country field writes the
+same list, with the same label and sort mistakes.
+
+**Context:** `RegisterNamedOptions` and `form:"options=…"` in `options.go`
+are the hook. Labels need localization, so the providers would read the
+language from the context (`NamedOptionsFunc` gets it). The data must come
+from a maintained source (CLDR) and be regenerated, not typed in; keep it out
+of the root package so binaries that do not use it do not carry it.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-01 — the `stdoptions` package registers ISO 4217 currencies, ISO 639-1 languages and ISO 3166-1 alpha-2 countries as `iso4217`, `iso639-1` and `iso3166-1` with an explicit `stdoptions.Register()`; English and German names picked per request with `stdoptions.ContextWithLanguage`, presorted by CLDR collation. Generated from cldr-json 49.0.0 by `tools/gen-stdoptions`; withdrawn, non-tender, user-assigned, exceptionally reserved and aliased codes are left out the way CLDR marks them.
+
+### Attribute values lose their line breaks and tabs
+
+**What:** Escape a line break in an attribute value as `&#10;` (and a tab as
+`&#9;`) instead of replacing it with a space (two spaces).
+
+**Why:** The replacement is lossy: a value read back with `getAttribute` or
+`dataset` is not the value written. `shadcn.CodeBlockCopyButton` hit it — a
+multi-line copy value reached the clipboard on one line — and now
+percent-encodes its value and decodes it in its script to get around it.
+Any other attribute carrying text for a script (`data-*`, `title`, a
+`value` of a hidden input) loses line breaks the same way.
+
+**Context:** `doubleQuoteAttribEscaper` and `singleQuoteAttribEscaper` in
+`attrib.go`. The replacement may be there to keep a long `class` or `style`
+on one line in indented output; check who relies on it before changing,
+and the golden outputs of the gallery and the tests.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-11-01 — the attribute escapers write `&#10;`, `&#13;` and `&#9;`, so the value read back is the value written; `CodeBlockCopyButton` dropped its percent-encoding. Nothing relied on the spaces: the gallery's attributes held no line breaks.
+
+### Indentation changes the content of `<pre>` and `<textarea>`
+
+**What:** Make an indenting `CheckedWriter` stop breaking lines and
+indenting inside elements whose whitespace is content, at least `pre`,
+`textarea` and `script`.
+
+**Why:** `WithIndent` writes a newline and indentation before every child
+element, which inside a `<pre>` becomes part of the shown code. The
+gallery works around it with `rawPre` (rendering code panes with a second,
+non-indenting writer into raw HTML), and `shadcn.CodeBlockContent` with an
+`unindented` wrapper that does the same for its `<code>`; every other
+`<pre>` with element children is still broken in indented output.
+
+**Context:** `BeginElement`, `Comment`, `CDATA` and `EndElement` in
+`checkedwriter.go` call `Newline` when `indent` is set; they would check
+the element stack for such an element first. Once fixed, both workarounds
+can go.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-11-01 — the `CheckedWriter` marks `pre`, `textarea`, `script`, `style`, `listing`, `xmp` and `plaintext` and everything inside them as preformatted and breaks, indents and adds no line after a processing instruction there. The gallery's `rawPre` and `CodeBlockContent`'s `unindented` are gone.
 
 ### A file field holding a file shows "No file chosen"
 
@@ -1304,7 +1403,6 @@ submission and reads a changed one in the zone the input showed it in
 (`mx.DateTimeInputSpec.Time`): a date at the first instant of its day, a time
 on the stored date; a new record still reads UTC.
 
-
 ### Server-side `min`/`max` for `time.Time` date fields
 
 **What:** Check `form:"min=…,max=…"` on the server when binding a `time.Time`
@@ -1327,7 +1425,6 @@ the `time.Time` path was to stay unchanged.
 **Completed:** 2026-10-19 — `setTime` checks the bounds with
 `mx.CheckDateTimeRange` for `time.Time`, types defined as it, wrappers and date
 structs.
-
 
 ### `datetime` and `time` widgets on string-kind fields
 

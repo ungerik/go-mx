@@ -34,6 +34,30 @@ type field struct {
 	val value
 }
 
+// mapFieldStrings replaces every decoded string of a parsed record — the keys
+// and the string values, at any depth — with fn applied to it. A value past
+// [Config.MaxDepth] is raw JSON text rather than a decoded string, so it is
+// left as written.
+func mapFieldStrings(fields []field, fn func(string) string) {
+	for i := range fields {
+		fields[i].key = fn(fields[i].key)
+		mapValueStrings(&fields[i].val, fn)
+	}
+}
+
+func mapValueStrings(v *value, fn func(string) string) {
+	switch v.kind {
+	case kindString:
+		v.text = fn(v.text)
+	case kindObject:
+		mapFieldStrings(v.fields, fn)
+	case kindArray:
+		for i := range v.items {
+			mapValueStrings(&v.items[i], fn)
+		}
+	}
+}
+
 // parseRecord parses raw as a single JSON object into its fields in source
 // order, and reports whether raw was exactly that.
 //

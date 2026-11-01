@@ -169,6 +169,60 @@ Within a record, each field renders by its key and its JSON type:
 Field order is preserved, including duplicate keys — two `err` fields in one
 record is a bug worth seeing, not one to hide.
 
+### Carriage returns
+
+By default a carriage return is a line break, like LF — which is also what
+`mx.SSEResponse` makes of it on the wire — so a progress bar that redraws
+itself with `\r` renders as one line per redraw. Nothing is lost that way. Set
+`OverwriteCR` to read it the way a terminal does instead: within each line
+segment (the text split at LF), only the text after the last carriage return
+is kept, so `10%\r20%\r30%` renders as `30%`. A `\r` that nothing follows
+before the next LF or the end of the line — the CR of a CRLF, or a progress
+bar's last redraw before its newline — still ends the line rather than erasing
+it. The overwrite is whole-segment, not character by character: a terminal
+would show `downloading\rdone` as `doneloading`. It applies to the decoded
+strings of a record too, which is where docker's json-file driver puts a
+container's progress output, and it happens before `MaxLineLen` is applied, so
+the cap counts what is shown. It is an opt-in because a log that uses `\r` as a
+plain separator would lose everything but its last part.
+
+### Expandable records
+
+`Expandable` wraps each JSON record in a `<details>`: the `<summary>` is the
+line exactly as it renders without it, and opening it shows the whole record
+pretty-printed below — every field on a line of its own, nested objects and
+arrays indented two spaces per level, in the same `key=value` syntax and with
+the same classes, so the theme colors it and a filter for `status=200` matches
+both forms:
+
+```
+time=2026-11-01T11:53:27.914Z
+level=warn
+msg=acquired advisory lock
+db={
+  host=db2.internal
+  port=5432
+  tags=[
+    primary,
+    eu-west
+  ]
+}
+```
+
+Nothing is promoted in the expanded form; it is the whole record, keys
+included. A multiline string starts on the line after its key, indented one
+level deeper, since a `<pre>` cannot nest in the expanded `<pre>`. The line
+element keeps its `log-line` class and `data-mx-log-level`, so the script and
+the level styles work unchanged; `log-details` and `log-pretty` style the
+disclosure and its body. The expanded text is part of the line's text, so the
+filter and `Matches` search it too, opened or not. Plain-text lines and empty
+records are left as they are.
+
+It is an opt-in because it about doubles the markup of every record, and
+because a click on a summary toggles it, which gets in the way of selecting
+text in the line. The expanded `<pre>` holds element children, which is only
+byte-exact because a line renders through a non-indenting writer of its own.
+
 The level is a fixed column: `Theme.CSS` gives it a `min-width` in `ch` — one
 character in the view's monospace font — as wide as the longest level the theme
 defines, so severity can be scanned straight down instead of being chased as it
@@ -189,7 +243,9 @@ during program setup.
 | `TimeKey`, `LevelKey`, `MessageKey` | the field names a record is read with |
 | `Levels` | level vocabulary for plain-text lines |
 | `KeepANSI` | keep terminal escape sequences as text instead of removing them |
+| `OverwriteCR` | a carriage return overwrites its line, as in a terminal, instead of breaking it |
 | `QuoteText` | quote JSON string values |
+| `Expandable` | wrap each JSON record in a `<details>` that opens to the record pretty-printed |
 | `MaxDepth`, `MaxLineLen`, `MaxLines` | the limits below |
 | `Height` | scroll area height, a preference — see below |
 | `Event` | SSE event name; read it back with `EventName()` |
@@ -315,8 +371,6 @@ any other script.
 - **ANSI colors are removed, not rendered.** Mapping the 16 terminal colors
   onto a `Theme` would need a decision about how they relate to the level
   styles, for a signal the view already shows.
-- **A carriage return is a line break here, not a terminal overwrite,** so a
-  progress-bar line renders as several lines.
 
 ## Requirements
 

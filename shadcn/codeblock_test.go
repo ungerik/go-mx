@@ -102,8 +102,8 @@ func TestCodeBlockContentMergesStyle(t *testing.T) {
 }
 
 func TestCodeBlockContentUnindented(t *testing.T) {
-	// An indenting writer breaks the line before every element; inside the
-	// <pre> those breaks would become part of the code.
+	// An indenting writer breaks the line before every element, but not
+	// inside the <pre>, where the breaks would become part of the code.
 	block := html.Div(CodeBlockContent(CodeBlockLineNumbers, "a\nb"))
 	var b strings.Builder
 	if err := block.Render(context.Background(), mx.NewCheckedWriter(&b).WithIndent("", "  ")); err != nil {
@@ -155,14 +155,74 @@ func TestCodeBlockContentEmpty(t *testing.T) {
 }
 
 func TestCodeBlockCopyButtonMultilineValue(t *testing.T) {
-	// go-mx's attribute escaping turns a line break into a space and a tab
-	// into two, so the value is percent-encoded and the script decodes it.
+	// The attribute escaping writes line breaks and tabs as character
+	// references, so dataset.value reads back the value as written.
 	out := render(t, CodeBlockCopyButton("func main() {\n\tfmt.Println(\"100%\")\n}"))
-	want := `data-value="func main() {%0A%09fmt.Println(&quot;100%25&quot;)%0A}"`
+	want := `data-value="func main() {&#10;&#9;fmt.Println(&quot;100%&quot;)&#10;}"`
 	if !strings.Contains(out, want) {
 		t.Errorf("missing %s in %s", want, out)
 	}
-	if !strings.Contains(out, "decodeURIComponent(v)") {
-		t.Errorf("script must decode the value: %s", out)
+}
+
+// TestCodeBlockCopyInBrowser runs the copy script in headless Chrome: a
+// multi-line value reaches the clipboard as written, a block of numbered
+// lines is copied without the numbers, the button shows the copied state
+// and label, and both reset after two seconds.
+func TestCodeBlockCopyInBrowser(t *testing.T) {
+	body := mx.Components{
+		CodeBlock("", "", html.ID("value"),
+			CodeBlockActions(CodeBlockCopyButton("func main() {\n\tfmt.Println(\"100%\")\n}")),
+			CodeBlockContent("ignored"),
+		),
+		CodeBlock("", "", html.ID("lines"),
+			CodeBlockActions(CodeBlockCopyButton("")),
+			CodeBlockContent(CodeBlockLineNumbers, "a := 1\n\nb := 2\n"),
+		),
+		CodeBlock("", "", html.ID("plain"),
+			CodeBlockActions(CodeBlockCopyButton("")),
+			CodeBlockContent("x := y"),
+		),
+	}
+	const script = /*js*/ `
+var copied=[];
+Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:function(t){copied.push(t);return Promise.resolve();}}});
+var btn=function(id){return document.querySelector('#'+id+' [data-slot=code-block-copy-button]');};
+btn('value').click();
+await wait(50);
+out.value=copied[0];
+out.copiedAttr=btn('value').hasAttribute('data-copied');
+out.copiedLabel=btn('value').getAttribute('aria-label');
+out.live=document.querySelector('[aria-live=polite]').textContent;
+btn('lines').click();
+await wait(50);
+out.lines=copied[1];
+btn('plain').click();
+await wait(50);
+out.plain=copied[2];
+await wait(2100);
+out.resetAttr=btn('value').hasAttribute('data-copied');
+out.resetLabel=btn('value').getAttribute('aria-label');
+out.resetLive=document.querySelector('[aria-live=polite]').textContent;
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"value":       "func main() {\n\tfmt.Println(\"100%\")\n}",
+		"copiedAttr":  true,
+		"copiedLabel": "Copied",
+		"live":        "Copied",
+		"lines":       "a := 1\n\nb := 2",
+		"plain":       "x := y",
+		"resetAttr":   false,
+		"resetLabel":  "Copy",
+		"resetLive":   "",
+	})
+}
+
+// An empty line of highlighted tokens, as highlight's Lines returns it, is
+// an empty line that keeps its newline.
+func TestCodeBlockLineEmptyComponents(t *testing.T) {
+	out := render(t, CodeBlockLine("", mx.Components{}))
+	if !strings.Contains(out, "class=\"min-w-0\">\n</span>") {
+		t.Errorf("an empty line must hold a newline: %s", out)
 	}
 }

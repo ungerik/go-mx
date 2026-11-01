@@ -57,6 +57,16 @@ func iconMinus() *mx.Element {
 	return icon("minus", "", svg.Path(svg.D("M5 12h14")))
 }
 
+// iconCalendar is the lucide calendar icon.
+func iconCalendar() *mx.Element {
+	return icon("calendar", "",
+		svg.Path(svg.D("M8 2v4")),
+		svg.Path(svg.D("M16 2v4")),
+		svg.Rect(svg.Width(18), svg.Height(18), svg.X(3), svg.Y(4), svg.RX(2)),
+		svg.Path(svg.D("M3 10h18")),
+	)
+}
+
 // iconChevronDown is the lucide chevron-down icon.
 func iconChevronDown() *mx.Element {
 	return icon("chevron-down", "", svg.Path(svg.D("m6 9 6 6 6-6")))

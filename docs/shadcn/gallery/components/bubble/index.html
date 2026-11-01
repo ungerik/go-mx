@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
@@ -273,7 +275,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-variants-panel-code" aria-labelledby="tab-bubble-variants-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-2&quot;</span>,
+                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-variants-panel-code" aria-labelledby="tab-bubble-variants-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-2&quot;</span>,
 	shadcn.<span class="hl-function">Bubble</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Default&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleSecondary, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Secondary&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleMuted, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Muted&quot;</span>)),
@@ -281,7 +284,8 @@
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleOutline, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Outline&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleGhost, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Ghost, for an assistant&apos;s reply at full width&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleDestructive, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Message failed to send&quot;</span>)),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -307,11 +311,13 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-align-panel-code" aria-labelledby="tab-bubble-align-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">BubbleGroup</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-md&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-align-panel-code" aria-labelledby="tab-bubble-align-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">BubbleGroup</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-md&quot;</span>),
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleMuted, <span class="hl-string">&quot;&quot;</span>, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Did the build pass?&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(<span class="hl-string">&quot;&quot;</span>, shadcn.ChatAlignEnd, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Green on the second try.&quot;</span>)),
 	shadcn.<span class="hl-function">Bubble</span>(<span class="hl-string">&quot;&quot;</span>, shadcn.ChatAlignEnd, shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;The first run hit a flaky test.&quot;</span>)),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -336,7 +342,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-reactions-panel-code" aria-labelledby="tab-bubble-reactions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-8 py-4&quot;</span>,
+                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-reactions-panel-code" aria-labelledby="tab-bubble-reactions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>html.<span class="hl-function">DivClass</span>(<span class="hl-string">&quot;flex w-full max-w-md flex-col gap-8 py-4&quot;</span>,
 	shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleMuted, <span class="hl-string">&quot;&quot;</span>,
 		shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Shipped the new onboarding flow 🎉&quot;</span>),
 		shadcn.<span class="hl-function">BubbleReactions</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;🎉 3&quot;</span>),
@@ -345,7 +352,8 @@
 		shadcn.<span class="hl-function">BubbleContent</span>(<span class="hl-string">&quot;Nice work, everyone.&quot;</span>),
 		shadcn.<span class="hl-function">BubbleReactions</span>(shadcn.BubbleReactionsTop, shadcn.ChatAlignStart, <span class="hl-string">&quot;❤️&quot;</span>),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -371,7 +379,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-suggestions-panel-code" aria-labelledby="tab-bubble-suggestions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>suggestion := <span class="hl-keyword">func</span>(text <span class="hl-type">string</span>) mx.Component {
+                <div data-slot="tabs-content" role="tabpanel" id="tab-bubble-suggestions-panel-code" aria-labelledby="tab-bubble-suggestions-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>suggestion := <span class="hl-keyword">func</span>(text <span class="hl-type">string</span>) mx.Component {
 	<span class="hl-keyword">return</span> shadcn.<span class="hl-function">Bubble</span>(shadcn.BubbleOutline, shadcn.ChatAlignEnd,
 		shadcn.<span class="hl-function">BubbleContent</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;button&quot;</span>), text),
 	)
@@ -380,7 +389,8 @@
 	<span class="hl-function">suggestion</span>(<span class="hl-string">&quot;Show me the failing test&quot;</span>),
 	<span class="hl-function">suggestion</span>(<span class="hl-string">&quot;Retry the build&quot;</span>),
 	<span class="hl-function">suggestion</span>(<span class="hl-string">&quot;Open the logs&quot;</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

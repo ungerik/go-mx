@@ -130,16 +130,17 @@ make the output clean:
 Adjacent non-highlighted tokens are merged into one string literal (`"() { fmt."`)
 so the generated code reads like something a person would write.
 
-### The non-indenting-writer constraint
+### Whitespace inside `<pre>`
 
 The HTML backend builds real `html.Span` elements and lets the `CheckedWriter`
 render them. That writer, when configured to indent, inserts a newline and
-padding before each element's start tag. Inside `<pre>` those injected bytes are
-visible and would shift the code. So the markup is only correct under a
-non-indenting writer, which is the default `mx.NewCheckedWriter`. `HTML()`
-hardcodes that writer; `Component`/`Inline` document the requirement.
+padding before each element's start tag, which inside `<pre>` would be visible
+and shift the code. This used to make the markup correct only under a
+non-indenting writer; the `CheckedWriter` now breaks no lines inside `pre`,
+`textarea`, `script` and `style`, so any writer keeps the layout. `HTML()`
+still uses the non-indenting default.
 
-This is the one sharp edge of building the output from components instead of
+This was the one sharp edge of building the output from components instead of
 writing raw bytes. The alternative — emitting spans through `mx.Raw` to bypass
 the writer — was rejected because the explicit goal was markup built from the
 html package, composable and inspectable like any other go-mx tree.
@@ -151,7 +152,7 @@ html package, composable and inspectable like any other go-mx tree.
 | `go/scanner` over a hand-written lexer     | Correctness, zero deps, leniency         | No type info; user types stay plain      |
 | Lexical classification, no type checker    | Runs on any snippet, no build context    | `MyType` not colored as a type           |
 | Two backends over one token stream         | HTML and go-mx source always agree       | A second backend to keep in sync         |
-| Components over raw byte output            | Composable, inspectable, escapes safely  | Requires a non-indenting writer          |
+| Components over raw byte output            | Composable, inspectable, escapes safely  | Relies on the writer leaving `<pre>` alone |
 | Plain operators/punctuation by default     | Lean markup, editor-like look            | Opt-in needed for colored operators      |
 | gofmt the generated source                 | Output reads hand-written                | A `go/format` pass per `GoSource` call   |
 

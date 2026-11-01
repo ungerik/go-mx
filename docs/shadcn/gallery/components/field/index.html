@@ -181,6 +181,7 @@
           <a href="/go-mx/shadcn/gallery/components/calendar" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
           <a href="/go-mx/shadcn/gallery/components/card" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
           <a href="/go-mx/shadcn/gallery/components/carousel" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="/go-mx/shadcn/gallery/components/chart" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
           <a href="/go-mx/shadcn/gallery/components/checkbox" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
           <a href="/go-mx/shadcn/gallery/components/code-block" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
           <a href="/go-mx/shadcn/gallery/components/collapsible" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
@@ -211,6 +212,7 @@
           <a href="/go-mx/shadcn/gallery/components/pagination" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
           <a href="/go-mx/shadcn/gallery/components/popover" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
           <a href="/go-mx/shadcn/gallery/components/progress" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="/go-mx/shadcn/gallery/components/questionnaire" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
           <a href="/go-mx/shadcn/gallery/components/radio-group" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
           <a href="/go-mx/shadcn/gallery/components/resizable" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
           <a href="/go-mx/shadcn/gallery/components/scroll-area" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
@@ -255,11 +257,13 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-field-demo-panel-code" aria-labelledby="tab-field-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Field</span>(<span class="hl-string">&quot;&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-field-demo-panel-code" aria-labelledby="tab-field-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Field</span>(<span class="hl-string">&quot;&quot;</span>, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
 	shadcn.<span class="hl-function">FieldLabelFor</span>(<span class="hl-string">&quot;field-name&quot;</span>, <span class="hl-string">&quot;Name&quot;</span>),
 	shadcn.<span class="hl-function">InputID</span>(<span class="hl-string">&quot;field-name&quot;</span>, html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Evil Rabbit&quot;</span>)),
 	shadcn.<span class="hl-function">FieldDescription</span>(<span class="hl-string">&quot;Choose a name to display on your profile.&quot;</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -281,13 +285,15 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-field-horizontal-panel-code" aria-labelledby="tab-field-horizontal-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">Field</span>(shadcn.FieldHorizontal, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-field-horizontal-panel-code" aria-labelledby="tab-field-horizontal-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Field</span>(shadcn.FieldHorizontal, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
 	shadcn.<span class="hl-function">FieldContent</span>(
 		shadcn.<span class="hl-function">FieldTitle</span>(<span class="hl-string">&quot;Notifications&quot;</span>),
 		shadcn.<span class="hl-function">FieldDescription</span>(<span class="hl-string">&quot;Receive emails about account activity.&quot;</span>),
 	),
 	shadcn.<span class="hl-function">SwitchID</span>(<span class="hl-string">&quot;field-notifications&quot;</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -319,7 +325,8 @@
                     </fieldset>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-field-fieldset-panel-code" aria-labelledby="tab-field-fieldset-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>shadcn.<span class="hl-function">FieldSet</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm&quot;</span>),
+                <div data-slot="tabs-content" role="tabpanel" id="tab-field-fieldset-panel-code" aria-labelledby="tab-field-fieldset-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">FieldSet</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm&quot;</span>),
 	shadcn.<span class="hl-function">FieldLegend</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Delivery&quot;</span>),
 	shadcn.<span class="hl-function">FieldGroup</span>(
 		shadcn.<span class="hl-function">Field</span>(<span class="hl-string">&quot;&quot;</span>,
@@ -332,7 +339,8 @@
 			shadcn.<span class="hl-function">InputID</span>(<span class="hl-string">&quot;field-pickup&quot;</span>, html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Store #12&quot;</span>)),
 		),
 	),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>
@@ -367,7 +375,8 @@
                     </div>
                   </div>
                 </div>
-                <div data-slot="tabs-content" role="tabpanel" id="tab-field-choice-cards-panel-code" aria-labelledby="tab-field-choice-cards-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none"><pre class="hl mt-2"><code>choice := <span class="hl-keyword">func</span>(id, title, description <span class="hl-type">string</span>, checked <span class="hl-type">bool</span>) mx.Component {
+                <div data-slot="tabs-content" role="tabpanel" id="tab-field-choice-cards-panel-code" aria-labelledby="tab-field-choice-cards-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>choice := <span class="hl-keyword">func</span>(id, title, description <span class="hl-type">string</span>, checked <span class="hl-type">bool</span>) mx.Component {
 	attribs := []mx.Attrib{html.<span class="hl-function">ID</span>(id)}
 	<span class="hl-keyword">if</span> checked {
 		attribs = <span class="hl-builtin">append</span>(attribs, html.Checked)
@@ -385,7 +394,8 @@
 <span class="hl-keyword">return</span> shadcn.<span class="hl-function">FieldGroup</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-sm&quot;</span>),
 	<span class="hl-function">choice</span>(<span class="hl-string">&quot;field-plan-basic&quot;</span>, <span class="hl-string">&quot;Basic&quot;</span>, <span class="hl-string">&quot;Up to 3 projects.&quot;</span>, <span class="hl-constant">true</span>),
 	<span class="hl-function">choice</span>(<span class="hl-string">&quot;field-plan-pro&quot;</span>, <span class="hl-string">&quot;Pro&quot;</span>, <span class="hl-string">&quot;Unlimited projects and priority support.&quot;</span>, <span class="hl-constant">false</span>),
-)</code></pre></div>
+)</code></pre>
+                </div>
                 <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
               </div>
             </section>

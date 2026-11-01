@@ -155,10 +155,13 @@ package variable read by every render, like `mx.AsComponent`.
 | `BreadcrumbNav`                                 | `Breadcrumb` `aria-label`              |
 | `BreadcrumbEllipsis`                            | `BreadcrumbEllipsis` sr-only text      |
 | `CalendarPrevious` / `CalendarNext`             | `Calendar` month button `aria-label`s  |
+| `CalendarMonth` / `CalendarYear`                | `Calendar` caption dropdown labels     |
+| `CalendarToday` / `CalendarSelected`            | day names, %s = the day's `DayLabel`   |
 | `CarouselPrevious` / `CarouselNext`             | carousel button `aria-label`s          |
 | `CodeBlockCopy` / `CodeBlockCopied`             | `CodeBlockCopyButton` label, announced |
 | `DialogClose`                                   | `DialogContent` / `SheetContent` close |
 | `MessageScrollerButton`                         | `MessageScrollerButton` sr-only text   |
+| `MessageScrollerStartButton`                    | the scroll-to-start button's text      |
 | `NavigationMenuNav`                             | `NavigationMenu` `aria-label`          |
 | `PaginationNav`                                 | `Pagination` `aria-label`              |
 | `PaginationPrevious` / `PaginationNext`         | pagination link captions               |
@@ -167,6 +170,9 @@ package variable read by every render, like `mx.AsComponent`.
 | `SidebarTrigger`                                | `SidebarTrigger` `aria-label`          |
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
+| `FormPickDate`                                  | empty `widget=datepicker` placeholder  |
+| `FormUploadProgress`                            | reflected file upload progress bar     |
+| `FormTextNUL` / `FormTextInvalidUTF8` / `FormTextLineBreak` | note under unshowable stored text |
 | `FormClearField`                                | clear box aria-label, %s = field       |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
 | `FormValueRemovedOnSave`                        | note where saving clears that value    |
@@ -685,38 +691,82 @@ examples, not functions in this package.
   cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
-  server-side with Go's `time` package. The selected day's button carries
-  `data-selected` for its look, every day button an ISO 8601 `aria-label`,
-  and the month buttons their `aria-label`s from
-  `Labels.CalendarPrevious`/`CalendarNext`; days of the adjacent months are
-  muted, and only disabled days are faded. A static calendar's selected day
-  button is `aria-pressed`; in select mode (below) the table is instead, like
-  react-day-picker's, a `role="grid"` named by its month whose selected
-  gridcell carries `aria-selected`.
-  Previous/Next are plain buttons with no default behavior — month navigation
-  is a server round-trip, so wire them with `html.HRef("?month=…")` or an
-  `hx.Get`. `CalendarOptions` supplies the localization and booking hooks
-  (Go's `time` has no locale, and the core module deliberately avoids
-  `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set `time.Monday`
-  for the ISO/European week), `WeekdayName`, `WeekdayLabel` (the full name a
-  screen reader announces for a column), `MonthLabel`, `DayLabel`, and
-  `Disabled` (grey out unavailable/past dates — a disabled day is never
-  marked selected). `Today` marks a day with the accent background and
-  `aria-current="date"` (an option, not `time.Now()`, so the caller picks the
-  zone and the output stays deterministic), and `StartMonth`/`EndMonth`
-  disable Previous/Next at the limits. `Name` turns on select mode, which is
-  react-day-picker's single mode re-expressed with one small shared script:
-  a hidden input of that name carries the picked day as `2006-01-02`, a click
-  or Enter picks a day and fires `input`/`change` on that input, the arrow
-  keys and Home/End move the focus between enabled days with a single Tab
-  stop, a surrounding popover closes, and `CalendarText(name, …)` shows the
-  picked day's `DayLabel` — the label of a date picker's trigger.
-  `Disabled`, `StartMonth` and `EndMonth` only shape the grid in the browser,
-  so a handler must check a submitted day against the same rules; a disabled
-  selected day keeps its date in the hidden input. The zero-value
+  server-side with Go's `time` package. A static calendar's days are text,
+  as react-day-picker renders them without a mode: the number, and the
+  day's ISO 8601 name as screen-reader text, in a table named by its month.
+  In select mode (below) they are buttons named by it, in a `role="grid"`
+  whose selected gridcells carry `aria-selected`. Either way today's name is
+  wrapped in `Labels.CalendarToday` ("Today, %s") and a selected day's in
+  `Labels.CalendarSelected` ("%s, selected"), the selected day carries
+  `data-selected` for its look, and the month buttons their `aria-label`s
+  from `Labels.CalendarPrevious`/`CalendarNext`; days of the adjacent months
+  are muted, and only disabled days are faded. `NumberOfMonths` shows months
+  side by side, sharing the buttons, the selection and the keys, without the
+  adjacent months' days.
+  `CalendarOptions` supplies the localization and booking hooks (Go's `time`
+  has no locale, and the core module deliberately avoids
+  `golang.org/x/text`): `WeekStart` (default `time.Sunday`; set
+  `time.Monday` for the ISO/European week), `WeekdayName`, `WeekdayLabel`
+  (the full name a screen reader announces for a column), `MonthLabel`,
+  `MonthName`, `DayLabel`, and `Disabled` (grey out unavailable/past dates —
+  a disabled day is never marked selected). `Today` marks a day with the
+  accent background and `aria-current="date"` (an option, not `time.Now()`,
+  so the caller picks the zone and the output stays deterministic), and
+  `StartMonth`/`EndMonth` disable Previous/Next at the limits.
+  **Month navigation.** Without `MonthURL`, Previous/Next are plain buttons
+  for the caller to wire (`html.HRef("?month=…")`, `hx.Get`). With
+  `MonthURL func(time.Time) string` the calendar loads other months itself:
+  Previous/Next, PageUp/PageDown (Shift for a year) and an arrow key past
+  the edge of the grid fetch the URL of that month and replace the calendar with the first
+  calendar of the response, putting the focus back on the button or on the
+  day the keys moved to. The other months render client-side in no way — the
+  label and `Disabled` hooks are Go functions — so the handler behind the
+  URL renders the calendar with the same options; it need not know the
+  picked days, which the script carries over. No htmx is needed (a new
+  calendar is `htmx.process`ed when htmx is there). `CaptionLayout`
+  (`CalendarCaptionDropdown`, `…DropdownMonths`, `…DropdownYears`) puts
+  native month and year `<select>`s in the caption, bounded by
+  `StartMonth`/`EndMonth` (react-day-picker's defaults otherwise: from 100
+  years back to the end of the current year), each option loading its month
+  through `MonthURL`.
+  **Select mode.** `Name` turns on react-day-picker's selection modes,
+  re-expressed with one small shared script: a hidden input of that name
+  carries the picked day as `2006-01-02`, a click or Enter picks a day and
+  fires `input`/`change` on that input, the arrow keys and Home/End move the
+  focus between enabled days with a single Tab stop, a surrounding popover
+  closes, and `CalendarText(name, …)` shows the picked day's `DayLabel` —
+  the label of a date picker's trigger. `Mode: CalendarRange` picks a range
+  (the first click starts it, the second ends it, upstream's
+  `range_start`/`range_middle`/`range_end` look, a second hidden input named
+  `EndName`, `RangeEnd` for its current end), `Mode: CalendarMultiple` any
+  number of days (one hidden input per day, `Selected` for the current
+  ones, `ExcludeDisabled` to keep a range off disabled days). The script's
+  `calendarPick(name, date, label)` picks a day from outside the calendar,
+  such as a typed date or a preset, and an `<input>` carrying
+  `data-calendar-text` shows the pick as its value. `Disabled`,
+  `StartMonth` and `EndMonth` only shape the grid in the
+  browser, so a handler must check a submitted day against the same rules;
+  a disabled selected day keeps its date in the hidden input. The zero-value
   `CalendarOptions` renders exactly what `Calendar` renders.
-  react-day-picker's range/multiple selection, dropdown caption and
-  client-side month navigation are not reproduced (see `TODOS.md`).
+- **Chart** — `Chart(kind, data, opts, …)` with `ChartBar`, `ChartLine`,
+  `ChartArea`, `ChartPie` (a donut with `Donut`), `ChartRadar` and
+  `ChartRadial`; pie and radial draw their first series, a slice or ring per
+  category colored through `ChartData.CategoryColors` or the theme. Upstream's Chart is a theming layer over Recharts, which
+  draws its SVG in the browser; here the SVG is drawn in Go, so a chart is
+  plain server-rendered markup with no script. `ChartData` holds the
+  categories and the `ChartSeries` (a `Key` naming the `--color-<key>`
+  variable, as upstream's ChartConfig does, a `Label`, a `Color` defaulting
+  to the theme's `--chart-1…5`, and one value per category). `ChartOptions`
+  stacks the bars or areas, picks the curve (`ChartCurveLinear`,
+  `ChartCurveMonotone` — Recharts' "monotone", without overshoot —
+  `ChartCurveStep`), adds dots and a legend, hides the grid or an axis,
+  and formats values and category labels. The value axis takes round steps
+  as d3 picks them. The SVG scales through its `viewBox` (Recharts'
+  ResponsiveContainer re-expressed) inside an `aspect-video` container;
+  each point carries a native `<title>` as its tooltip, or with `Tooltip`
+  upstream's ChartTooltip card shows on hovering a category, with CSS alone.
+  The SVG is hidden from assistive technology, which reads a visually hidden
+  table of the same data.
 - **Carousel** — `Carousel` / `CarouselContent` / `CarouselItem` /
   `CarouselPrevious` / `CarouselNext`. A native CSS `scroll-snap` track —
   drag, swipe and keyboard scrolling are free; the Previous/Next buttons
@@ -816,16 +866,41 @@ self-contained result; these are the first components sourced that way:
   with `className`, a caller class goes to the wrapper (which sizes the
   control), every other attribute — `id`, `name`, `html.Disabled`,
   `aria-invalid` — to the `<select>`.
+- **Questionnaire** — `Questionnaire` / `QuestionnaireProgress(current,
+  total, …)` / `QuestionnaireItem(name, …)` / `QuestionnaireTitle` /
+  `QuestionnaireDescription` / `QuestionnaireChoices(shortcuts, …)` /
+  `QuestionnaireChoice(type, name, value, …)` /
+  `QuestionnaireChoiceDescription` / `QuestionnaireInput` /
+  `QuestionnaireError` / `QuestionnaireActions` / `QuestionnairePrevious` /
+  `QuestionnaireSkip` / `QuestionnaireNext` / `QuestionnaireSubmit`: one
+  question at a time. Upstream keeps every item, the step and the answers in
+  a headless React primitive; here each step is a round trip. The
+  `<form>` posts the active item's answers plus `questionnaire-item` and
+  `questionnaire-action` (`previous`, `next`, `skip`, `submit`, the button
+  pressed), and the server answers with the questionnaire re-rendered: the
+  same item with a `QuestionnaireError`, or the next one. It works over
+  `hx.Post` with an `outerHTML` swap or as a plain form post. The choice
+  cards are native radios or checkboxes stretched over the card, which reads
+  their state through `has-[>input:checked]:`. An error inside an item marks
+  it and its controls invalid and joins its `aria-describedby`. One small
+  shared script handles the keys: Enter presses Next (or Submit), never the
+  first submit button of the form, and with `QuestionnaireShortcutsLetters`
+  or `Numbers` a key checks its choice. Captions are children, not built-in
+  English. Unlike upstream, a typed "other" answer does not clear the
+  checked choice: both are posted, so give the input a name of its own.
 
 ### Chat and agent UIs
 
 Upstream's "AI elements": the pieces of a chat or agent transcript, which a
 go-mx app streams in over `mx.SSEResponse` or htmx swaps. All are markup
 apart from two small behaviors noted below. Two things upstream's versions
-use are not Tailwind but `@utility` rules of shadcn's own `tailwind.css`,
-and this package emits Tailwind classes only: the `shimmer` text effect
-(a running trace step, an uploading attachment) is `animate-pulse` here,
-and the `scroll-fade-*` edge masks are dropped. Where upstream's React
+use are not Tailwind but `@utility` rules of shadcn's own `tailwind.css`:
+the `shimmer` text effect (a running trace step, an uploading attachment)
+and the `scroll-fade-*` edge masks. By default this package emits Tailwind
+classes only, so the shimmer is `animate-pulse` and the fades are dropped.
+`shadcn.UtilitiesCSS` holds upstream's rules: add it to the app's Tailwind
+input and set `shadcn.UseUtilities` during initialization, and the
+components emit upstream's classes. Where upstream's React
 `render` prop chooses the element (`Marker`, `BubbleContent`,
 `AttachmentTrigger`), the attributes do: an `href` renders an `<a>`, a
 `type` a `<button>`.
@@ -864,23 +939,25 @@ and the `scroll-fade-*` edge masks are dropped. Where upstream's React
   attributes on the content. CodeBlock does not highlight: pass
   highlighted markup as the content's children, for Go the tokens of the
   `highlight` package plus its theme stylesheet —
-  `shadcn.CodeBlockContent(highlight.Default.Components(highlight.TokenizeGo(src)))`.
+  `shadcn.CodeBlockContent(highlight.Default.Components(highlight.TokenizeGo(src)))`,
+  or, for line numbers and line marks, one `CodeBlockLine` per line of
+  `highlight.Default.Lines(tokens)`, which cuts a token spanning lines into
+  one span per line.
   `highlight` depends only on `mx` and `html` so that it fits any markup,
   so the dependency points from the caller to both, never from `shadcn` to
   `highlight`. Line numbers need one `CodeBlockLine` per line; a single
   plain-text child is split for you. The copy button is the one scripted
   part: it copies its value, or with `""` the code's text, and shows a
-  check and "Copied" for two seconds. `CodeBlockContent` renders its
-  `<code>` without the whitespace an indenting writer would put inside the
-  `<pre>`.
+  check and "Copied" for two seconds.
 - **MessageScroller** — `MessageScroller` / `MessageScrollerViewport` /
   `MessageScrollerContent` / `MessageScrollerItem` /
   `MessageScrollerButton(variant, size, …)`: the scrolling frame of a
   transcript. The viewport always carries `StickToBottom`, so it follows
   new messages while the reader is at the bottom; the button back to the
   latest message shows from `StickToBottom`'s `data-stuck` attribute with
-  CSS alone. Give the `MessageScroller` a height. Upstream's
-  scroll-to-start direction is not ported.
+  CSS alone, and leaves the tab order once it has faded out. With
+  `MessageScrollerStart` it is upstream's scroll-to-start button, shown from
+  StickToBottom's `data-at-start`. Give the `MessageScroller` a height.
 
 ## Tailwind CSS v4 is required
 

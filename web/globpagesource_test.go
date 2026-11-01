@@ -926,3 +926,119 @@ func TestGlobPageSourceMarkdownAlternateReadsOnlyItsFile(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "Text of B.")
 	require.Equal(t, http.StatusInternalServerError, get("/a.md").Code)
 }
+
+// Every field of the front matter is kept in Page.FrontMatter, the ones of
+// no page field too, which a renderer reading fields of its own needs now
+// that the front matter is not part of the content.
+func TestGlobPageSourceFrontMatterFields(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"yaml.md": "---\ntitle: YAML\nimage: /img/yaml.png\naliases: [/old]\nhero:\n  alt: A hero\n  size: 2\n---\nbody\n",
+		"toml.md": "+++\ntitle = \"TOML\"\nimage = \"/img/toml.png\"\n[hero]\nalt = \"A hero\"\n+++\nbody\n",
+		"json.md": "{\n\"title\": \"JSON\",\n\"image\": \"/img/json.png\",\n\"hero\": {\"alt\": \"A hero\"}\n}\n\nbody\n",
+		"none.md": "# No front matter\n",
+	}
+	for name, content := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	for _, withContent := range []bool{true, false} {
+		fields := map[string]map[string]any{}
+		for page, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md"}).Pages(context.Background(), withContent) {
+			require.NoError(t, err)
+			fields[page.Path] = page.FrontMatter
+		}
+		require.Nil(t, fields["/none"], "withContent %t", withContent)
+		for _, format := range []string{"yaml", "toml", "json"} {
+			matter := fields["/"+format]
+			require.NotNil(t, matter, "%s, withContent %t", format, withContent)
+			require.Equal(t, strings.ToUpper(format), matter["title"], "a mapped field is kept too")
+			require.Equal(t, "/img/"+format+".png", matter["image"])
+			// A nested object is a map[string]any whatever the format; the
+			// YAML decoder makes it a map[any]any.
+			hero, ok := matter["hero"].(map[string]any)
+			require.True(t, ok, "%s: hero is %T", format, matter["hero"])
+			require.Equal(t, "A hero", hero["alt"])
+		}
+		require.Equal(t, []any{"/old"}, fields["/yaml"]["aliases"])
+		require.Equal(t, 2, fields["/yaml"]["hero"].(map[string]any)["size"])
+	}
+}
+
+// A cancelled context is checked before anything else, so a request nobody
+// waits for does not stat Dir or run the glob, and gets the context's error
+// rather than the one of a missing Dir.
+func TestGlobPageSourceCancelledBeforeGlob(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	source := &web.GlobPageSource{Dir: fs.File(filepath.Join(t.TempDir(), "missing")), Pattern: "*.md"}
+	var results []error
+	for page, err := range source.Pages(ctx, false) {
+		require.Nil(t, page)
+		results = append(results, err)
+	}
+	require.Len(t, results, 1)
+	require.ErrorIs(t, results[0], context.Canceled)
+	require.NotErrorIs(t, results[0], os.ErrNotExist)
+}
+
+// A missing directory in the fixed part of Pattern fails the source like a
+// missing Dir does, with or without Dir, rather than leaving an empty source.
+func TestGlobPageSourceMissingPatternDir(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "blog"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "blog", "hello.md"), []byte("hello\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.md"), []byte("page\n"), 0o600))
+	results := func(t *testing.T, source *web.GlobPageSource) (paths []string, errs []error) {
+		t.Helper()
+		for page, err := range source.Pages(context.Background(), false) {
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			paths = append(paths, page.Path)
+		}
+		return paths, errs
+	}
+
+	for _, source := range []*web.GlobPageSource{
+		{Dir: fs.File(dir), Pattern: filepath.Join("news", "*.md")},
+		{Dir: fs.File(dir), Pattern: filepath.Join("blog", "2026", "*.md")},
+		{Pattern: filepath.Join(dir, "news", "*.md")},
+		{Dir: fs.File(dir), Pattern: filepath.Join("news", "*.md"), Confine: true},
+		// The directory of a pattern without a wildcard.
+		{Dir: fs.File(dir), Pattern: filepath.Join("news", "hello.md")},
+	} {
+		paths, errs := results(t, source)
+		require.Empty(t, paths, "Pattern %q", source.Pattern)
+		require.Len(t, errs, 1, "Pattern %q", source.Pattern)
+		require.ErrorIs(t, errs[0], os.ErrNotExist, "Pattern %q", source.Pattern)
+		require.ErrorContains(t, errs[0], "GlobPageSource.Pattern", "Pattern %q", source.Pattern)
+	}
+
+	_, errs := results(t, &web.GlobPageSource{Dir: fs.File(dir), Pattern: filepath.Join("page.md", "*.md")})
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[0], "is no directory")
+
+	// What a wildcard has to match, and the file a pattern without one names,
+	// may well be missing: that is an empty match, not a broken source.
+	for _, source := range []*web.GlobPageSource{
+		{Dir: fs.File(dir), Pattern: filepath.Join("*", "2026", "*.md")},
+		{Dir: fs.File(dir), Pattern: filepath.Join("blog", "missing.md")},
+		{Dir: fs.File(dir), Pattern: "missing.md"},
+	} {
+		paths, errs := results(t, source)
+		require.Empty(t, paths, "Pattern %q", source.Pattern)
+		require.Empty(t, errs, "Pattern %q", source.Pattern)
+	}
+
+	// An existing prefix matches as before.
+	for _, source := range []*web.GlobPageSource{
+		{Dir: fs.File(dir), Pattern: filepath.Join("blog", "*.md")},
+		{Dir: fs.File(dir), Pattern: filepath.Join("blog", "*.md"), Confine: true},
+		{Pattern: filepath.Join(dir, "blog", "*.md")},
+	} {
+		paths, errs := results(t, source)
+		require.Empty(t, errs, "Pattern %q", source.Pattern)
+		require.Len(t, paths, 1, "Pattern %q", source.Pattern)
+	}
+}

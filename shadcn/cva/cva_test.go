@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Tests for the Go port of class-variance-authority (cva) v0.7.1 and of
-// cva v1.0.0-beta.12's composes, Copyright 2022 Joe Bell, licensed under the
-// Apache License, Version 2.0.
+// cva v1.0.0-beta.12's composes and defineConfig, Copyright 2022 Joe Bell,
+// licensed under the Apache License, Version 2.0.
 // See the LICENSE file in this directory and ../../THIRD-PARTY-LICENSES.md.
 
 package cva
 
 import (
 	"maps"
+	"slices"
+	"strings"
 	"testing"
+
+	"github.com/ungerik/go-mx/shadcn/twmerge"
 )
 
 // TestNew exercises the resolver against cases derived from
@@ -341,5 +345,226 @@ func TestComposesEmptyPropResolvesOnce(t *testing.T) {
 	})
 	if got, want := card(empty), "shadow-md raised card-raised"; got != want {
 		t.Errorf("retuned default = %q, want %q", got, want)
+	}
+}
+
+// recorder is a concatenator that records the arguments of every call, the
+// recording cx of cva v1.0.0-beta.12's "cva/config" tests. It returns the
+// space join, so a resolver compiled with it returns what New's would.
+type recorder struct {
+	calls [][]string
+}
+
+func (r *recorder) cx(classes ...string) string {
+	r.calls = append(r.calls, slices.Clone(classes))
+	return strings.Join(classes, " ")
+}
+
+// TestDefineConfigForwardsToConcatenator follows "forwards inputs to the
+// concatenator": the factory's resolvers and its CX both end in the
+// concatenator, composed configs included.
+func TestDefineConfigForwardsToConcatenator(t *testing.T) {
+	join := func(classes ...string) string { return strings.Join(classes, "|") }
+	f := DefineConfig(Options{CX: join})
+
+	if got, want := f.CX("a", "b"), "a|b"; got != want {
+		t.Errorf("CX = %q, want %q", got, want)
+	}
+	baseOnly := Config{Base: "base"}
+	if got, want := f.New(baseOnly)(map[string]string{"class": "extra"}), "base|extra"; got != want {
+		t.Errorf("base with class = %q, want %q", got, want)
+	}
+	if got, want := f.New(Config{Composes: []Config{baseOnly}, Base: "parent"})(nil), "base|parent"; got != want {
+		t.Errorf("composed = %q, want %q", got, want)
+	}
+	button := f.New(Config{Base: "btn", Variants: map[string]map[string]string{"size": {"sm": "btn-sm"}}})
+	if got, want := button(map[string]string{"size": "sm"}), "btn|btn-sm"; got != want {
+		t.Errorf("variant = %q, want %q", got, want)
+	}
+}
+
+// TestDefineConfigArgumentsVerbatim follows "receives assembled values
+// verbatim, one argument each": a composed config resolves first, through
+// the same concatenator, and its result is one argument of the composer's
+// call, followed by base, variant, compound and "class".
+func TestDefineConfigArgumentsVerbatim(t *testing.T) {
+	var rec recorder
+	f := DefineConfig(Options{CX: func(classes ...string) string {
+		rec.cx(classes...)
+		return "recorded"
+	}})
+	badge := f.New(Config{
+		Composes:         []Config{{Base: "child"}},
+		Base:             "badge badge--raised",
+		Variants:         map[string]map[string]string{"tone": {"info": "bg-blue-500", "warn": "bg-yellow-500"}},
+		CompoundVariants: []Compound{{When: map[string][]string{"tone": {"info"}}, Class: "compound-info"}},
+		DefaultVariants:  map[string]string{"tone": "info"},
+	})
+
+	if got := badge(map[string]string{"class": "extra"}); got != "recorded" {
+		t.Errorf("result = %q, want the concatenator's", got)
+	}
+	want := [][]string{
+		{"child"},
+		{"recorded", "badge badge--raised", "bg-blue-500", "compound-info", "extra"},
+	}
+	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
+		t.Errorf("calls = %q, want %q", rec.calls, want)
+	}
+}
+
+// TestDefineConfigArgumentStreams follows the "base and class argument
+// streams" cases of cva v1.0.0-beta.12's runtime semantics. Go has no
+// undefined, null or className, so an empty string stands for all of them and
+// is never passed on.
+func TestDefineConfigArgumentStreams(t *testing.T) {
+	button := Config{
+		Base:             "button",
+		Variants:         map[string]map[string]string{"intent": {"primary": "intent-primary"}},
+		CompoundVariants: []Compound{{When: map[string][]string{"intent": {"primary"}}, Class: "compound-primary"}},
+		DefaultVariants:  map[string]string{"intent": "primary"},
+	}
+	cases := []struct {
+		name   string
+		config Config
+		calls  []map[string]string
+		want   [][]string
+	}{
+		{"empty config passes no arguments", Config{}, []map[string]string{nil}, [][]string{{}}},
+		{"base alone", Config{Base: "b"}, []map[string]string{nil}, [][]string{{"b"}}},
+		{"base and class", Config{Base: "b"}, []map[string]string{{"class": "c"}}, [][]string{{"b", "c"}}},
+		{"class alone", Config{}, []map[string]string{{"class": "c"}}, [][]string{{"c"}}},
+		{"empty class is left out", Config{Base: "b"}, []map[string]string{{"class": ""}}, [][]string{{"b"}}},
+		{"empty variant table", Config{Base: "b", Variants: map[string]map[string]string{}}, []map[string]string{{"class": "c"}}, [][]string{{"b", "c"}}},
+		{"empty compound table", Config{Base: "b", CompoundVariants: []Compound{}}, []map[string]string{{"class": "c"}}, [][]string{{"b", "c"}}},
+		{
+			"nothing to emit passes no arguments",
+			Config{Variants: map[string]map[string]string{"intent": {"primary": "intent-primary"}}},
+			[]map[string]string{nil, {"class": "n"}},
+			[][]string{{}, {"n"}},
+		},
+		{
+			"compound class, then the caller's class", button,
+			[]map[string]string{{"class": "caller-class"}},
+			[][]string{{"button", "intent-primary", "compound-primary", "caller-class"}},
+		},
+		{
+			"repeated calls stream the same", button,
+			[]map[string]string{nil, {"class": "c"}, nil},
+			[][]string{
+				{"button", "intent-primary", "compound-primary"},
+				{"button", "intent-primary", "compound-primary", "c"},
+				{"button", "intent-primary", "compound-primary"},
+			},
+		},
+		{
+			"a prop equal to its default streams like omitting it", button,
+			[]map[string]string{nil, {"intent": "primary"}},
+			[][]string{
+				{"button", "intent-primary", "compound-primary"},
+				{"button", "intent-primary", "compound-primary"},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var rec recorder
+			resolve := DefineConfig(Options{CX: rec.cx}).New(c.config)
+			for _, props := range c.calls {
+				resolve(props)
+			}
+			if !slices.EqualFunc(rec.calls, c.want, slices.Equal) {
+				t.Errorf("calls = %q, want %q", rec.calls, c.want)
+			}
+		})
+	}
+}
+
+// TestDefineConfigNeverPassesEmpty follows "a string-only concatenator never
+// receives undefined": neither a resolver nor CX passes an empty string, so a
+// concatenator need not filter.
+func TestDefineConfigNeverPassesEmpty(t *testing.T) {
+	f := DefineConfig(Options{CX: func(classes ...string) string {
+		for _, cls := range classes {
+			if cls == "" {
+				t.Errorf("concatenator received an empty string in %q", classes)
+			}
+		}
+		return strings.ToUpper(strings.Join(classes, " "))
+	}})
+	box := Config{Base: "box"}
+	button := f.New(Config{
+		Composes: []Config{box, {Base: ""}},
+		Variants: map[string]map[string]string{"intent": {"primary": "primary"}, "size": {"sm": "sm"}},
+	})
+	if got, want := f.New(box)(nil), "BOX"; got != want {
+		t.Errorf("box = %q, want %q", got, want)
+	}
+	if got, want := button(map[string]string{"intent": "primary"}), "BOX PRIMARY"; got != want {
+		t.Errorf("button = %q, want %q", got, want)
+	}
+	if got, want := f.CX("a", "", "b"), "A B"; got != want {
+		t.Errorf("CX = %q, want %q", got, want)
+	}
+}
+
+// TestDefineConfigTailwindMerge follows the "tailwind-merge" cases: a
+// concatenator that merges resolves conflicts across base, variants and the
+// class override, which is the onComplete use the option replaced.
+func TestDefineConfigTailwindMerge(t *testing.T) {
+	tw := DefineConfig(Options{CX: func(classes ...string) string {
+		return twmerge.Merge(strings.Join(classes, " "))
+	}})
+	button := tw.New(Config{
+		Base: "font-semibold bg-gray-200 border rounded",
+		Variants: map[string]map[string]string{"intent": {
+			"primary":   "bg-blue-500 text-white border-transparent",
+			"secondary": "bg-white text-gray-800 border-gray-400",
+		}},
+		DefaultVariants: map[string]string{"intent": "primary"},
+	})
+	if got, want := button(nil), "font-semibold border rounded bg-blue-500 text-white border-transparent"; got != want {
+		t.Errorf("default = %q, want %q", got, want)
+	}
+	if got, want := button(map[string]string{"class": "bg-red-500"}), "font-semibold border rounded text-white border-transparent bg-red-500"; got != want {
+		t.Errorf("class override = %q, want %q", got, want)
+	}
+	if got, want := tw.CX("bg-gray-200", "bg-blue-500"), "bg-blue-500"; got != want {
+		t.Errorf("CX = %q, want %q", got, want)
+	}
+
+	// A composed config merges too, and its result is merged again with the
+	// composer's classes.
+	box := Config{Base: "p-4 bg-gray-100", Variants: map[string]map[string]string{"pad": {"none": "p-0"}}}
+	card := tw.New(Config{
+		Composes:        []Config{box},
+		Base:            "font-semibold",
+		Variants:        map[string]map[string]string{"intent": {"primary": "bg-blue-500", "secondary": "bg-white"}},
+		DefaultVariants: map[string]string{"intent": "primary"},
+	})
+	if got, want := card(map[string]string{"pad": "none", "class": "text-white"}), "p-0 font-semibold bg-blue-500 text-white"; got != want {
+		t.Errorf("composed = %q, want %q", got, want)
+	}
+}
+
+// TestDefineConfigDefaultConcatenator checks that the zero Factory and a nil
+// CX resolve exactly like New.
+func TestDefineConfigDefaultConcatenator(t *testing.T) {
+	config := Config{
+		Composes:        []Config{{Base: "inner"}},
+		Base:            "outer",
+		Variants:        map[string]map[string]string{"size": {"sm": "h-8", "lg": "h-10"}},
+		DefaultVariants: map[string]string{"size": "sm"},
+	}
+	props := map[string]string{"size": "lg", "class": "w-full"}
+	want := New(config)(props)
+	if got := (Factory{}).New(config)(props); got != want {
+		t.Errorf("zero Factory = %q, want %q", got, want)
+	}
+	if got := DefineConfig(Options{}).New(config)(props); got != want {
+		t.Errorf("nil CX = %q, want %q", got, want)
+	}
+	if got, want := (Factory{}).CX("a", "", "b"), "a b"; got != want {
+		t.Errorf("zero Factory CX = %q, want %q", got, want)
 	}
 }
