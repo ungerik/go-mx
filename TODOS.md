@@ -162,6 +162,51 @@ and exposing `Mcp-Session-Id` on responses. A `GuardOptions.CORS` flag reusing
 **Priority:** P4
 **Depends on:** None
 
+## mx writer
+
+### Attribute values lose their line breaks and tabs
+
+**What:** Escape a line break in an attribute value as `&#10;` (and a tab as
+`&#9;`) instead of replacing it with a space (two spaces).
+
+**Why:** The replacement is lossy: a value read back with `getAttribute` or
+`dataset` is not the value written. `shadcn.CodeBlockCopyButton` hit it — a
+multi-line copy value reached the clipboard on one line — and now
+percent-encodes its value and decodes it in its script to get around it.
+Any other attribute carrying text for a script (`data-*`, `title`, a
+`value` of a hidden input) loses line breaks the same way.
+
+**Context:** `doubleQuoteAttribEscaper` and `singleQuoteAttribEscaper` in
+`attrib.go`. The replacement may be there to keep a long `class` or `style`
+on one line in indented output; check who relies on it before changing,
+and the golden outputs of the gallery and the tests.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Indentation changes the content of `<pre>` and `<textarea>`
+
+**What:** Make an indenting `CheckedWriter` stop breaking lines and
+indenting inside elements whose whitespace is content, at least `pre`,
+`textarea` and `script`.
+
+**Why:** `WithIndent` writes a newline and indentation before every child
+element, which inside a `<pre>` becomes part of the shown code. The
+gallery works around it with `rawPre` (rendering code panes with a second,
+non-indenting writer into raw HTML), and `shadcn.CodeBlockContent` with an
+`unindented` wrapper that does the same for its `<code>`; every other
+`<pre>` with element children is still broken in indented output.
+
+**Context:** `BeginElement`, `Comment`, `CDATA` and `EndElement` in
+`checkedwriter.go` call `Newline` when `indent` is set; they would check
+the element stack for such an element first. Once fixed, both workarounds
+can go.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## mx reflected forms
 
 ### A readonly repeatable field with no rows renders an empty box

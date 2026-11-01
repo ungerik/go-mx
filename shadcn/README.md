@@ -156,7 +156,9 @@ package variable read by every render, like `mx.AsComponent`.
 | `BreadcrumbEllipsis`                            | `BreadcrumbEllipsis` sr-only text      |
 | `CalendarPrevious` / `CalendarNext`             | `Calendar` month button `aria-label`s  |
 | `CarouselPrevious` / `CarouselNext`             | carousel button `aria-label`s          |
+| `CodeBlockCopy` / `CodeBlockCopied`             | `CodeBlockCopyButton` label, announced |
 | `DialogClose`                                   | `DialogContent` / `SheetContent` close |
+| `MessageScrollerButton`                         | `MessageScrollerButton` sr-only text   |
 | `NavigationMenuNav`                             | `NavigationMenu` `aria-label`          |
 | `PaginationNav`                                 | `Pagination` `aria-label`              |
 | `PaginationPrevious` / `PaginationNext`         | pagination link captions               |
@@ -616,6 +618,7 @@ Each component emits one short `<script>` once per instance, guarded with
 | `menuKeyNav`         | DropdownMenu / ContextMenu / Menubar / NavigationMenu | ~25 lines | onkeydown on Content |
 | `menuOpen`           | same set                                | ~3 lines | ontoggle on Content |
 | `menubarHover`       | Menubar                                 | ~8 lines | onmouseenter on Trigger |
+| `mxCodeBlockCopy`    | CodeBlockCopyButton                     | ~1 line  | onclick |
 
 All scripts are bundled together with their content via `html.Script(mx.Raw(…))`,
 the same pattern `html.StyleElem` uses for raw CSS. None of them are loaded
@@ -803,6 +806,81 @@ self-contained result; these are the first components sourced that way:
   your own `html.OnClick` to replace that). `InputGroupButton` has its own
   size scale (`InputGroupButtonXS` default, `SM`, `IconXS`, `IconSM`) and
   defaults to the ghost variant.
+- **NativeSelect** — `NativeSelect(size, …)` / `NativeSelectOption(value,
+  …)` / `NativeSelectOptGroup(label, …)`. A plain `appearance-none`
+  `<select>` with a chevron drawn over it, in a wrapper `<div>`. It
+  complements `Select` rather than replacing it: `Select` styles the open
+  picker too, through `appearance: base-select`, but only in browsers that
+  support it, while `NativeSelect` styles only the closed control and looks
+  the same everywhere; the open list is the platform's own. As upstream does
+  with `className`, a caller class goes to the wrapper (which sizes the
+  control), every other attribute — `id`, `name`, `html.Disabled`,
+  `aria-invalid` — to the `<select>`.
+
+### Chat and agent UIs
+
+Upstream's "AI elements": the pieces of a chat or agent transcript, which a
+go-mx app streams in over `mx.SSEResponse` or htmx swaps. All are markup
+apart from two small behaviors noted below. Two things upstream's versions
+use are not Tailwind but `@utility` rules of shadcn's own `tailwind.css`,
+and this package emits Tailwind classes only: the `shimmer` text effect
+(a running trace step, an uploading attachment) is `animate-pulse` here,
+and the `scroll-fade-*` edge masks are dropped. Where upstream's React
+`render` prop chooses the element (`Marker`, `BubbleContent`,
+`AttachmentTrigger`), the attributes do: an `href` renders an `<a>`, a
+`type` a `<button>`.
+
+- **Message** — `MessageGroup` / `Message(align, …)` / `MessageAvatar` /
+  `MessageContent` / `MessageHeader` / `MessageFooter`: one chat turn, an
+  avatar beside a column of bubbles. `ChatAlignEnd` mirrors the row for the
+  user's own messages; one `ChatAlign` type serves `Message`, `Bubble` and
+  `BubbleReactions`.
+- **Bubble** — `BubbleGroup` / `Bubble(variant, align, …)` /
+  `BubbleContent` / `BubbleReactions(side, align, …)`. Seven variants
+  (`BubbleDefault`, `Secondary`, `Muted`, `Tinted`, `Outline`, `Ghost` — the
+  full-width look of an assistant's reply — and `Destructive`). The
+  variants color the bubble's direct `BubbleContent`; give that a
+  `html.Type("button")` for a suggested reply the user can click.
+- **Marker** — `Marker(variant, …)` / `MarkerIcon` / `MarkerContent`: a
+  labelled status or divider row ("Worked for 42s"), plain,
+  `MarkerSeparator` (rules on both sides) or `MarkerBorder` (a rule below).
+- **Attachment** — `Attachment(state, size, orientation, …)` /
+  `AttachmentGroup` / `AttachmentMedia(variant, …)` / `AttachmentContent` /
+  `AttachmentTitle` / `AttachmentDescription` / `AttachmentActions` /
+  `AttachmentAction(variant, size, …)` / `AttachmentTrigger`. A file card
+  with upload states (`AttachmentIdle`, `Uploading`, `Processing`, `Error`,
+  `Done`); `AttachmentTrigger` overlays the card to make it clickable (an
+  `<a>` with an `href`, for a download) and needs an `aria-label`.
+- **Trace** — `Trace` / `TraceLine(status, …)` / `TraceIcon` /
+  `TraceTitle` / `TraceDescription` / `TraceCollapsible` /
+  `TraceCollapsibleTrigger` / `TraceCollapsibleContent`: an agent's steps
+  and tool calls. The collapsible rows are this package's `<details>`
+  `Collapsible`; the chevron turns with the `<details>` directly around
+  it, so nested steps do not turn their parent's.
+- **CodeBlock** — `CodeBlock(variant, size, …)` / `CodeBlockHeader` /
+  `CodeBlockTitle` / `CodeBlockActions` / `CodeBlockCopyButton(value, …)` /
+  `CodeBlockContent` / `CodeBlockLine(variant, …)` / `CodeBlockFooter`, with
+  the `CodeBlockWrap`, `CodeBlockLineNumbers` and `CodeBlockStartLine(n)`
+  attributes on the content. CodeBlock does not highlight: pass
+  highlighted markup as the content's children, for Go the tokens of the
+  `highlight` package plus its theme stylesheet —
+  `shadcn.CodeBlockContent(highlight.Default.Components(highlight.TokenizeGo(src)))`.
+  `highlight` depends only on `mx` and `html` so that it fits any markup,
+  so the dependency points from the caller to both, never from `shadcn` to
+  `highlight`. Line numbers need one `CodeBlockLine` per line; a single
+  plain-text child is split for you. The copy button is the one scripted
+  part: it copies its value, or with `""` the code's text, and shows a
+  check and "Copied" for two seconds. `CodeBlockContent` renders its
+  `<code>` without the whitespace an indenting writer would put inside the
+  `<pre>`.
+- **MessageScroller** — `MessageScroller` / `MessageScrollerViewport` /
+  `MessageScrollerContent` / `MessageScrollerItem` /
+  `MessageScrollerButton(variant, size, …)`: the scrolling frame of a
+  transcript. The viewport always carries `StickToBottom`, so it follows
+  new messages while the reader is at the bottom; the button back to the
+  latest message shows from `StickToBottom`'s `data-stuck` attribute with
+  CSS alone. Give the `MessageScroller` a height. Upstream's
+  scroll-to-start direction is not ported.
 
 ## Tailwind CSS v4 is required
 

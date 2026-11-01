@@ -71,6 +71,16 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "attachment",
+			Title:       "Attachment",
+			Description: "A card for a file attached to a message, with upload states and actions.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.AttachmentDemo},
+				{Name: "Vertical", Func: examples.AttachmentVertical},
+				{Name: "Group", Func: examples.AttachmentGroupDemo},
+			},
+		},
+		{
 			Slug:        "avatar",
 			Title:       "Avatar",
 			Description: "An image element with a fallback for representing the user.",
@@ -98,6 +108,17 @@ func docs() []ComponentDoc {
 			Examples: []Example{
 				{Name: "Default", Func: examples.BreadcrumbDemo},
 				{Name: "With ellipsis", Func: examples.BreadcrumbWithEllipsis},
+			},
+		},
+		{
+			Slug:        "bubble",
+			Title:       "Bubble",
+			Description: "Chat bubbles in seven variants, with reactions.",
+			Examples: []Example{
+				{Name: "Variants", Func: examples.BubbleVariants},
+				{Name: "Align", Func: examples.BubbleAlign},
+				{Name: "Reactions", Func: examples.BubbleReactionsDemo},
+				{Name: "Suggestions", Func: examples.BubbleSuggestions},
 			},
 		},
 		{
@@ -159,6 +180,16 @@ func docs() []ComponentDoc {
 				{Name: "Demo", Func: examples.CheckboxDemo},
 				{Name: "Checked", Func: examples.CheckboxChecked},
 				{Name: "Disabled", Func: examples.CheckboxDisabled},
+			},
+		},
+		{
+			Slug:        "code-block",
+			Title:       "Code Block",
+			Description: "A framed code listing with a header, actions, a copy button, line numbers and diff lines.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.CodeBlockDemo},
+				{Name: "Diff", Func: examples.CodeBlockDiff},
+				{Name: "Floating actions", Func: examples.CodeBlockFloating},
 			},
 		},
 		{
@@ -328,11 +359,50 @@ func docs() []ComponentDoc {
 			},
 		},
 		{
+			Slug:        "marker",
+			Title:       "Marker",
+			Description: "A labelled row for status lines and dividers in a conversation.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.MarkerDemo},
+				{Name: "Separator", Func: examples.MarkerSeparatorDemo},
+				{Name: "Border", Func: examples.MarkerBorderDemo},
+			},
+		},
+		{
 			Slug:        "menubar",
 			Title:       "Menubar",
 			Description: "A visually persistent menu common in desktop applications that provides quick access to a consistent set of commands.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.MenubarDemo},
+			},
+		},
+		{
+			Slug:        "message",
+			Title:       "Message",
+			Description: "The layout of one chat turn: avatar, bubbles, header and footer.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.MessageDemo},
+				{Name: "Header and footer", Func: examples.MessageHeaderFooter},
+			},
+		},
+		{
+			Slug:        "message-scroller",
+			Title:       "Message Scroller",
+			Description: "A scrolling chat transcript that follows new messages and offers a button back to the latest.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.MessageScrollerDemo},
+			},
+		},
+		{
+			Slug:        "native-select",
+			Title:       "Native Select",
+			Description: "A styled native select that looks the same in every browser.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.NativeSelectDemo},
+				{Name: "Groups", Func: examples.NativeSelectGroups},
+				{Name: "Sizes", Func: examples.NativeSelectSizes},
+				{Name: "With field", Func: examples.NativeSelectWithField},
+				{Name: "Disabled and invalid", Func: examples.NativeSelectStates},
 			},
 		},
 		{
@@ -520,6 +590,15 @@ func docs() []ComponentDoc {
 			Description: "A popup that displays information related to an element when it receives focus or the mouse hovers over it.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.TooltipDemo},
+			},
+		},
+		{
+			Slug:        "trace",
+			Title:       "Trace",
+			Description: "A vertical trail of an agent's steps and tool calls.",
+			Examples: []Example{
+				{Name: "Demo", Func: examples.TraceDemo},
+				{Name: "Tool calls", Func: examples.TraceToolCalls},
 			},
 		},
 	}

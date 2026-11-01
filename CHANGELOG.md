@@ -155,8 +155,10 @@ API is still free to change.
   follow content that grows after the page was delivered, and leave a user who
   has scrolled up where they are. Following survives layout-only growth (an
   image or webfont loading, a container resize, a class or style change), holds
-  position when a scroll event has not been dispatched yet, and marks the
-  element `data-stuck` so a "jump to latest" affordance is pure CSS.
+  position when a scroll event has not been dispatched yet, takes a scroll
+  event caused by layout alone (the page's stylesheet arriving) as a reason to
+  re-pin rather than as the user scrolling away, and marks the element
+  `data-stuck` so a "jump to latest" affordance is pure CSS.
 - **`mx.ContentTypeEventStream`** for `text/event-stream`, the content type
   `SSEResponse` sends. It is the one `text/*` constant carrying no `charset`
   parameter: the SSE specification fixes the stream at UTF-8 and requires
@@ -429,6 +431,27 @@ API is still free to change.
   the content.** `Site.LLMsTxt`, `Site.ServeMarkdown` and the MCP page tools
   use it instead of `MarkdownSource`, which copies string content on every
   call.
+- **shadcn components for chat and agent UIs: `Message`, `Bubble`, `Marker`,
+  `Attachment`, `Trace`, `CodeBlock` and `MessageScroller`**, ported from
+  upstream's "AI elements" with their class strings reconstructed from the
+  Base UI registry and `style-vega.css`, each with gallery examples. `Message`
+  lays out a chat turn and `Bubble` its bubbles in seven variants with
+  reactions; `Marker` is a status or divider row; `Attachment` a file card with
+  upload states; `Trace` an agent's steps, its collapsible rows built on the
+  `<details>`-based `Collapsible`. `CodeBlock` frames a code listing with a
+  header, line numbers, diff lines and a copy button (one small shared script,
+  labels in the new `Labels.CodeBlockCopy`/`CodeBlockCopied`); it does not
+  highlight but takes highlighted markup, such as the `highlight` package's
+  tokens, as children. `MessageScroller` is a transcript that follows new
+  messages through `StickToBottom` and shows its scroll-to-end button
+  (`Labels.MessageScrollerButton`) from `data-stuck` with CSS alone. Upstream's
+  `shimmer` and `scroll-fade-*` effects come from shadcn's own stylesheet, not
+  from Tailwind, so a running or uploading item pulses with `animate-pulse`
+  instead and the edge fades are left out.
+- **`shadcn.NativeSelect`**, upstream's styled native `<select>` with
+  `NativeSelectOption` and `NativeSelectOptGroup`. Unlike `Select`, whose open
+  picker is styled only where `appearance: base-select` is supported, it
+  styles only the closed control and so looks the same in every browser.
 
 ### Changed
 
