@@ -1,7 +1,8 @@
 package twmerge
 
 // Class-name parsing and modifier sorting, ported from tailwind-merge v3.7.0
-// (src/lib/parse-class-name.ts and src/lib/sort-modifiers.ts).
+// (src/lib/parse-class-name.ts and src/lib/sort-modifiers.ts), plus the
+// unreleased upstream fix for the postfix position after a leading `!` (#721).
 
 import (
 	"sort"
@@ -13,9 +14,8 @@ type parsedClassName struct {
 	hasImportantModifier bool
 	baseClassName        string
 	// postfixModifierPos is the position of a `/` postfix modifier relative to
-	// the start of baseClassNameWithImportantModifier, or 0 when there is none.
-	// It matches tailwind-merge's `maybePostfixModifierPosition` exactly,
-	// including the off-by-one when a legacy leading `!` is present.
+	// the start of baseClassName, or 0 when there is none. It matches
+	// tailwind-merge's `maybePostfixModifierPosition`.
 	postfixModifierPos int
 }
 
@@ -63,6 +63,7 @@ func parseClassName(className string) parsedClassName {
 
 	baseClassName := baseWithImportant
 	hasImportant := false
+	importantOffset := 0
 	switch {
 	case strings.HasSuffix(baseWithImportant, "!"):
 		baseClassName = baseWithImportant[:len(baseWithImportant)-1]
@@ -71,11 +72,14 @@ func parseClassName(className string) parsedClassName {
 		// Tailwind CSS v3 legacy leading-`!` syntax, still supported.
 		baseClassName = baseWithImportant[1:]
 		hasImportant = true
+		// The `!` removed from the front shifts the postfix position down by
+		// one, else `!text-lg/7` slices "text-lg/" and matches no class group.
+		importantOffset = 1
 	}
 
 	postfixPos := 0
 	if postfixModifierPosition > modifierStart {
-		postfixPos = postfixModifierPosition - modifierStart
+		postfixPos = postfixModifierPosition - modifierStart - importantOffset
 	}
 
 	return parsedClassName{

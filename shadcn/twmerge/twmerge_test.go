@@ -133,6 +133,14 @@ func TestMerge(t *testing.T) {
 		{"!right-2 !-inset-x-px", "!-inset-x-px"},
 		{"focus:!inline focus:!block", "focus:!block"},
 		{"![--my-var:20px] ![--my-var:30px]", "![--my-var:30px]"},
+		// Unreleased upstream fix #721: a leading `!` must not shift the
+		// postfix modifier position.
+		{"!text-lg/7 !text-sm", "!text-sm"},
+		{"!text-lg/7 !text-lg/9", "!text-lg/9"},
+		{"!text-lg/7 !text-sm/6", "!text-sm/6"},
+		{"!p-4/7 !p-2/9", "!p-2/9"},
+		{"!text-lg/[0/1] !text-sm", "!text-sm"},
+		{"!text-lg/7 font-medium!", "!text-lg/7 font-medium!"},
 
 		// --- arbitrary-values ---
 		{"m-[2px] m-[10px]", "m-[10px]"},

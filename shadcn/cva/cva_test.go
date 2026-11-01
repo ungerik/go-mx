@@ -299,5 +299,9 @@ func TestComposesLeavesInputsUnchanged(t *testing.T) {
 	if !maps.Equal(defaults, defaultsBefore) {
 		t.Errorf("composed defaults changed: got %v, want %v", defaults, defaultsBefore)
 	}
+	// The composer's own merged defaults are shared across calls, so a prop
+	// of one call must not leak into the defaults of the next.
+	if got, want := card(nil), "shadow-sm"; got != want {
+		t.Errorf("call after an override = %q, want %q", got, want)
+	}
 }
-

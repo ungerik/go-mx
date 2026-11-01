@@ -63,17 +63,18 @@ type Variants func(props map[string]string) string
 
 // New compiles a [Config] into a [Variants] resolver.
 //
-// Resolution follows class-variance-authority v0.7.1: the composed configs (see
-// [Config.Composes]), then base, then one class set per variant (the caller's
-// value, or the default when the prop is omitted or empty), then matching
-// compound variants, then the props "class" override.
+// Resolution follows class-variance-authority v0.7.1, preceded by the composed
+// configs of cva v1.0.0-beta.12 (see [Config.Composes]): the composed configs,
+// then base, then one class set per variant (the caller's value, or the default
+// when the prop is omitted or empty), then matching compound variants, then the
+// props "class" override.
 // Boolean variants need no special handling — pass "true"/"false" as the prop
 // value and key the config the same way.
 //
 // Two deliberate divergences from the JavaScript original: variant class order
 // follows sorted variant names rather than declaration order (Go maps are
 // unordered; the resolved class set is identical, and callers tailwind-merge
-// it anyway), and cva's defineConfig hooks and VariantProps helper are not
+// it anyway), and cva's defineConfig options and VariantProps helper are not
 // ported (the package README says what replaces VariantProps).
 func New(config Config) Variants {
 	composed := make([]Variants, len(config.Composes))
@@ -93,15 +94,20 @@ func New(config Config) Variants {
 		if len(composed) > 0 {
 			// Withholding "class" keeps a caller override from repeating once
 			// per composed config and keeps it last, where a tailwind-merge
-			// step lets it win. A fresh map leaves the caller's as given.
-			forwarded := maps.Clone(defaults)
-			if forwarded == nil {
-				forwarded = make(map[string]string, len(props))
-			}
+			// step lets it win. The defaults are copied only when a prop
+			// overrides one, so neither they nor the caller's map change; a
+			// resolver compiled by New never writes to its props.
+			forwarded, copied := defaults, false
 			for name, value := range props {
-				if name != "class" && value != "" {
-					forwarded[name] = value
+				if name == "class" || value == "" || forwarded[name] == value {
+					continue
 				}
+				if !copied {
+					forwarded = make(map[string]string, len(defaults)+len(props))
+					maps.Copy(forwarded, defaults)
+					copied = true
+				}
+				forwarded[name] = value
 			}
 			for _, resolve := range composed {
 				if cls := resolve(forwarded); cls != "" {

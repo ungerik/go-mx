@@ -437,7 +437,9 @@ API is still free to change.
   `inset-x`, `border-x`, `scroll-px` and the rest), `columns-auto`,
   `max-h-none`, `leading-none`, bare `bg-conic`, `shadow-inner` and container
   sizes like `inline-2xl` merge with their groups, and arbitrary `color()` and
-  `light-dark()` values are colors, not lengths.
+  `light-dark()` values are colors, not lengths. It also carries the
+  unreleased upstream fix #721: a legacy leading `!` with a postfix modifier
+  (`!text-lg/7 !text-sm` → `!text-sm`) no longer skips the conflict.
 - **A `FieldLabel` choice card tints on hover and draws the focus ring.** As
   upstream's style sheet now does, the card wrapping a `Field` shows the
   focus ring of the control inside it, and `Checkbox`, `RadioGroupItem` and
