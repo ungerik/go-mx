@@ -66,40 +66,29 @@ type sqlScanner interface{ Scan(src any) error }
 // UnmarshalText or String method, whose text a renderer or parser would
 // use instead. The text is the driver value, a time in RFC 3339 as the
 // forms write every time, and a null is "". The html form parser reads it
-// back with Scan. ok is false for any other value, when Value fails, for a
-// driver value of another type and for text an input cannot hold
-// unchanged: invalid UTF-8, as binary bytes are, or a NUL.
+// back with Scan. ok is false for any other value, when Value fails, and
+// for a driver value of another type.
+//
+// Text an input cannot hold unchanged, invalid UTF-8 (as binary bytes are)
+// or a NUL, is written with each of them replaced by U+FFFD, so the input
+// shows where they are; [DriverValueTextProblem] tells a renderer to say
+// so, and the html parser keeps the stored text when that replacement comes
+// back unchanged.
 func DriverValueText(value reflect.Value) (text string, ok bool) {
-	if value.Kind() != reflect.Struct {
+	if !value.IsValid() || !DriverValueType(value.Type()) {
 		return "", false
 	}
-	ptr := reflect.PointerTo(value.Type())
-	if !ptr.Implements(reflect.TypeFor[sqlScanner]()) || ptr.Implements(reflect.TypeFor[encoding.TextMarshaler]()) ||
-		ptr.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) || ptr.Implements(reflect.TypeFor[fmt.Stringer]()) {
-		return "", false
-	}
-	valuer, isValuer := safeInterface(value).(driver.Valuer)
-	if !isValuer && value.CanAddr() {
-		valuer, isValuer = safeInterface(value.Addr()).(driver.Valuer)
-	}
-	if !isValuer {
-		return "", false
-	}
-	dv, err := valuer.Value()
-	if err != nil {
+	dv, ok := driverValue(value)
+	if !ok {
 		return "", false
 	}
 	switch x := dv.(type) {
 	case nil:
 		return "", true
 	case string:
-		if inputText(x) {
-			return x, true
-		}
+		return inputSafeText(x), true
 	case []byte:
-		if inputText(string(x)) {
-			return string(x), true
-		}
+		return inputSafeText(string(x)), true
 	case int64:
 		return strconv.FormatInt(x, 10), true
 	case float64:
@@ -112,10 +101,95 @@ func DriverValueText(value reflect.Value) (text string, ok bool) {
 	return "", false
 }
 
-// inputText reports whether an input holds s unchanged: a browser replaces
-// invalid UTF-8 and a NUL.
-func inputText(s string) bool {
-	return utf8.ValidString(s) && !strings.ContainsRune(s, 0)
+// DriverValueType reports whether t is a struct a database driver reads
+// and writes, which the forms bind with its Scan and show as
+// [DriverValueText]: a pointer to it implements database/sql.Scanner, it
+// or its pointer database/sql/driver.Valuer, and neither has a MarshalText,
+// UnmarshalText or String method, whose text a renderer or parser would use
+// instead. It is a property of the type, whatever a value holds.
+func DriverValueType(t reflect.Type) bool {
+	if t == nil || t.Kind() != reflect.Struct {
+		return false
+	}
+	ptr := reflect.PointerTo(t)
+	if !ptr.Implements(reflect.TypeFor[sqlScanner]()) || !ptr.Implements(reflect.TypeFor[driver.Valuer]()) ||
+		ptr.Implements(reflect.TypeFor[encoding.TextMarshaler]()) || ptr.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) ||
+		ptr.Implements(reflect.TypeFor[fmt.Stringer]()) {
+		return false
+	}
+	return true
+}
+
+// TextProblem names why an input cannot hold a stored text unchanged
+// ([DriverValueTextProblem]).
+type TextProblem int
+
+const (
+	// TextProblemNUL is a NUL character, which a browser replaces.
+	TextProblemNUL TextProblem = iota + 1
+	// TextProblemInvalidUTF8 is text that is not valid UTF-8, such as
+	// binary bytes, which a browser replaces.
+	TextProblemInvalidUTF8
+	// TextProblemLineBreak is a line break, which a browser strips from a
+	// one-line text input.
+	TextProblemLineBreak
+)
+
+// DriverValueTextProblem reports why an input cannot show the text a
+// database/sql value ([DriverValueType]) holds unchanged, and whether it
+// cannot: a NUL, invalid UTF-8 or, unless the input is multiline (a
+// textarea), a line break. The input shows [DriverValueText] instead, and
+// saving that unchanged keeps the stored text.
+func DriverValueTextProblem(value reflect.Value, multiline bool) (TextProblem, bool) {
+	value = reflect.Indirect(value)
+	if !value.IsValid() || !DriverValueType(value.Type()) {
+		return 0, false
+	}
+	dv, ok := driverValue(value)
+	if !ok {
+		return 0, false
+	}
+	var text string
+	switch x := dv.(type) {
+	case string:
+		text = x
+	case []byte:
+		text = string(x)
+	default:
+		return 0, false
+	}
+	switch {
+	case !utf8.ValidString(text):
+		return TextProblemInvalidUTF8, true
+	case strings.ContainsRune(text, 0):
+		return TextProblemNUL, true
+	case !multiline && strings.ContainsAny(text, "\r\n"):
+		return TextProblemLineBreak, true
+	}
+	return 0, false
+}
+
+// driverValue returns the driver value of a [DriverValueType] value, and
+// whether its Value method gave one.
+func driverValue(value reflect.Value) (any, bool) {
+	valuer, isValuer := safeInterface(value).(driver.Valuer)
+	if !isValuer && value.CanAddr() {
+		valuer, isValuer = safeInterface(value.Addr()).(driver.Valuer)
+	}
+	if !isValuer {
+		return nil, false
+	}
+	dv, err := valuer.Value()
+	if err != nil {
+		return nil, false
+	}
+	return dv, true
+}
+
+// inputSafeText returns s with what a browser replaces in an input, invalid
+// UTF-8 and a NUL, replaced by U+FFFD as the browser would.
+func inputSafeText(s string) string {
+	return strings.ReplaceAll(strings.ToValidUTF8(s, "\uFFFD"), "\x00", "\uFFFD")
 }
 
 func canBeNil(k reflect.Kind) bool {

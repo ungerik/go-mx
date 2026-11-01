@@ -33,10 +33,24 @@ type GuardOptions struct {
 	//
 	// Browsers send an Origin header with every cross-origin request and with
 	// same-origin ones other than GET and HEAD, so a page of the site calling
-	// its own endpoint needs the site's origin listed too. GuardHandler only
-	// rejects requests and sends no CORS headers: a page on another origin
-	// can call the endpoint only if CORS is set up for it by other middleware.
+	// its own endpoint needs the site's origin listed too. Unless CORS is set,
+	// GuardHandler only rejects requests and sends no CORS headers: a page on
+	// another origin can call the endpoint only if CORS is set up for it by
+	// other middleware.
 	AllowedOrigins []string
+
+	// CORS lets pages on the AllowedOrigins call the endpoint from a browser.
+	// GuardHandler then answers the CORS preflight of an allowed origin itself,
+	// with 204 No Content allowing the methods (GET, POST, DELETE) and request
+	// headers (Content-Type, Mcp-Session-Id, Mcp-Protocol-Version,
+	// Last-Event-ID) of the Streamable HTTP transport, and sets
+	// Access-Control-Allow-Origin on every response to an allowed origin,
+	// exposing its Mcp-Session-Id header. Credentials are not allowed, so a
+	// browser sends no cookies or HTTP authentication with a cross-origin
+	// call: the page tools serve public pages, which need none. A site
+	// whose endpoint needs another policy leaves CORS off and sets it up in
+	// its own middleware.
+	CORS bool
 
 	// AllowedHosts, if not empty, are the only Host header values accepted:
 	// a host name like "example.com", which matches it on any port, or a host
@@ -82,6 +96,9 @@ type GuardOptions struct {
 //   - A request whose Host header is not one of AllowedHosts, if there are
 //     any, is rejected with 403 Forbidden, which keeps a page from reaching
 //     an endpoint in its visitors' network by DNS rebinding.
+//   - With CORS set, a CORS preflight from an allowed origin is answered with
+//     204 No Content, and every other response to an allowed origin carries
+//     the CORS headers that let the calling page read it.
 //   - A request body larger than MaxRequestBytes is rejected with 413 Content
 //     Too Large before the handler reads any of it.
 //   - A JSON-RPC batch, a body that is a JSON array, is rejected with 400 Bad
@@ -119,6 +136,24 @@ func GuardHandler(next http.Handler, opts GuardOptions) http.Handler {
 		}):
 			http.Error(response, "Origin not allowed", http.StatusForbidden)
 			return
+		}
+		if opts.CORS {
+			// The response depends on the Origin header, also where it
+			// allows none, which a shared cache has to know.
+			response.Header().Add("Vary", "Origin")
+			if origin != "" {
+				// Set before any response, the guard's own 413 and 400
+				// included, so the calling page can read why it failed.
+				response.Header().Set("Access-Control-Allow-Origin", origin)
+				response.Header().Set("Access-Control-Expose-Headers", corsExposeHeaders)
+				if isPreflight(request) {
+					response.Header().Set("Access-Control-Allow-Methods", corsAllowMethods)
+					response.Header().Set("Access-Control-Allow-Headers", corsAllowHeaders)
+					response.Header().Set("Access-Control-Max-Age", corsMaxAge)
+					response.WriteHeader(http.StatusNoContent)
+					return
+				}
+			}
 		}
 
 		if request.ContentLength > maxBytes {
@@ -158,6 +193,24 @@ func GuardHandler(next http.Handler, opts GuardOptions) http.Handler {
 		}
 		next.ServeHTTP(response, request)
 	})
+}
+
+// The CORS headers of [GuardHandler] with GuardOptions.CORS set: the methods
+// and request headers of the Streamable HTTP transport, the session id it
+// returns, and how long a browser may cache a preflight, which Chromium caps
+// at two hours.
+const (
+	corsAllowMethods  = "GET, POST, DELETE"
+	corsAllowHeaders  = "Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID"
+	corsExposeHeaders = "Mcp-Session-Id"
+	corsMaxAge        = "7200"
+)
+
+// isPreflight reports whether request is a CORS preflight: an OPTIONS request
+// naming the method of the request it asks about. Any other OPTIONS request is
+// left to the handler.
+func isPreflight(request *http.Request) bool {
+	return request.Method == http.MethodOptions && request.Header.Get("Access-Control-Request-Method") != ""
 }
 
 // isJSONArray reports whether body is a JSON array, the form of a JSON-RPC

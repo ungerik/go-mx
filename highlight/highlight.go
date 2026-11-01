@@ -132,7 +132,7 @@ func TokenizeGo(src string) []Token {
 		if t.off > prevEnd {
 			out = append(out, Token{Class: ClassPlain, Text: src[prevEnd:t.off]})
 		}
-		end := t.off + len(text)
+		end := sourceEnd(src, t.off, text)
 		out = append(out, Token{Class: classify(scanned, i), Text: src[t.off:end]})
 		prevEnd = end
 	}
@@ -140,6 +140,30 @@ func TokenizeGo(src string) []Token {
 		out = append(out, Token{Class: ClassPlain, Text: src[prevEnd:]})
 	}
 	return out
+}
+
+// sourceEnd returns the offset in src where the token whose text is text,
+// starting at off, ends. go/scanner strips the carriage returns of a CRLF
+// source from block comments and raw strings, so their source spans more
+// bytes than their literal; the source is walked along the literal, skipping
+// a carriage return the literal lacks.
+func sourceEnd(src string, off int, text string) int {
+	if end := off + len(text); end <= len(src) && src[off:end] == text {
+		return end
+	}
+	i, j := off, 0
+	for j < len(text) && i < len(src) {
+		switch {
+		case src[i] == text[j]:
+			i++
+			j++
+		case src[i] == '\r':
+			i++
+		default:
+			return i
+		}
+	}
+	return i
 }
 
 // rawText returns the source text of a scanned token, or "" for an

@@ -28,7 +28,8 @@ import (
 // GlobPageSource is a PageSource that yields pages from files matching a glob
 // Pattern below Dir. Markdown files are parsed for frontmatter metadata (title,
 // description, lang, date, publishDate, draft, tags), which is not part of the
-// page content, and HTML and plain-text files are loaded with their respective
+// page content and is kept whole, the fields of no page field included, in
+// [Page.FrontMatter]. HTML and plain-text files are loaded with their respective
 // content types. A lang holding a locale like "en_US" becomes the language tag
 // "en-US", and one that is no language tag fails the source with the name of
 // the file, like front matter that cannot be parsed.
@@ -45,7 +46,8 @@ type GlobPageSource struct {
 	//
 	// An empty Dir keeps Pattern as the whole path to match, relative to the
 	// working directory, and takes the base for page paths from the part of
-	// Pattern before its first wildcard — the same result written differently.
+	// Pattern before its first wildcard — the same result written differently,
+	// down to the error a missing directory fails the source with.
 	//
 	// Dir has to name a directory on the local file system; any other fails
 	// the source. On Windows go-fs reads a file URI with a host, like
@@ -74,7 +76,11 @@ type GlobPageSource struct {
 	// time its turn comes. A page file is opened also when no content is
 	// read, so one that cannot be read fails the source then too. A directory the glob has to search but cannot read
 	// fails the source, rather than leaving its pages out without a word; a
-	// hidden directory is not searched unless the pattern names its dot.
+	// hidden directory is not searched unless the pattern names its dot. Like
+	// a missing Dir, a missing directory in the fixed part of Pattern, the
+	// names before the first wildcard, fails the source: "blog/*.md" without
+	// a "blog" directory is an error, not an empty source. A pattern without
+	// a wildcard may name a missing file, which matches nothing.
 	Pattern string
 
 	// MaxFileSize is the size in bytes past which a page file fails the
@@ -120,6 +126,12 @@ func (s *GlobPageSource) pagesAt(ctx context.Context, pagePath string, withConte
 // those at onlyPath unless it is "".
 func (s *GlobPageSource) pages(ctx context.Context, withContent bool, onlyPath string) iter.Seq2[*Page, error] {
 	return func(yield func(*Page, error) bool) {
+		// Checked first, so a request nobody waits for neither stats Dir nor
+		// runs the glob, and gets the context's error rather than one of Dir.
+		if err := ctx.Err(); err != nil {
+			yield(nil, err)
+			return
+		}
 		pattern, err := s.globPattern()
 		if err != nil {
 			yield(nil, err)
@@ -134,6 +146,10 @@ func (s *GlobPageSource) pages(ctx context.Context, withContent bool, onlyPath s
 			}
 			defer root.Close()
 			files = rootFiles{root: root, dir: s.dirPath()}
+		}
+		if err := s.checkPatternDir(files); err != nil {
+			yield(nil, err)
+			return
 		}
 		// Pattern, not the pattern joined to Dir, so the glob runs below Dir
 		// and a glob character in the name of Dir stays a character.
@@ -194,6 +210,37 @@ func (s *GlobPageSource) pages(ctx context.Context, withContent bool, onlyPath s
 	}
 }
 
+// checkPatternDir returns an error if the fixed directory prefix of Pattern,
+// the names before the first one holding a wildcard, is missing or no
+// directory, as a missing Dir is: "blog/*.md" below a Dir without "blog"
+// would otherwise match nothing, an empty source without a word, while the
+// same pattern split into a Dir ending in "blog" and "*.md" fails. Of a
+// pattern without a wildcard, which names one file that may be missing, the
+// directory is checked. The prefix is looked up through files, so with
+// Confine one reached through a symlink leading out of Dir fails too.
+func (s *GlobPageSource) checkPatternDir(files pageFiles) error {
+	pattern := filepath.Clean(s.Pattern)
+	dir, rest := splitGlobBase(pattern)
+	if rest == "" {
+		dir = filepath.Dir(pattern)
+	}
+	if dir == "." {
+		// Dir itself, which globPattern checked, or the working directory.
+		return nil
+	}
+	if base := s.dirPath(); base != "" {
+		dir = filepath.Join(base, dir)
+	}
+	info, err := files.stat(dir)
+	if err != nil {
+		return errs.Errorf("GlobPageSource.Pattern %q: %w", s.Pattern, err)
+	}
+	if !info.IsDir() {
+		return errs.Errorf("GlobPageSource.Pattern %q: %s is no directory", s.Pattern, dir)
+	}
+	return nil
+}
+
 // readPage returns the page of the open file f, which info describes, with
 // its content if withContent is set.
 func (s *GlobPageSource) readPage(ctx context.Context, f *os.File, info os.FileInfo, file, ext string, withContent bool) (*Page, error) {
@@ -241,6 +288,12 @@ func (s *GlobPageSource) readPage(ctx context.Context, f *os.File, info os.FileI
 		if err != nil {
 			return nil, errs.Errorf("%s: front matter: %w", file, err)
 		}
+		// All of the fields as well, for a PageRenderer reading fields of
+		// its own (see [Page.FrontMatter]).
+		fields, err := parseFrontMatter(data)
+		if err != nil {
+			return nil, errs.Errorf("%s: front matter: %w", file, err)
+		}
 		lang, err := frontMatterLang(matter.Lang)
 		if err != nil {
 			return nil, fmt.Errorf("%s: front matter lang: %w", file, err)
@@ -257,6 +310,7 @@ func (s *GlobPageSource) readPage(ctx context.Context, f *os.File, info os.FileI
 			LastUpdated: matter.Date,
 			Published:   matter.PublishDate,
 			Tags:        matter.Tags,
+			FrontMatter: fields,
 		}
 		if matter.Draft {
 			page.Published = time.Time{}
@@ -312,6 +366,44 @@ func (s *GlobPageSource) readPage(ctx context.Context, f *os.File, info os.FileI
 		}
 		return page, nil
 	}
+}
+
+// parseFrontMatter returns every field of the front matter of data, or nil
+// for data without front matter.
+func parseFrontMatter(data []byte) (map[string]any, error) {
+	var fields any
+	if _, err := frontmatter.Parse(bytes.NewReader(data), &fields); err != nil {
+		return nil, err
+	}
+	m, _ := stringKeys(fields).(map[string]any)
+	return m, nil
+}
+
+// stringKeys returns value with every map in it, also those nested in maps
+// and slices, as a map[string]any. The YAML decoder makes a nested object a
+// map[any]any, which encoding/json cannot encode and a type switch for the
+// map[string]any of TOML and JSON misses, so its keys are formatted as
+// strings.
+func stringKeys(value any) any {
+	switch v := value.(type) {
+	case map[any]any:
+		m := make(map[string]any, len(v))
+		for key, elem := range v {
+			m[fmt.Sprint(key)] = stringKeys(elem)
+		}
+		return m
+	case map[string]any:
+		for key, elem := range v {
+			v[key] = stringKeys(elem)
+		}
+		return v
+	case []any:
+		for i, elem := range v {
+			v[i] = stringKeys(elem)
+		}
+		return v
+	}
+	return value
 }
 
 // frontMatterLang returns the lang of a page's front matter as a BCP 47

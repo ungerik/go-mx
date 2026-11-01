@@ -14,15 +14,20 @@ go run ./cmd/shadcn-gallery -out ./dist   # write static HTML to ./dist, then ex
 ```
 
 The static output is the same pages the server serves — `dist/index.html` plus
-`dist/components/<slug>/index.html`. By default the pages link to each other with
-root-absolute URLs (`/`, `/components/…`), so serve the directory from a web root
+`dist/components/<slug>/index.html` — and the fragments the examples load
+after the page, `dist/fragments/<path>`: the calendar examples set
+`CalendarOptions.MonthURL`, and every month they can navigate to is
+pre-rendered there (`examples/fragments.go`), so month navigation works on a
+static host. The export replaces the whole `fragments` directory. The pages link to each other with
+relative URLs that name the `index.html` files (`components/button/index.html`,
+`../../index.html`), so the directory works served from any URL path, such as a
+GitHub Pages project page, and opened straight from disk. The server answers
+the same `…/index.html` paths. From disk, browsers refuse the `fetch` of a
+calendar's month fragments, so month navigation needs the directory served
 (e.g. `python3 -m http.server` inside `./dist`).
 
-To host under a URL **sub-path** (such as a GitHub Pages project page), pass
-`-base` so every in-gallery link is prefixed:
-
 ```bash
-go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
 ```
 
 This is exactly how the gallery committed under [`docs/shadcn/gallery/`](../../docs/shadcn/gallery/)
@@ -62,15 +67,16 @@ Each preview is a `func() mx.Component` in `examples/`. The files are embedded
 and parsed once at startup (`registry.go`); each example's function body is
 extracted and shown verbatim in the Code tab. The live component and its
 displayed source therefore come from the **same function** and cannot drift.
+An example whose month fragments are rendered by a month-taking function
+names that function as `Example.ShowSource`, and the Code tab shows it.
 
 ## Status
 
-The gallery covers every ported `shadcn` component — 48 in all, one page
-each, listed alphabetically like the shadcn/ui docs (see `docs()` in
-`main.go` for the catalog).
-
-The only shadcn/ui component without a gallery page is **Chart**, which is
-deferred (a design decision is pending; see `shadcn/TODOS.md`).
+The gallery covers the whole shadcn/ui registry: 65 pages, one per
+component, listed alphabetically like the shadcn/ui docs (see `docs()` in
+`main.go` for the catalog). Combobox, Date Picker and Data Table are
+compositions rather than package functions, so their pages show the recipes,
+as upstream ships them.
 
 ## Syntax highlighting
 

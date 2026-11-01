@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"slices"
@@ -226,15 +227,35 @@ func isDescribableControl(e *Element) bool {
 
 // StoredFile reports whether a file field's value holds a file, bytes or a
 // file name, and returns the name a string field holds, "" for bytes. A
-// file input left empty keeps it, so a required one demands no new upload
-// ([BrowserTag]), and a renderer says that a file is stored, as the
-// browser labels the input "No file chosen" either way.
+// field of several files ([MultipleFiles]) holds a file when it holds any,
+// and its names are joined by ", ". A file input left empty keeps it, so a
+// required one demands no new upload ([BrowserTag]), and a renderer says
+// that a file is stored, as the browser labels the input "No file chosen"
+// either way.
 func StoredFile(value reflect.Value) (name string, ok bool) {
+	if value.IsValid() && value.Type() == reflect.TypeFor[*multipart.FileHeader]() {
+		if value.IsNil() {
+			return "", false
+		}
+		return value.Interface().(*multipart.FileHeader).Filename, true
+	}
 	for value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			return "", false
 		}
 		value = value.Elem()
+	}
+	if !value.IsValid() {
+		return "", false
+	}
+	if MultipleFiles(value.Type()) {
+		var names []string
+		for i := range value.Len() {
+			if n, ok := StoredFile(value.Index(i)); ok && n != "" {
+				names = append(names, n)
+			}
+		}
+		return strings.Join(names, ", "), value.Len() > 0
 	}
 	switch value.Kind() {
 	case reflect.String:
@@ -243,6 +264,28 @@ func StoredFile(value reflect.Value) (name string, ok bool) {
 		return "", value.Len() > 0
 	}
 	return "", false
+}
+
+// MultipleFiles reports whether t, a file field's type, takes several
+// files, so its input is multiple: []string (the file names), [][]byte
+// (the contents) or []*multipart.FileHeader (the uploads, opened during
+// onSubmit, after which the handler removes their temporary files).
+func MultipleFiles(t reflect.Type) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Slice {
+		return false
+	}
+	switch e := t.Elem(); {
+	case e.Kind() == reflect.String:
+		return true
+	case e.Kind() == reflect.Slice && e.Elem().Kind() == reflect.Uint8:
+		return true
+	case e == reflect.TypeFor[*multipart.FileHeader]():
+		return true
+	}
+	return false
 }
 
 // String returns the kind's name (handy in error messages and tests).

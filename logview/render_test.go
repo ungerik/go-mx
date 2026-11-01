@@ -383,3 +383,106 @@ func TestLineInheritsTheCallersWriterConfigExceptIndentation(t *testing.T) {
 	contains(t, out, `class='log-line'`)
 	excludes(t, out, `class="log-line"`, "\n")
 }
+
+func TestLineExpandableIsOptIn(t *testing.T) {
+	excludes(t, render(t, Line(`{"a":{"b":1}}`)), "<details", "log-pretty")
+}
+
+func TestLineExpandableWrapsTheCompactLineInASummary(t *testing.T) {
+	// Collapsed, the line reads exactly as it does without Expandable, and the
+	// line element keeps its class and level, which the script and the theme
+	// key off.
+	raw := `{"time":"12:00:01","level":"warn","msg":"lock","db":{"host":"db2","port":5432}}`
+	compact := render(t, (&Config{MessageKey: "msg"}).Line(raw))
+	inner := strings.TrimSuffix(strings.TrimPrefix(compact, `<div class="log-line" data-mx-log-level="warn">`), "</div>")
+	out := render(t, (&Config{MessageKey: "msg", Expandable: true}).Line(raw))
+	contains(t, out,
+		`<div class="log-line" data-mx-log-level="warn"><details class="log-details"><summary>`+inner+`</summary><pre class="log-pretty">`,
+		`</pre></details></div>`,
+	)
+}
+
+func TestLineExpandablePrettyPrintsTheWholeRecord(t *testing.T) {
+	cfg := &Config{Expandable: true}
+	raw := `{"time":"12:00:01","level":"info","db":{"host":"db2","tags":["a",{"k":true}],"empty":{},"none":[]},"n":null}`
+	var text textWriter
+	if err := cfg.pretty(mustParse(t, raw)).Render(context.Background(), &text); err != nil {
+		t.Fatal(err)
+	}
+	// Every field keeps its key, promoted ones included; nested members are
+	// indented one level per depth and closed at the depth they opened.
+	want := "time=12:00:01\n" +
+		"level=info\n" +
+		"db={\n" +
+		"  host=db2\n" +
+		"  tags=[\n" +
+		"    a,\n" +
+		"    {\n" +
+		"      k=true\n" +
+		"    }\n" +
+		"  ]\n" +
+		"  empty={}\n" +
+		"  none=[]\n" +
+		"}\n" +
+		"n=null"
+	if got := text.String(); got != want {
+		t.Errorf("pretty text =\n%s\nwant\n%s", got, want)
+	}
+
+	// The values carry the same classes as in the compact form.
+	out := render(t, cfg.Line(raw))
+	contains(t, out,
+		`<span class="log-key">host</span><span class="log-punct">=</span><span class="log-string">db2</span>`,
+		`<span class="log-bool">true</span>`,
+		`<span class="log-null">null</span>`,
+	)
+}
+
+func TestLineExpandableIndentsAMultilineValue(t *testing.T) {
+	// A <pre> cannot nest in the expanded <pre>, so the value starts on the
+	// next line, indented one level past its key, and keeps its own indentation
+	// relative to that.
+	cfg := &Config{Expandable: true}
+	out := render(t, cfg.pretty(mustParse(t, `{"ctx":{"err":"panic: boom\r\n\tmain.go:12"}}`)))
+	contains(t, out, "<span class=\"log-punct\">=</span>\n    <span class=\"log-string\">panic: boom\n    \tmain.go:12</span>")
+}
+
+func TestLineExpandableIsByteSafeUnderAnIndentingWriter(t *testing.T) {
+	// The expanded <pre> has element children, which an indenting writer would
+	// separate with visible whitespace; Line's own non-indenting writer is
+	// what keeps it exact.
+	line := (&Config{Expandable: true}).Line(`{"a":{"b":[1,2]},"e":"x\ny"}`)
+	if got, want := renderIndented(t, line), render(t, line); got != want {
+		t.Errorf("indented render differs:\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestLineExpandableLeavesPlainTextAndEmptyRecordsAlone(t *testing.T) {
+	cfg := &Config{Expandable: true}
+	for _, raw := range []string{"WARN plain text", `{}`} {
+		excludes(t, render(t, cfg.Line(raw)), "<details")
+	}
+}
+
+func TestMatchesSearchesTheExpandedRecord(t *testing.T) {
+	// The expanded text is part of the line's text content in the browser, so
+	// the server-side test sees it too: the compact line shows a level without
+	// its key, the expanded record with it.
+	raw := `{"level":"info","msg":"ok"}`
+	if Matches(raw, "level=info") {
+		t.Error("the compact line matched a key it does not show")
+	}
+	if !(&Config{Expandable: true}).Matches(raw, "level=info") {
+		t.Error("Matches did not search the expanded record")
+	}
+}
+
+// mustParse parses raw as a record with the default depth limit.
+func mustParse(t *testing.T, raw string) []field {
+	t.Helper()
+	fields, ok := parseRecord(raw, DefaultMaxDepth)
+	if !ok {
+		t.Fatalf("not a record: %s", raw)
+	}
+	return fields
+}

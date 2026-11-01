@@ -443,6 +443,51 @@ func TestSiteRegisterRoutesInvalid(t *testing.T) {
 	require.Error(t, (&web.Site{}).RegisterRoutes(mux))
 }
 
+func TestSiteAddPageMetadataOpenGraphLocaleAlternates(t *testing.T) {
+	// Link previews offer a translated preview from og:locale:alternate, not
+	// from the hreflang links, so every translation gets one tag of its own.
+	site := &web.Site{BaseURL: "https://example.com", Lang: "en-US", DefaultLang: "en-US"}
+	page := &web.Page{
+		Path:      "/en/faq",
+		Published: published,
+		Alternates: []web.Alternate{
+			{HrefLang: "de-AT", Path: "/de/faq"},
+			{HrefLang: "fr", Path: "/fr/faq"},
+			{HrefLang: web.HrefLangDefault, Path: "/faq"},
+			{Type: "text/markdown", Path: "/en/faq.md"},
+		},
+	}
+	doc, err := site.RenderPage(context.Background(), page)
+	require.NoError(t, err)
+	require.Equal(t, "en_US", doc.MetaProperty["og:locale"])
+	rendered := renderDoc(t, &doc)
+	require.Contains(t, rendered, `<meta property="og:locale:alternate" content="de_AT"/>`)
+	require.Contains(t, rendered, `<meta property="og:locale:alternate" content="fr"/>`)
+	// Neither the x-default, which names no locale, nor the page's own.
+	require.Equal(t, 2, strings.Count(rendered, "og:locale:alternate"))
+
+	// Added once, like the links.
+	require.NoError(t, site.AddPageMetadata(&doc, page))
+	require.Equal(t, 2, strings.Count(renderDoc(t, &doc), "og:locale:alternate"))
+
+	// A renderer that set og:locale to a translation's locale keeps it out of
+	// the alternates.
+	site.Renderer = web.PageRendererFunc(func(ctx context.Context, page *web.Page) (html.Document, error) {
+		return html.Document{MetaProperty: map[string]string{"og:locale": "fr"}}, nil
+	})
+	doc, err = site.RenderPage(context.Background(), page)
+	require.NoError(t, err)
+	rendered = renderDoc(t, &doc)
+	require.Equal(t, 1, strings.Count(rendered, "og:locale:alternate"))
+	require.Contains(t, rendered, `content="de_AT"`)
+
+	// A page without translations has none.
+	site.Renderer = nil
+	doc, err = site.RenderPage(context.Background(), &web.Page{Path: "/about", Published: published})
+	require.NoError(t, err)
+	require.NotContains(t, renderDoc(t, &doc), "og:locale:alternate")
+}
+
 // renderDoc renders an html.Document to a string.
 func renderDoc(t *testing.T, doc *html.Document) string {
 	t.Helper()

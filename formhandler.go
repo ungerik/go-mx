@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // DefaultMaxMemory is the default upper bound on multipart form parsing
@@ -46,6 +47,12 @@ var FormSubmitLabel = "Save"
 // only when [RevealInternalServerErrors] is set (see [FormErrorText]).
 // Reassign to change it globally.
 var FormErrorMessage = "The form could not be saved."
+
+// RepeatableNoRowsText is the line a form:"readonly" repeatable field with
+// no rows shows in its fieldset, which has no add-row button, so that "no
+// entries" does not look like a broken render. Reassign to change it
+// globally, like [FormErrorMessage].
+var RepeatableNoRowsText = "None"
 
 // FormRetypeSensitiveMessage is the form-level message an add-row or
 // remove-row click re-renders the form with when text was typed into a
@@ -267,6 +274,9 @@ func ReflectFormHandlerRedirecting[T any](
 			action = cfg.Action(r)
 		}
 		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, submitLabel, action, origins, formMessage)
+		if fragments := outOfBandFragments(r); len(fragments) > 0 {
+			comp = append(Components{comp}, fragments...)
+		}
 		writeFormResponse(w, r, comp)
 	}
 
@@ -316,6 +326,7 @@ func ReflectFormHandlerRedirecting[T any](
 				respondLoadError(w, r, err)
 				return
 			}
+			files := snapshotFiles(target)
 			d := pickDecider(r)
 			origins := rowOrigins{}
 			// Repeatable add/remove buttons submit a __cmd__ value with
@@ -332,15 +343,20 @@ func ReflectFormHandlerRedirecting[T any](
 				if sensitiveTextPosted(target, requestFormValues(r)) {
 					formMsg = FormRetypeSensitiveMessage
 				}
+				files.restore(target, origins)
 				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
 				render(w, r, target, nil, formMsg, origins)
 				return
 			}
 			fieldErrs := parseAndValidate(target, d, r, origins)
 			if len(fieldErrs) > 0 {
+				files.restore(target, origins)
 				render(w, r, target, fieldErrs, "", origins)
 				return
 			}
+			// onSubmit can add out-of-band fragments to the response
+			// ([AddOutOfBand]).
+			r = r.WithContext(context.WithValue(r.Context(), outOfBandKey{}, new(outOfBand)))
 			redirect, err := onSubmit(r.Context(), target)
 			if fe, ok := errors.AsType[FieldErrors](err); ok {
 				// A nil entry, as from FieldErrors{"Name": validate(x)} with a
@@ -355,7 +371,7 @@ func ReflectFormHandlerRedirecting[T any](
 						continue
 					}
 					if sensitive[p] {
-						e = MaskSensitiveError(r.Context(), e, "not a valid value")
+						e = MaskSensitiveError(ContextWithFieldPath(r.Context(), p), e, "not a valid value")
 					}
 					perField[p] = []error{e}
 				}
@@ -363,6 +379,7 @@ func ReflectFormHandlerRedirecting[T any](
 					// What the FieldErrors came joined with, such as a
 					// failed audit write, is not shown.
 					reportHiddenParts(r.Context(), err)
+					files.restore(target, origins)
 					render(w, r, target, perField, "", origins)
 					return
 				}
@@ -373,7 +390,20 @@ func ReflectFormHandlerRedirecting[T any](
 				}
 			}
 			if err != nil {
+				files.restore(target, origins)
 				render(w, r, target, nil, FormErrorText(r.Context(), err), origins)
+				return
+			}
+			// An htmx submit that added out-of-band fragments and has no
+			// other destination re-renders the form in place, as the
+			// redirect's GET would, with the fragments after it.
+			if redirect == "" && cfg.Redirect == nil && len(outOfBandFragments(r)) > 0 {
+				saved, err := load(r.Context())
+				if err != nil {
+					respondLoadError(w, r, err)
+					return
+				}
+				render(w, r, saved, nil, "", nil)
 				return
 			}
 			// onSubmit's returned URL wins; an empty string falls back to
@@ -393,6 +423,149 @@ func ReflectFormHandlerRedirecting[T any](
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+// outOfBandKey is the context key of the [outOfBand] fragments of a
+// reflected form submit.
+type outOfBandKey struct{}
+
+// outOfBand collects the fragments [AddOutOfBand] adds during onSubmit.
+type outOfBand struct {
+	mu    sync.Mutex
+	comps Components
+}
+
+// AddOutOfBand adds out-of-band fragments to the response to the reflected
+// form submit whose onSubmit was passed ctx, such as a toast, an updated
+// list row or a counter elsewhere on the page. Mark each with hx.SwapOOB or
+// hx.SwapOOBTrue and give it the id of the element it replaces (KeyedID
+// keeps ids stable).
+//
+// The fragments are rendered after the form, and only when the request comes
+// from htmx (an HX-Request: true header); a plain browser submit, which
+// would show them as part of the page, ignores them, and so does a boosted
+// one (HX-Boosted: true), whose response replaces the whole body. A successful htmx
+// submit with fragments and no destination of its own (no URL from onSubmit,
+// no ReflectFormConfig.Redirect) is answered with the form re-rendered from
+// a fresh load, as the redirect's GET would show it, instead of the
+// redirect, whose response could not carry them. A submit that fails and
+// re-renders the form carries them too.
+//
+// It reports whether ctx belongs to such a submit; outside one it does
+// nothing. It is safe for concurrent use.
+func AddOutOfBand(ctx context.Context, comps ...Component) bool {
+	oob, ok := ctx.Value(outOfBandKey{}).(*outOfBand)
+	if !ok {
+		return false
+	}
+	oob.mu.Lock()
+	defer oob.mu.Unlock()
+	oob.comps = append(oob.comps, comps...)
+	return true
+}
+
+// outOfBandFragments returns the fragments onSubmit added for r, an htmx
+// request; for any other request none. A boosted submit (HX-Boosted) gets
+// none either: htmx swaps its response into the whole body, which a
+// re-rendered form would replace, so it keeps the redirect to a full page.
+func outOfBandFragments(r *http.Request) Components {
+	oob, ok := r.Context().Value(outOfBandKey{}).(*outOfBand)
+	if !ok || r.Header.Get("HX-Request") != "true" || r.Header.Get("HX-Boosted") == "true" {
+		return nil
+	}
+	oob.mu.Lock()
+	defer oob.mu.Unlock()
+	return slices.Clone(oob.comps)
+}
+
+// loadedFiles holds the values of a form's file fields as loaded, before a
+// POST binds its uploads: by path, and for the cells of a repeatable field
+// by the index of the loaded row.
+type loadedFiles struct {
+	fields map[FieldPath]reflect.Value
+	rows   map[FieldPath][]map[FieldPath]reflect.Value
+}
+
+// snapshotFiles copies the values of target's file fields, also those in
+// the rows of its repeatable fields.
+func snapshotFiles(target any) loadedFiles {
+	files := loadedFiles{fields: map[FieldPath]reflect.Value{}, rows: map[FieldPath][]map[FieldPath]reflect.Value{}}
+	for visit := range ReflectFormFields(target) {
+		switch {
+		case visit.Kind == FieldKindFile:
+			files.fields[visit.Path] = copiedValue(visit.Value)
+		case visit.Kind == FieldKindRepeatable && visit.Value.Kind() == reflect.Slice:
+			structType := repeatableStructType(visit.Value.Type())
+			if structType == nil {
+				continue
+			}
+			rows := make([]map[FieldPath]reflect.Value, visit.Value.Len())
+			for i := range rows {
+				rows[i] = map[FieldPath]reflect.Value{}
+				row := rowStructValue(visit.Value.Index(i), structType)
+				for cell := range ReflectFormFields(row.Addr().Interface()) {
+					if cell.Kind == FieldKindFile {
+						rows[i][cell.Path] = copiedValue(cell.Value)
+					}
+				}
+			}
+			files.rows[visit.Path] = rows
+		}
+	}
+	return files
+}
+
+// restore sets target's file fields back to their loaded values before a
+// failed submit renders the form again. The request's uploads are removed
+// with its response and the browser does not send them again, so the form
+// must not show them as stored, and a file input left empty must not keep
+// them. A file field of a row that was not loaded, such as an added one,
+// becomes empty. Repeatable rows are matched to loaded ones by origins.
+func (files loadedFiles) restore(target any, origins rowOrigins) {
+	for visit := range ReflectFormFields(target) {
+		switch {
+		case visit.Kind == FieldKindFile:
+			if loaded, ok := files.fields[visit.Path]; ok && visit.Value.CanSet() {
+				visit.Value.Set(loaded)
+			}
+		case visit.Kind == FieldKindRepeatable && visit.Value.Kind() == reflect.Slice:
+			rowsOrigin, recorded := origins[visit.Path]
+			structType := repeatableStructType(visit.Value.Type())
+			// A field that was not posted keeps the loaded rows, and with
+			// fewer rows than origins it is unknown which one came from where.
+			if !recorded || structType == nil || len(rowsOrigin) > visit.Value.Len() {
+				continue
+			}
+			loadedRows := files.rows[visit.Path]
+			for i := range visit.Value.Len() {
+				origin := -1
+				if i < len(rowsOrigin) {
+					origin = rowsOrigin[i]
+				}
+				row := rowStructValue(visit.Value.Index(i), structType)
+				for cell := range ReflectFormFields(row.Addr().Interface()) {
+					if cell.Kind != FieldKindFile || !cell.Value.CanSet() {
+						continue
+					}
+					if origin >= 0 && origin < len(loadedRows) {
+						if loaded, ok := loadedRows[origin][cell.Path]; ok {
+							cell.Value.Set(loaded)
+							continue
+						}
+					}
+					cell.Value.SetZero()
+				}
+			}
+		}
+	}
+}
+
+// copiedValue returns a settable copy of v that a later Set on v does not
+// change.
+func copiedValue(v reflect.Value) reflect.Value {
+	c := reflect.New(v.Type()).Elem()
+	c.Set(v)
+	return c
 }
 
 // sensitiveTextPosted reports whether form posted text for one of target's
@@ -522,6 +695,7 @@ func parseAndValidate[T any](target *T, d FieldDecider, r *http.Request, origins
 // [UserMessageError], such as a password rule, is meant for the user and
 // shows as its UserMessage.
 func validateField(ctx context.Context, visit FieldVisit, beh FieldBehavior, path FieldPath, raw string, blank bool) []error {
+	ctx = ContextWithFieldPath(ctx, path)
 	var errs []error
 	if visit.Kind != FieldKindEnum || !blank {
 		errs = RunValidationChain(visit.Value)
@@ -594,7 +768,7 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 	// sent costs no decider call, so a POST of bare row markers stays cheap.
 	present := sentinelSet(form, PresentSentinelName(srcCell))
 	zeroNumber := cv.Kind == FieldKindNumber && cv.Value.Kind() != reflect.Pointer && cv.Value.IsZero()
-	unsentBlank := cv.Tag.Required && (isBlank(cv.Kind, cv.Value) || zeroNumber)
+	unsentBlank := cv.Tag.Required && (isBlank(cv.Kind, cv.Value) || zeroNumber) && !zeroIsOption(r.Context(), cv)
 	unsentOutOfRange := zeroNumber && CheckNumberRange(cv.Value, "", cv.Tag) != nil
 	if !present && !unsentBlank && !unsentOutOfRange {
 		return
@@ -614,6 +788,8 @@ func parseField(cv FieldVisit, d FieldDecider, r *http.Request, form map[string]
 		}
 		return
 	}
+	// The errors reported while parsing name the field ([ReportError]).
+	r = r.WithContext(ContextWithFieldPath(r.Context(), dstCell))
 	keep := true // a blank sensitive input may keep the stored value
 	// A field the decider does not parse is not written, not even cleared.
 	if beh.Parse != nil && sentinelSet(form, ClearSentinelName(srcCell)) {
@@ -821,16 +997,47 @@ func isBlank(kind FieldKind, value reflect.Value) bool {
 	return isEffectivelyEmpty(value) || (kind == FieldKindEnum && value.IsZero())
 }
 
+// zeroIsOption reports whether an enum field holds a zero value that is one
+// of its options, such as a Low = iota or an option "0": that zero is a
+// choice, not blank, also when the field was not sent. The options are
+// collected only for a zero enum, the one case that needs them. An empty
+// text, as of a string enum or a nil pointer, is blank whatever is listed.
+func zeroIsOption(ctx context.Context, cv FieldVisit) bool {
+	if cv.Kind != FieldKindEnum || !cv.Value.IsValid() || !cv.Value.IsZero() {
+		return false
+	}
+	zero := FormatOptionValue(cv.Value)
+	if zero == "" {
+		return false
+	}
+	options, err := CollectOptions(ctx, cv.Value, cv.Tag, cv.Field.Type)
+	if err != nil {
+		return false
+	}
+	for _, o := range options {
+		if o.Value == zero {
+			return true
+		}
+	}
+	return false
+}
+
 // sentBlank reports whether a sent field holds no value, for the required
 // check and the validation chain. An enum the decider parsed is blank when
 // its submitted text was empty and it bound no value, as a parser that
 // stores the zero for an empty select leaves it; text that bound a zero,
 // such as a Low = iota or an option "0", is a value, which the validation
-// chain then checks. Any other field, also an enum the decider did not
-// parse from the submission, is blank when [isEffectivelyEmpty].
+// chain then checks. A time field the decider parsed is blank when its
+// submitted text was empty: a time-of-day type such as civil.Time is zero at
+// midnight, so a posted 00:00 binds a zero value that is a time. Any other
+// field, also an enum the decider did not parse from the submission, is
+// blank when [isEffectivelyEmpty].
 func sentBlank(cv FieldVisit, form url.Values, path FieldPath, parsed bool) bool {
 	if cv.Kind == FieldKindEnum && parsed {
 		return form.Get(string(path)) == "" && (cv.Value.IsZero() || isEffectivelyEmpty(cv.Value))
+	}
+	if cv.Kind == FieldKindDateTime && parsed && dateTimeInputType(cv.Tag) == "time" {
+		return strings.TrimSpace(form.Get(string(path))) == ""
 	}
 	return isEffectivelyEmpty(cv.Value)
 }
@@ -1112,7 +1319,7 @@ func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, f
 	shownMsgs := map[string]bool{}
 	for _, path := range unshown {
 		for _, err := range fieldErrs[path] {
-			if msg := FormErrorText(ctx, err); !shownMsgs[msg] {
+			if msg := FormErrorText(ContextWithFieldPath(ctx, path), err); !shownMsgs[msg] {
 				shownMsgs[msg] = true
 				messages = append(messages, formMessage(msg))
 			}

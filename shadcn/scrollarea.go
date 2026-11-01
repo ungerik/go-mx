@@ -82,13 +82,18 @@ const StickToBottomDefaultThresholdPx = 48
 // container itself is resized. Content that grows by layout rather than by
 // mutation would otherwise leave the view stranded above the bottom, and the
 // initial pin is the worst case — it runs while images below are still zero
-// height. (data-stuck is deliberately outside that attribute filter, so the
-// script's own bookkeeping cannot re-trigger the observer.)
+// height. (data-stuck and data-at-start are deliberately outside that
+// attribute filter, so the script's own bookkeeping cannot re-trigger the
+// observer.)
 //
 // While following, the element carries a data-stuck attribute, so a caller can
 // show a "jump to latest" affordance with CSS alone:
 //
 //	[data-stuck] .jump-to-latest { display: none }
+//
+// Scrolled to the top, the element carries data-at-start, which shows or
+// hides a "back to start" affordance the same way (a [MessageScrollerButton]
+// with [MessageScrollerStart] uses it).
 //
 // The script is emitted as the container's FIRST child, so :last-child
 // (Tailwind's last: variant) still matches the last content row. A caller
@@ -136,4 +141,4 @@ func StickToBottomThreshold(px int) mx.Attrib {
 //
 // It is a var rather than a const only because it interpolates
 // [StickToBottomDefaultThresholdPx], keeping that default in one place.
-var stickToBottomScript = /*js*/ `if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(` + strconv.Itoa(StickToBottomDefaultThresholdPx) + `,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){if(stuck&&el.scrollTop>=pinTop-2){if(maxTop()-el.scrollTop>1)pin();return;}mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[` + stickToBottomAttr + `]'))window.mxStickToBottom(r);r.querySelectorAll('[` + stickToBottomAttr + `]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);`
+var stickToBottomScript = /*js*/ `if(!window.mxStickToBottom){window.mxStickToBottom=function(el){if(el.mxStuck)return;el.mxStuck=1;var a=parseInt(el.dataset.stickToBottom,10);var thr=function(){return a>=0?a:Math.min(` + strconv.Itoa(StickToBottomDefaultThresholdPx) + `,Math.round(el.clientHeight*0.2));};var stuck=true,pinTop=-1,pinMax=-1;var maxTop=function(){return el.scrollHeight-el.clientHeight;};var mark=function(v){stuck=v;el.toggleAttribute('data-stuck',v);};var top=function(){el.toggleAttribute('data-at-start',el.scrollTop<=1);};var pin=function(){el.scrollTo({top:el.scrollHeight,behavior:'instant'});pinTop=el.scrollTop;pinMax=maxTop();top();};var follow=function(){if(pinTop>=0&&maxTop()>=pinMax&&el.scrollTop<pinTop-2)mark(false);if(stuck)pin();};el.addEventListener('scroll',function(){top();if(stuck&&el.scrollTop>=pinTop-2){if(maxTop()-el.scrollTop>1)pin();return;}mark(maxTop()-el.scrollTop<=thr());if(stuck){pinTop=el.scrollTop;pinMax=maxTop();}},{passive:true});new MutationObserver(follow).observe(el,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style','open','hidden']});el.addEventListener('load',follow,true);if(window.ResizeObserver)new ResizeObserver(follow).observe(el);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(follow);mark(true);pin();};window.mxStickToBottomScan=function(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('[` + stickToBottomAttr + `]'))window.mxStickToBottom(r);r.querySelectorAll('[` + stickToBottomAttr + `]').forEach(window.mxStickToBottom);};document.addEventListener('DOMContentLoaded',function(){window.mxStickToBottomScan(document);});document.addEventListener('htmx:load',function(e){window.mxStickToBottomScan(e.target);});}window.mxStickToBottomScan(document);`

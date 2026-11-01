@@ -506,8 +506,11 @@ Tag keys (comma-separated inside `form:"…"`): `required`, `readonly`,
 `sensitive` (never echo the value back; left blank, a text, number or date
 input keeps the stored value; `widget=password` implies it), `hidden`, `-` (skip),
 `placeholder=…`, `help=…`, `pattern=…`, `min=…`, `max=…`, `step=…`,
+`minlength=…`, `maxlength=…` (also checked on the server), `autocomplete=…`,
+`inputmode=…`, `accept=…` (a file input's picker),
 `label=…`, `widget=…` (`textarea`, `email`, `url`, `tel`, `password`, `date`,
-`time`, `radio`, `file`, …).
+`datepicker` (a date input here, shadcn's date picker in `shadcn`), `time`,
+`radio`, `file`, …).
 
 ## Templates and table views
 

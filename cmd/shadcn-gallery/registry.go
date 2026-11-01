@@ -22,11 +22,14 @@ var exampleFS embed.FS
 // Example is one labeled preview of a component: a function that renders the
 // live component and the Go source of that function's body, extracted from
 // [exampleFS]. Source is filled in by [NewRegistry]; callers only supply Name
-// and Func.
+// and Func, plus ShowSource when the Code tab should show another function's
+// source than Func's, such as the month-taking function behind a calendar
+// example whose months the gallery also serves as fragments.
 type Example struct {
-	Name   string
-	Func   func() mx.Component
-	Source string
+	Name       string
+	Func       func() mx.Component
+	ShowSource any
+	Source     string
 }
 
 // ComponentDoc is one component's documentation page: a slug for its route, a
@@ -54,7 +57,11 @@ func NewRegistry(docs []ComponentDoc) *Registry {
 	r := &Registry{bySlug: make(map[string]*ComponentDoc, len(docs))}
 	for _, d := range docs {
 		for i := range d.Examples {
-			d.Examples[i].Source = src[funcName(d.Examples[i].Func)]
+			var shown any = d.Examples[i].Func
+			if d.Examples[i].ShowSource != nil {
+				shown = d.Examples[i].ShowSource
+			}
+			d.Examples[i].Source = src[funcName(shown)]
 		}
 		r.Docs = append(r.Docs, d)
 	}
@@ -72,7 +79,7 @@ func (r *Registry) Lookup(slug string) *ComponentDoc {
 // funcName returns the unqualified name of a function value, e.g.
 // "ButtonDefault" for examples.ButtonDefault. Names are unique within the
 // examples package, so the short name is a stable key into the source map.
-func funcName(fn func() mx.Component) string {
+func funcName(fn any) string {
 	full := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
 	if i := strings.LastIndex(full, "."); i >= 0 {
 		return full[i+1:]

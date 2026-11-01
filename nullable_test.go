@@ -119,8 +119,9 @@ func TestDriverValueText(t *testing.T) {
 		{"time", sql.NullTime{Time: at, Valid: true}, "2026-03-29T03:30:00.000000005+02:00", true},
 		{"generic", sql.Null[string]{V: "x", Valid: true}, "x", true},
 		{"text bytes", bytesValuer{b: []byte(`{"a":1}`)}, `{"a":1}`, true},
-		{"binary bytes", bytesValuer{b: []byte{0xff, 0x00, 'A'}}, "", false},
-		{"NUL in a string", sql.NullString{String: "a\x00b", Valid: true}, "", false},
+		// What an input cannot hold shows as U+FFFD, as a browser would.
+		{"binary bytes", bytesValuer{b: []byte{0xff, 0x00, 'A'}}, "\uFFFD\uFFFDA", true},
+		{"NUL in a string", sql.NullString{String: "a\x00b", Valid: true}, "a\uFFFDb", true},
 		{"failing Value", failingValuer{}, "", false},
 		{"unsupported driver value", intValuer{n: 3}, "", false},
 		{"no Scan", writeOnly{7}, "", false},
@@ -129,6 +130,8 @@ func TestDriverValueText(t *testing.T) {
 		{"own MarshalText", writesText{n: 3}, "", false},
 		{"no Valuer", struct{ N int }{1}, "", false},
 		{"not a struct", 5, "", false},
+		// The zero reflect.Value has no type to ask, and must not panic.
+		{"no value", nil, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			text, ok := DriverValueText(reflect.ValueOf(tc.value))
@@ -150,5 +153,32 @@ func TestDriverValueText(t *testing.T) {
 func TestIsNullNilPointer(t *testing.T) {
 	if !IsNull((*sql.NullString)(nil)) {
 		t.Error("a nil *sql.NullString must be null")
+	}
+}
+
+func TestDriverValueTextProblem(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		value     any
+		multiline bool
+		want      TextProblem
+		ok        bool
+	}{
+		{"fine", sql.NullString{String: "ab", Valid: true}, false, 0, false},
+		{"NUL", sql.NullString{String: "a\x00b", Valid: true}, false, TextProblemNUL, true},
+		{"invalid UTF-8", bytesValuer{b: []byte{0xff}}, false, TextProblemInvalidUTF8, true},
+		{"line break", sql.NullString{String: "k1\nk2", Valid: true}, false, TextProblemLineBreak, true},
+		{"line break in a textarea", sql.NullString{String: "k1\nk2", Valid: true}, true, 0, false},
+		{"number", sql.NullInt64{Int64: 3, Valid: true}, false, 0, false},
+		{"no driver type", "a\x00b", false, 0, false},
+	} {
+		got, ok := DriverValueTextProblem(reflect.ValueOf(tt.value), tt.multiline)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("%s: got %v, %v; want %v, %v", tt.name, got, ok, tt.want, tt.ok)
+		}
+	}
+	// The type decides, whatever the value holds.
+	if !DriverValueType(reflect.TypeFor[sql.NullString]()) || DriverValueType(reflect.TypeFor[string]()) {
+		t.Error("DriverValueType")
 	}
 }

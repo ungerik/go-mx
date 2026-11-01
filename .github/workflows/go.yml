@@ -28,8 +28,13 @@ jobs:
     - name: Build
       run: go build -v ./...
 
+    # The browser tests of the shadcn inline scripts run in the runner's
+    # preinstalled Chrome (internal/headless); MX_REQUIRE_CHROME fails them
+    # rather than skipping them when it is missing.
     - name: Test
       run: go test -v ./...
+      env:
+        MX_REQUIRE_CHROME: "1"
 
     - name: Test fpdf module (byte-parity suite)
       run: go test -C fpdf -v ./...
@@ -67,14 +72,14 @@ jobs:
     # Regenerate the committed docs/shadcn/gallery and fail if it drifts from the Go
     # source. Must match the command in docs/_config.yml byte for byte.
     - name: Regenerate gallery
-      run: go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight
+      run: go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
 
     - name: Fail if docs/shadcn/gallery is out of date
       run: |
         git add -A docs/shadcn/gallery
         if ! git diff --cached --quiet -- docs/shadcn/gallery; then
           echo "::error::docs/shadcn/gallery is out of date. Regenerate locally and commit:"
-          echo "  go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight"
+          echo "  go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight"
           git diff --cached -- docs/shadcn/gallery
           exit 1
         fi

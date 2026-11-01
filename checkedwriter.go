@@ -23,6 +23,23 @@ func NewCheckedWriter(dest io.Writer) *CheckedWriter {
 type elemState struct {
 	element    string
 	hasNewline bool
+	// preformatted is set for an element whose whitespace is content (see
+	// preformattedElems) and for every element nested in one.
+	preformatted bool
+}
+
+// preformattedElems are the elements whose whitespace is part of their
+// content, so an indenting [CheckedWriter] must not break lines or indent
+// inside them: a newline in a <pre> or <textarea> is shown, and one in a
+// <script> or <style> can change what the code means.
+var preformattedElems = map[string]struct{}{
+	"pre":       {},
+	"textarea":  {},
+	"script":    {},
+	"style":     {},
+	"listing":   {},
+	"xmp":       {},
+	"plaintext": {},
 }
 
 // CheckedWriter is the default [Writer] implementation. It escapes text and
@@ -98,6 +115,9 @@ func (w *CheckedWriter) Clone(dest io.Writer) *CheckedWriter {
 // break is produced uniformly by the logic above rather than stacking on the
 // value's own newline and the one an indenting writer inserts before the next
 // element.
+//
+// Inside an element whose whitespace is content (pre, script, …) none of
+// this applies: p is written as it is, and no line break is added after it.
 func (w *CheckedWriter) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -109,7 +129,7 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 	// skipped and no duplicate newline results. Top-level instructions (an empty
 	// element stack — a document's declaration and prolog) keep their compact,
 	// un-indented spacing from the afterProcInst path instead.
-	if procInst && w.indent != "" && !w.inStartTag && len(w.elemStack) > 0 {
+	if procInst && w.indenting() && !w.inStartTag && len(w.elemStack) > 0 {
 		if err := w.Newline(); err != nil {
 			return 0, err
 		}
@@ -119,6 +139,11 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 		if _, err := w.Writer.Write([]byte{'\n'}); err != nil {
 			return 0, err
 		}
+	}
+	if w.inPreformatted() {
+		// Inside a <pre> or <script> a line break is content: an
+		// instruction's own newline is kept and none is added after it.
+		return w.Writer.Write(p)
 	}
 	if bytes.HasSuffix(p, []byte("?>\n")) {
 		// Strip the trailing newline and remember the instruction so the break
@@ -142,7 +167,9 @@ func (w *CheckedWriter) Write(p []byte) (int, error) {
 
 // WithIndent enables pretty-printing: each element is placed on its own line,
 // preceded by prefix and one indent per nesting level. An empty indent disables
-// indentation. It mutates and returns the receiver for chaining.
+// indentation. Inside an element whose whitespace is content (pre, textarea,
+// script, style, …) nothing is broken or indented, so its content renders as
+// written. It mutates and returns the receiver for chaining.
 func (w *CheckedWriter) WithIndent(prefix, indent string) *CheckedWriter {
 	w.prefix = prefix
 	w.indent = indent
@@ -161,6 +188,18 @@ func (w *CheckedWriter) WithSingleQuoteAttribs() *CheckedWriter {
 func (w *CheckedWriter) WithDoubleQuoteAttribs() *CheckedWriter {
 	w.singleQuote = false
 	return w
+}
+
+// inPreformatted reports whether the current position is inside an element
+// whose whitespace is content.
+func (w *CheckedWriter) inPreformatted() bool {
+	return len(w.elemStack) > 0 && w.elemStack[len(w.elemStack)-1].preformatted
+}
+
+// indenting reports whether output at the current position is broken and
+// indented: indentation is enabled and no open element is preformatted.
+func (w *CheckedWriter) indenting() bool {
+	return w.indent != "" && !w.inPreformatted()
 }
 
 func (w *CheckedWriter) currentElemName() string {
@@ -187,13 +226,17 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 			return errs.Errorf("element %s not allowed", elem)
 		}
 	}
-	if w.indent != "" {
+	if w.indenting() {
 		err := w.Newline()
 		if err != nil {
 			return err
 		}
 	}
-	w.elemStack = append(w.elemStack, elemState{element: elem})
+	_, preformatted := preformattedElems[elem]
+	if len(w.elemStack) > 0 && w.elemStack[len(w.elemStack)-1].preformatted {
+		preformatted = true
+	}
+	w.elemStack = append(w.elemStack, elemState{element: elem, preformatted: preformatted})
 	w.inStartTag = true
 	// Reset duplicate-attribute tracking for this element's start tag.
 	// It must be cleared per start tag, not on EndElement: a nested child
@@ -290,7 +333,7 @@ func (w *CheckedWriter) Comment(text string) error {
 	// must not start with the string "->"
 	// must not contain the string "--"
 	// must not end with a "-" character
-	if w.indent != "" {
+	if w.indenting() {
 		err := w.Newline()
 		if err != nil {
 			return err
@@ -307,7 +350,7 @@ func (w *CheckedWriter) CDATA(text string) error {
 	if strings.Contains(text, "]]>") {
 		return errs.Errorf("CDATA text contains ']]>': %s", text)
 	}
-	if w.indent != "" {
+	if w.indenting() {
 		err := w.Newline()
 		if err != nil {
 			return err

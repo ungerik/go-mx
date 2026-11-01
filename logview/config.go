@@ -104,10 +104,39 @@ type Config struct {
 	// line actually carries.
 	KeepANSI bool
 
+	// OverwriteCR treats a carriage return the way a terminal does, as a return
+	// to the start of the line that the text after it overwrites: of a line
+	// that redraws itself with "\r" — a progress bar — only the text after the
+	// last carriage return is kept. It applies per line segment, so a "\r" that
+	// nothing follows before the next LF or the end, such as the CR of a CRLF,
+	// still ends a line instead of erasing it. The decoded strings of a JSON
+	// record get the same treatment, since docker's json-file driver wraps a
+	// container's progress output as "10%\r20%\r" inside one.
+	//
+	// Off by default, a carriage return is a line break like LF, which is also
+	// what mx.SSEResponse makes of it on the wire. That loses nothing, while
+	// overwriting would drop the content of a log that uses "\r" as a plain
+	// separator, so the terminal reading is the opt-in.
+	OverwriteCR bool
+
 	// QuoteText renders JSON string values in quotes. Off by default: the
 	// value's color already says it is a string, and quotes around every
 	// message are noise.
 	QuoteText bool
+
+	// Expandable renders each JSON record as a <details> disclosure: collapsed
+	// it is the line as it renders without this, and expanded it adds the
+	// whole record pretty-printed below — one field per line, nested objects
+	// and arrays indented, colored with the same classes. A record with
+	// several nested objects is long on one line, and the compact {k=v k=v}
+	// form gets harder to read the deeper it nests. Plain-text lines are not
+	// affected.
+	//
+	// Off by default: it about doubles the markup of every record, at log
+	// stream rates, and a click on the line toggles it, which gets in the way
+	// of selecting text in it. The filter and [Config.Matches] search the
+	// expanded text too, collapsed or not, since it is part of the line.
+	Expandable bool
 
 	// MaxDepth is how deep nested JSON objects and arrays are rendered field by
 	// field. A value deeper than this is rendered as its raw JSON text, which

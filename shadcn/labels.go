@@ -38,6 +38,17 @@ type Labels struct {
 	// icon-only previous- and next-month buttons of a [Calendar].
 	CalendarPrevious string
 	CalendarNext     string
+	// CalendarMonth and CalendarYear are the aria-labels of the month and
+	// year dropdowns of a [CalendarOptions].CaptionLayout.
+	CalendarMonth string
+	CalendarYear  string
+	// CalendarToday is the accessible name of today's day button, and
+	// CalendarSelected that of a selected day in a calendar with a
+	// [CalendarOptions].Name, each with %s standing for the day's DayLabel:
+	// "Today, %s" gives "Today, 2026-06-10", and both apply to a selected
+	// today.
+	CalendarToday    string
+	CalendarSelected string
 
 	// CarouselPrevious and CarouselNext are the aria-labels of the
 	// icon-only [CarouselPrevious] and [CarouselNext] buttons.
@@ -61,6 +72,9 @@ type Labels struct {
 	// MessageScrollerButton is the screen-reader text of the icon-only
 	// [MessageScrollerButton].
 	MessageScrollerButton string
+	// MessageScrollerStartButton is the screen-reader text of a
+	// [MessageScrollerButton] with [MessageScrollerStart].
+	MessageScrollerStartButton string
 
 	// PaginationNav is the aria-label of the [Pagination] <nav> landmark.
 	PaginationNav string
@@ -88,6 +102,9 @@ type Labels struct {
 	// for a nullable or optional form:"sensitive" field to clear it (see
 	// [FieldDecider]).
 	FormClear string
+	// FormPickDate is the placeholder of a reflected
+	// form:"widget=datepicker" field without a value or a form:"placeholder".
+	FormPickDate string
 	// FormClearField is the box's aria-label, with %s standing for the
 	// field label: "clear %s" gives "clear Token", and a language that puts
 	// the verb last writes "%s leeren". It holds FormClear's word, so the
@@ -136,9 +153,20 @@ type Labels struct {
 	// FormStoredFileUnnamed is that note for a field holding the file's bytes
 	// without a name.
 	FormStoredFileUnnamed string
+	// FormUploadProgress is the aria-label of the progress bar of a
+	// reflected file input, which shows how much of an htmx upload is sent.
+	FormUploadProgress string
 	// FormKeepStoredFile follows FormStoredFile or FormStoredFileUnnamed on an
 	// editable file input: an empty submission keeps the stored file.
 	FormKeepStoredFile string
+	// FormTextNUL, FormTextInvalidUTF8 and FormTextLineBreak are the note
+	// under a reflected text input or textarea whose stored database/sql
+	// text it cannot show unchanged: holding a NUL character or invalid
+	// UTF-8, which it shows as U+FFFD, or a line break, which a one-line
+	// input drops. Saving the shown text unchanged keeps the stored text.
+	FormTextNUL         string
+	FormTextInvalidUTF8 string
+	FormTextLineBreak   string
 	// FormKeepStoredValue is the note under a reflected form:"sensitive"
 	// input while a value is stored: the input never shows it, and a blank
 	// keeps it.
@@ -185,6 +213,10 @@ var englishLabels = Labels{
 	BreadcrumbEllipsis:             "More",
 	CalendarPrevious:               "Go to the previous month",
 	CalendarNext:                   "Go to the next month",
+	CalendarMonth:                  "Choose the Month",
+	CalendarYear:                   "Choose the Year",
+	CalendarToday:                  "Today, %s",
+	CalendarSelected:               "%s, selected",
 	CarouselPrevious:               "Previous slide",
 	CarouselNext:                   "Next slide",
 	CodeBlockCopy:                  "Copy",
@@ -192,6 +224,7 @@ var englishLabels = Labels{
 	DialogClose:                    "Close",
 	NavigationMenuNav:              "Main",
 	MessageScrollerButton:          "Scroll to end",
+	MessageScrollerStartButton:     "Scroll to start",
 	PaginationNav:                  "pagination",
 	PaginationPrevious:             "Previous",
 	PaginationNext:                 "Next",
@@ -201,6 +234,7 @@ var englishLabels = Labels{
 	SidebarTrigger:                 "Toggle Sidebar",
 	Spinner:                        "Loading",
 	FormClear:                      "clear",
+	FormPickDate:                   "Pick a date",
 	FormClearField:                 "clear %s",
 	FormValueNotAvailable:          "(current value not available)",
 	FormValueRemovedOnSave:         "The current value is removed when you save.",
@@ -213,7 +247,11 @@ var englishLabels = Labels{
 	FormStoredFile:                 "Current file: %s",
 	FormStoredFileUnnamed:          "A file is stored.",
 	FormKeepStoredFile:             "Leave empty to keep it.",
+	FormUploadProgress:             "Upload progress",
 	FormKeepStoredValue:            "Leave blank to keep the current value.",
+	FormTextNUL:                    "The stored text holds a NUL character, shown as \uFFFD; saving it unchanged keeps it.",
+	FormTextInvalidUTF8:            "The stored text is not valid UTF-8, shown as \uFFFD; saving it unchanged keeps it.",
+	FormTextLineBreak:              "The stored text holds line breaks this input cannot show; saving it unchanged keeps it.",
 	FormDateFormat:                 "YYYY-MM-DD",
 	FormDateTimeFormat:             "YYYY-MM-DDTHH:MM",
 	FormTimeFormat:                 "HH:MM",
@@ -265,6 +303,10 @@ func (l Labels) orDefaults() Labels {
 		BreadcrumbEllipsis:             cmp.Or(l.BreadcrumbEllipsis, DefaultLabels.BreadcrumbEllipsis, englishLabels.BreadcrumbEllipsis),
 		CalendarPrevious:               cmp.Or(l.CalendarPrevious, DefaultLabels.CalendarPrevious, englishLabels.CalendarPrevious),
 		CalendarNext:                   cmp.Or(l.CalendarNext, DefaultLabels.CalendarNext, englishLabels.CalendarNext),
+		CalendarMonth:                  cmp.Or(l.CalendarMonth, DefaultLabels.CalendarMonth, englishLabels.CalendarMonth),
+		CalendarYear:                   cmp.Or(l.CalendarYear, DefaultLabels.CalendarYear, englishLabels.CalendarYear),
+		CalendarToday:                  cmp.Or(l.CalendarToday, DefaultLabels.CalendarToday, englishLabels.CalendarToday),
+		CalendarSelected:               cmp.Or(l.CalendarSelected, DefaultLabels.CalendarSelected, englishLabels.CalendarSelected),
 		CarouselPrevious:               cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
 		CarouselNext:                   cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
 		CodeBlockCopy:                  cmp.Or(l.CodeBlockCopy, DefaultLabels.CodeBlockCopy, englishLabels.CodeBlockCopy),
@@ -272,6 +314,7 @@ func (l Labels) orDefaults() Labels {
 		DialogClose:                    cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),
 		NavigationMenuNav:              cmp.Or(l.NavigationMenuNav, DefaultLabels.NavigationMenuNav, englishLabels.NavigationMenuNav),
 		MessageScrollerButton:          cmp.Or(l.MessageScrollerButton, DefaultLabels.MessageScrollerButton, englishLabels.MessageScrollerButton),
+		MessageScrollerStartButton:     cmp.Or(l.MessageScrollerStartButton, DefaultLabels.MessageScrollerStartButton, englishLabels.MessageScrollerStartButton),
 		PaginationNav:                  cmp.Or(l.PaginationNav, DefaultLabels.PaginationNav, englishLabels.PaginationNav),
 		PaginationPrevious:             cmp.Or(l.PaginationPrevious, DefaultLabels.PaginationPrevious, englishLabels.PaginationPrevious),
 		PaginationNext:                 cmp.Or(l.PaginationNext, DefaultLabels.PaginationNext, englishLabels.PaginationNext),
@@ -281,6 +324,7 @@ func (l Labels) orDefaults() Labels {
 		SidebarTrigger:                 cmp.Or(l.SidebarTrigger, DefaultLabels.SidebarTrigger, englishLabels.SidebarTrigger),
 		Spinner:                        cmp.Or(l.Spinner, DefaultLabels.Spinner, englishLabels.Spinner),
 		FormClear:                      cmp.Or(l.FormClear, DefaultLabels.FormClear, englishLabels.FormClear),
+		FormPickDate:                   cmp.Or(l.FormPickDate, DefaultLabels.FormPickDate, englishLabels.FormPickDate),
 		FormClearField:                 clearFieldLabel(l),
 		FormValueNotAvailable:          cmp.Or(l.FormValueNotAvailable, DefaultLabels.FormValueNotAvailable, englishLabels.FormValueNotAvailable),
 		FormValueRemovedOnSave:         cmp.Or(l.FormValueRemovedOnSave, DefaultLabels.FormValueRemovedOnSave, englishLabels.FormValueRemovedOnSave),
@@ -293,7 +337,11 @@ func (l Labels) orDefaults() Labels {
 		FormStoredFile:                 cmp.Or(l.FormStoredFile, DefaultLabels.FormStoredFile, englishLabels.FormStoredFile),
 		FormStoredFileUnnamed:          cmp.Or(l.FormStoredFileUnnamed, DefaultLabels.FormStoredFileUnnamed, englishLabels.FormStoredFileUnnamed),
 		FormKeepStoredFile:             cmp.Or(l.FormKeepStoredFile, DefaultLabels.FormKeepStoredFile, englishLabels.FormKeepStoredFile),
+		FormUploadProgress:             cmp.Or(l.FormUploadProgress, DefaultLabels.FormUploadProgress, englishLabels.FormUploadProgress),
 		FormKeepStoredValue:            cmp.Or(l.FormKeepStoredValue, DefaultLabels.FormKeepStoredValue, englishLabels.FormKeepStoredValue),
+		FormTextNUL:                    cmp.Or(l.FormTextNUL, DefaultLabels.FormTextNUL, englishLabels.FormTextNUL),
+		FormTextInvalidUTF8:            cmp.Or(l.FormTextInvalidUTF8, DefaultLabels.FormTextInvalidUTF8, englishLabels.FormTextInvalidUTF8),
+		FormTextLineBreak:              cmp.Or(l.FormTextLineBreak, DefaultLabels.FormTextLineBreak, englishLabels.FormTextLineBreak),
 		FormDateFormat:                 cmp.Or(l.FormDateFormat, DefaultLabels.FormDateFormat, englishLabels.FormDateFormat),
 		FormDateTimeFormat:             cmp.Or(l.FormDateTimeFormat, DefaultLabels.FormDateTimeFormat, englishLabels.FormDateTimeFormat),
 		FormTimeFormat:                 cmp.Or(l.FormTimeFormat, DefaultLabels.FormTimeFormat, englishLabels.FormTimeFormat),
@@ -318,6 +366,18 @@ func clearFieldLabel(l Labels) string {
 		}
 	}
 	return ""
+}
+
+// textProblem returns the note for problem, the reason a text input cannot
+// show its stored text unchanged.
+func (l Labels) textProblem(problem mx.TextProblem) string {
+	switch problem {
+	case mx.TextProblemNUL:
+		return l.FormTextNUL
+	case mx.TextProblemInvalidUTF8:
+		return l.FormTextInvalidUTF8
+	}
+	return l.FormTextLineBreak
 }
 
 // dateTimeFormat returns the translation of format, the format to enter of

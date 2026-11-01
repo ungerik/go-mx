@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	stdhtml "html"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -114,7 +115,8 @@ func TestFieldDecider_CheckboxBool(t *testing.T) {
 
 func TestFieldDecider_TextareaWidget(t *testing.T) {
 	out := renderFieldHTML(t, &allKindsForm{Notes: "hi"}, "Notes")
-	if !strings.Contains(out, `<textarea`) {
+	if !strings.Contains(out, 
+		/*html*/ `<textarea`) {
 		t.Errorf("expected textarea element: %q", out)
 	}
 	if !strings.Contains(out, "Long description") {
@@ -396,7 +398,8 @@ func TestFieldDecider_SelectWithRegistryOptions(t *testing.T) {
 	}
 
 	out := renderWith([]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
-	if !strings.Contains(out, `<select`) || !strings.Contains(out, "Partner One") {
+	if !strings.Contains(out, 
+		/*html*/ `<select`) || !strings.Contains(out, "Partner One") {
 		t.Errorf("expected select with option from context: %q", out)
 	}
 	if strings.Contains(out, `value="p1" selected`) {
@@ -447,7 +450,8 @@ func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	}
 
 	out := render("gone")
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -458,13 +462,14 @@ func TestFieldDecider_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	if strings.Contains(out, "disabled") || strings.Contains(out, "not available") {
 		t.Errorf("empty current value must not use the out-of-list placeholder: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" selected="selected">(none)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" selected="selected">(none)</option>`) {
 		t.Errorf("empty optional select must submit an empty option, not the first real one: %q", out)
 	}
 
 	// The out-of-list value is filtered by the option provider; it must
 	// not appear in the markup in any form, escaped or not.
-	out = render(`</option><script>x</script>`)
+	out = render(/*html*/ `</option><script>x</script>`)
 	if strings.Contains(out, "script") {
 		t.Errorf("out-of-list value leaked into markup: %q", out)
 	}
@@ -492,10 +497,12 @@ func TestFieldDecider_SelectPlaceholderSaysRemoval(t *testing.T) {
 			t.Fatalf("%s: render: %v", name, err)
 		}
 		out := b.String()
-		if !strings.Contains(out, `selected="selected">(current value not available)</option>`) {
+		if !strings.Contains(out, 
+			/*html*/ `selected="selected">(current value not available)</option>`) {
 			t.Errorf("%s: want the short caption in %q", name, out)
 		}
-		if got := strings.Contains(out, `<p class="form-help" id="`+name+`-note">The current value is removed when you save.</p>`); got != removed {
+		if got := strings.Contains(out, 
+			/*html*/ `<p class="form-help" id="`+name+/*html*/ `-note">The current value is removed when you save.</p>`); got != removed {
 			t.Errorf("%s: removal note shown %t, want %t: %q", name, got, removed, out)
 		}
 		// The select is described by the note, so a screen reader hears it.
@@ -512,7 +519,8 @@ func TestFieldDecider_EnumSetLabelNamesGroup(t *testing.T) {
 		Tags []string `form:"options=test-html-tags"`
 	}
 	out := renderFieldHTML(t, &tagForm{}, "Tags")
-	if !strings.Contains(out, `<label id="Tags-label">Tags:</label><div role="group" aria-labelledby="Tags-label" aria-describedby="Tags-note">`) {
+	if !strings.Contains(out, 
+		/*html*/ `<label id="Tags-label">Tags:</label><div role="group" aria-labelledby="Tags-label" aria-describedby="Tags-note">`) {
 		t.Errorf("want the group named by its label: %s", out)
 	}
 }
@@ -564,7 +572,8 @@ func TestFieldDecider_SelectPlaceholderRespectsSensitive(t *testing.T) {
 	if strings.Contains(out, "secret-123") {
 		t.Errorf("sensitive value leaked into placeholder: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("sensitive out-of-list value must use the generic placeholder so the first option is not submitted: %q", out)
 	}
 }
@@ -590,7 +599,8 @@ func TestFieldDecider_SelectEmptyOptionListRenders(t *testing.T) {
 	if strings.Contains(out, "gone") {
 		t.Errorf("stored value must not be echoed: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("empty list with a stored value must show the generic placeholder: %q", out)
 	}
 }
@@ -612,7 +622,8 @@ func TestFieldDecider_SelectEmptyListOptionalBlankStillRenders(t *testing.T) {
 	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(b.String(), `<option value="" selected="selected">(none)</option>`) {
+	if !strings.Contains(b.String(), 
+		/*html*/ `<option value="" selected="selected">(none)</option>`) {
 		t.Errorf("optional blank field should render an empty option: %q", b.String())
 	}
 }
@@ -636,7 +647,8 @@ func TestFieldDecider_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
 	if !strings.Contains(out, `required`) {
 		t.Errorf("required attribute missing: %q", out)
 	}
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 		t.Errorf("required empty select must lead with a disabled empty option: %q", out)
 	}
 	if strings.Contains(out, `value="p1" selected`) {
@@ -658,7 +670,8 @@ func TestFieldDecider_RequiredSelectEmptyListRendersChoose(t *testing.T) {
 	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
 		t.Fatalf("required empty list must still render: %v", err)
 	}
-	if !strings.Contains(b.String(), `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+	if !strings.Contains(b.String(), 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 		t.Errorf("required empty list must lead with Choose…: %q", b.String())
 	}
 }
@@ -687,7 +700,8 @@ func TestFieldDecider_RequiredStaticSelectEmptyValueChoosesNothing(t *testing.T)
 		Color colorEnum `form:"required"`
 	}
 	out := renderFieldHTML(t, &form{}, "Color")
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 		t.Errorf("required empty enum must lead with Choose…: %q", out)
 	}
 	if strings.Contains(out, `value="red" selected`) {
@@ -1603,7 +1617,8 @@ func TestFieldDecider_ZeroValueRendersAsNoValue(t *testing.T) {
 		out := render(t, &struct {
 			Partner uuid.UUID `form:"options=test-html-partners,required"`
 		}{})
-		if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		if !strings.Contains(out, 
+			/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 			t.Errorf("a required select without a value must lead with Choose…: %q", out)
 		}
 		if strings.Contains(out, "not available") {
@@ -1614,7 +1629,8 @@ func TestFieldDecider_ZeroValueRendersAsNoValue(t *testing.T) {
 		out := render(t, &struct {
 			Partner uuid.UUID `form:"options=test-html-partners"`
 		}{})
-		if !strings.Contains(out, `<option value="" selected="selected">(none)</option>`) {
+		if !strings.Contains(out, 
+			/*html*/ `<option value="" selected="selected">(none)</option>`) {
 			t.Errorf("an optional select without a value must select (none): %q", out)
 		}
 	})
@@ -1658,12 +1674,18 @@ func TestFieldDecider_TimeWidgetsUnchanged(t *testing.T) {
 	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
 	f := &form{Date: when, DateTime: when, Time: when, Default: when}
 	renders := []struct{ field, want string }{
-		{"Date", `<label for="Date">Date:</label><input type="date" name="Date" id="Date" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
-		{"DateTime", `<label for="DateTime">DateTime:</label><input type="datetime-local" name="DateTime" id="DateTime" value="2026-07-06T09:05:07"/>`},
-		{"Time", `<label for="Time">Time:</label><input type="time" name="Time" id="Time" value="09:05:07" readonly="readonly"/>`},
-		{"Default", `<label for="Default">Default:</label><input type="datetime-local" name="Default" id="Default" value="2026-07-06T09:05:07"/>`},
-		{"Nil", `<label for="Nil">Nil:</label><input type="date" name="Nil" id="Nil"/>`},
-		{"Zero", `<label for="Zero">Zero:</label><input type="date" name="Zero" id="Zero"/>`},
+		{"Date", 
+			/*html*/ `<label for="Date">Date:</label><input type="date" name="Date" id="Date" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
+		{"DateTime", 
+			/*html*/ `<label for="DateTime">DateTime:</label><input type="datetime-local" name="DateTime" id="DateTime" value="2026-07-06T09:05:07"/>`},
+		{"Time", 
+			/*html*/ `<label for="Time">Time:</label><input type="time" name="Time" id="Time" value="09:05:07" readonly="readonly"/>`},
+		{"Default", 
+			/*html*/ `<label for="Default">Default:</label><input type="datetime-local" name="Default" id="Default" value="2026-07-06T09:05:07"/>`},
+		{"Nil", 
+			/*html*/ `<label for="Nil">Nil:</label><input type="date" name="Nil" id="Nil"/>`},
+		{"Zero", 
+			/*html*/ `<label for="Zero">Zero:</label><input type="date" name="Zero" id="Zero"/>`},
 	}
 	for _, r := range renders {
 		if got := renderFieldHTML(t, f, r.field); got != r.want {
@@ -1756,48 +1778,65 @@ func TestFieldDecider_DateWidgetPrefillsStringKinds(t *testing.T) {
 	}{
 		// A Format method gives the date as yyyy-mm-dd.
 		{"Format normalizes", dateStrings{Date: "06.07.2026"}, "Date",
-			`<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
+			
+				/*html*/ `<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
 		{"Format keeps canonical", dateStrings{Date: "2026-07-06"}, "Date",
-			`<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
+			
+				/*html*/ `<input type="date" name="Date" id="Date" value="2026-07-06"/>`},
 		{"Format through pointer", dateStrings{DatePtr: new(testDate("06.07.2026"))}, "DatePtr",
-			`<input type="date" name="DatePtr" id="DatePtr" value="2026-07-06"/>`},
+			
+				/*html*/ `<input type="date" name="DatePtr" id="DatePtr" value="2026-07-06"/>`},
 		// Without Format, a yyyy-mm-dd string is shown as stored.
 		{"string", dateStrings{Str: "2026-07-06"}, "Str",
-			`<input type="date" name="Str" id="Str" value="2026-07-06"/>`},
+			
+				/*html*/ `<input type="date" name="Str" id="Str" value="2026-07-06"/>`},
 		{"string pointer", dateStrings{Ptr: new("2026-07-06")}, "Ptr",
-			`<input type="date" name="Ptr" id="Ptr" value="2026-07-06"/>`},
+			
+				/*html*/ `<input type="date" name="Ptr" id="Ptr" value="2026-07-06"/>`},
 		// No date, no value attribute.
 		{"empty string", dateStrings{}, "Str",
-			`<input type="date" name="Str" id="Str"/>`},
+			
+				/*html*/ `<input type="date" name="Str" id="Str"/>`},
 		{"nil pointer", dateStrings{}, "Ptr",
-			`<input type="date" name="Ptr" id="Ptr"/>`},
+			
+				/*html*/ `<input type="date" name="Ptr" id="Ptr"/>`},
 		{"pointer to empty", dateStrings{Ptr: new("")}, "Ptr",
-			`<input type="date" name="Ptr" id="Ptr"/>`},
+			
+				/*html*/ `<input type="date" name="Ptr" id="Ptr"/>`},
 		{"empty date", dateStrings{}, "Date",
-			`<input type="date" name="Date" id="Date"/>`},
+			
+				/*html*/ `<input type="date" name="Date" id="Date"/>`},
 		{"Format zero date", dateStrings{Date: "0001-01-01"}, "Date",
-			`<input type="date" name="Date" id="Date"/>`},
+			
+				/*html*/ `<input type="date" name="Date" id="Date"/>`},
 		// Anything else renders as a text input showing the stored text,
 		// with the format to enter as placeholder and hint.
 		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
-			`<input type="text" name="Str" id="Str" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="Str-format">Not in the expected format: YYYY-MM-DD</small>`},
+			
+				/*html*/ `<input type="text" name="Str" id="Str" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>` +
+				/*html*/ `<small class="form-help" id="Str-format">Not in the expected format: YYYY-MM-DD</small>`},
 		{"impossible date", dateStrings{Str: "2026-02-30"}, "Str",
-			`<input type="text" name="Str" id="Str" value="2026-02-30" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>`},
+			
+				/*html*/ `<input type="text" name="Str" id="Str" value="2026-02-30" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true"/>`},
 		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
-			`<input type="text" name="Ptr" id="Ptr" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true"/>`},
+			
+				/*html*/ `<input type="text" name="Ptr" id="Ptr" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true"/>`},
 		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
-			`<input type="text" name="Date" id="Date" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true"/>`},
+			
+				/*html*/ `<input type="text" name="Date" id="Date" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true"/>`},
 		// The text input keeps required and drops the date range, which
 		// does not apply to text.
 		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
-			`<input type="date" name="Bounded" id="Bounded" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
+			
+				/*html*/ `<input type="date" name="Bounded" id="Bounded" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required"/>`},
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
-			`<input type="text" name="Bounded" id="Bounded" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true"/>`},
+			
+				/*html*/ `<input type="text" name="Bounded" id="Bounded" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true"/>`},
 		// A placeholder from the tag, say a translated format, replaces the
 		// placeholder; the hint names the format the parser reads.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
-			`<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true"/><small class="form-help" id="Localized-format">Not in the expected format: YYYY-MM-DD</small>`},
+			
+				/*html*/ `<input type="text" name="Localized" id="Localized" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true"/><small class="form-help" id="Localized-format">Not in the expected format: YYYY-MM-DD</small>`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1930,10 +1969,10 @@ func TestReflectFormHandler_DateStringErrorKeepsStoredText(t *testing.T) {
 	if saved || rec.Code != http.StatusOK {
 		t.Fatalf("POST of a stored non-date: status %d, saved %t; want the form re-rendered with 200", rec.Code, saved)
 	}
-	if want := `<p class="form-error" id="Due-error-0" data-error="Due">&quot;06.07.2026&quot; is not a date in the format YYYY-MM-DD</p>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<p class="form-error" id="Due-error-0" data-error="Due">&quot;06.07.2026&quot; is not a date in the format YYYY-MM-DD</p>`; !strings.Contains(body, want) {
 		t.Errorf("want the bind error at the field %s, got %s", want, body)
 	}
-	if want := `<input type="text" name="Due" id="Due" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Due-format Due-error-0" aria-invalid="true"/>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="text" name="Due" id="Due" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Due-format Due-error-0" aria-invalid="true"/>`; !strings.Contains(body, want) {
 		t.Errorf("want the stored text re-rendered %s, got %s", want, body)
 	}
 }
@@ -2029,7 +2068,7 @@ func dumpDates(d dateStrings) string {
 }
 
 var (
-	inputTagRe  = regexp.MustCompile(`<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
+	inputTagRe  = regexp.MustCompile(/*html*/ `<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
 	attributeRe = regexp.MustCompile(`([^\s=]+)="([^"]*)"`)
 )
 
@@ -2075,23 +2114,31 @@ func TestFieldDecider_TimeWidgetsPrefillStringKinds(t *testing.T) {
 		want  string
 	}{
 		{"datetime minutes", timeStrings{At: "2026-07-06T09:05"}, "At",
-			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
+			
+				/*html*/ `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
 		{"datetime drops zero seconds", timeStrings{At: "2026-07-06T09:05:00"}, "At",
-			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
+			
+				/*html*/ `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05"/>`},
 		{"datetime seconds", timeStrings{At: "2026-07-06T09:05:07"}, "At",
-			`<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07"/>`},
+			
+				/*html*/ `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07"/>`},
 		{"datetime nil pointer", timeStrings{}, "AtPtr",
-			`<input type="datetime-local" name="AtPtr" id="AtPtr"/>`},
+			
+				/*html*/ `<input type="datetime-local" name="AtPtr" id="AtPtr"/>`},
 		{"datetime with zone", timeStrings{At: "2026-07-06T09:05:07Z"}, "At",
-			`<input type="text" name="At" id="At" value="2026-07-06T09:05:07Z" placeholder="YYYY-MM-DDTHH:MM" aria-describedby="At-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="At-format">Not in the expected format: YYYY-MM-DDTHH:MM</small>`},
+			
+				/*html*/ `<input type="text" name="At" id="At" value="2026-07-06T09:05:07Z" placeholder="YYYY-MM-DDTHH:MM" aria-describedby="At-format" aria-invalid="true"/>` +
+				/*html*/ `<small class="form-help" id="At-format">Not in the expected format: YYYY-MM-DDTHH:MM</small>`},
 		{"time minutes", timeStrings{Clock: "09:05"}, "Clock",
-			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
+			
+				/*html*/ `<input type="time" name="Clock" id="Clock" value="09:05"/>`},
 		{"time drops zero seconds", timeStrings{Clock: "09:05:00"}, "Clock",
-			`<input type="time" name="Clock" id="Clock" value="09:05"/>`},
+			
+				/*html*/ `<input type="time" name="Clock" id="Clock" value="09:05"/>`},
 		{"time other spelling", timeStrings{Clock: "9.05"}, "Clock",
-			`<input type="text" name="Clock" id="Clock" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true"/>` +
-				`<small class="form-help" id="Clock-format">Not in the expected format: HH:MM</small>`},
+			
+				/*html*/ `<input type="text" name="Clock" id="Clock" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true"/>` +
+				/*html*/ `<small class="form-help" id="Clock-format">Not in the expected format: HH:MM</small>`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2196,9 +2243,12 @@ func TestFieldDecider_HintedDateWidget(t *testing.T) {
 	}
 	f := &form{Due: "2026-07-06", Created: "2026-07-06"}
 	for _, r := range []struct{ field, want string }{
-		{"Due", `<input type="date" name="Due" id="Due" value="2026-07-06"/>`},
-		{"DuePtr", `<input type="date" name="DuePtr" id="DuePtr"/>`},
-		{"Created", `<input type="text" name="Created" id="Created" value="2026-07-06"/>`},
+		{"Due", 
+			/*html*/ `<input type="date" name="Due" id="Due" value="2026-07-06"/>`},
+		{"DuePtr", 
+			/*html*/ `<input type="date" name="DuePtr" id="DuePtr"/>`},
+		{"Created", 
+			/*html*/ `<input type="text" name="Created" id="Created" value="2026-07-06"/>`},
 	} {
 		if out := renderFieldHTML(t, f, r.field); !strings.Contains(out, r.want) {
 			t.Errorf("%s renders\n%s\nwant\n%s", r.field, out, r.want)
@@ -2318,8 +2368,9 @@ func TestReflectFormHandler_DateStructRoundTrip(t *testing.T) {
 	handler(rec, httptest.NewRequest(http.MethodGet, "/record", nil))
 	body := rec.Body.String()
 	for _, want := range []string{
-		`<input type="date" name="Due" id="Due" value="2026-07-06"/>`,
-		`<input type="date" name="Empty" id="Empty"/>`,
+		/*html*/ `<input type="date" name="Due" id="Due" value="2026-07-06"/>`,
+		
+			/*html*/ `<input type="date" name="Empty" id="Empty"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("GET lacks %s: %s", want, body)
@@ -2356,7 +2407,8 @@ func TestFieldDecider_WrappedTimeWidgets(t *testing.T) {
 		Defined definedTime  `form:"widget=date"`
 	}
 	f := &form{Day: wrappedTime{time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC)}}
-	if out, want := renderFieldHTML(t, f, "Day"), `<input type="date" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(out, want) {
+	if out, want := renderFieldHTML(t, f, "Day"), 
+		/*html*/ `<input type="date" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(out, want) {
 		t.Errorf("Day renders\n%s\nwant\n%s", out, want)
 	}
 	binds := []struct {
@@ -2405,7 +2457,8 @@ func TestReflectFormHandler_DateOutOfRangeRejected(t *testing.T) {
 	}
 	for _, want := range []string{
 		`&quot;1900-01-01&quot; is earlier than 2026-01-01`,
-		`<input type="date" name="Day" id="Day" value="1900-01-01" min="2026-01-01" max="2026-12-31" aria-invalid="true" aria-describedby="Day-error-0"/>`,
+		
+			/*html*/ `<input type="date" name="Day" id="Day" value="1900-01-01" min="2026-01-01" max="2026-12-31" aria-invalid="true" aria-describedby="Day-error-0"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("want %s in %s", want, body)
@@ -2687,13 +2740,17 @@ func TestFieldDecider_DateStructRenders(t *testing.T) {
 	}
 	f := &form{SQL: "2026-07-06 09:05:00", At: "2026-07-06T09:05:07", Old: "06.07.2026"}
 	for _, r := range []struct{ field, want string }{
-		{"Ptr", `<input type="date" name="Ptr" id="Ptr"/>`},
-		{"SQL", `<input type="datetime-local" name="SQL" id="SQL" value="2026-07-06T09:05"/>`},
+		{"Ptr", 
+			/*html*/ `<input type="date" name="Ptr" id="Ptr"/>`},
+		{"SQL", 
+			/*html*/ `<input type="datetime-local" name="SQL" id="SQL" value="2026-07-06T09:05"/>`},
 		// With a min, a value with seconds gets step 1 so the browser
 		// accepts it unchanged.
-		{"At", `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1"/>`},
+		{"At", 
+			/*html*/ `<input type="datetime-local" name="At" id="At" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1"/>`},
 		// A readonly field is never saved: its text input asks for nothing.
-		{"Old", `<input type="text" name="Old" id="Old" value="06.07.2026" readonly="readonly"/>`},
+		{"Old", 
+			/*html*/ `<input type="text" name="Old" id="Old" value="06.07.2026" readonly="readonly"/>`},
 	} {
 		out := renderFieldHTML(t, f, r.field)
 		if !strings.Contains(out, r.want) {
@@ -2760,7 +2817,7 @@ func TestReflectFormHandler_DateStructOwnText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, httptest.NewRequest(http.MethodGet, "/order", nil))
 	body := rec.Body.String()
-	if want := `<input type="text" name="Due" id="Due" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Due-format"/><small class="form-help" id="Due-format">Expected format: YYYY-MM-DD</small>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="text" name="Due" id="Due" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Due-format"/><small class="form-help" id="Due-format">Expected format: YYYY-MM-DD</small>`; !strings.Contains(body, want) {
 		t.Fatalf("GET lacks %s: %s", want, body)
 	}
 	shown := submittedValues(body)
@@ -3197,13 +3254,13 @@ func TestFieldDecider_ReadonlyRowsAndFiles(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
 	body := rec.Body.String()
-	if want := `<input type="text" name="Lines-0-Desc" id="Lines-0-Desc" value="a" readonly="readonly"/>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="text" name="Lines-0-Desc" id="Lines-0-Desc" value="a" readonly="readonly"/>`; !strings.Contains(body, want) {
 		t.Errorf("GET lacks %s: %s", want, body)
 	}
 	if strings.Contains(body, "__cmd__") {
 		t.Errorf("a readonly repeatable field offers row buttons: %s", body)
 	}
-	if want := `<input type="file" name="Doc" id="Doc" disabled="disabled"/>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="file" name="Doc" id="Doc" disabled="disabled"/>`; !strings.Contains(body, want) {
 		t.Errorf("GET lacks %s: %s", want, body)
 	}
 }
@@ -4186,7 +4243,8 @@ func TestReflectFormHandler_HiddenNumberEdges(t *testing.T) {
 	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
 	tampered := submittedValues(get.Body.String())
 	tampered.Set("Version", "7x")
-	if rec := postValues(t, h, tampered); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), `<p role="alert" data-slot="form-message">`) {
+	if rec := postValues(t, h, tampered); rec.Code != http.StatusOK || saved != nil || !strings.Contains(rec.Body.String(), 
+		/*html*/ `<p role="alert" data-slot="form-message">`) {
 		t.Errorf("a hidden number that is no number: status %d, saved %+v", rec.Code, saved)
 	}
 	vals := submittedValues(get.Body.String())
@@ -4879,7 +4937,7 @@ func TestReflectFormHandler_DateOnlyWrapperIsText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, httptest.NewRequest(http.MethodGet, "/r", nil))
 	body := rec.Body.String()
-	if want := `<input type="text" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="text" name="Day" id="Day" value="2026-07-06"/>`; !strings.Contains(body, want) {
 		t.Fatalf("GET lacks %s: %s", want, body)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/r", strings.NewReader(submittedValues(body).Encode()))
@@ -5088,7 +5146,8 @@ func TestFieldDecider_ScalarBindGuards(t *testing.T) {
 		}
 	}
 	// Rendering guards the promoted MarshalText of the nil pointer too.
-	if out := renderFieldHTML(t, f, "Box"); !strings.Contains(out, `<input type="text" name="Box" id="Box"/>`) {
+	if out := renderFieldHTML(t, f, "Box"); !strings.Contains(out, 
+		/*html*/ `<input type="text" name="Box" id="Box"/>`) {
 		t.Errorf("Box renders %s", out)
 	}
 }
@@ -5107,7 +5166,7 @@ func TestReflectFormHandler_RegisteredMoneyIsText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, httptest.NewRequest(http.MethodGet, "/invoice", nil))
 	body := rec.Body.String()
-	if want := `<input type="text" name="Total" id="Total" value="12.50 EUR"/>`; !strings.Contains(body, want) {
+	if want := /*html*/ `<input type="text" name="Total" id="Total" value="12.50 EUR"/>`; !strings.Contains(body, want) {
 		t.Fatalf("GET lacks %s: %s", want, body)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/invoice", strings.NewReader(submittedValues(body).Encode()))
@@ -5234,8 +5293,9 @@ func TestReflectFormHandler_OwnSpellingDateType(t *testing.T) {
 	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
 	body := get.Body.String()
 	for _, want := range []string{
-		`<input type="text" name="Due" id="Due" value="06.07.2026"/>`,
-		`<input type="text" name="Next" id="Next"/>`,
+		/*html*/ `<input type="text" name="Due" id="Due" value="06.07.2026"/>`,
+		
+			/*html*/ `<input type="text" name="Next" id="Next"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("want %s in %s", want, body)
@@ -5377,8 +5437,9 @@ func TestReflectFormHandler_OwnSpellingDateNullAndSensitive(t *testing.T) {
 	h(get, httptest.NewRequest(http.MethodGet, "/", nil))
 	body := get.Body.String()
 	for _, want := range []string{
-		`<input type="text" name="Due" id="Due" placeholder="TT.MM.JJJJ"/>`,
-		`<input type="text" name="Secret" id="Secret" aria-describedby="Secret-stored"/>`,
+		/*html*/ `<input type="text" name="Due" id="Due" placeholder="TT.MM.JJJJ"/>`,
+		
+			/*html*/ `<input type="text" name="Secret" id="Secret" aria-describedby="Secret-stored"/>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("want %s in %s", want, body)
@@ -5412,7 +5473,8 @@ func TestFieldDecider_OptionNoteReferenceNeverDangles(t *testing.T) {
 			t.Fatalf("%s: render: %v", name, err)
 		}
 		out := b.String()
-		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, 
+			/*html*/ `<p id="`+name+/*html*/ `-note" hidden="hidden"></p>`) {
 			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
 		}
 	}
@@ -5560,11 +5622,13 @@ func TestFieldDecider_UnlistedZeroIsNoSelection(t *testing.T) {
 	}
 	f := &form{}
 	optional := renderFieldHTML(t, f, "Optional")
-	if !strings.Contains(optional, `<option value="" selected="selected">(none)</option>`) || strings.Contains(optional, "not available") || strings.Contains(optional, "removed when you save") {
+	if !strings.Contains(optional, 
+		/*html*/ `<option value="" selected="selected">(none)</option>`) || strings.Contains(optional, "not available") || strings.Contains(optional, "removed when you save") {
 		t.Errorf("an optional unlisted zero: %s", optional)
 	}
 	required := renderFieldHTML(t, f, "Required")
-	if !strings.Contains(required, `selected="selected">Choose…</option>`) || strings.Contains(required, "not available") {
+	if !strings.Contains(required, 
+		/*html*/ `selected="selected">Choose…</option>`) || strings.Contains(required, "not available") {
 		t.Errorf("a required unlisted zero: %s", required)
 	}
 }
@@ -5592,11 +5656,11 @@ func TestFieldDecider_SelectShowsOneSelection(t *testing.T) {
 		Locked   colorCode  `form:"required,readonly"`
 	}
 	for name, want := range map[string]string{
-		"Owner":    `<option value="" selected="selected">Unassigned</option>`,
-		"Required": `<option value="" selected="selected">Unassigned</option>`,
-		"Floor":    `<option value="0" selected="selected">Ground</option>`,
-		"Level":    `selected="selected">low</option>`,
-		"Locked":   `<option value="" selected="selected">(none)</option>`,
+		"Owner":    /*html*/ `<option value="" selected="selected">Unassigned</option>`,
+		"Required": /*html*/ `<option value="" selected="selected">Unassigned</option>`,
+		"Floor":    /*html*/ `<option value="0" selected="selected">Ground</option>`,
+		"Level":    /*html*/ `selected="selected">low</option>`,
+		"Locked":   /*html*/ `<option value="" selected="selected">(none)</option>`,
 	} {
 		out := renderFieldHTML(t, &form{}, name)
 		if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, want) || strings.Contains(out, "Choose…") {
@@ -5922,7 +5986,8 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
 	rec = httptest.NewRecorder()
 	hidden(rec, req)
-	if body := rec.Body.String(); !strings.Contains(body, `<p role="alert" data-slot="form-message">not a valid value</p>`) || strings.Contains(body, "SECRET") {
+	if body := rec.Body.String(); !strings.Contains(body, 
+		/*html*/ `<p role="alert" data-slot="form-message">not a valid value</p>`) || strings.Contains(body, "SECRET") {
 		t.Errorf("want the masked message above the form in %s", body)
 	}
 	if len(reported) != 1 || !strings.Contains(reported[0], "invalid syntax") {
@@ -5951,7 +6016,8 @@ func TestReflectFormHandler_SensitiveParseErrorReported(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestKey{}, "request-1"))
 	rec = httptest.NewRecorder()
 	keyed(rec, req)
-	if body := rec.Body.String(); len(reported) != 1 || strings.Contains(reported[0], "9x9x") || len(reported[0]) > 200 || !strings.Contains(body, `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) || len(body) > 10000 {
+	if body := rec.Body.String(); len(reported) != 1 || strings.Contains(reported[0], "9x9x") || len(reported[0]) > 200 || !strings.Contains(body, 
+		/*html*/ `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) || len(body) > 10000 {
 		t.Errorf("reported %q, page of %d bytes; want the bounded verdict above the form and a short stand-in reported", reported, len(body))
 	}
 }
@@ -5992,7 +6058,8 @@ func TestReflectFormHandler_HiddenValueLengths(t *testing.T) {
 	}
 	vals := submittedValues(get.Body.String())
 	vals.Set("Code", strings.Repeat("x", 4096))
-	if body := postValues(t, h, vals).Body.String(); len(*reported) != 1 || strings.Contains((*reported)[0], "xxxx") || !strings.Contains(body, `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) {
+	if body := postValues(t, h, vals).Body.String(); len(*reported) != 1 || strings.Contains((*reported)[0], "xxxx") || !strings.Contains(body, 
+		/*html*/ `<p role="alert" data-slot="form-message">the text is not a valid value</p>`) {
 		t.Errorf("reported %q; want the bounded verdict above the form and a short stand-in reported", *reported)
 	}
 
@@ -6064,7 +6131,8 @@ func TestReflectFormHandler_FieldErrorShowsUserMessage(t *testing.T) {
 		FieldDecider,
 	)
 	body := postValues(t, h, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
-	if !strings.Contains(body, `data-error="Name">name already taken</p>`) || strings.Contains(body, "db-host-7") {
+	if !strings.Contains(body, 
+		/*html*/ `data-error="Name">name already taken</p>`) || strings.Contains(body, "db-host-7") {
 		t.Errorf("want only the UserMessage at the field in %s", body)
 	}
 
@@ -6077,7 +6145,8 @@ func TestReflectFormHandler_FieldErrorShowsUserMessage(t *testing.T) {
 		FieldDecider,
 	)
 	body = postValues(t, joined, url.Values{mx.PresentSentinelName("Name"): {"1"}, "Name": {"n"}}).Body.String()
-	if !strings.Contains(body, `data-error="Name">too short</p><p class="form-error" id="Name-error-1" data-error="Name">no digits</p>`) {
+	if !strings.Contains(body, 
+		/*html*/ `data-error="Name">too short</p><p class="form-error" id="Name-error-1" data-error="Name">no digits</p>`) {
 		t.Errorf("want one error element per message in %s", body)
 	}
 }
@@ -6101,7 +6170,8 @@ func TestFieldDecider_SensitiveTimeFormatNotReported(t *testing.T) {
 	for _, raw := range []string{"x-SECRET", strings.Repeat("x", 70) + "-SECRET"} {
 		*reported = nil
 		body := postValues(t, h, url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {raw}}).Body.String()
-		if !strings.Contains(body, `<p role="alert" data-slot="form-message">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
+		if !strings.Contains(body, 
+			/*html*/ `<p role="alert" data-slot="form-message">not a date and time in the format`) || strings.Contains(body, "SECRET") || len(*reported) != 0 {
 			t.Errorf("%d bytes: reported %q, body %s; want the format above the form, nothing reported", len(raw), *reported, body)
 		}
 	}
@@ -6522,5 +6592,339 @@ func TestFieldDecider_CheckboxNamedBoolWithText(t *testing.T) {
 	}
 	if out := renderFieldHTML(t, &form{}, "Agree"); strings.Contains(out, "checked") {
 		t.Errorf("want unchecked: %s", out)
+	}
+}
+
+// htmlMidnightClock is a time of day like civil.Time: zero at midnight.
+type htmlMidnightClock struct{ H, M int }
+
+func (c htmlMidnightClock) IsZero() bool { return c.H == 0 && c.M == 0 }
+
+func (c htmlMidnightClock) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%02d:%02d", c.H, c.M), nil
+}
+
+func (c *htmlMidnightClock) UnmarshalText(b []byte) error {
+	t, err := time.Parse("15:04", string(b))
+	if err != nil {
+		return err
+	}
+	c.H, c.M = t.Hour(), t.Minute()
+	return nil
+}
+
+// A required time-of-day field that is zero at midnight accepts a posted
+// 00:00 and shows it again; an empty submission is still missing.
+func TestReflectFormHandler_RequiredMidnight(t *testing.T) {
+	type record struct {
+		At htmlMidnightClock `form:"widget=time,required"`
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	post := func(at string) *httptest.ResponseRecorder {
+		form := url.Values{mx.PresentSentinelName("At"): {"1"}, "At": {at}}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("00:00"); rec.Code != http.StatusSeeOther || saved == nil || !saved.At.IsZero() {
+		t.Errorf("a posted 00:00 must save, status %d: %s", rec.Code, rec.Body)
+	}
+	if body := post("").Body.String(); !strings.Contains(body, ">required<") || !strings.Contains(body, `type="time"`) {
+		t.Errorf("an empty time is still missing: %s", body)
+	}
+}
+
+// A database/sql text an input cannot show unchanged, a NUL or a line break,
+// shows as the input can hold it with a note saying so; saving the shown
+// text unchanged keeps the stored text, and a new value is scanned.
+func TestReflectFormHandler_UnshowableDriverText(t *testing.T) {
+	type record struct {
+		Key   sql.NullString
+		Lines sql.NullString
+	}
+	stored := record{
+		Key:   sql.NullString{String: "a\x00b", Valid: true},
+		Lines: sql.NullString{String: "k1\nk2", Valid: true},
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	get := httptest.NewRecorder()
+	handler(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{
+		`value="a` + "�" + `b"`,
+		`The stored text holds a NUL character`,
+		`The stored text holds line breaks this input cannot show`,
+		`aria-describedby="Key-text"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %s in %s", want, body)
+		}
+	}
+	post := func(key, lines string) *httptest.ResponseRecorder {
+		form := url.Values{
+			mx.PresentSentinelName("Key"): {"1"}, "Key": {key},
+			mx.PresentSentinelName("Lines"): {"1"}, "Lines": {lines},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	// What the browser sends back unchanged: U+FFFD for the NUL, the lines
+	// joined.
+	if rec := post("a�b", "k1k2"); rec.Code != http.StatusSeeOther || saved == nil || saved.Key != stored.Key || saved.Lines != stored.Lines {
+		t.Errorf("an unchanged save must keep the stored text, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+	if rec := post("ab", "k1 k2"); rec.Code != http.StatusSeeOther || saved.Key.String != "ab" || saved.Lines.String != "k1 k2" {
+		t.Errorf("a new value must be scanned, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+}
+
+// Text an input could not show unchanged comes back as the browser sends
+// it: a textarea's line breaks as CRLF, a one-line input's stripped. Saving
+// it unchanged keeps the stored text, of a database/sql type and of a plain
+// string alike.
+func TestReflectFormHandler_StoredTextKeptAsSubmitted(t *testing.T) {
+	type record struct {
+		Notes sql.NullString `form:"widget=textarea"`
+		Title string
+	}
+	stored := record{
+		Notes: sql.NullString{String: "x\x00\ny", Valid: true},
+		Title: "first line\nsecond line",
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	post := func(notes, title string) *httptest.ResponseRecorder {
+		form := url.Values{
+			mx.PresentSentinelName("Notes"): {"1"}, "Notes": {notes},
+			mx.PresentSentinelName("Title"): {"1"}, "Title": {title},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("x\uFFFD\r\ny", "first linesecond line"); rec.Code != http.StatusSeeOther || saved == nil || saved.Notes != stored.Notes || saved.Title != stored.Title {
+		t.Errorf("an unchanged save must keep the stored text, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+	if rec := post("new", "first line second line"); rec.Code != http.StatusSeeOther || saved.Notes.String != "new" || saved.Title != "first line second line" {
+		t.Errorf("an edited value must be bound, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+	// A textarea shows line breaks, so one removed from it is an edit.
+	if rec := post("x\uFFFDy", "first linesecond line"); rec.Code != http.StatusSeeOther || saved.Notes.String != "x\uFFFDy" {
+		t.Errorf("a line break removed in a textarea must be saved, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+}
+
+// A nil pointer to a slice of files is allocated for the uploads.
+func TestReflectFormHandler_NilPointerFiles(t *testing.T) {
+	type record struct {
+		Names *[]string `form:"widget=file"`
+	}
+	var names []string
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error {
+		if r.Names != nil {
+			names = *r.Names
+		}
+		return nil
+	}, FieldDecider)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField(mx.PresentSentinelName("Names"), "1")
+	w, _ := mw.CreateFormFile("Names", "a.txt")
+	_, _ = io.WriteString(w, "A")
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || strings.Join(names, ",") != "a.txt" {
+		t.Errorf("status %d, bound %v: %s", rec.Code, names, rec.Body)
+	}
+}
+
+// form:"minlength=…,maxlength=…,autocomplete=…,inputmode=…" become the
+// input's attributes, and the lengths are checked on the server too.
+func TestReflectFormHandler_TextTagOptions(t *testing.T) {
+	type record struct {
+		Code  string `form:"minlength=6,maxlength=6,autocomplete=one-time-code,inputmode=numeric"`
+		Notes string `form:"widget=textarea,maxlength=5"`
+	}
+	handler := mx.ReflectFormHandler(nil, func(context.Context, *record) error { return nil }, FieldDecider)
+	get := httptest.NewRecorder()
+	handler(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{`minlength="6"`, `maxlength="6"`, `autocomplete="one-time-code"`, `inputmode="numeric"`, `maxlength="5"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %s in %s", want, body)
+		}
+	}
+	form := url.Values{
+		mx.PresentSentinelName("Code"): {"1"}, "Code": {"123"},
+		mx.PresentSentinelName("Notes"): {"1"}, "Notes": {"too long"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if body := rec.Body.String(); !strings.Contains(body, ">must be at least 6 characters<") || !strings.Contains(body, ">must be at most 5 characters<") {
+		t.Errorf("want both length errors: %s", body)
+	}
+}
+
+// A stored text that breaks a length bound added later comes back
+// unchanged, which the browser does not check, so it passes on the server
+// too and the other fields can still be saved. An edited text is checked.
+func TestReflectFormHandler_TextLengthKeepsUnchanged(t *testing.T) {
+	type record struct {
+		Bio   string `form:"widget=textarea,maxlength=5"`
+		Title string `form:"minlength=3"`
+		Name  string
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(func(context.Context) (*record, error) {
+		return &record{Bio: "far too long", Title: "ab"}, nil
+	}, func(_ context.Context, r *record) error { saved = r; return nil }, FieldDecider)
+	post := func(bio, title string) *httptest.ResponseRecorder {
+		form := url.Values{
+			mx.PresentSentinelName("Bio"): {"1"}, "Bio": {bio},
+			mx.PresentSentinelName("Title"): {"1"}, "Title": {title},
+			mx.PresentSentinelName("Name"): {"1"}, "Name": {"Ada"},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("far too long", "ab"); rec.Code != http.StatusSeeOther || saved == nil || saved.Name != "Ada" {
+		t.Errorf("unchanged stored texts must not block the save: status %d: %s", rec.Code, rec.Body)
+	}
+	saved = nil
+	if rec := post("still too long", "xy"); saved != nil ||
+		!strings.Contains(rec.Body.String(), ">must be at most 5 characters<") ||
+		!strings.Contains(rec.Body.String(), ">must be at least 3 characters<") {
+		t.Errorf("edited texts are checked: status %d: %s", rec.Code, rec.Body)
+	}
+}
+
+// A submit that fails does not show its uploads as stored: the request's
+// temporary files are removed with the response and the browser does not
+// send them again, so the re-render shows what was loaded, and a file input
+// left empty on the next submit keeps that, not the lost upload.
+func TestReflectFormHandler_FailedSubmitDropsUploads(t *testing.T) {
+	type record struct {
+		Attachment *multipart.FileHeader
+		Scan       string `form:"widget=file"`
+		Email      string `form:"required"`
+	}
+	handler := mx.ReflectFormHandler(func(context.Context) (*record, error) {
+		return &record{Scan: "scan.pdf"}, nil
+	}, func(context.Context, *record) error { return nil }, FieldDecider)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for _, field := range []string{"Attachment", "Scan", "Email"} {
+		_ = mw.WriteField(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+	}
+	_ = mw.WriteField("Email", "")
+	for _, f := range []struct{ field, name string }{{"Attachment", "report.pdf"}, {"Scan", "new.pdf"}} {
+		w, _ := mw.CreateFormFile(f.field, f.name)
+		_, _ = io.WriteString(w, "content")
+	}
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, ">required<") {
+		t.Fatalf("want the Email error: %s", body)
+	}
+	if strings.Contains(body, "report.pdf") || strings.Contains(body, "new.pdf") {
+		t.Errorf("the failed submit's uploads must not show as stored: %s", body)
+	}
+	if !strings.Contains(body, `id="Scan-file">Current file: scan.pdf Leave empty to keep it.<`) {
+		t.Errorf("the loaded file stays the stored one: %s", body)
+	}
+}
+
+// A field of several files gets a multiple input and binds every upload: the
+// names, the contents or the uploads themselves; a *multipart.FileHeader
+// field needs no tag. form:"accept=…" limits the picker.
+func TestReflectFormHandler_MultipleFiles(t *testing.T) {
+	type record struct {
+		Names   []string `form:"widget=file,accept=image/*"`
+		Bodies  [][]byte `form:"widget=file"`
+		Uploads []*multipart.FileHeader
+		One     *multipart.FileHeader
+	}
+	var names, bodies, uploads []string
+	var one string
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error {
+		names = r.Names
+		for _, b := range r.Bodies {
+			bodies = append(bodies, string(b))
+		}
+		for _, fh := range r.Uploads {
+			f, err := fh.Open()
+			if err != nil {
+				return err
+			}
+			b, _ := io.ReadAll(f)
+			f.Close()
+			uploads = append(uploads, fh.Filename+"="+string(b))
+		}
+		if r.One != nil {
+			one = r.One.Filename
+		}
+		return nil
+	}, FieldDecider)
+	get := httptest.NewRecorder()
+	handler(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := get.Body.String()
+	for _, want := range []string{`name="Names" id="Names" accept="image/*" multiple="multiple"`, `name="Bodies" id="Bodies" multiple="multiple"`, `name="Uploads" id="Uploads" multiple="multiple"`, `type="file" name="One" id="One"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %s in %s", want, body)
+		}
+	}
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for _, field := range []string{"Names", "Bodies", "Uploads", "One"} {
+		_ = mw.WriteField(mx.PresentSentinelName(mx.FieldPath(field)), "1")
+	}
+	for _, f := range []struct{ field, name, content string }{
+		{"Names", "a.png", "A"}, {"Names", "b.png", "B"},
+		{"Bodies", "x.txt", "x1"}, {"Bodies", "y.txt", "y2"},
+		{"Uploads", "u.txt", "U"}, {"Uploads", "v.txt", "V"},
+		{"One", "one.txt", "1"},
+	} {
+		w, _ := mw.CreateFormFile(f.field, f.name)
+		_, _ = io.WriteString(w, f.content)
+	}
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if strings.Join(names, ",") != "a.png,b.png" || strings.Join(bodies, ",") != "x1,y2" || strings.Join(uploads, ",") != "u.txt=U,v.txt=V" || one != "one.txt" {
+		t.Errorf("bound names %v, bodies %v, uploads %v, one %q", names, bodies, uploads, one)
 	}
 }

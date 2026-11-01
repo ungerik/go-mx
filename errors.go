@@ -53,7 +53,9 @@ var (
 	//
 	// ctx is the request's context without its cancellation: it carries the
 	// request's values, such as a request-scoped logger, and a client that
-	// went away does not cut a report short. ReportError is called from the
+	// went away does not cut a report short. For the error of a reflected
+	// form's field, [FieldPathFromContext] returns the field's path, which
+	// the error's text, such as "required", does not name. ReportError is called from the
 	// goroutines serving requests, before go-mx answers the request, so it
 	// must be safe for concurrent use, return quickly and not panic; set it
 	// once at start-up. A decider or handler of the application hiding an
@@ -284,6 +286,25 @@ func reportHiddenFieldError(ctx context.Context, err error, textLen int, raw str
 	ReportHiddenError(ctx, fmt.Errorf("a field error of type %T was hidden for its length (text %s) for %d bytes of posted text", err, text, len(raw)))
 }
 
+// fieldPathKey is the context key of [ContextWithFieldPath].
+type fieldPathKey struct{}
+
+// ContextWithFieldPath returns a derived context that carries path, the
+// field whose errors are handled with it, so that [ReportError] can tell
+// which field a reported error belongs to ([FieldPathFromContext]). The
+// reflected form handler sets it for parsing, validating and showing each
+// field; a decider's Parse gets it in its request's context.
+func ContextWithFieldPath(ctx context.Context, path FieldPath) context.Context {
+	return context.WithValue(ctx, fieldPathKey{}, path)
+}
+
+// FieldPathFromContext returns the field path [ContextWithFieldPath] put
+// into ctx, and whether there is one.
+func FieldPathFromContext(ctx context.Context) (FieldPath, bool) {
+	path, ok := ctx.Value(fieldPathKey{}).(FieldPath)
+	return path, ok
+}
+
 // ReportHiddenError passes err, an error the client is shown a generic text
 // for instead, to [ReportError] with ctx stripped of its cancellation. It
 // does nothing when ReportError or err is nil, when err is a
@@ -291,8 +312,12 @@ func reportHiddenFieldError(ctx context.Context, err error, textLen int, raw str
 // client having disconnected, or during the parse of a
 // repeatable field's row command, whose errors the form discards. go-mx
 // calls it wherever it hides an error; a decider or handler of the
-// application that hides one calls it too.
+// application that hides one calls it too. A nil ctx, which Go's convention
+// forbids, counts as context.Background().
 func ReportHiddenError(ctx context.Context, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	report := ReportError
 	if report == nil || err == nil || clientGone(ctx, err) || ctx.Value(unreportedKey{}) != nil {
 		return
@@ -367,7 +392,7 @@ func reportHiddenParts(ctx context.Context, err error) {
 // with the same errors while the client still waits: that is an error of
 // the server.
 func clientGone(ctx context.Context, err error) bool {
-	return ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded))
+	return ctx != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded))
 }
 
 // hiddenErrorText returns the text the client is shown in place of err, an
@@ -402,7 +427,11 @@ func hiddenErrorText(ctx context.Context, err error, generic string) (text strin
 // [RevealInternalServerErrors] is true, the error message is included in the
 // response, otherwise a generic "Internal Server Error" is used.
 func RespondNonContextError(w http.ResponseWriter, r *http.Request, err error) {
-	if message, ok := hiddenErrorText(r.Context(), err, "Internal Server Error"); ok {
+	ctx := context.Background()
+	if r != nil {
+		ctx = r.Context()
+	}
+	if message, ok := hiddenErrorText(ctx, err, "Internal Server Error"); ok {
 		http.Error(w, message, http.StatusInternalServerError)
 	}
 }

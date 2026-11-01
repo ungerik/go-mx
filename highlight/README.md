@@ -67,8 +67,8 @@ func main() {
 
 Three calls do the work: `highlight.Component(src)` builds the `<pre><code>`
 tree, `highlight.LightTheme.StyleElement("")` builds the `<style>` that colors
-it, and `mx.NewCheckedWriter` renders the tree to bytes (it is non-indenting, so
-the code layout inside `<pre>` survives).
+it, and `mx.NewCheckedWriter` renders the tree to bytes (no writer breaks lines
+inside a `<pre>`, so the code layout survives).
 
 ### Step 2: run it into a file
 
@@ -120,8 +120,19 @@ s, err := highlight.HTML(src)     // render directly to an HTML string
 <pre class="hl"><code><span class="hl-keyword">func</span> <span class="hl-function">main</span>() { fmt.<span class="hl-function">Println</span>(<span class="hl-string">&quot;hi&quot;</span>) }</code></pre>
 ```
 
-Render with a non-indenting writer (the default `mx.NewCheckedWriter`); an
-indenting writer would inject whitespace inside `<pre>` and corrupt the layout.
+Any `mx.CheckedWriter` keeps the layout: an indenting one breaks no lines
+inside a `<pre>`.
+
+### One line at a time
+
+```go
+lines := highlight.Default.Lines(highlight.TokenizeGo(src)) // []mx.Components
+```
+
+cuts the same markup at the line breaks, one `mx.Components` per source line,
+for line numbers or marks such as `shadcn.CodeBlockLine`. A token spanning
+lines, a block comment or a raw string, becomes one `<span>` per line; the line
+breaks themselves are left out.
 
 ### Generated go-mx source
 

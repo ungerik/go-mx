@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>shadcn · go-mx — Questionnaire</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script>try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
+  <style type="text/tailwindcss">/* shadcn/ui new-york-v4 theme tokens.
+ *
+ * This is the verbatim `globals.css` shadcn/ui ships with the new-york style on
+ * Tailwind v4: the OKLCH color tokens for light (:root) and dark (.dark), the
+ * @theme inline mapping that turns them into `--color-*` utilities, and the
+ * base layer. It is injected into a <style type="text/tailwindcss"> block that
+ * the @tailwindcss/browser CDN build compiles at runtime against the live DOM.
+ */
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>pre.hl {
+	background-color: #0d1117;
+	color: #c9d1d9;
+	padding: 1rem;
+	border-radius: 6px;
+	overflow-x: auto;
+	tab-size: 4;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+.hl-builtin { color: #ffa657 }
+.hl-comment { color: #8b949e; font-style: italic }
+.hl-constant { color: #79c0ff }
+.hl-function { color: #d2a8ff }
+.hl-ident { color: #c9d1d9 }
+.hl-keyword { color: #ff7b72 }
+.hl-number { color: #79c0ff }
+.hl-operator { color: #ff7b72 }
+.hl-punctuation { color: #c9d1d9 }
+.hl-string { color: #a5d6ff }
+.hl-type { color: #d2a8ff }
+</style>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside class="w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground">
+      <div class="sticky top-0 flex h-screen flex-col">
+        <div class="flex items-center justify-between border-b px-4 py-3">
+          <a href="../../index.html" class="text-sm font-semibold">shadcn · go-mx</a>
+          <button data-slot="button" onclick="localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'" type="button" data-variant="outline" data-size="sm" class="inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Theme</button>
+        </div>
+        <nav class="flex-1 space-y-0.5 overflow-y-auto p-3">
+          <a href="../../components/accordion/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Accordion</a>
+          <a href="../../components/alert/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert</a>
+          <a href="../../components/alert-dialog/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert Dialog</a>
+          <a href="../../components/aspect-ratio/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Aspect Ratio</a>
+          <a href="../../components/attachment/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Attachment</a>
+          <a href="../../components/avatar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Avatar</a>
+          <a href="../../components/badge/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Badge</a>
+          <a href="../../components/breadcrumb/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Breadcrumb</a>
+          <a href="../../components/bubble/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Bubble</a>
+          <a href="../../components/button/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Button</a>
+          <a href="../../components/button-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Button Group</a>
+          <a href="../../components/calendar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
+          <a href="../../components/card/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
+          <a href="../../components/carousel/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="../../components/chart/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Chart</a>
+          <a href="../../components/checkbox/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
+          <a href="../../components/code-block/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
+          <a href="../../components/collapsible/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
+          <a href="../../components/combobox/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Combobox</a>
+          <a href="../../components/command/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Command</a>
+          <a href="../../components/context-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Context Menu</a>
+          <a href="../../components/data-table/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Data Table</a>
+          <a href="../../components/date-picker/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Date Picker</a>
+          <a href="../../components/dialog/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dialog</a>
+          <a href="../../components/drawer/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Drawer</a>
+          <a href="../../components/dropdown-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dropdown Menu</a>
+          <a href="../../components/empty/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Empty</a>
+          <a href="../../components/field/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Field</a>
+          <a href="../../components/form/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Form</a>
+          <a href="../../components/hover-card/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Hover Card</a>
+          <a href="../../components/input/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input</a>
+          <a href="../../components/input-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input Group</a>
+          <a href="../../components/input-otp/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input OTP</a>
+          <a href="../../components/item/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Item</a>
+          <a href="../../components/kbd/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Kbd</a>
+          <a href="../../components/label/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Label</a>
+          <a href="../../components/marker/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Marker</a>
+          <a href="../../components/menubar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Menubar</a>
+          <a href="../../components/message/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Message</a>
+          <a href="../../components/message-scroller/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Message Scroller</a>
+          <a href="../../components/native-select/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Native Select</a>
+          <a href="../../components/navigation-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Navigation Menu</a>
+          <a href="../../components/pagination/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
+          <a href="../../components/popover/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
+          <a href="../../components/progress/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="../../components/questionnaire/index.html" class="block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground">Questionnaire</a>
+          <a href="../../components/radio-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
+          <a href="../../components/resizable/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
+          <a href="../../components/scroll-area/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
+          <a href="../../components/select/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Select</a>
+          <a href="../../components/separator/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Separator</a>
+          <a href="../../components/sheet/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sheet</a>
+          <a href="../../components/sidebar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sidebar</a>
+          <a href="../../components/skeleton/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Skeleton</a>
+          <a href="../../components/slider/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Slider</a>
+          <a href="../../components/sonner/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sonner</a>
+          <a href="../../components/spinner/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Spinner</a>
+          <a href="../../components/switch/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Switch</a>
+          <a href="../../components/table/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Table</a>
+          <a href="../../components/tabs/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tabs</a>
+          <a href="../../components/textarea/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Textarea</a>
+          <a href="../../components/toggle/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle</a>
+          <a href="../../components/toggle-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle Group</a>
+          <a href="../../components/tooltip/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tooltip</a>
+          <a href="../../components/trace/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Trace</a>
+        </nav>
+      </div>
+    </aside>
+    <main class="min-w-0 flex-1">
+      <div class="mx-auto max-w-3xl px-8 py-10">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">Questionnaire</h1>
+          <p class="mt-2 text-lg text-muted-foreground">A multi-step questionnaire with single-choice, multiple-choice, freeform, and skippable questions.</p>
+          <div class="mt-10">
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Demo</h3>
+              <div data-slot="tabs" data-tabs="tab-questionnaire-demo" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-questionnaire-demo-panel-preview" id="tab-questionnaire-demo-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-questionnaire-demo','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-questionnaire-demo-panel-code" id="tab-questionnaire-demo-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-questionnaire-demo','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-demo-panel-preview" aria-labelledby="tab-questionnaire-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <form data-slot="questionnaire" hx-post="/survey" hx-target="this" hx-swap="outerHTML" onsubmit="event.preventDefault()" novalidate="novalidate" onkeydown="mxQuestionnaireKey(event)" class="flex w-full min-w-0 flex-col gap-6 max-w-md">
+                      <div data-slot="questionnaire-progress" aria-label="Questionnaire progress" role="progressbar" aria-live="polite" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-valuetext="Question 1 of 3" class="min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums text-xs">Question 1 of 3</div>
+                      <fieldset data-slot="questionnaire-item" aria-describedby="questionnaire-direction-description" tabindex="-1" class="group/questionnaire-item min-w-0 border-0 p-0 outline-none flex flex-col gap-5">
+                        <legend data-slot="questionnaire-title" class="text-pretty text-base font-semibold [&amp;:not(:has(~[data-slot=questionnaire-description]))]:mb-5">What should we prototype next?</legend>
+                        <p data-slot="questionnaire-description" class="text-pretty text-muted-foreground text-sm" id="questionnaire-direction-description">Choose a direction or write your own.</p>
+                        <div data-slot="questionnaire-choices" data-shortcuts="letters" class="group/questionnaire-choices grid min-w-0 gap-3">
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="A">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="delegation" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="A"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">
+                              <span class="font-medium">Delegation</span>
+                              <span data-slot="questionnaire-choice-description" class="text-muted-foreground">Show how work moves to a specialist.</span>
+                            </span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">A</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="B">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="questions" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="B"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">
+                              <span class="font-medium">Question prompts</span>
+                              <span data-slot="questionnaire-choice-description" class="text-muted-foreground">Show choices while the interface waits.</span>
+                            </span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">B</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="C">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="both" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="C"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">
+                              <span class="font-medium">Both together</span>
+                            </span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">C</span>
+                          </label>
+                          <div data-slot="questionnaire-input-wrapper" class="group/questionnaire-input relative min-w-0 w-full">
+                            <input data-slot="questionnaire-input" name="direction-other" aria-label="Another answer" placeholder="Type another answer…" type="text" class="min-h-11 w-full min-w-0 transition-[color,box-shadow,background-color] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-9 rounded-md border bg-transparent px-2.5 py-1 text-base shadow-xs focus-visible:ring-3 aria-invalid:ring-3 md:text-sm"/>
+                          </div>
+                        </div>
+                        <input type="hidden" name="questionnaire-item" value="direction"/>
+                      </fieldset>
+                      <div data-slot="questionnaire-actions" class="grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:min-h-9">
+                        <button data-slot="questionnaire-next" type="submit" name="questionnaire-action" value="next" aria-keyshortcuts="Enter" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90 col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0">Next</button>
+                      </div>
+                      <script>if(!window.mxQuestionnaireKey){window.mxQuestionnaireKey=function(e){var f=e.currentTarget,t=e.target,k=e.key;if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||!t||!t.tagName||!k)return;var g=t.tagName,y=(t.type||'').toLowerCase(),m=e.metaKey||e.ctrlKey;if(k==='Enter'){if(e.shiftKey||g==='BUTTON'||g==='A'||g==='SELECT'||(!m&&(g==='TEXTAREA'||t.isContentEditable)))return;var b=f.querySelector('[data-slot=questionnaire-next]:not(:disabled)')||f.querySelector('[data-slot=questionnaire-submit]:not(:disabled)');if(!b)return;e.preventDefault();if(!e.repeat)b.click();return;}if(m||k.length!==1||g==='TEXTAREA'||g==='SELECT'||t.isContentEditable||(g==='INPUT'&&!/^(checkbox|radio|button|submit|reset)$/.test(y)))return;k=k.toUpperCase();if(!/^[A-Z1-9]$/.test(k))return;var c=f.querySelector('[data-slot=questionnaire-choice][data-shortcut="'+k+'"]>input:not(:disabled)');if(!c)return;e.preventDefault();if(!e.repeat){c.focus();c.click();}};}</script>
+                    </form>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-demo-panel-code" aria-labelledby="tab-questionnaire-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Questionnaire</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
+	hx.<span class="hl-function">Post</span>(<span class="hl-string">&quot;/survey&quot;</span>), hx.<span class="hl-function">Target</span>(<span class="hl-string">&quot;this&quot;</span>), hx.<span class="hl-function">Swap</span>(hx.SwapOuterHTML), questionnaireNoServer,
+	shadcn.<span class="hl-function">QuestionnaireProgress</span>(<span class="hl-number">1</span>, <span class="hl-number">3</span>, html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-label&quot;</span>, <span class="hl-string">&quot;Questionnaire progress&quot;</span>), <span class="hl-string">&quot;Question 1 of 3&quot;</span>),
+	shadcn.<span class="hl-function">QuestionnaireItem</span>(<span class="hl-string">&quot;direction&quot;</span>,
+		shadcn.<span class="hl-function">QuestionnaireTitle</span>(<span class="hl-string">&quot;What should we prototype next?&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireDescription</span>(<span class="hl-string">&quot;Choose a direction or write your own.&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireChoices</span>(shadcn.QuestionnaireShortcutsLetters,
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;delegation&quot;</span>,
+				html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;font-medium&quot;</span>, <span class="hl-string">&quot;Delegation&quot;</span>),
+				shadcn.<span class="hl-function">QuestionnaireChoiceDescription</span>(<span class="hl-string">&quot;Show how work moves to a specialist.&quot;</span>),
+			),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;questions&quot;</span>,
+				html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;font-medium&quot;</span>, <span class="hl-string">&quot;Question prompts&quot;</span>),
+				shadcn.<span class="hl-function">QuestionnaireChoiceDescription</span>(<span class="hl-string">&quot;Show choices while the interface waits.&quot;</span>),
+			),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;both&quot;</span>,
+				html.<span class="hl-function">SpanClass</span>(<span class="hl-string">&quot;font-medium&quot;</span>, <span class="hl-string">&quot;Both together&quot;</span>),
+			),
+			shadcn.<span class="hl-function">QuestionnaireInput</span>(html.<span class="hl-function">Name</span>(<span class="hl-string">&quot;direction-other&quot;</span>),
+				html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-label&quot;</span>, <span class="hl-string">&quot;Another answer&quot;</span>), html.<span class="hl-function">Placeholder</span>(<span class="hl-string">&quot;Type another answer…&quot;</span>)),
+		),
+	),
+	shadcn.<span class="hl-function">QuestionnaireActions</span>(
+		shadcn.<span class="hl-function">QuestionnaireNext</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Next&quot;</span>),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Multiple selection</h3>
+              <div data-slot="tabs" data-tabs="tab-questionnaire-multiple-selection" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-questionnaire-multiple-selection-panel-preview" id="tab-questionnaire-multiple-selection-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-questionnaire-multiple-selection','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-questionnaire-multiple-selection-panel-code" id="tab-questionnaire-multiple-selection-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-questionnaire-multiple-selection','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-multiple-selection-panel-preview" aria-labelledby="tab-questionnaire-multiple-selection-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <form data-slot="questionnaire" hx-post="/survey" hx-target="this" hx-swap="outerHTML" onsubmit="event.preventDefault()" novalidate="novalidate" onkeydown="mxQuestionnaireKey(event)" class="flex w-full min-w-0 flex-col gap-6 max-w-md">
+                      <input type="hidden" name="direction" value="delegation"/>
+                      <div data-slot="questionnaire-progress" aria-label="Questionnaire progress" role="progressbar" aria-live="polite" aria-valuemin="1" aria-valuemax="3" aria-valuenow="2" aria-valuetext="Question 2 of 3" class="min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums text-xs">Question 2 of 3</div>
+                      <fieldset data-slot="questionnaire-item" aria-describedby="questionnaire-surfaces-description" tabindex="-1" class="group/questionnaire-item min-w-0 border-0 p-0 outline-none flex flex-col gap-5">
+                        <legend data-slot="questionnaire-title" class="text-pretty text-base font-semibold [&amp;:not(:has(~[data-slot=questionnaire-description]))]:mb-5">Where should it show up?</legend>
+                        <p data-slot="questionnaire-description" class="text-pretty text-muted-foreground text-sm" id="questionnaire-surfaces-description">Choose every surface that applies.</p>
+                        <div data-slot="questionnaire-choices" data-shortcuts="numbers" class="group/questionnaire-choices grid min-w-0 gap-3">
+                          <label data-slot="questionnaire-choice" data-type="checkbox" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="1">
+                            <input data-slot="questionnaire-choice-input" checked="checked" type="checkbox" name="surfaces" value="chat" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="1"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-[4px]">
+                              <svg data-slot="questionnaire-choice-indicator-check" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden size-3.5 group-has-[>input:checked]/questionnaire-choice:block lucide lucide-check">
+                                <path d="M20 6 9 17l-5-5"></path>
+                              </svg>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Chat</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">1</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="checkbox" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="2">
+                            <input data-slot="questionnaire-choice-input" checked="checked" type="checkbox" name="surfaces" value="editor" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="2"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-[4px]">
+                              <svg data-slot="questionnaire-choice-indicator-check" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden size-3.5 group-has-[>input:checked]/questionnaire-choice:block lucide lucide-check">
+                                <path d="M20 6 9 17l-5-5"></path>
+                              </svg>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Editor</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">2</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="checkbox" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="3">
+                            <input data-slot="questionnaire-choice-input" type="checkbox" name="surfaces" value="terminal" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="3"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-[4px]">
+                              <svg data-slot="questionnaire-choice-indicator-check" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden size-3.5 group-has-[>input:checked]/questionnaire-choice:block lucide lucide-check">
+                                <path d="M20 6 9 17l-5-5"></path>
+                              </svg>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Terminal</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">3</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="checkbox" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="4">
+                            <input data-slot="questionnaire-choice-input" disabled="disabled" type="checkbox" name="surfaces" value="mobile" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="4"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-[4px]">
+                              <svg data-slot="questionnaire-choice-indicator-check" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden size-3.5 group-has-[>input:checked]/questionnaire-choice:block lucide lucide-check">
+                                <path d="M20 6 9 17l-5-5"></path>
+                              </svg>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Mobile
+                              <span data-slot="questionnaire-choice-description" class="text-muted-foreground">Not available yet.</span>
+                            </span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">4</span>
+                          </label>
+                        </div>
+                        <input type="hidden" name="questionnaire-item" value="surfaces"/>
+                      </fieldset>
+                      <div data-slot="questionnaire-actions" class="grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:min-h-9">
+                        <button data-slot="questionnaire-previous" type="submit" name="questionnaire-action" value="previous" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 col-start-1 row-start-1 min-h-11 justify-self-start sm:min-h-0">Previous</button>
+                        <button data-slot="questionnaire-next" type="submit" name="questionnaire-action" value="next" aria-keyshortcuts="Enter" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90 col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0">Next</button>
+                      </div>
+                      <script>if(!window.mxQuestionnaireKey){window.mxQuestionnaireKey=function(e){var f=e.currentTarget,t=e.target,k=e.key;if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||!t||!t.tagName||!k)return;var g=t.tagName,y=(t.type||'').toLowerCase(),m=e.metaKey||e.ctrlKey;if(k==='Enter'){if(e.shiftKey||g==='BUTTON'||g==='A'||g==='SELECT'||(!m&&(g==='TEXTAREA'||t.isContentEditable)))return;var b=f.querySelector('[data-slot=questionnaire-next]:not(:disabled)')||f.querySelector('[data-slot=questionnaire-submit]:not(:disabled)');if(!b)return;e.preventDefault();if(!e.repeat)b.click();return;}if(m||k.length!==1||g==='TEXTAREA'||g==='SELECT'||t.isContentEditable||(g==='INPUT'&&!/^(checkbox|radio|button|submit|reset)$/.test(y)))return;k=k.toUpperCase();if(!/^[A-Z1-9]$/.test(k))return;var c=f.querySelector('[data-slot=questionnaire-choice][data-shortcut="'+k+'"]>input:not(:disabled)');if(!c)return;e.preventDefault();if(!e.repeat){c.focus();c.click();}};}</script>
+                    </form>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-multiple-selection-panel-code" aria-labelledby="tab-questionnaire-multiple-selection-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Questionnaire</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
+	hx.<span class="hl-function">Post</span>(<span class="hl-string">&quot;/survey&quot;</span>), hx.<span class="hl-function">Target</span>(<span class="hl-string">&quot;this&quot;</span>), hx.<span class="hl-function">Swap</span>(hx.SwapOuterHTML), questionnaireNoServer,
+	html.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;hidden&quot;</span>), html.<span class="hl-function">Name</span>(<span class="hl-string">&quot;direction&quot;</span>), html.<span class="hl-function">Value</span>(<span class="hl-string">&quot;delegation&quot;</span>)),
+	shadcn.<span class="hl-function">QuestionnaireProgress</span>(<span class="hl-number">2</span>, <span class="hl-number">3</span>, html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-label&quot;</span>, <span class="hl-string">&quot;Questionnaire progress&quot;</span>), <span class="hl-string">&quot;Question 2 of 3&quot;</span>),
+	shadcn.<span class="hl-function">QuestionnaireItem</span>(<span class="hl-string">&quot;surfaces&quot;</span>,
+		shadcn.<span class="hl-function">QuestionnaireTitle</span>(<span class="hl-string">&quot;Where should it show up?&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireDescription</span>(<span class="hl-string">&quot;Choose every surface that applies.&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireChoices</span>(shadcn.QuestionnaireShortcutsNumbers,
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(shadcn.QuestionnaireCheckbox, <span class="hl-string">&quot;surfaces&quot;</span>, <span class="hl-string">&quot;chat&quot;</span>, html.Checked, <span class="hl-string">&quot;Chat&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(shadcn.QuestionnaireCheckbox, <span class="hl-string">&quot;surfaces&quot;</span>, <span class="hl-string">&quot;editor&quot;</span>, html.Checked, <span class="hl-string">&quot;Editor&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(shadcn.QuestionnaireCheckbox, <span class="hl-string">&quot;surfaces&quot;</span>, <span class="hl-string">&quot;terminal&quot;</span>, <span class="hl-string">&quot;Terminal&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(shadcn.QuestionnaireCheckbox, <span class="hl-string">&quot;surfaces&quot;</span>, <span class="hl-string">&quot;mobile&quot;</span>, html.Disabled,
+				<span class="hl-string">&quot;Mobile&quot;</span>,
+				shadcn.<span class="hl-function">QuestionnaireChoiceDescription</span>(<span class="hl-string">&quot;Not available yet.&quot;</span>),
+			),
+		),
+	),
+	shadcn.<span class="hl-function">QuestionnaireActions</span>(
+		shadcn.<span class="hl-function">QuestionnairePrevious</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Previous&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireNext</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Next&quot;</span>),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Skip and submit</h3>
+              <div data-slot="tabs" data-tabs="tab-questionnaire-skip-and-submit" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-questionnaire-skip-and-submit-panel-preview" id="tab-questionnaire-skip-and-submit-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-questionnaire-skip-and-submit','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-questionnaire-skip-and-submit-panel-code" id="tab-questionnaire-skip-and-submit-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-questionnaire-skip-and-submit','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-skip-and-submit-panel-preview" aria-labelledby="tab-questionnaire-skip-and-submit-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <form data-slot="questionnaire" hx-post="/survey" hx-target="this" hx-swap="outerHTML" onsubmit="event.preventDefault()" novalidate="novalidate" onkeydown="mxQuestionnaireKey(event)" class="flex w-full min-w-0 flex-col gap-6 max-w-md">
+                      <input type="hidden" name="direction" value="delegation"/>
+                      <input type="hidden" name="surfaces" value="chat"/>
+                      <input type="hidden" name="surfaces" value="editor"/>
+                      <div data-slot="questionnaire-progress" aria-label="Questionnaire progress" role="progressbar" aria-live="polite" aria-valuemin="1" aria-valuemax="3" aria-valuenow="3" aria-valuetext="Question 3 of 3" class="min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums text-xs">Question 3 of 3</div>
+                      <fieldset data-slot="questionnaire-item" aria-describedby="questionnaire-detail-description" tabindex="-1" class="group/questionnaire-item min-w-0 border-0 p-0 outline-none flex flex-col gap-5">
+                        <legend data-slot="questionnaire-title" class="text-pretty text-base font-semibold [&amp;:not(:has(~[data-slot=questionnaire-description]))]:mb-5">How much detail should it include?</legend>
+                        <p data-slot="questionnaire-description" class="text-pretty text-muted-foreground text-sm" id="questionnaire-detail-description">Skip this if you are not sure yet.</p>
+                        <div data-slot="questionnaire-choices" class="group/questionnaire-choices grid min-w-0 gap-3">
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="detail" value="focused" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Focused</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="detail" value="complete" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Complete flow</span>
+                          </label>
+                        </div>
+                        <input type="hidden" name="questionnaire-item" value="detail"/>
+                      </fieldset>
+                      <div data-slot="questionnaire-actions" class="grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:min-h-9">
+                        <button data-slot="questionnaire-previous" type="submit" name="questionnaire-action" value="previous" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 col-start-1 row-start-1 min-h-11 justify-self-start sm:min-h-0">Previous</button>
+                        <button data-slot="questionnaire-skip" type="submit" name="questionnaire-action" value="skip" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 col-start-2 row-start-1 min-h-11 justify-self-end sm:min-h-0">Skip</button>
+                        <button data-slot="questionnaire-submit" type="submit" name="questionnaire-action" value="submit" aria-keyshortcuts="Enter" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90 col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0">Submit</button>
+                      </div>
+                      <script>if(!window.mxQuestionnaireKey){window.mxQuestionnaireKey=function(e){var f=e.currentTarget,t=e.target,k=e.key;if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||!t||!t.tagName||!k)return;var g=t.tagName,y=(t.type||'').toLowerCase(),m=e.metaKey||e.ctrlKey;if(k==='Enter'){if(e.shiftKey||g==='BUTTON'||g==='A'||g==='SELECT'||(!m&&(g==='TEXTAREA'||t.isContentEditable)))return;var b=f.querySelector('[data-slot=questionnaire-next]:not(:disabled)')||f.querySelector('[data-slot=questionnaire-submit]:not(:disabled)');if(!b)return;e.preventDefault();if(!e.repeat)b.click();return;}if(m||k.length!==1||g==='TEXTAREA'||g==='SELECT'||t.isContentEditable||(g==='INPUT'&&!/^(checkbox|radio|button|submit|reset)$/.test(y)))return;k=k.toUpperCase();if(!/^[A-Z1-9]$/.test(k))return;var c=f.querySelector('[data-slot=questionnaire-choice][data-shortcut="'+k+'"]>input:not(:disabled)');if(!c)return;e.preventDefault();if(!e.repeat){c.focus();c.click();}};}</script>
+                    </form>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-skip-and-submit-panel-code" aria-labelledby="tab-questionnaire-skip-and-submit-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Questionnaire</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
+	hx.<span class="hl-function">Post</span>(<span class="hl-string">&quot;/survey&quot;</span>), hx.<span class="hl-function">Target</span>(<span class="hl-string">&quot;this&quot;</span>), hx.<span class="hl-function">Swap</span>(hx.SwapOuterHTML), questionnaireNoServer,
+	html.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;hidden&quot;</span>), html.<span class="hl-function">Name</span>(<span class="hl-string">&quot;direction&quot;</span>), html.<span class="hl-function">Value</span>(<span class="hl-string">&quot;delegation&quot;</span>)),
+	html.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;hidden&quot;</span>), html.<span class="hl-function">Name</span>(<span class="hl-string">&quot;surfaces&quot;</span>), html.<span class="hl-function">Value</span>(<span class="hl-string">&quot;chat&quot;</span>)),
+	html.<span class="hl-function">Input</span>(html.<span class="hl-function">Type</span>(<span class="hl-string">&quot;hidden&quot;</span>), html.<span class="hl-function">Name</span>(<span class="hl-string">&quot;surfaces&quot;</span>), html.<span class="hl-function">Value</span>(<span class="hl-string">&quot;editor&quot;</span>)),
+	shadcn.<span class="hl-function">QuestionnaireProgress</span>(<span class="hl-number">3</span>, <span class="hl-number">3</span>, html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-label&quot;</span>, <span class="hl-string">&quot;Questionnaire progress&quot;</span>), <span class="hl-string">&quot;Question 3 of 3&quot;</span>),
+	shadcn.<span class="hl-function">QuestionnaireItem</span>(<span class="hl-string">&quot;detail&quot;</span>,
+		shadcn.<span class="hl-function">QuestionnaireTitle</span>(<span class="hl-string">&quot;How much detail should it include?&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireDescription</span>(<span class="hl-string">&quot;Skip this if you are not sure yet.&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireChoices</span>(<span class="hl-string">&quot;&quot;</span>,
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;detail&quot;</span>, <span class="hl-string">&quot;focused&quot;</span>, <span class="hl-string">&quot;Focused&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;detail&quot;</span>, <span class="hl-string">&quot;complete&quot;</span>, <span class="hl-string">&quot;Complete flow&quot;</span>),
+		),
+	),
+	shadcn.<span class="hl-function">QuestionnaireActions</span>(
+		shadcn.<span class="hl-function">QuestionnairePrevious</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Previous&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireSkip</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Skip&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireSubmit</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Submit&quot;</span>),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Validation</h3>
+              <div data-slot="tabs" data-tabs="tab-questionnaire-validation" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-questionnaire-validation-panel-preview" id="tab-questionnaire-validation-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-questionnaire-validation','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-questionnaire-validation-panel-code" id="tab-questionnaire-validation-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-questionnaire-validation','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-validation-panel-preview" aria-labelledby="tab-questionnaire-validation-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <form data-slot="questionnaire" hx-post="/survey" hx-target="this" hx-swap="outerHTML" onsubmit="event.preventDefault()" novalidate="novalidate" onkeydown="mxQuestionnaireKey(event)" class="flex w-full min-w-0 flex-col gap-6 max-w-md">
+                      <div data-slot="questionnaire-progress" aria-label="Questionnaire progress" role="progressbar" aria-live="polite" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-valuetext="Question 1 of 3" class="min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums text-xs">Question 1 of 3</div>
+                      <fieldset data-slot="questionnaire-item" data-invalid="true" aria-describedby="questionnaire-direction-error" tabindex="-1" class="group/questionnaire-item min-w-0 border-0 p-0 outline-none flex flex-col gap-5">
+                        <legend data-slot="questionnaire-title" class="text-pretty text-base font-semibold [&amp;:not(:has(~[data-slot=questionnaire-description]))]:mb-5">What should we prototype next?</legend>
+                        <div data-slot="questionnaire-choices" data-shortcuts="letters" class="group/questionnaire-choices grid min-w-0 gap-3">
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="A">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="delegation" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="A" aria-invalid="true"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Delegation</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">A</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="B">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="questions" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="B" aria-invalid="true"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Question prompts</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">B</span>
+                          </label>
+                          <label data-slot="questionnaire-choice" data-type="radio" class="group/questionnaire-choice relative flex min-h-11 cursor-pointer items-start text-start transition-colors outline-none select-none has-[>input:disabled]:pointer-events-none has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:opacity-50 border-input dark:bg-input/20 hover:bg-muted/50 has-[>input:checked]:border-primary/40 has-[>input:checked]:bg-muted dark:has-[>input:checked]:bg-muted group-data-[invalid=true]/questionnaire-item:border-destructive has-[>input:focus-visible]:border-ring has-[>input:focus-visible]:ring-ring/50 gap-3 rounded-md border bg-transparent px-4 py-3.5 text-sm shadow-xs has-[>input:focus-visible]:ring-3" data-shortcut="C">
+                            <input data-slot="questionnaire-choice-input" type="radio" name="direction" value="both" class="absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-keyshortcuts="C" aria-invalid="true"/>
+                            <span data-slot="questionnaire-choice-indicator" aria-hidden="true" class="pointer-events-none relative flex shrink-0 items-center justify-center border border-input dark:bg-input/30 group-has-[>input:checked]/questionnaire-choice:bg-primary dark:group-has-[>input:checked]/questionnaire-choice:bg-primary group-has-[>input:checked]/questionnaire-choice:text-primary-foreground group-has-[>input:checked]/questionnaire-choice:border-primary size-4 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 rounded-full">
+                              <span data-slot="questionnaire-choice-indicator-dot" class="hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block"></span>
+                            </span>
+                            <span data-slot="questionnaire-choice-label" class="flex min-w-0 flex-1 flex-col leading-snug gap-1">Both together</span>
+                            <span data-slot="questionnaire-choice-shortcut" aria-hidden="true" class="pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs">C</span>
+                          </label>
+                        </div>
+                        <p data-slot="questionnaire-error" role="alert" class="text-destructive text-sm" id="questionnaire-direction-error">Choose an answer to continue.</p>
+                        <input type="hidden" name="questionnaire-item" value="direction"/>
+                      </fieldset>
+                      <div data-slot="questionnaire-actions" class="grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:min-h-9">
+                        <button data-slot="questionnaire-next" type="submit" name="questionnaire-action" value="next" aria-keyshortcuts="Enter" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90 col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0">Next</button>
+                      </div>
+                      <script>if(!window.mxQuestionnaireKey){window.mxQuestionnaireKey=function(e){var f=e.currentTarget,t=e.target,k=e.key;if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||!t||!t.tagName||!k)return;var g=t.tagName,y=(t.type||'').toLowerCase(),m=e.metaKey||e.ctrlKey;if(k==='Enter'){if(e.shiftKey||g==='BUTTON'||g==='A'||g==='SELECT'||(!m&&(g==='TEXTAREA'||t.isContentEditable)))return;var b=f.querySelector('[data-slot=questionnaire-next]:not(:disabled)')||f.querySelector('[data-slot=questionnaire-submit]:not(:disabled)');if(!b)return;e.preventDefault();if(!e.repeat)b.click();return;}if(m||k.length!==1||g==='TEXTAREA'||g==='SELECT'||t.isContentEditable||(g==='INPUT'&&!/^(checkbox|radio|button|submit|reset)$/.test(y)))return;k=k.toUpperCase();if(!/^[A-Z1-9]$/.test(k))return;var c=f.querySelector('[data-slot=questionnaire-choice][data-shortcut="'+k+'"]>input:not(:disabled)');if(!c)return;e.preventDefault();if(!e.repeat){c.focus();c.click();}};}</script>
+                    </form>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-questionnaire-validation-panel-code" aria-labelledby="tab-questionnaire-validation-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Questionnaire</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;max-w-md&quot;</span>),
+	hx.<span class="hl-function">Post</span>(<span class="hl-string">&quot;/survey&quot;</span>), hx.<span class="hl-function">Target</span>(<span class="hl-string">&quot;this&quot;</span>), hx.<span class="hl-function">Swap</span>(hx.SwapOuterHTML), questionnaireNoServer,
+	shadcn.<span class="hl-function">QuestionnaireProgress</span>(<span class="hl-number">1</span>, <span class="hl-number">3</span>, html.<span class="hl-function">Attrib</span>(<span class="hl-string">&quot;aria-label&quot;</span>, <span class="hl-string">&quot;Questionnaire progress&quot;</span>), <span class="hl-string">&quot;Question 1 of 3&quot;</span>),
+	shadcn.<span class="hl-function">QuestionnaireItem</span>(<span class="hl-string">&quot;direction&quot;</span>,
+		shadcn.<span class="hl-function">QuestionnaireTitle</span>(<span class="hl-string">&quot;What should we prototype next?&quot;</span>),
+		shadcn.<span class="hl-function">QuestionnaireChoices</span>(shadcn.QuestionnaireShortcutsLetters,
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;delegation&quot;</span>, <span class="hl-string">&quot;Delegation&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;questions&quot;</span>, <span class="hl-string">&quot;Question prompts&quot;</span>),
+			shadcn.<span class="hl-function">QuestionnaireChoice</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;direction&quot;</span>, <span class="hl-string">&quot;both&quot;</span>, <span class="hl-string">&quot;Both together&quot;</span>),
+		),
+		shadcn.<span class="hl-function">QuestionnaireError</span>(<span class="hl-string">&quot;Choose an answer to continue.&quot;</span>),
+	),
+	shadcn.<span class="hl-function">QuestionnaireActions</span>(
+		shadcn.<span class="hl-function">QuestionnaireNext</span>(<span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;&quot;</span>, <span class="hl-string">&quot;Next&quot;</span>),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

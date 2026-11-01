@@ -10,8 +10,10 @@ import (
 // All fields are zero when the corresponding key is absent.
 type FormTag struct {
 	// Widget overrides the type-based widget choice. Recognized
-	// values: text, email, url, tel, date, datetime, time, password,
-	// textarea, select, radio, switch, checkbox, file, hidden, skip.
+	// values: text, email, url, tel, date, datepicker, datetime, time,
+	// password, textarea, select, radio, switch, checkbox, file, hidden,
+	// skip. datepicker is a date that a renderer with a date picker, such
+	// as shadcn's, shows as one; to the others it is date.
 	// "" means "use type-based default."
 	Widget string
 
@@ -44,6 +46,31 @@ type FormTag struct {
 	// the option list is resolved at render time with the request
 	// context via [CollectOptions].
 	Options string
+
+	// Accept is a file input's accept attribute (form:"accept=…"), such as
+	// "image/*", the file types the picker offers. A list holds commas, so
+	// it is quoted: form:"accept='.pdf,.docx'". It limits the picker only;
+	// check an upload's type on the server.
+	Accept string
+
+	// MinLength and MaxLength bound the length of a text, textarea or
+	// catch-all field's text (form:"minlength=N,maxlength=N"): the input's
+	// minlength and maxlength attributes, and checked by html.FieldDecider's
+	// parser too ([CheckTextLength]), counted in UTF-16 code units as the
+	// browser counts them. An empty text is not checked (see Required). 0
+	// means no bound.
+	MinLength, MaxLength int
+
+	// Autocomplete is the input's autocomplete attribute
+	// (form:"autocomplete=…"), such as "email", "new-password" or
+	// "one-time-code", which tells a browser or password manager what to
+	// fill in. Several tokens are separated by spaces.
+	Autocomplete string
+
+	// InputMode is the input's inputmode attribute (form:"inputmode=…"),
+	// the virtual keyboard to show: none, text, tel, email, url, numeric,
+	// decimal or search. A renderer defers an error for another value.
+	InputMode string
 
 	// Min, Max, Step are numeric / range constraints. Empty when
 	// absent. On a date or time field the finest step is a millisecond,
@@ -150,6 +177,20 @@ func ParseFormTagString(raw string) FormTag {
 			tag.Max = val
 		case "step":
 			tag.Step = val
+		case "minlength":
+			if n, err := strconv.Atoi(val); err == nil && n > 0 {
+				tag.MinLength = n
+			}
+		case "maxlength":
+			if n, err := strconv.Atoi(val); err == nil && n > 0 {
+				tag.MaxLength = n
+			}
+		case "accept":
+			tag.Accept = val
+		case "autocomplete":
+			tag.Autocomplete = val
+		case "inputmode":
+			tag.InputMode = val
 		case "required":
 			tag.Required = !hasEq || boolish(val, true)
 		case "sensitive":

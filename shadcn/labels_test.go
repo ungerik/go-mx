@@ -2,6 +2,7 @@ package shadcn
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"slices"
 	"strings"
@@ -33,12 +34,17 @@ var germanLabels = Labels{
 	BreadcrumbEllipsis:             "Mehr Einträge",
 	CalendarPrevious:               "Zum vorherigen Monat",
 	CalendarNext:                   "Zum nächsten Monat",
+	CalendarMonth:                  "Monat wählen",
+	CalendarYear:                   "Jahr wählen",
+	CalendarToday:                  "Heute, %s",
+	CalendarSelected:               "%s, ausgewählt",
 	CarouselPrevious:               "Vorheriges Bild",
 	CarouselNext:                   "Nächstes Bild",
 	CodeBlockCopy:                  "Kopieren",
 	CodeBlockCopied:                "Kopiert",
 	DialogClose:                    "Schließen",
 	MessageScrollerButton:          "Zum Ende scrollen",
+	MessageScrollerStartButton:     "Zum Anfang scrollen",
 	NavigationMenuNav:              "Hauptnavigation",
 	PaginationNav:                  "Seitennummerierung",
 	PaginationPrevious:             "Zurück",
@@ -49,6 +55,7 @@ var germanLabels = Labels{
 	SidebarTrigger:                 "Seitenleiste umschalten",
 	Spinner:                        "Lädt",
 	FormClear:                      "leeren",
+	FormPickDate:                   "Datum wählen",
 	FormClearField:                 "%s leeren",
 	FormValueNotAvailable:          "(aktueller Wert nicht verfügbar)",
 	FormValueRemovedOnSave:         "Der aktuelle Wert wird beim Speichern entfernt.",
@@ -61,7 +68,11 @@ var germanLabels = Labels{
 	FormStoredFile:                 "Aktuelle Datei: %s",
 	FormStoredFileUnnamed:          "Eine Datei ist gespeichert.",
 	FormKeepStoredFile:             "Leer lassen, um sie zu behalten.",
+	FormUploadProgress:             "Upload-Fortschritt",
 	FormKeepStoredValue:            "Leer lassen, um den aktuellen Wert zu behalten.",
+	FormTextNUL:                    "Der gespeicherte Text enthält ein NUL-Zeichen.",
+	FormTextInvalidUTF8:            "Der gespeicherte Text ist kein gültiges UTF-8.",
+	FormTextLineBreak:              "Der gespeicherte Text enthält Zeilenumbrüche.",
 	FormDateFormat:                 "JJJJ-MM-TT",
 	FormDateTimeFormat:             "JJJJ-MM-TTTHH:MM",
 	FormTimeFormat:                 "HH:MM Uhr",
@@ -108,6 +119,23 @@ var labelCases = []labelCase{
 		english: []string{`aria-label="Go to the previous month"`, `aria-label="Go to the next month"`},
 		german:  []string{`aria-label="Zum vorherigen Monat"`, `aria-label="Zum nächsten Monat"`},
 	}, {
+		name: "CalendarDropdownCaption", comp: func() mx.Component {
+			return CalendarWith(CalendarOptions{CaptionLayout: CalendarCaptionDropdown}, time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), time.Time{})
+		},
+		fields:  []string{"CalendarMonth", "CalendarYear"},
+		english: []string{`aria-label="Choose the Month"`, `aria-label="Choose the Year"`},
+		german:  []string{`aria-label="Monat wählen"`, `aria-label="Jahr wählen"`},
+	}, {
+		name: "CalendarDayNames", comp: func() mx.Component {
+			june := func(day int) time.Time { return time.Date(2026, time.June, day, 0, 0, 0, 0, time.UTC) }
+			return CalendarWith(CalendarOptions{Name: "due", Today: june(10)}, june(1), june(14))
+		},
+		fields: []string{"CalendarToday", "CalendarSelected"},
+		english: []string{`aria-label="Today, 2026-06-10"`, `aria-label="2026-06-14, selected"`,
+			`data-today-label="Today, %s"`, `data-selected-label="%s, selected"`},
+		german: []string{`aria-label="Heute, 2026-06-10"`, `aria-label="2026-06-14, ausgewählt"`,
+			`data-today-label="Heute, %s"`, `data-selected-label="%s, ausgewählt"`},
+	}, {
 		name: "CarouselPrevious", comp: func() mx.Component { return CarouselPrevious() },
 		fields:  []string{"CarouselPrevious"},
 		english: []string{`aria-label="Previous slide"`},
@@ -133,10 +161,12 @@ var labelCases = []labelCase{
 		english: []string{`class="sr-only">Close<`},
 		german:  []string{`class="sr-only">Schließen<`},
 	}, {
-		name: "MessageScrollerButton", comp: func() mx.Component { return MessageScrollerButton("", "") },
-		fields:  []string{"MessageScrollerButton"},
-		english: []string{`class="sr-only">Scroll to end<`},
-		german:  []string{`class="sr-only">Zum Ende scrollen<`},
+		name: "MessageScrollerButton", comp: func() mx.Component {
+			return mx.Components{MessageScrollerButton("", ""), MessageScrollerButton("", "", MessageScrollerStart)}
+		},
+		fields:  []string{"MessageScrollerButton", "MessageScrollerStartButton"},
+		english: []string{`class="sr-only">Scroll to end<`, `class="sr-only">Scroll to start<`},
+		german:  []string{`class="sr-only">Zum Ende scrollen<`, `class="sr-only">Zum Anfang scrollen<`},
 	}, {
 		name: "NavigationMenu", comp: func() mx.Component { return NavigationMenu() },
 		fields:  []string{"NavigationMenuNav"},
@@ -176,6 +206,38 @@ var labelCases = []labelCase{
 		// The reflected-form strings are built-in labels too: the caller
 		// never passes them, so before Labels they were English-only in an
 		// otherwise translated form.
+		name: "FormDatePickerPlaceholder", comp: func() mx.Component {
+			v := reflect.ValueOf(&datePickerForm{}).Elem()
+			field, _ := v.Type().FieldByName("Optional")
+			return FieldDecider("Optional", field, v.FieldByName("Optional")).Render("Optional", field, v.FieldByName("Optional"), nil)
+		},
+		fields:  []string{"FormPickDate"},
+		english: []string{`>Pick a date</span>`},
+		german:  []string{`>Datum wählen</span>`},
+	}, {
+		name: "FormTextProblems", comp: func() mx.Component {
+			type record struct {
+				NUL   sql.NullString
+				Bytes sql.Null[[]byte]
+				Lines sql.NullString
+			}
+			r := &record{
+				NUL:   sql.NullString{String: "a\x00b", Valid: true},
+				Bytes: sql.Null[[]byte]{V: []byte{0xff}, Valid: true},
+				Lines: sql.NullString{String: "k1\nk2", Valid: true},
+			}
+			v := reflect.ValueOf(r).Elem()
+			var comps mx.Components
+			for _, name := range []string{"NUL", "Bytes", "Lines"} {
+				field, _ := v.Type().FieldByName(name)
+				comps = append(comps, FieldDecider(mx.FieldPath(name), field, v.FieldByName(name)).Render(mx.FieldPath(name), field, v.FieldByName(name), nil))
+			}
+			return comps
+		},
+		fields:  []string{"FormTextNUL", "FormTextInvalidUTF8", "FormTextLineBreak"},
+		english: []string{`>The stored text holds a NUL character, shown as`, `>The stored text is not valid UTF-8, shown as`, `>The stored text holds line breaks this input cannot show;`},
+		german:  []string{`>Der gespeicherte Text enthält ein NUL-Zeichen.<`, `>Der gespeicherte Text ist kein gültiges UTF-8.<`, `>Der gespeicherte Text enthält Zeilenumbrüche.<`},
+	}, {
 		name: "FormClearControl", comp: func() mx.Component { return clearControl(mx.FieldPath("Optional"), "Optional", false) },
 		fields:  []string{"FormClear", "FormClearField"},
 		english: []string{`text-sm">clear<`, `aria-label="clear Optional"`},
@@ -245,9 +307,9 @@ var labelCases = []labelCase{
 		comp: func() mx.Component {
 			return shadcnFile(mx.FieldPath("Scan"), reflect.ValueOf("scan.pdf"), mx.FormTag{}, nil)
 		},
-		fields:  []string{"FormStoredFile", "FormKeepStoredFile"},
-		english: []string{">Current file: scan.pdf Leave empty to keep it.<"},
-		german:  []string{">Aktuelle Datei: scan.pdf Leer lassen, um sie zu behalten.<"},
+		fields:  []string{"FormStoredFile", "FormKeepStoredFile", "FormUploadProgress"},
+		english: []string{">Current file: scan.pdf Leave empty to keep it.<", `aria-label="Upload progress"`},
+		german:  []string{">Aktuelle Datei: scan.pdf Leer lassen, um sie zu behalten.<", `aria-label="Upload-Fortschritt"`},
 	}, {
 		name: "FormStoredFileUnnamed",
 		comp: func() mx.Component {

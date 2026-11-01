@@ -96,3 +96,40 @@ func TestCustomPrefixAndHighlighted(t *testing.T) {
 		t.Errorf("keyword should not be highlighted when not selected: %s", out)
 	}
 }
+
+func TestLines(t *testing.T) {
+	src := "package main\n\n/* a\nb */\nvar s = `x\ny`\n"
+	lines := Default.Lines(TokenizeGo(src))
+	var got []string
+	for _, line := range lines {
+		var b strings.Builder
+		if err := line.Render(context.Background(), mx.NewCheckedWriter(&b)); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, b.String())
+	}
+	want := []string{
+		`<span class="hl-keyword">package</span> main`,
+		``,
+		// A block comment and a raw string spanning lines become one span
+		// per line, without the line breaks.
+		`<span class="hl-comment">/* a</span>`,
+		`<span class="hl-comment">b */</span>`,
+		"<span class=\"hl-keyword\">var</span> s = <span class=\"hl-string\">`x</span>",
+		"<span class=\"hl-string\">y`</span>",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("Lines:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// The carriage return of a "\r\n" goes with the line break.
+	if crlf := Default.Lines(TokenizeGo("a\r\nb")); len(crlf) != 2 || crlf[0][0] != mx.Text("a") {
+		t.Errorf("a CRLF line break: %#v", crlf)
+	}
+	// Without a final line break the last line ends the source.
+	if n := len(Default.Lines(TokenizeGo("a\nb"))); n != 2 {
+		t.Errorf("want 2 lines, got %d", n)
+	}
+	if n := len(Default.Lines(nil)); n != 1 {
+		t.Errorf("no tokens are one empty line, got %d", n)
+	}
+}

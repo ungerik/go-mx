@@ -365,7 +365,8 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := b.String()
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">(current value not available)</option>`) {
 		t.Errorf("out-of-list value must render as generic disabled placeholder: %q", out)
 	}
 	if strings.Contains(out, "gone") {
@@ -388,7 +389,8 @@ func TestShadcn_SelectPlaceholderForOutOfListValue(t *testing.T) {
 	if strings.Contains(b.String(), `disabled="disabled"`) || strings.Contains(b.String(), "not available") {
 		t.Errorf("empty current value must not use the out-of-list placeholder: %q", b.String())
 	}
-	if !strings.Contains(b.String(), `<option value="" selected="selected">(none)</option>`) {
+	if !strings.Contains(b.String(), 
+		/*html*/ `<option value="" selected="selected">(none)</option>`) {
 		t.Errorf("empty optional select must submit an empty option: %q", b.String())
 	}
 }
@@ -409,7 +411,8 @@ func TestShadcn_RequiredSelectEmptyValueChoosesNothing(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := b.String()
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 		t.Errorf("required empty select must lead with Choose…: %q", out)
 	}
 	if strings.Contains(out, `value="p1" selected`) {
@@ -468,7 +471,8 @@ func TestShadcn_EnumSetAnnouncesUnlistedMembers(t *testing.T) {
 // Value: protects=a static shadcn enum select leads with Choose… when required and empty, and with an unselected (none) when an optional value is listed; fails_when=mx.OptionComponents skips the preface on lists that do not need context, so the browser submits the first option or the value cannot be cleared; why_new=shadcn preface tests use registry lists only and TestShadcn_EnumUsesShadcnSelect does not assert the leading option; seam=none; no_claim=html static selects are covered in html/formdecider_test.go
 func TestShadcn_StaticSelectRendersPreface(t *testing.T) {
 	out := renderShadcn(t, &formSample{Color: "green"}, "Color", nil)
-	if !strings.Contains(out, `<option value="">(none)</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="">(none)</option>`) {
 		t.Errorf("optional listed value must offer an unselected (none): %q", out)
 	}
 	if strings.Contains(out, `value="" selected`) {
@@ -482,7 +486,8 @@ func TestShadcn_StaticSelectRendersPreface(t *testing.T) {
 		Color colorEnum `form:"required"`
 	}
 	out = renderShadcn(t, &requiredColor{}, "Color", nil)
-	if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+	if !strings.Contains(out, 
+		/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 		t.Errorf("required empty enum must lead with Choose…: %q", out)
 	}
 	if strings.Contains(out, `value="red" selected`) {
@@ -651,7 +656,8 @@ func TestShadcn_ZeroValueRendersAsNoValue(t *testing.T) {
 		out := render(t, &struct {
 			Partner uuid.UUID `form:"options=test-shadcn-partners,required"`
 		}{})
-		if !strings.Contains(out, `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
+		if !strings.Contains(out, 
+			/*html*/ `<option value="" disabled="disabled" selected="selected">Choose…</option>`) {
 			t.Errorf("a required select without a value must lead with Choose…: %q", out)
 		}
 		if strings.Contains(out, "not available") {
@@ -692,12 +698,18 @@ func TestShadcn_TimeWidgets(t *testing.T) {
 	when := time.Date(2026, 7, 6, 9, 5, 7, 0, time.UTC)
 	f := &form{Date: when, DateTime: when, Time: when, Default: when}
 	renders := []struct{ field, want string }{
-		{"Date", `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
-		{"DateTime", `<input data-slot="input" type="datetime-local" name="DateTime" id="DateTime" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
-		{"Time", `<input data-slot="input" type="time" name="Time" id="Time" hx-trigger="change" value="09:05:07" readonly="readonly" class="`},
-		{"Default", `<input data-slot="input" type="datetime-local" name="Default" id="Default" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
-		{"Nil", `<input data-slot="input" type="date" name="Nil" id="Nil" hx-trigger="change" class="`},
-		{"Zero", `<input data-slot="input" type="date" name="Zero" id="Zero" hx-trigger="change" class="`},
+		{"Date", 
+			/*html*/ `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+		{"DateTime", 
+			/*html*/ `<input data-slot="input" type="datetime-local" name="DateTime" id="DateTime" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Time", 
+			/*html*/ `<input data-slot="input" type="time" name="Time" id="Time" hx-trigger="change" value="09:05:07" readonly="readonly" class="`},
+		{"Default", 
+			/*html*/ `<input data-slot="input" type="datetime-local" name="Default" id="Default" hx-trigger="change" value="2026-07-06T09:05:07" class="`},
+		{"Nil", 
+			/*html*/ `<input data-slot="input" type="date" name="Nil" id="Nil" hx-trigger="change" class="`},
+		{"Zero", 
+			/*html*/ `<input data-slot="input" type="date" name="Zero" id="Zero" hx-trigger="change" class="`},
 	}
 	for _, r := range renders {
 		if got := inputStartTag(renderShadcn(t, f, r.field, nil)); got != r.want {
@@ -758,37 +770,50 @@ func TestShadcn_DateWidgetPrefillsStringKinds(t *testing.T) {
 	}{
 		// A Format method gives the date as yyyy-mm-dd.
 		{"Format normalizes", dateStrings{Date: "06.07.2026"}, "Date",
-			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" value="2026-07-06" class="`},
 		{"Format through pointer", dateStrings{DatePtr: new(testDate("06.07.2026"))}, "DatePtr",
-			`<input data-slot="input" type="date" name="DatePtr" id="DatePtr" hx-trigger="change" value="2026-07-06" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="DatePtr" id="DatePtr" hx-trigger="change" value="2026-07-06" class="`},
 		// Without Format, a yyyy-mm-dd string is shown as stored.
 		{"string", dateStrings{Str: "2026-07-06"}, "Str",
-			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" value="2026-07-06" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" value="2026-07-06" class="`},
 		{"string pointer", dateStrings{Ptr: new("2026-07-06")}, "Ptr",
-			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" value="2026-07-06" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" value="2026-07-06" class="`},
 		// No date, no value attribute.
 		{"empty string", dateStrings{}, "Str",
-			`<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Str" id="Str" hx-trigger="change" class="`},
 		{"nil pointer", dateStrings{}, "Ptr",
-			`<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Ptr" id="Ptr" hx-trigger="change" class="`},
 		{"Format zero date", dateStrings{Date: "0001-01-01"}, "Date",
-			`<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Date" id="Date" hx-trigger="change" class="`},
 		// Anything else renders as a text input showing the stored text.
 		{"non-canonical string", dateStrings{Str: "06.07.2026"}, "Str",
-			`<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true" class="`},
+			
+				/*html*/ `<input data-slot="input" type="text" name="Str" id="Str" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Str-format" aria-invalid="true" class="`},
 		{"text through pointer", dateStrings{Ptr: new("next week")}, "Ptr",
-			`<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true" class="`},
+			
+				/*html*/ `<input data-slot="input" type="text" name="Ptr" id="Ptr" hx-trigger="change" value="next week" placeholder="YYYY-MM-DD" aria-describedby="Ptr-format" aria-invalid="true" class="`},
 		{"Format returns it unchanged", dateStrings{Date: "garbage"}, "Date",
-			`<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true" class="`},
+			
+				/*html*/ `<input data-slot="input" type="text" name="Date" id="Date" hx-trigger="change" value="garbage" placeholder="YYYY-MM-DD" aria-describedby="Date-format" aria-invalid="true" class="`},
 		// The date input carries the range, the text input only required.
 		{"bounded date", dateStrings{Bounded: "2026-07-06"}, "Bounded",
-			`<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
+			
+				/*html*/ `<input data-slot="input" type="date" name="Bounded" id="Bounded" hx-trigger="change" value="2026-07-06" min="2026-01-01" max="2026-12-31" required="required" class="`},
 		{"bounded text", dateStrings{Bounded: "06.07.2026"}, "Bounded",
-			`<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
+			
+				/*html*/ `<input data-slot="input" type="text" name="Bounded" id="Bounded" hx-trigger="change" value="06.07.2026" placeholder="YYYY-MM-DD" aria-describedby="Bounded-format" required="required" aria-invalid="true" class="`},
 		// A placeholder from the tag, say a translated format, replaces the
 		// placeholder; the hint names the format the parser reads.
 		{"tag placeholder", dateStrings{Localized: "06.07.2026"}, "Localized",
-			`<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true" class="`},
+			
+				/*html*/ `<input data-slot="input" type="text" name="Localized" id="Localized" hx-trigger="change" value="06.07.2026" placeholder="JJJJ-MM-TT" aria-describedby="Localized-format" aria-invalid="true" class="`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -934,7 +959,7 @@ func inputStartTag(out string) string {
 }
 
 var (
-	inputTagRe  = regexp.MustCompile(`<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
+	inputTagRe  = regexp.MustCompile(/*html*/ `<input((?:\s+[^\s=/>]+="[^"]*")*)\s*/?>`)
 	attributeRe = regexp.MustCompile(`([^\s=]+)="([^"]*)"`)
 )
 
@@ -972,19 +997,22 @@ func TestShadcn_TimeWidgetsPrefillStringKinds(t *testing.T) {
 	}
 	f := &form{At: "2026-07-06T09:05:00", Clock: "9.05"}
 	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
-		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05" class="`; got != want {
 		t.Errorf("At renders\n%s\nwant\n%s", got, want)
 	}
 	out := renderShadcn(t, f, "Clock", nil)
 	if got, want := inputStartTag(out),
-		`<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="text" name="Clock" id="Clock" hx-trigger="change" value="9.05" placeholder="HH:MM" aria-describedby="Clock-format" aria-invalid="true" class="`; got != want {
 		t.Errorf("Clock renders\n%s\nwant\n%s", got, want)
 	}
 	if !strings.Contains(out, ">Not in the expected format: HH:MM</p>") {
 		t.Errorf("Clock lacks the format hint: %s", out)
 	}
 	if got, want := inputStartTag(renderShadcn(t, &form{Clock: "09:05:00"}, "Clock", nil)),
-		`<input data-slot="input" type="time" name="Clock" id="Clock" hx-trigger="change" value="09:05" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="time" name="Clock" id="Clock" hx-trigger="change" value="09:05" class="`; got != want {
 		t.Errorf("valid Clock renders\n%s\nwant\n%s", got, want)
 	}
 }
@@ -1003,11 +1031,13 @@ func TestShadcn_HintedDateWidget(t *testing.T) {
 	}
 	f := &form{Due: "2026-07-06"}
 	if got, want := inputStartTag(renderShadcn(t, f, "Due", nil)),
-		`<input data-slot="input" type="date" name="Due" id="Due" hx-trigger="change" value="2026-07-06" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="date" name="Due" id="Due" hx-trigger="change" value="2026-07-06" class="`; got != want {
 		t.Errorf("Due renders\n%s\nwant\n%s", got, want)
 	}
 	if got, want := inputStartTag(renderShadcn(t, f, "DuePtr", nil)),
-		`<input data-slot="input" type="date" name="DuePtr" id="DuePtr" hx-trigger="change" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="date" name="DuePtr" id="DuePtr" hx-trigger="change" class="`; got != want {
 		t.Errorf("DuePtr renders\n%s\nwant\n%s", got, want)
 	}
 }
@@ -1131,7 +1161,8 @@ func TestShadcn_CatchAllIsStyledText(t *testing.T) {
 	}
 	out := renderShadcn(t, f, "Total", nil)
 	if got, want := inputStartTag(out),
-		`<input data-slot="input" type="text" name="Total" id="Total" hx-trigger="change" value="12.50" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="text" name="Total" id="Total" hx-trigger="change" value="12.50" class="`; got != want {
 		t.Errorf("Total renders\n%s\nwant\n%s", got, want)
 	}
 	if !strings.Contains(out, `data-slot="field"`) {
@@ -1300,7 +1331,8 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 		t.Errorf("Loose lacks the plain format hint: %s", out)
 	}
 	if got, want := inputStartTag(renderShadcn(t, f, "Loose", nil)),
-		`<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="text" name="Loose" id="Loose" hx-trigger="change" value="2026-7-6" placeholder="YYYY-MM-DD" aria-describedby="Loose-format" class="`; got != want {
 		t.Errorf("Loose renders\n%s\nwant\n%s", got, want)
 	}
 	bounded := renderShadcn(t, f, "Bounded", nil)
@@ -1316,16 +1348,19 @@ func TestShadcn_DateKindsRender(t *testing.T) {
 	}
 	// With a min, a value with seconds gets step 1.
 	if got, want := inputStartTag(renderShadcn(t, f, "Seconds", nil)),
-		`<input data-slot="input" type="datetime-local" name="Seconds" id="Seconds" hx-trigger="change" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="datetime-local" name="Seconds" id="Seconds" hx-trigger="change" value="2026-07-06T09:05:07" min="2026-01-01T00:00" step="1" class="`; got != want {
 		t.Errorf("Seconds renders\n%s\nwant\n%s", got, want)
 	}
 	if got, want := inputStartTag(renderShadcn(t, f, "At", nil)),
-		`<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05:07" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="datetime-local" name="At" id="At" hx-trigger="change" value="2026-07-06T09:05:07" class="`; got != want {
 		t.Errorf("At renders\n%s\nwant\n%s", got, want)
 	}
 	out := renderShadcn(t, f, "Old", nil)
 	if got, want := inputStartTag(out),
-		`<input data-slot="input" type="text" name="Old" id="Old" hx-trigger="change" value="06.07.2026" readonly="readonly" class="`; got != want {
+		
+			/*html*/ `<input data-slot="input" type="text" name="Old" id="Old" hx-trigger="change" value="06.07.2026" readonly="readonly" class="`; got != want {
 		t.Errorf("Old renders\n%s\nwant\n%s", got, want)
 	}
 	if strings.Contains(out, "Expected format") || strings.Contains(out, "data-invalid") {
@@ -1491,7 +1526,8 @@ func TestShadcn_RemovalNoteDescribesControl(t *testing.T) {
 			t.Errorf("%s: the removal note must describe the control: %s", name, out)
 		}
 		out = render(&draftForm{Partner: "p1", Tags: []string{"p1"}}, name)
-		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, `<p id="`+name+`-note" hidden="hidden"></p>`) {
+		if !strings.Contains(out, `aria-describedby="`+name+`-note"`) || !strings.Contains(out, 
+			/*html*/ `<p id="`+name+/*html*/ `-note" hidden="hidden"></p>`) {
 			t.Errorf("%s: with nothing removed the reference must point at an empty hidden note: %s", name, out)
 		}
 	}
@@ -1512,7 +1548,8 @@ func TestShadcn_UnlistedZeroIsNoSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	if strings.Contains(out, "not available") || strings.Contains(out, "removed when you save") || !strings.Contains(out, `selected="selected">(none)</option>`) {
+	if strings.Contains(out, "not available") || strings.Contains(out, "removed when you save") || !strings.Contains(out, 
+		/*html*/ `selected="selected">(none)</option>`) {
 		t.Errorf("an unlisted zero key: %s", out)
 	}
 }
@@ -1531,7 +1568,8 @@ func TestShadcn_SelectShowsOneSelection(t *testing.T) {
 		Owner shOwner `form:"required"`
 	}
 	out := renderShadcn(t, &form{}, "Owner", nil)
-	if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, `<option value="" selected="selected">Unassigned</option>`) {
+	if n := strings.Count(out, `selected="selected"`); n != 1 || !strings.Contains(out, 
+		/*html*/ `<option value="" selected="selected">Unassigned</option>`) {
 		t.Errorf("%d selected: %s", n, out)
 	}
 }
@@ -1623,4 +1661,265 @@ func TestShadcn_SwitchNamedBoolWithText(t *testing.T) {
 	if out := renderShadcn(t, &form{}, "Agree", nil); strings.Contains(out, ` checked="checked"`) {
 		t.Errorf("want unchecked: %s", out)
 	}
+}
+
+type datePickerForm struct {
+	Due      time.Time `form:"widget=datepicker"`
+	Start    string    `form:"widget=datepicker,placeholder=When?"`
+	Fixed    time.Time `form:"widget=datepicker,readonly"`
+	Optional string    `form:"widget=datepicker"`
+}
+
+// A form:"widget=datepicker" field renders upstream's DatePicker recipe: a
+// popover trigger the field label points at, showing the picked day, and a
+// select-mode calendar whose hidden input submits the date.
+func TestShadcn_DatePicker(t *testing.T) {
+	june14 := time.Date(2026, time.June, 14, 0, 0, 0, 0, time.UTC)
+	out := renderShadcn(t, &datePickerForm{Due: june14}, "Due", nil)
+	for _, want := range []string{
+		/*html*/ `<label data-slot="field-label"`,
+		`for="Due"`,
+		`id="Due"`,
+		`popovertarget="Due-calendar"`,
+		`data-calendar-text="Due"`,
+		
+			/*html*/ `>2026-06-14</span>`,
+		
+			/*html*/ `<input type="hidden" name="Due" value="2026-06-14" data-slot="calendar-input"`,
+		`aria-label="June 2026"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	if strings.Contains(out, `type="date"`) {
+		t.Errorf("a date picker renders no date input: %s", out)
+	}
+
+	empty := renderShadcn(t, &datePickerForm{}, "Optional", nil)
+	if !strings.Contains(empty, 
+		/*html*/ `data-empty="true">Pick a date</span>`) {
+		t.Errorf("an empty picker shows the placeholder label: %s", empty)
+	}
+	if !strings.Contains(empty, `name="Optional" value=""`) {
+		t.Errorf("an empty picker submits an empty value: %s", empty)
+	}
+	if placeholder := renderShadcn(t, &datePickerForm{}, "Start", nil); !strings.Contains(placeholder, 
+		/*html*/ `>When?</span>`) {
+		t.Errorf("a form:\"placeholder\" replaces the placeholder label: %s", placeholder)
+	}
+
+	// A readonly field cannot be picked and stays a readonly date input.
+	if fixed := renderShadcn(t, &datePickerForm{Fixed: june14}, "Fixed", nil); !strings.Contains(fixed, `type="date"`) || !strings.Contains(fixed, `readonly`) {
+		t.Errorf("a readonly date picker renders a readonly date input: %s", fixed)
+	}
+
+	if invalid := renderShadcn(t, &datePickerForm{}, "Due", []error{stringErr("required")}); !strings.Contains(invalid, `aria-invalid="true"`) {
+		t.Errorf("an errored date picker marks its trigger invalid: %s", invalid)
+	}
+}
+
+// The trigger of a date picker is described by the field's help and error
+// messages, as every other control is, and the calendar's hidden input,
+// which the calendar script fires change on, carries the hx-trigger of
+// every other control.
+func TestShadcn_DatePickerDescribedBy(t *testing.T) {
+	type form struct {
+		Due time.Time `form:"widget=datepicker,help=When it is due"`
+	}
+	out := renderShadcn(t, &form{}, "Due", []error{stringErr("required")})
+	// The trigger's class holds ">", so its start tag ends at </button>.
+	trigger := regexp.MustCompile(`<button [^<]*popovertarget="Due-calendar"[^<]*`).FindString(out)
+	if !strings.Contains(trigger, `aria-describedby="Due-help Due-error-0"`) {
+		t.Errorf("the trigger must be described by the help and the error: %s", out)
+	}
+	for _, id := range []string{`id="Due-help"`, `id="Due-error-0"`} {
+		if !strings.Contains(out, id) {
+			t.Errorf("missing %s in %s", id, out)
+		}
+	}
+	input := regexp.MustCompile(`<input [^>]*data-slot="calendar-input"[^>]*>`).FindString(out)
+	if !strings.Contains(input, `hx-trigger="change"`) {
+		t.Errorf("the calendar input must carry hx-trigger: %s", input)
+	}
+}
+
+// ContextWithDatePickerOptions configures the picker's calendar: MonthURL
+// wires the month buttons, and the shown month without a value is Today's.
+func TestShadcn_DatePickerOptions(t *testing.T) {
+	v := reflect.ValueOf(&datePickerForm{}).Elem()
+	field, _ := v.Type().FieldByName("Optional")
+	beh := FieldDecider("Optional", field, v.FieldByName("Optional"))
+	ctx := ContextWithDatePickerOptions(context.Background(), func(path mx.FieldPath) CalendarOptions {
+		return CalendarOptions{
+			Today:    time.Date(2026, time.March, 3, 0, 0, 0, 0, time.UTC),
+			MonthURL: func(m time.Time) string { return "/cal/" + string(path) + "/" + m.Format("2006-01") },
+		}
+	})
+	var b strings.Builder
+	if err := beh.Render("Optional", field, v.FieldByName("Optional"), nil).Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{
+		`aria-label="March 2026"`,
+		`data-month-url="/cal/Optional/2026-02"`,
+		`data-month-url="/cal/Optional/2026-04"`,
+		`name="Optional"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	// The handler behind MonthURL answers with the same calendar.
+	fragment := render(t, DatePickerCalendar("Optional", CalendarOptions{}, time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), time.Time{}))
+	if !strings.Contains(fragment, `data-name="Optional"`) || !strings.Contains(fragment, `aria-label="April 2026"`) {
+		t.Errorf("DatePickerCalendar must render the field's calendar: %s", fragment)
+	}
+}
+
+// The picker submits what a date input submits, so the date parser binds it.
+func TestShadcn_DatePickerParses(t *testing.T) {
+	var got datePickerForm
+	values := url.Values{"Due": {"2026-06-15"}, "Optional": {"2026-07-01"}}
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	v := reflect.ValueOf(&got).Elem()
+	for _, name := range []string{"Due", "Optional"} {
+		field, _ := v.Type().FieldByName(name)
+		path := mx.FieldPath(name)
+		if err := FieldDecider(path, field, v.FieldByName(name)).Parse(path, field, v.FieldByName(name), r); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	if want := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC); !got.Due.Equal(want) {
+		t.Errorf("Due = %v, want %v", got.Due, want)
+	}
+	if got.Optional != "2026-07-01" {
+		t.Errorf("Optional = %q", got.Optional)
+	}
+}
+
+// The server holds a date picker to its min and max and to a date without a
+// time, as it does a date input; the calendar alone would not stop a POST.
+func TestShadcn_DatePickerParseChecks(t *testing.T) {
+	type form struct {
+		Day time.Time `form:"widget=datepicker,min=2026-01-01,max=2026-12-31"`
+	}
+	for _, tc := range []struct {
+		in      string
+		wantErr bool
+	}{
+		{"2025-12-31", true},
+		{"2027-01-01", true},
+		{"2026-06-15T10:00", true},
+		{"2026-06-15", false},
+	} {
+		var got form
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(url.Values{"Day": {tc.in}}.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(&got).Elem()
+		field, _ := v.Type().FieldByName("Day")
+		err := FieldDecider("Day", field, v.Field(0)).Parse("Day", field, v.Field(0), r)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("%s: err = %v, want error %t", tc.in, err, tc.wantErr)
+		}
+	}
+}
+
+type readonlyLookForm struct {
+	Name  string    `form:"readonly"`
+	Count int       `form:"readonly"`
+	When  time.Time `form:"readonly,widget=date"`
+	Notes string    `form:"readonly,widget=textarea"`
+	Free  string
+}
+
+// Readonly text, number, date and textarea inputs look readonly; editable
+// ones keep upstream's look.
+func TestShadcn_ReadonlyLook(t *testing.T) {
+	for _, name := range []string{"Name", "Count", "When", "Notes"} {
+		if out := renderShadcn(t, &readonlyLookForm{}, name, nil); !strings.Contains(out, "read-only:bg-muted/50") {
+			t.Errorf("%s: no readonly look: %s", name, out)
+		}
+	}
+	if out := renderShadcn(t, &readonlyLookForm{}, "Free", nil); strings.Contains(out, "read-only:") {
+		t.Errorf("an editable input has the readonly look: %s", out)
+	}
+}
+
+// The shadcn input and textarea carry the text tag options too.
+func TestShadcn_TextTagOptions(t *testing.T) {
+	type record struct {
+		Email string `form:"autocomplete=email,inputmode=email,maxlength=80"`
+		Bio   string `form:"widget=textarea,minlength=10"`
+	}
+	if out := renderShadcn(t, &record{}, "Email", nil); !strings.Contains(out, `maxlength="80" autocomplete="email" inputmode="email"`) {
+		t.Errorf("input: %s", out)
+	}
+	if out := renderShadcn(t, &record{}, "Bio", nil); !strings.Contains(out, `minlength="10"`) {
+		t.Errorf("textarea: %s", out)
+	}
+}
+
+// An editable shadcn file input previews its choice and shows the progress
+// of an htmx upload; a readonly one has neither.
+func TestShadcn_FilePreview(t *testing.T) {
+	type record struct {
+		Photos []string `form:"widget=file,accept=image/*"`
+		Old    string   `form:"widget=file,readonly"`
+	}
+	out := renderShadcn(t, &record{}, "Photos", nil)
+	for _, want := range []string{`accept="image/*"`, `multiple="multiple"`, `onchange="mxFilePreview(this)"`, `data-file-preview="Photos"`, `data-slot="file-progress"`, "window.mxFilePreview="} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	if out := renderShadcn(t, &record{Old: "a.pdf"}, "Old", nil); strings.Contains(out, "mxFilePreview") {
+		t.Errorf("a readonly file input previews nothing: %s", out)
+	}
+}
+
+// TestFilePreviewInBrowser runs the preview script in headless Chrome: an
+// image shows as a thumbnail, another file as its name, and a new choice
+// replaces the old one; an htmx:xhr:progress event fills the progress bar.
+func TestFilePreviewInBrowser(t *testing.T) {
+	type record struct {
+		Files []string `form:"widget=file"`
+	}
+	v := reflect.ValueOf(&record{}).Elem()
+	field, _ := v.Type().FieldByName("Files")
+	input := FieldDecider("Files", field, v.Field(0)).Render("Files", field, v.Field(0), nil)
+	body := mx.NewElement("form", mx.NewAttrib("id", "form"), input)
+	const script = /*js*/ `
+var i=document.getElementById('Files');
+var choose=function(files){var dt=new DataTransfer();files.forEach(function(f){dt.items.add(f);});i.files=dt.files;i.dispatchEvent(new Event('change',{bubbles:true}));};
+choose([new File(['x'],'a.png',{type:'image/png'}),new File(['y'],'b.pdf',{type:'application/pdf'})]);
+var p=document.querySelector('[data-file-preview=Files]');
+out.images=p.querySelectorAll('img').length;
+out.alt=p.querySelector('img').alt;
+out.name=p.querySelector('span').textContent;
+choose([new File(['z'],'c.txt',{type:'text/plain'})]);
+out.replaced=p.children.length+':'+p.textContent;
+var bar=document.querySelector('[data-slot=file-progress]');
+out.hiddenBefore=bar.hidden;
+var e=new Event('htmx:xhr:progress',{bubbles:true});e.detail={lengthComputable:true,loaded:30,total:120};
+document.getElementById('form').dispatchEvent(e);
+out.progress=bar.value+'/'+bar.max+':'+bar.hidden;
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"images":       float64(1),
+		"alt":          "a.png",
+		"name":         "b.pdf",
+		"replaced":     "1:c.txt",
+		"hiddenBefore": true,
+		"progress":     "30/120:false",
+	})
 }

@@ -46,361 +46,29 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 
 ## Open ports
 
-Two components remain unported, Chart and Questionnaire. Both have been
-triaged; each is blocked by a design decision, not by another port.
-
-### Chart
-
-**What:** Port shadcn's Chart, which means generating the chart SVG in Go
-rather than wrapping Recharts.
-
-**Why:** It is one of two genuinely missing pieces of the shadcn component
-set (with DataTable, which shipped as a gallery recipe). shadcn's Chart is
-only a CSS-variable theming layer over Recharts' SVG, so the divergence is
-in *generation*, not runtime — every option below can stay server-side.
-
-**Context:** Options considered:
-
-- **A (recommended) — hand-rolled Go SVG generator** (bar/line/area):
-  compute linear scales, axis ticks, gridlines and shapes
-  (`<rect>`/`<polyline>`/`<path>`) in Go, colored from the theme's
-  `--chart-1…5`. Pure server-side, zero client runtime — the most
-  native-first option and a real go-mx strength. Responsive via SVG
-  `viewBox` + `width:100%` (no resize-observer, the native replacement for
-  Recharts' ResponsiveContainer). Tooltips: native `<title>` per data point
-  by default (zero JS); optional styled JS tooltip later. Cost:
-  reimplementing a *scoped* charting lib (not Recharts parity) — one of the
-  two largest remaining builds (with DataTable).
-- **B — a Go charting dependency** (e.g. `wcharczuk/go-chart` → SVG): less
-  code, but a dep whose styling/theming won't match shadcn.
-- **C — a JS charting lib via CDN** (like Tailwind/Shiki): fits the
-  gallery's CDN demo pattern but reintroduces a client runtime for a
-  package component — against the native-first model.
-
-Open decisions before building (A): chart types (bar/line/area, or also
-pie/radial?), tooltip strategy (native `<title>` vs styled JS), and the
-`ChartData{Categories []string; Series []ChartSeries}` + `ChartContainer`
-theming-wrapper API shape.
-
-**Effort:** XL (Cx 6)
-**Priority:** P3
-**Depends on:** None
-**Blocked by:** The design decision above — pick A, B or C and settle the
-API shape before any code.
-
-### Questionnaire
-
-**What:** Port `Questionnaire` — a one-question-at-a-time form with
-choice cards, free-text input, progress, keyboard shortcuts and
-previous/next/skip/submit: `Questionnaire` / `QuestionnaireItem` /
-`QuestionnaireTitle` / `QuestionnaireDescription` / `QuestionnaireChoices` /
-`QuestionnaireChoice` / `QuestionnaireChoiceDescription` /
-`QuestionnaireInput` / `QuestionnaireError` / `QuestionnaireProgress` /
-`QuestionnaireActions` / `QuestionnairePrevious` / `QuestionnaireNext` /
-`QuestionnaireSkip` / `QuestionnaireSubmit`.
-
-**Why:** A survey or onboarding flow is a plausible server-rendered use,
-and the step logic maps naturally onto htmx (each step a request, the
-server validates and returns the next item).
-
-**Context:** Triaged 2026-11-01; added upstream 2026-08-05
-(shadcn-ui/ui#11414). Unlike the other new components it wraps a headless
-primitive, `@shadcn/react/questionnaire`, which owns the step state,
-choice selection, letter/number shortcuts and validation; none of that is
-markup. Two shapes: (a) steps as htmx round-trips (`hx.Post` per step,
-server-side validation through the reflected-form rules), no client
-script beyond shortcuts; (b) all items in one `<form>` with a shared
-inline script showing one at a time. (a) fits the library better. The
-choice cards are native radios/checkboxes and reuse the `FieldLabel` card
-look, which upstream unified with them in shadcn-ui/ui#11436. Decide (a)
-or (b) before building.
-
-**Effort:** L (Cx 5)
-**Priority:** P4
-**Depends on:** None
-**Blocked by:** The step-model decision above.
+None: Chart landed in Phase 8 and Questionnaire in Phase 9, so every
+component of the shadcn/ui registry is ported. New upstream components are
+triaged here as they appear (see "Upstream sync").
 
 ---
 
 ## Calendar and DatePicker follow-ups
 
-`CalendarOptions.Name` (select mode), `Today`, `StartMonth`/`EndMonth` and
-`CalendarText` made the DatePicker recipe pick a day. What react-day-picker
-does beyond that is listed here, most useful first.
+Select mode, `MonthURL` navigation, the dropdown caption and the reflected
+`widget=datepicker` landed in Phase 8, two months side by side, year keys,
+`ExcludeDisabled`, text days and the remaining recipes in Phase 9. Nothing
+from react-day-picker is open; new gaps go here, most useful first.
 
-### A month navigation contract
+## Chart follow-ups
 
-**What:** Give Previous/Next (and PageUp/PageDown, and later a dropdown
-caption) a built-in way to show another month, for example a
-`CalendarOptions.MonthURL func(time.Time) string` that renders `hx-get` on
-the buttons, swaps the calendar and includes its hidden input.
-
-**Why:** Previous/Next are inert until the caller wires them, so the
-gallery DatePicker can only pick a day of its first month, and a date
-picker inside a form needs a server endpoint for the adjacent month that
-every caller writes again. react-day-picker navigates in the browser.
-
-**Context:** Client-side rendering of other months is not an option: the
-label and Disabled hooks are Go functions the browser cannot call. The
-round-trip needs a URL per month and must carry the picked day
-(`hx-include` of the `calendar-input`) and the focus (the day under focus
-in the new month, for PageUp/PageDown). The arrow keys stop at the edge of
-the six-week grid until then.
-
-**Effort:** M
-**Priority:** P2
-**Depends on:** None
-
-### Month and year dropdown caption
-
-**What:** Port `captionLayout="dropdown"`: native `<select>`s for month and
-year in the caption, bounded by StartMonth/EndMonth.
-
-**Why:** The Date of Birth recipe needs it; stepping back decades one month
-at a time is unusable.
-
-**Context:** The selects can render today, but changing one must load that
-month, which is the navigation contract above.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** A month navigation contract
-
-### A date picker widget for reflected forms
-
-**What:** A `form:"widget=datepicker"` that renders a date field as the
-Popover + select-mode Calendar recipe instead of `<input type="date">`.
-
-**Why:** The native date input looks different in every browser and cannot
-use the Disabled or localization hooks.
-
-**Context:** The bind side exists: the hidden input submits `2006-01-02`,
-which `mx.ParseDateTimeInput` already reads for string kinds and `setTime`
-for `time.Time`. The renderer needs the navigation contract to be usable
-past the first month.
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** A month navigation contract
-
-### Range and multiple selection
-
-**What:** react-day-picker's `mode="range"` (start, middle and end day
-styling, two hidden inputs) and `mode="multiple"`.
-
-**Why:** The Range Picker recipe and booking flows (check-in/check-out)
-need it.
-
-**Context:** An extension of the select-mode script: a second click ends
-the range, the classes come from upstream's `range_start`/`range_middle`/
-`range_end`. Two months side by side (`numberOfMonths`) usually comes with
-it.
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** None
-
-### Class merging per calendar day
-
-**What:** Merge each distinct day class once instead of passing every one of
-the 42 day buttons' class strings through `finish` → `Cn` → `twmerge` on each
-render.
-
-**Why:** Building one calendar takes about 0.5 ms, and a pprof run puts about
-85% of it in `Cn` merging the same few class strings (base, muted, faded,
-today) 42 times; every request that renders a month or a date picker pays it.
-
-**Context:** The per-day merge predates the select mode, which made the class
-string longer (focus ring, inert disabled days, `data-[selected=true]`
-variants), measured at +12% construction time. The day class takes only a
-handful of values, so they can be merged once (`sync.OnceValue` per variant)
-and set without another `Cn` pass.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
-### The selected day is not in its button's accessible name
-
-**What:** In select mode, add the selected state to the focused day button's
-accessible name, as react-day-picker's `labelDayButton` appends ", selected"
-(and prefixes "Today, "), from a localizable `Labels` caption that
-`calendarSelect` moves along with the selection.
-
-**Why:** The selection sits on the parent gridcell's `aria-selected`, while
-focus and the name are on the button, whose label is only the date. Screen
-readers often do not announce an ancestor's `aria-selected`, so arrowing onto
-the picked day, or picking a day in a calendar without `CalendarText`, may give
-no spoken confirmation.
-
-**Context:** `CalendarWith` and `calendarScript` in `shadcn/calendar.go`.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-### The static calendar's days are buttons that do nothing
-
-**What:** Decide how a static (display-only) calendar renders its days:
-as text in the cell, as react-day-picker does without a mode, or as
-buttons with one roving Tab stop; and how it conveys the selected day,
-`aria-pressed="false"` on the other days or the state in the selected
-day's name or `aria-current` instead of `aria-pressed`.
-
-**Why:** All 42 days are `<button>`s with a focus ring, so each is a Tab
-stop that does nothing, and only the selected day's button carries
-`aria-pressed="true"`, so assistive tech announces one toggle button among
-41 plain buttons; "pressed" is an odd meaning for the date a display-only
-grid shows.
-
-**Context:** The static branch of `CalendarWith` in `shadcn/calendar.go`; the
-select mode uses the gridcell's `aria-selected`.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
-### No test runs the select-mode calendar script
-
-**What:** A smoke test that loads a rendered select-mode calendar in a
-browser or JS engine, clicks a day, presses ArrowRight and End past a
-disabled day, and checks the hidden input's value, the `input`/`change`
-events, the `CalendarText` caption, the `data-selected`, `aria-selected`
-and `tabindex` moves, the focused `data-date` (also in RTL) and the
-surrounding popover closing.
-
-**Why:** The Go tests only check that `calendarScript` is emitted once and
-that the `onclick`/`onkeydown` hooks are there, so a broken selector or an
-off-by-one in the key handling passes CI; today the gallery DatePicker is
-checked by hand.
-
-**Context:** `calendarScript`, `calendarSelect` and `calendarKey` in
-`shadcn/calendar.go`. The repo has no JS test harness; a headless Chrome run
-against the generated gallery page
-(`docs/shadcn/gallery/components/date-picker/`) needs no new dependency in
-the Go modules. Found in the date widget branch's pre-landing review.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-### The remaining DatePicker recipes
-
-**What:** Gallery examples for upstream's Basic (in a `Field` with a
-label), Time Picker (next to `Input type="time"`), RTL, Input (an
-`InputGroup` text input with a calendar button) and the old With Presets
-(a `Select` of Today, Tomorrow, In a week).
-
-**Why:** Upstream's date picker page shows eight recipes; the gallery has
-one.
-
-**Context:** Basic, Time Picker and RTL need nothing new. Input needs
-typed text parsed into the calendar, which is a client-side parser or a
-round-trip; Natural Language (chrono-node) is out of scope.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
+Phase 9 added the pie, radar and radial kinds and the styled tooltip.
+Nothing is open; new gaps go here, most useful first.
 
 ## Chat/AI follow-ups
 
-What the 2026-11-01 port of Marker, Message, Bubble, Attachment, Trace,
-CodeBlock and MessageScroller left out, most useful first.
-
-### Highlighted code cannot be numbered
-
-**What:** A way to split highlighted tokens into lines, for example a
-`highlight.Highlighter.Lines(tokens) []mx.Components` that cuts a token
-spanning a line break (a comment, a raw string) into one span per line, so
-each line can go into a `shadcn.CodeBlockLine`.
-
-**Why:** Line numbers and diff marks need one `CodeBlockLine` per line, and
-upstream's highlighted examples pass exactly that. Today a highlighted
-`CodeBlockContent` gets its tokens wrapped in one `<span>`, which renders
-correctly but cannot carry `CodeBlockLineNumbers` or line variants.
-
-**Context:** The helper belongs in `highlight`, which may not import
-`shadcn` but can return per-line `mx.Components`. `Highlighter.items`
-already walks the tokens once.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-### No test runs the CodeBlock copy and MessageScroller scripts
-
-**What:** A browser smoke test that clicks a `CodeBlockCopyButton` (with a
-value, with a multi-line value, and without one inside numbered lines) and
-checks the clipboard text, `data-copied`, the label and the reset after two
-seconds; and that loads a `MessageScroller`, checks it opens pinned to the
-bottom, scrolls up, appends a message, and clicks `MessageScrollerButton`.
-
-**Why:** The Go tests only check the markup and that the script strings
-contain their key parts. Both scripts were verified by hand in Chrome
-against the gallery on 2026-11-01, which is what found the StickToBottom
-unsticking on a late stylesheet and the attribute escaper eating the copy
-value's line breaks.
-
-**Context:** Same harness question as "No test runs the select-mode
-calendar script" above; one harness should cover all three.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
-### Shimmer and scroll-fade come from shadcn's own stylesheet
-
-**What:** Decide whether to offer upstream's `shimmer` text effect and
-`scroll-fade-*` edge masks, which are `@utility` rules in shadcn's
-`tailwind.css` rather than Tailwind utilities: for example as an optional
-CSS string a caller adds to their Tailwind input.
-
-**Why:** A running `TraceLine`, an uploading `Attachment` and several
-upstream examples shimmer; `AttachmentGroup`, `CodeBlockContent` and
-`MessageScrollerViewport` fade their scrolled edges. The port pulses with
-`animate-pulse` instead and drops the fades, because it emits Tailwind
-classes only (see "Decided — stay on inlined utility strings").
-
-**Context:** `shimmer` needs a `@keyframes` rule and `@property`
-registrations, and `scroll-fade-*` scroll-driven animations; neither can be
-written as arbitrary-value classes.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
-### MessageScroller has no scroll-to-start button
-
-**What:** Port `MessageScrollerButton`'s `direction="start"`, which
-scrolls to the top and shows while the viewport is not at it.
-
-**Why:** Upstream offers it for transcripts read from the top.
-
-**Context:** The end button shows from `StickToBottom`'s `data-stuck`, so
-it needs no script of its own. A start button needs the top position
-tracked, which StickToBottom does not do: a scroll listener setting an
-attribute, or CSS `scroll-state()` container queries once they are
-supported beyond Chromium.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
-### The hidden scroll-to-end button stays in the tab order
-
-**What:** Take `MessageScrollerButton` out of the tab order while it is
-hidden.
-
-**Why:** Hidden, it is only transparent and click-through, so a keyboard
-user tabs onto an invisible button. Upstream behaves the same.
-
-**Context:** `invisible` would end the fade-out at once, as visibility does
-not transition with `transition-[translate,scale,opacity]`; adding
-`visibility` with `transition-behavior: allow-discrete` keeps it.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
+Phase 9 added upstream's shimmer and scroll-fade utilities (opt-in), the
+scroll-to-start button and the hidden button leaving the tab order. Nothing
+is open; new gaps go here, most useful first.
 
 ## Hard dependency edges (must respect)
 
@@ -918,6 +586,103 @@ attribute a `<button>` (`renderTag` in `component.go`).
   no script. Porting it found a StickToBottom bug: a scroll event caused
   by layout (the stylesheet arriving) unstuck the area before it was
   read; such an event now re-pins.
+
+### Phase 8 — Chart and calendar navigation (2026-11-01)
+
+- [x] **Chart** · Cx 6 — `Chart(kind bar|line|area, ChartData, ChartOptions)`,
+  option A of the triage: the SVG is drawn in Go (scales, d3-style round
+  ticks, grid, grouped and stacked bars, linear/monotone/step lines and
+  stacked areas), colored through upstream's `--color-<key>` variables from
+  the theme's `--chart-1…5`. Decided: tooltips are native `<title>`s, the
+  SVG is `aria-hidden` and a visually hidden table carries the data, and the
+  SVG scales through its viewBox in an `aspect-video` container. Pie, radar,
+  radial and the styled tooltip are follow-ups.
+- [x] **Calendar month navigation** — `CalendarOptions.MonthURL`: the month
+  buttons, PageUp/PageDown and an arrow key past the grid fetch the month's
+  URL and swap in the first calendar of the response, without htmx. The
+  picked days live in the hidden inputs (with their `DayLabel` in
+  `data-label`) and are marked again in the new month, so the handler need
+  not know them; the focus returns to the button or the day the keys moved
+  to.
+- [x] **Dropdown caption** — `CalendarOptions.CaptionLayout` with
+  `MonthName` and `Labels.CalendarMonth`/`CalendarYear`: transparent native
+  selects over the shown label, as react-day-picker draws them, each option
+  carrying its month's URL.
+- [x] **Range and multiple selection** — `CalendarOptions.Mode`,
+  `RangeEnd`, `EndName`, `Selected`, with upstream's range classes on the
+  day buttons and cells (logical sides, so RTL joins up), and
+  `aria-multiselectable`. `CalendarText` joins a range with " – " and
+  several days with ", ", and restores its placeholder when emptied.
+- [x] **Day names** — today's name is wrapped in `Labels.CalendarToday`, a
+  selected day's in select mode in `Labels.CalendarSelected`, and the script
+  renames the days as the selection moves.
+- [x] **`form:"widget=datepicker"`** — the core reads it as `date`; shadcn's
+  `FieldDecider` renders the Popover + Calendar recipe, configured per field
+  with `ContextWithDatePickerOptions` and answered by `DatePickerCalendar`.
+- [x] **Browser tests for the inline scripts** — `internal/headless` runs a
+  page in the system's Chrome with `--dump-dom` (no Go dependency); the page
+  records its findings into the DOM. Covers the calendar (pick, keys,
+  navigation, RTL, range, multiple), the CodeBlock copy button and
+  MessageScroller. CI sets `MX_REQUIRE_CHROME` so a missing Chrome fails
+  instead of skipping.
+- [x] **Highlighted code with line numbers** — `highlight.Highlighter.Lines`
+  cuts the tokens at the line breaks, a multi-line token into one span per
+  line, for one `CodeBlockLine` per line.
+
+### Phase 9 — Questionnaire and the P4 follow-ups (2026-11-01)
+
+- [x] **Questionnaire** · Cx 5 — `Questionnaire` / `QuestionnaireProgress` /
+  `QuestionnaireItem(name)` / `QuestionnaireTitle` /
+  `QuestionnaireDescription` / `QuestionnaireChoices(shortcuts)` /
+  `QuestionnaireChoice(type, name, value)` /
+  `QuestionnaireChoiceDescription` / `QuestionnaireInput` /
+  `QuestionnaireError` / `QuestionnaireActions` / `QuestionnairePrevious` /
+  `QuestionnaireSkip` / `QuestionnaireNext` / `QuestionnaireSubmit`, from
+  `bases/base/ui/questionnaire.tsx` at `c257f68` and `style-vega.css` at
+  `4233ed1`. Decided: shape (a), every step a round trip posting
+  `questionnaire-item` and `questionnaire-action`; the server validates and
+  answers with the next item. One shared script (`mxQuestionnaireKey`) does
+  Enter→Next and the letter/number shortcuts. Base UI's
+  `data-checked`/`data-disabled` on the card → `has-[>input:checked|disabled]:`,
+  `data-invalid` → `group-data-[invalid=true]/questionnaire-item:`. The
+  indicator's dot or check is picked in Go from the type. Not ported:
+  arrow-key navigation between items, and clearing a choice when the user
+  types a freeform answer (both are posted). Captions are children.
+- [x] **Two months side by side** — `CalendarOptions.NumberOfMonths`: the
+  grids share the buttons, at the outer ends, the selection and the keys;
+  outside days are left out so no day is shown twice. `calendarKey` now moves
+  by date rather than by grid index, which makes that work.
+- [x] **Year keys** — Shift+PageUp/PageDown through the month buttons'
+  `data-year-url`, clamped to StartMonth/EndMonth.
+- [x] **`ExcludeDisabled`** — a range's second click that would span a
+  disabled day of the shown grid starts a new range.
+- [x] **Class merging per calendar day** — `calendarDayClasses` caches
+  `Cn` per distinct class string: a month went from ~290 µs to ~82 µs.
+- [x] **Static days are text** — as react-day-picker without a mode: the
+  number, and the DayLabel (with the today and selected labels) as
+  screen-reader text; the table is named by its month. No Tab stops, no
+  `aria-pressed`.
+- [x] **DatePicker recipes** — Basic, Time picker, Input (a typed date
+  through the new `calendarPick` and an `<input data-calendar-text>`), With
+  presets (`calendarPick` from a select) and RTL (Arabic); the Range recipe
+  shows two months.
+- [x] **Pie, radar and radial charts** — `ChartPie` (with `Donut`),
+  `ChartRadar` and `ChartRadial`, colored per category through
+  `ChartData.CategoryColors` or the theme, with category legends and a
+  square default viewBox.
+- [x] **Styled chart tooltip** — `ChartOptions.Tooltip`: a hover band per
+  category with upstream's tooltip card, shown by `group-hover` alone.
+- [x] **Shimmer and scroll-fade** — `UtilitiesCSS` embeds upstream's
+  `@utility` rules (`packages/shadcn/src/tailwind.css` at `a9c1da4`), and
+  `UseUtilities` makes TraceLine, Attachment, AttachmentGroup,
+  CodeBlockContent and MessageScrollerViewport emit them instead of
+  `animate-pulse` and nothing.
+- [x] **Scroll-to-start button** — `MessageScrollerButton(…,
+  MessageScrollerStart)`, shown while StickToBottom's new `data-at-start` is
+  missing (`Labels.MessageScrollerStartButton`).
+- [x] **Hidden buttons leave the tab order** — both scroller buttons add
+  `invisible` to their hidden state and transition `visibility`
+  (`transition-discrete`), so they fade out before leaving the tab order.
 
 ### Decided — stay on inlined utility strings (2026-07-07)
 

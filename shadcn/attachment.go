@@ -239,9 +239,9 @@ var attachmentVariants = cva.New(cva.Config{
 // that makes the whole card clickable.
 //
 // Upstream's shimmer on the title of an uploading or processing file comes
-// from shadcn's own tailwind.css, not from Tailwind; this package emits
-// Tailwind classes only, so the title pulses with animate-pulse instead (not
-// under prefers-reduced-motion).
+// from shadcn's own tailwind.css, not from Tailwind, so by default the title
+// pulses with animate-pulse instead (not under prefers-reduced-motion); with
+// [UseUtilities] it shimmers.
 func Attachment(state AttachmentState, size AttachmentSize, orientation AttachmentOrientation, attribsChildren ...any) *mx.Element {
 	st := string(state.ValidOr(AttachmentDone))
 	sz := string(size.ValidOr(AttachmentSizeDefault))
@@ -351,7 +351,7 @@ func AttachmentContent(attribsChildren ...any) *mx.Element {
 // AttachmentTitle renders an [Attachment]'s file name, truncated to one line.
 func AttachmentTitle(attribsChildren ...any) *mx.Element {
 	return finish(html.Span(attribsChildren...), "attachment-title",
-		"block max-w-full min-w-0 truncate motion-safe:group-data-[state=processing]/attachment:animate-pulse motion-safe:group-data-[state=uploading]/attachment:animate-pulse font-medium")
+		"block max-w-full min-w-0 truncate "+utilityClasses("group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer", "motion-safe:group-data-[state=processing]/attachment:animate-pulse motion-safe:group-data-[state=uploading]/attachment:animate-pulse")+" font-medium")
 }
 
 // AttachmentDescription renders an [Attachment]'s details, such as the file
@@ -396,8 +396,8 @@ func AttachmentTrigger(attribsChildren ...any) *mx.Element {
 
 // AttachmentGroup lays [Attachment]s out in a row that scrolls sideways and
 // snaps to each card. Upstream's scroll-fade-x edge mask comes from shadcn's
-// own tailwind.css and is not reproduced.
+// own tailwind.css and is emitted only with [UseUtilities].
 func AttachmentGroup(attribsChildren ...any) *mx.Element {
 	return finish(html.Div(attribsChildren...), "attachment-group",
-		"flex min-w-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-x-auto overscroll-x-contain *:data-[slot=attachment]:flex-none *:data-[slot=attachment]:snap-start gap-3 scroll-px-1 py-1")
+		"flex min-w-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-x-auto overscroll-x-contain *:data-[slot=attachment]:flex-none *:data-[slot=attachment]:snap-start gap-3 scroll-px-1 py-1"+utilityClasses(" scroll-fade-x", ""))
 }

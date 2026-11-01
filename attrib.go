@@ -8,21 +8,27 @@ import (
 	"sync/atomic"
 )
 
+// The attribute escapers write line breaks and tabs as character references,
+// so a value read back with getAttribute or dataset is the value written and
+// the start tag stays on one line. A literal carriage return would be
+// normalized to a line feed by the HTML parser, hence its reference too.
 var (
 	doubleQuoteAttribEscaper = strings.NewReplacer(
 		`&`, "&amp;",
 		`<`, "&lt;",
 		`"`, "&quot;",
-		"\n", " ",
-		"\t", "  ",
+		"\n", "&#10;",
+		"\r", "&#13;",
+		"\t", "&#9;",
 	)
 
 	singleQuoteAttribEscaper = strings.NewReplacer(
 		`&`, "&amp;",
 		`<`, "&lt;",
 		`'`, "&apos;",
-		"\n", " ",
-		"\t", "  ",
+		"\n", "&#10;",
+		"\r", "&#13;",
+		"\t", "&#9;",
 	)
 
 	idCounter atomic.Uint64

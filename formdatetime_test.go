@@ -502,3 +502,41 @@ func TestDateTimeError(t *testing.T) {
 		t.Errorf("sensitive range error: %v", err)
 	}
 }
+
+// midnightClock is a time of day like civil.Time: zero at midnight.
+type midnightClock struct{ H, M int }
+
+func (c midnightClock) IsZero() bool { return c.H == 0 && c.M == 0 }
+
+func (c midnightClock) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%02d:%02d", c.H, c.M), nil
+}
+
+func (c *midnightClock) UnmarshalText(b []byte) error {
+	t, err := time.Parse("15:04", string(b))
+	if err != nil {
+		return err
+	}
+	c.H, c.M = t.Hour(), t.Minute()
+	return nil
+}
+
+// A time-of-day type that is zero at midnight shows 00:00 in a time input;
+// in a date input its zero is still no value.
+func TestDateTimeInput_MidnightTimeOfDay(t *testing.T) {
+	var at midnightClock
+	v := reflect.ValueOf(&at).Elem()
+	if spec := DateTimeInput(v, FormTag{Widget: "time"}); spec.Value != "00:00" {
+		t.Errorf("midnight shows %q, want 00:00", spec.Value)
+	}
+}
+
+// A type wrapping a time.Time is unset when zero, also in a time input: its
+// zero is no value, not midnight of year 1.
+func TestDateTimeInput_ZeroWrappedTimeInTimeInput(t *testing.T) {
+	var at struct{ time.Time }
+	v := reflect.ValueOf(&at).Elem()
+	if spec := DateTimeInput(v, FormTag{Widget: "time"}); spec.Value != "" {
+		t.Errorf("an unset wrapped time shows %q, want no value", spec.Value)
+	}
+}

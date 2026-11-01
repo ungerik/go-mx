@@ -131,9 +131,16 @@ reaches the SDK:
   visitors' browsers call the endpoint. Requests without an `Origin` pass by
   default, because desktop clients and server-side agents do not send one; set
   `RequireOrigin` to refuse them. Browsers send an `Origin` with same-origin
-  POSTs too, so list the site's own origin if its pages call the endpoint. The
-  guard only rejects and sends no CORS headers: a page on another origin needs
-  CORS set up by your own middleware as well.
+  POSTs too, so list the site's own origin if its pages call the endpoint.
+- **CORS, if asked for.** By default the guard only rejects and sends no CORS
+  headers, so a page on another origin cannot read the endpoint's answers.
+  Set `CORS` to let pages on the `AllowedOrigins` call it from a browser: the
+  guard then answers their preflight with 204, allowing `GET, POST, DELETE`
+  and the `Content-Type`, `Mcp-Session-Id`, `Mcp-Protocol-Version` and
+  `Last-Event-ID` request headers, and sets `Access-Control-Allow-Origin` on
+  every response to an allowed origin, exposing `Mcp-Session-Id`. No
+  credentials are allowed, since public pages need none; an endpoint needing
+  another policy leaves `CORS` off and sets it up in its own middleware.
 - **Host check.** With `AllowedHosts` set, a request for any other `Host` gets
   403. That stops DNS rebinding, where a page points its own domain at an
   address in its visitors' network: those requests are same-origin and a GET

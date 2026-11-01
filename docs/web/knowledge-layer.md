@@ -21,7 +21,7 @@ site's own code, added through the extension points below.
 
 | Piece | What it gives a page or a site |
 |-------|--------------------------------|
-| `Page.Alternates` | Translations and other formats of a page. `Site.AddPageMetadata` renders them as `<link>` elements, `Site.PageHeaders` as `Link` headers — from one list, so the two cannot disagree. A page with translations names its own language too (`Page.Lang`, else `Site.Lang`), and `Site.DefaultLang` adds the `x-default` link. |
+| `Page.Alternates` | Translations and other formats of a page. `Site.AddPageMetadata` renders them as `<link>` elements, `Site.PageHeaders` as `Link` headers — from one list, so the two cannot disagree. A page with translations names its own language too (`Page.Lang`, else `Site.Lang`), and `Site.DefaultLang` adds the `x-default` link. In the head every translation also gets an `og:locale:alternate` tag, which link previews read instead of hreflang. |
 | Markdown alternates | `Site.MarkdownAlternate` turns a page with Markdown content into a standalone Markdown document: a header with title, description, canonical URL, language, last update and translations, your own `Sections`, then the page's source. `MarkdownPath` gives its URL (`/en/faq` → `/en/faq.md`), `Site.ServeMarkdown` serves it — or `Site.ServeMarkdownDocument`, once you have added `Sections` — and `AcceptsMarkdown` tells a client that asked for Markdown from a browser. |
 | `web.LLMsTxt` | An [llms.txt](https://llmstxt.org) index, validated before it is written. `Site.LLMsTxt` builds one listing the Markdown alternates of all public pages, grouped by `Page.Type`. |
 | `html.JSONLD` | A `<script type="application/ld+json">` that is safe for untrusted values. |
@@ -45,7 +45,8 @@ page := &web.Page{
 }
 ```
 
-A `GlobPageSource` reads `lang` from the front matter; alternates are up to the
+A `GlobPageSource` reads `lang` from the front matter, and keeps all of it,
+fields of your own included, in `Page.FrontMatter`; alternates are up to the
 source, since only it knows which pages translate each other.
 
 The `Site` registers robots.txt and the sitemap itself. llms.txt and the

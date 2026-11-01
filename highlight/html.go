@@ -26,6 +26,42 @@ func (h *Highlighter) Components(tokens []Token) mx.Components {
 	return comps
 }
 
+// Lines turns tokens into one sequence of mx components per source line, the
+// markup [Highlighter.Components] renders cut at the line breaks, so each line
+// can go into an element of its own, such as a numbered line of a code block.
+// A token spanning lines, a block comment or a raw string, becomes one
+// <span> per line. The line breaks themselves are left out, along with the
+// carriage return of a "\r\n", and a final line break ends the last line
+// rather than starting an empty one, so an empty line is an empty sequence.
+func (h *Highlighter) Lines(tokens []Token) []mx.Components {
+	prefix := h.prefix()
+	lines := []mx.Components{{}}
+	for _, it := range h.items(tokens) {
+		parts := strings.Split(it.Text, "\n")
+		for i, part := range parts {
+			if i > 0 {
+				lines = append(lines, mx.Components{})
+			}
+			if i < len(parts)-1 {
+				part = strings.TrimSuffix(part, "\r")
+			}
+			if part == "" {
+				continue
+			}
+			line := &lines[len(lines)-1]
+			if it.Class == ClassPlain {
+				*line = append(*line, mx.Text(part))
+			} else {
+				*line = append(*line, html.SpanClass(prefix+string(it.Class), mx.Text(part)))
+			}
+		}
+	}
+	if len(lines) > 1 && len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
 // Component highlights Go source and returns it as a
 // <pre class="hl"><code>…</code></pre> block element.
 func (h *Highlighter) Component(src string) *mx.Element {

@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>shadcn · go-mx — Chart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script>try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
+  <style type="text/tailwindcss">/* shadcn/ui new-york-v4 theme tokens.
+ *
+ * This is the verbatim `globals.css` shadcn/ui ships with the new-york style on
+ * Tailwind v4: the OKLCH color tokens for light (:root) and dark (.dark), the
+ * @theme inline mapping that turns them into `--color-*` utilities, and the
+ * base layer. It is injected into a <style type="text/tailwindcss"> block that
+ * the @tailwindcss/browser CDN build compiles at runtime against the live DOM.
+ */
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>pre.hl {
+	background-color: #0d1117;
+	color: #c9d1d9;
+	padding: 1rem;
+	border-radius: 6px;
+	overflow-x: auto;
+	tab-size: 4;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+.hl-builtin { color: #ffa657 }
+.hl-comment { color: #8b949e; font-style: italic }
+.hl-constant { color: #79c0ff }
+.hl-function { color: #d2a8ff }
+.hl-ident { color: #c9d1d9 }
+.hl-keyword { color: #ff7b72 }
+.hl-number { color: #79c0ff }
+.hl-operator { color: #ff7b72 }
+.hl-punctuation { color: #c9d1d9 }
+.hl-string { color: #a5d6ff }
+.hl-type { color: #d2a8ff }
+</style>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside class="w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground">
+      <div class="sticky top-0 flex h-screen flex-col">
+        <div class="flex items-center justify-between border-b px-4 py-3">
+          <a href="../../index.html" class="text-sm font-semibold">shadcn · go-mx</a>
+          <button data-slot="button" onclick="localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'" type="button" data-variant="outline" data-size="sm" class="inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Theme</button>
+        </div>
+        <nav class="flex-1 space-y-0.5 overflow-y-auto p-3">
+          <a href="../../components/accordion/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Accordion</a>
+          <a href="../../components/alert/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert</a>
+          <a href="../../components/alert-dialog/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Alert Dialog</a>
+          <a href="../../components/aspect-ratio/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Aspect Ratio</a>
+          <a href="../../components/attachment/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Attachment</a>
+          <a href="../../components/avatar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Avatar</a>
+          <a href="../../components/badge/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Badge</a>
+          <a href="../../components/breadcrumb/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Breadcrumb</a>
+          <a href="../../components/bubble/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Bubble</a>
+          <a href="../../components/button/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Button</a>
+          <a href="../../components/button-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Button Group</a>
+          <a href="../../components/calendar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Calendar</a>
+          <a href="../../components/card/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Card</a>
+          <a href="../../components/carousel/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Carousel</a>
+          <a href="../../components/chart/index.html" class="block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground">Chart</a>
+          <a href="../../components/checkbox/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Checkbox</a>
+          <a href="../../components/code-block/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Code Block</a>
+          <a href="../../components/collapsible/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Collapsible</a>
+          <a href="../../components/combobox/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Combobox</a>
+          <a href="../../components/command/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Command</a>
+          <a href="../../components/context-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Context Menu</a>
+          <a href="../../components/data-table/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Data Table</a>
+          <a href="../../components/date-picker/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Date Picker</a>
+          <a href="../../components/dialog/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dialog</a>
+          <a href="../../components/drawer/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Drawer</a>
+          <a href="../../components/dropdown-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Dropdown Menu</a>
+          <a href="../../components/empty/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Empty</a>
+          <a href="../../components/field/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Field</a>
+          <a href="../../components/form/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Form</a>
+          <a href="../../components/hover-card/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Hover Card</a>
+          <a href="../../components/input/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input</a>
+          <a href="../../components/input-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input Group</a>
+          <a href="../../components/input-otp/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Input OTP</a>
+          <a href="../../components/item/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Item</a>
+          <a href="../../components/kbd/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Kbd</a>
+          <a href="../../components/label/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Label</a>
+          <a href="../../components/marker/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Marker</a>
+          <a href="../../components/menubar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Menubar</a>
+          <a href="../../components/message/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Message</a>
+          <a href="../../components/message-scroller/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Message Scroller</a>
+          <a href="../../components/native-select/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Native Select</a>
+          <a href="../../components/navigation-menu/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Navigation Menu</a>
+          <a href="../../components/pagination/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Pagination</a>
+          <a href="../../components/popover/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Popover</a>
+          <a href="../../components/progress/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Progress</a>
+          <a href="../../components/questionnaire/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Questionnaire</a>
+          <a href="../../components/radio-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Radio Group</a>
+          <a href="../../components/resizable/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Resizable</a>
+          <a href="../../components/scroll-area/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Scroll Area</a>
+          <a href="../../components/select/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Select</a>
+          <a href="../../components/separator/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Separator</a>
+          <a href="../../components/sheet/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sheet</a>
+          <a href="../../components/sidebar/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sidebar</a>
+          <a href="../../components/skeleton/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Skeleton</a>
+          <a href="../../components/slider/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Slider</a>
+          <a href="../../components/sonner/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Sonner</a>
+          <a href="../../components/spinner/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Spinner</a>
+          <a href="../../components/switch/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Switch</a>
+          <a href="../../components/table/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Table</a>
+          <a href="../../components/tabs/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tabs</a>
+          <a href="../../components/textarea/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Textarea</a>
+          <a href="../../components/toggle/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle</a>
+          <a href="../../components/toggle-group/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Toggle Group</a>
+          <a href="../../components/tooltip/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Tooltip</a>
+          <a href="../../components/trace/index.html" class="block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">Trace</a>
+        </nav>
+      </div>
+    </aside>
+    <main class="min-w-0 flex-1">
+      <div class="mx-auto max-w-3xl px-8 py-10">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">Chart</h1>
+          <p class="mt-2 text-lg text-muted-foreground">Beautiful charts, drawn as SVG in Go — the bars, lines, areas, pies, radars and radial bars of upstream&apos;s Recharts examples.</p>
+          <div class="mt-10">
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Bar</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-bar" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-bar-panel-preview" id="tab-chart-bar-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-bar','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-bar-panel-code" id="tab-chart-bar-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-bar','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-bar-panel-preview" aria-labelledby="tab-chart-bar-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-lg">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Bar Chart - Multiple</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">January - June 2024</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="bar" class="flex aspect-video flex-col justify-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" stroke-opacity="0.5">
+                              <line x1="12" x2="468" y1="240" y2="240"></line>
+                              <line x1="12" x2="468" y1="207.43" y2="207.43"></line>
+                              <line x1="12" x2="468" y1="174.86" y2="174.86"></line>
+                              <line x1="12" x2="468" y1="142.29" y2="142.29"></line>
+                              <line x1="12" x2="468" y1="109.71" y2="109.71"></line>
+                              <line x1="12" x2="468" y1="77.14" y2="77.14"></line>
+                              <line x1="12" x2="468" y1="44.57" y2="44.57"></line>
+                              <line x1="12" x2="468" y1="12" y2="12"></line>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="middle">
+                              <text x="50" y="260">Jan</text>
+                              <text x="126" y="260">Feb</text>
+                              <text x="202" y="260">Mar</text>
+                              <text x="278" y="260">Apr</text>
+                              <text x="354" y="260">May</text>
+                              <text x="430" y="260">Jun</text>
+                            </g>
+                            <g fill="var(--color-desktop)">
+                              <rect x="19.6" y="118.83" width="28.4" height="121.17" rx="4">
+                                <title>January: Desktop 186</title>
+                              </rect>
+                              <rect x="95.6" y="41.31" width="28.4" height="198.69" rx="4">
+                                <title>February: Desktop 305</title>
+                              </rect>
+                              <rect x="171.6" y="85.61" width="28.4" height="154.39" rx="4">
+                                <title>March: Desktop 237</title>
+                              </rect>
+                              <rect x="247.6" y="192.45" width="28.4" height="47.55" rx="4">
+                                <title>April: Desktop 73</title>
+                              </rect>
+                              <rect x="323.6" y="103.85" width="28.4" height="136.15" rx="4">
+                                <title>May: Desktop 209</title>
+                              </rect>
+                              <rect x="399.6" y="100.59" width="28.4" height="139.41" rx="4">
+                                <title>June: Desktop 214</title>
+                              </rect>
+                            </g>
+                            <g fill="var(--color-mobile)">
+                              <rect x="52" y="187.89" width="28.4" height="52.11" rx="4">
+                                <title>January: Mobile 80</title>
+                              </rect>
+                              <rect x="128" y="109.71" width="28.4" height="130.29" rx="4">
+                                <title>February: Mobile 200</title>
+                              </rect>
+                              <rect x="204" y="161.83" width="28.4" height="78.17" rx="4">
+                                <title>March: Mobile 120</title>
+                              </rect>
+                              <rect x="280" y="116.23" width="28.4" height="123.77" rx="4">
+                                <title>April: Mobile 190</title>
+                              </rect>
+                              <rect x="356" y="155.31" width="28.4" height="84.69" rx="4">
+                                <title>May: Mobile 130</title>
+                              </rect>
+                              <rect x="432" y="148.8" width="28.4" height="91.2" rx="4">
+                                <title>June: Mobile 140</title>
+                              </rect>
+                            </g>
+                          </svg>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-bar-panel-code" aria-labelledby="tab-chart-bar-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-lg&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Bar Chart - Multiple&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;January - June 2024&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartBar, visitors, shadcn.ChartOptions{
+			HideYAxis:      <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Bar stacked</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-bar-stacked" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-bar-stacked-panel-preview" id="tab-chart-bar-stacked-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-bar-stacked','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-bar-stacked-panel-code" id="tab-chart-bar-stacked-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-bar-stacked','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-bar-stacked-panel-preview" aria-labelledby="tab-chart-bar-stacked-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-lg">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Bar Chart - Stacked + Legend</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">January - June 2024</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="bar" class="flex aspect-video flex-col justify-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" stroke-opacity="0.5">
+                              <line x1="12" x2="468" y1="240" y2="240"></line>
+                              <line x1="12" x2="468" y1="202" y2="202"></line>
+                              <line x1="12" x2="468" y1="164" y2="164"></line>
+                              <line x1="12" x2="468" y1="126" y2="126"></line>
+                              <line x1="12" x2="468" y1="88" y2="88"></line>
+                              <line x1="12" x2="468" y1="50" y2="50"></line>
+                              <line x1="12" x2="468" y1="12" y2="12"></line>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="middle">
+                              <text x="50" y="260">Jan</text>
+                              <text x="126" y="260">Feb</text>
+                              <text x="202" y="260">Mar</text>
+                              <text x="278" y="260">Apr</text>
+                              <text x="354" y="260">May</text>
+                              <text x="430" y="260">Jun</text>
+                            </g>
+                            <g fill="var(--color-desktop)">
+                              <rect x="19.6" y="169.32" width="60.8" height="70.68">
+                                <title>January: Desktop 186</title>
+                              </rect>
+                              <rect x="95.6" y="124.1" width="60.8" height="115.9">
+                                <title>February: Desktop 305</title>
+                              </rect>
+                              <rect x="171.6" y="149.94" width="60.8" height="90.06">
+                                <title>March: Desktop 237</title>
+                              </rect>
+                              <rect x="247.6" y="212.26" width="60.8" height="27.74">
+                                <title>April: Desktop 73</title>
+                              </rect>
+                              <rect x="323.6" y="160.58" width="60.8" height="79.42">
+                                <title>May: Desktop 209</title>
+                              </rect>
+                              <rect x="399.6" y="158.68" width="60.8" height="81.32">
+                                <title>June: Desktop 214</title>
+                              </rect>
+                            </g>
+                            <g fill="var(--color-mobile)">
+                              <rect x="19.6" y="138.92" width="60.8" height="30.4" rx="4">
+                                <title>January: Mobile 80</title>
+                              </rect>
+                              <rect x="95.6" y="48.1" width="60.8" height="76" rx="4">
+                                <title>February: Mobile 200</title>
+                              </rect>
+                              <rect x="171.6" y="104.34" width="60.8" height="45.6" rx="4">
+                                <title>March: Mobile 120</title>
+                              </rect>
+                              <rect x="247.6" y="140.06" width="60.8" height="72.2" rx="4">
+                                <title>April: Mobile 190</title>
+                              </rect>
+                              <rect x="323.6" y="111.18" width="60.8" height="49.4" rx="4">
+                                <title>May: Mobile 130</title>
+                              </rect>
+                              <rect x="399.6" y="105.48" width="60.8" height="53.2" rx="4">
+                                <title>June: Mobile 140</title>
+                              </rect>
+                            </g>
+                          </svg>
+                          <div data-slot="chart-legend" class="flex flex-wrap items-center justify-center gap-4 pt-3">
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-desktop)"></div>Desktop
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-mobile)"></div>Mobile
+                            </div>
+                          </div>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-bar-stacked-panel-code" aria-labelledby="tab-chart-bar-stacked-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-lg&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Bar Chart - Stacked + Legend&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;January - June 2024&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartBar, visitors, shadcn.ChartOptions{
+			Stacked:        <span class="hl-constant">true</span>,
+			Legend:         <span class="hl-constant">true</span>,
+			HideYAxis:      <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Line</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-line" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-line-panel-preview" id="tab-chart-line-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-line','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-line-panel-code" id="tab-chart-line-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-line','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-line-panel-preview" aria-labelledby="tab-chart-line-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-lg">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Line Chart - Dots</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">January - June 2024</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="line" class="flex aspect-video flex-col justify-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" stroke-opacity="0.5">
+                              <line x1="12" x2="468" y1="240" y2="240"></line>
+                              <line x1="12" x2="468" y1="207.43" y2="207.43"></line>
+                              <line x1="12" x2="468" y1="174.86" y2="174.86"></line>
+                              <line x1="12" x2="468" y1="142.29" y2="142.29"></line>
+                              <line x1="12" x2="468" y1="109.71" y2="109.71"></line>
+                              <line x1="12" x2="468" y1="77.14" y2="77.14"></line>
+                              <line x1="12" x2="468" y1="44.57" y2="44.57"></line>
+                              <line x1="12" x2="468" y1="12" y2="12"></line>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="middle">
+                              <text x="12" y="260">Jan</text>
+                              <text x="103.2" y="260">Feb</text>
+                              <text x="194.4" y="260">Mar</text>
+                              <text x="285.6" y="260">Apr</text>
+                              <text x="376.8" y="260">May</text>
+                              <text x="468" y="260">Jun</text>
+                            </g>
+                            <g stroke="var(--color-desktop)">
+                              <path d="M12,118.83 C42.4,92.99 72.8,41.31 103.2,41.31 C133.6,41.31 164,64.74 194.4,85.61 C224.8,106.49 255.2,192.45 285.6,192.45 C316,192.45 346.4,105.95 376.8,103.85 C407.2,101.76 437.6,101.68 468,100.59" fill="none" stroke-width="2"></path>
+                              <circle cx="12" cy="118.83" r="4" fill="var(--color-desktop)">
+                                <title>January: Desktop 186</title>
+                              </circle>
+                              <circle cx="103.2" cy="41.31" r="4" fill="var(--color-desktop)">
+                                <title>February: Desktop 305</title>
+                              </circle>
+                              <circle cx="194.4" cy="85.61" r="4" fill="var(--color-desktop)">
+                                <title>March: Desktop 237</title>
+                              </circle>
+                              <circle cx="285.6" cy="192.45" r="4" fill="var(--color-desktop)">
+                                <title>April: Desktop 73</title>
+                              </circle>
+                              <circle cx="376.8" cy="103.85" r="4" fill="var(--color-desktop)">
+                                <title>May: Desktop 209</title>
+                              </circle>
+                              <circle cx="468" cy="100.59" r="4" fill="var(--color-desktop)">
+                                <title>June: Desktop 214</title>
+                              </circle>
+                            </g>
+                            <g stroke="var(--color-mobile)">
+                              <path d="M12,187.89 C42.4,161.83 72.8,109.71 103.2,109.71 C133.6,109.71 164,161.83 194.4,161.83 C224.8,161.83 255.2,116.23 285.6,116.23 C316,116.23 346.4,155.31 376.8,155.31 C407.2,155.31 437.6,150.97 468,148.8" fill="none" stroke-width="2"></path>
+                              <circle cx="12" cy="187.89" r="4" fill="var(--color-mobile)">
+                                <title>January: Mobile 80</title>
+                              </circle>
+                              <circle cx="103.2" cy="109.71" r="4" fill="var(--color-mobile)">
+                                <title>February: Mobile 200</title>
+                              </circle>
+                              <circle cx="194.4" cy="161.83" r="4" fill="var(--color-mobile)">
+                                <title>March: Mobile 120</title>
+                              </circle>
+                              <circle cx="285.6" cy="116.23" r="4" fill="var(--color-mobile)">
+                                <title>April: Mobile 190</title>
+                              </circle>
+                              <circle cx="376.8" cy="155.31" r="4" fill="var(--color-mobile)">
+                                <title>May: Mobile 130</title>
+                              </circle>
+                              <circle cx="468" cy="148.8" r="4" fill="var(--color-mobile)">
+                                <title>June: Mobile 140</title>
+                              </circle>
+                            </g>
+                          </svg>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-line-panel-code" aria-labelledby="tab-chart-line-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-lg&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Line Chart - Dots&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;January - June 2024&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartLine, visitors, shadcn.ChartOptions{
+			Curve:          shadcn.ChartCurveMonotone,
+			Dots:           <span class="hl-constant">true</span>,
+			HideYAxis:      <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Area stacked</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-area-stacked" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-area-stacked-panel-preview" id="tab-chart-area-stacked-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-area-stacked','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-area-stacked-panel-code" id="tab-chart-area-stacked-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-area-stacked','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-area-stacked-panel-preview" aria-labelledby="tab-chart-area-stacked-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-lg">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Area Chart - Stacked</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">Showing total visitors for the last 6 months</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="area" class="flex aspect-video flex-col justify-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" stroke-opacity="0.5">
+                              <line x1="37.6" x2="468" y1="240" y2="240"></line>
+                              <line x1="37.6" x2="468" y1="202" y2="202"></line>
+                              <line x1="37.6" x2="468" y1="164" y2="164"></line>
+                              <line x1="37.6" x2="468" y1="126" y2="126"></line>
+                              <line x1="37.6" x2="468" y1="88" y2="88"></line>
+                              <line x1="37.6" x2="468" y1="50" y2="50"></line>
+                              <line x1="37.6" x2="468" y1="12" y2="12"></line>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="end">
+                              <text x="29.6" y="240" dy="0.32em">0</text>
+                              <text x="29.6" y="202" dy="0.32em">100</text>
+                              <text x="29.6" y="164" dy="0.32em">200</text>
+                              <text x="29.6" y="126" dy="0.32em">300</text>
+                              <text x="29.6" y="88" dy="0.32em">400</text>
+                              <text x="29.6" y="50" dy="0.32em">500</text>
+                              <text x="29.6" y="12" dy="0.32em">600</text>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="middle">
+                              <text x="37.6" y="260">Jan</text>
+                              <text x="123.68" y="260">Feb</text>
+                              <text x="209.76" y="260">Mar</text>
+                              <text x="295.84" y="260">Apr</text>
+                              <text x="381.92" y="260">May</text>
+                              <text x="468" y="260">Jun</text>
+                            </g>
+                            <path d="M37.6,169.32 C66.29,154.25 94.99,124.1 123.68,124.1 C152.37,124.1 181.07,137.76 209.76,149.94 C238.45,162.12 267.15,212.26 295.84,212.26 C324.53,212.26 353.23,161.8 381.92,160.58 C410.61,159.36 439.31,159.31 468,158.68 L468,240 C439.31,240 410.61,240 381.92,240 C353.23,240 324.53,240 295.84,240 C267.15,240 238.45,240 209.76,240 C181.07,240 152.37,240 123.68,240 C94.99,240 66.29,240 37.6,240 Z" fill="var(--color-desktop)" fill-opacity="0.4"></path>
+                            <g stroke="var(--color-desktop)">
+                              <path d="M37.6,169.32 C66.29,154.25 94.99,124.1 123.68,124.1 C152.37,124.1 181.07,137.76 209.76,149.94 C238.45,162.12 267.15,212.26 295.84,212.26 C324.53,212.26 353.23,161.8 381.92,160.58 C410.61,159.36 439.31,159.31 468,158.68" fill="none" stroke-width="2"></path>
+                              <circle cx="37.6" cy="169.32" r="8" fill="transparent" stroke="none">
+                                <title>January: Desktop 186</title>
+                              </circle>
+                              <circle cx="123.68" cy="124.1" r="8" fill="transparent" stroke="none">
+                                <title>February: Desktop 305</title>
+                              </circle>
+                              <circle cx="209.76" cy="149.94" r="8" fill="transparent" stroke="none">
+                                <title>March: Desktop 237</title>
+                              </circle>
+                              <circle cx="295.84" cy="212.26" r="8" fill="transparent" stroke="none">
+                                <title>April: Desktop 73</title>
+                              </circle>
+                              <circle cx="381.92" cy="160.58" r="8" fill="transparent" stroke="none">
+                                <title>May: Desktop 209</title>
+                              </circle>
+                              <circle cx="468" cy="158.68" r="8" fill="transparent" stroke="none">
+                                <title>June: Desktop 214</title>
+                              </circle>
+                            </g>
+                            <path d="M37.6,138.92 C66.29,108.65 94.99,48.1 123.68,48.1 C152.37,48.1 181.07,89.78 209.76,104.34 C238.45,118.9 267.15,140.06 295.84,140.06 C324.53,140.06 353.23,114.35 381.92,111.18 C410.61,108.01 439.31,107.38 468,105.48 L468,158.68 C439.31,159.31 410.61,159.36 381.92,160.58 C353.23,161.8 324.53,212.26 295.84,212.26 C267.15,212.26 238.45,162.12 209.76,149.94 C181.07,137.76 152.37,124.1 123.68,124.1 C94.99,124.1 66.29,154.25 37.6,169.32 Z" fill="var(--color-mobile)" fill-opacity="0.4"></path>
+                            <g stroke="var(--color-mobile)">
+                              <path d="M37.6,138.92 C66.29,108.65 94.99,48.1 123.68,48.1 C152.37,48.1 181.07,89.78 209.76,104.34 C238.45,118.9 267.15,140.06 295.84,140.06 C324.53,140.06 353.23,114.35 381.92,111.18 C410.61,108.01 439.31,107.38 468,105.48" fill="none" stroke-width="2"></path>
+                              <circle cx="37.6" cy="138.92" r="8" fill="transparent" stroke="none">
+                                <title>January: Mobile 80</title>
+                              </circle>
+                              <circle cx="123.68" cy="48.1" r="8" fill="transparent" stroke="none">
+                                <title>February: Mobile 200</title>
+                              </circle>
+                              <circle cx="209.76" cy="104.34" r="8" fill="transparent" stroke="none">
+                                <title>March: Mobile 120</title>
+                              </circle>
+                              <circle cx="295.84" cy="140.06" r="8" fill="transparent" stroke="none">
+                                <title>April: Mobile 190</title>
+                              </circle>
+                              <circle cx="381.92" cy="111.18" r="8" fill="transparent" stroke="none">
+                                <title>May: Mobile 130</title>
+                              </circle>
+                              <circle cx="468" cy="105.48" r="8" fill="transparent" stroke="none">
+                                <title>June: Mobile 140</title>
+                              </circle>
+                            </g>
+                          </svg>
+                          <div data-slot="chart-legend" class="flex flex-wrap items-center justify-center gap-4 pt-3">
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-desktop)"></div>Desktop
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-mobile)"></div>Mobile
+                            </div>
+                          </div>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-area-stacked-panel-code" aria-labelledby="tab-chart-area-stacked-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-lg&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Area Chart - Stacked&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;Showing total visitors for the last 6 months&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartArea, visitors, shadcn.ChartOptions{
+			Stacked:        <span class="hl-constant">true</span>,
+			Curve:          shadcn.ChartCurveMonotone,
+			Legend:         <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Tooltip</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-tooltip" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-tooltip-panel-preview" id="tab-chart-tooltip-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-tooltip','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-tooltip-panel-code" id="tab-chart-tooltip-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-tooltip','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-tooltip-panel-preview" aria-labelledby="tab-chart-tooltip-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-lg">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Tooltip</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">Hover a month</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="bar" class="flex aspect-video flex-col justify-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" stroke-opacity="0.5">
+                              <line x1="12" x2="468" y1="240" y2="240"></line>
+                              <line x1="12" x2="468" y1="207.43" y2="207.43"></line>
+                              <line x1="12" x2="468" y1="174.86" y2="174.86"></line>
+                              <line x1="12" x2="468" y1="142.29" y2="142.29"></line>
+                              <line x1="12" x2="468" y1="109.71" y2="109.71"></line>
+                              <line x1="12" x2="468" y1="77.14" y2="77.14"></line>
+                              <line x1="12" x2="468" y1="44.57" y2="44.57"></line>
+                              <line x1="12" x2="468" y1="12" y2="12"></line>
+                            </g>
+                            <g class="fill-muted-foreground" text-anchor="middle">
+                              <text x="50" y="260">Jan</text>
+                              <text x="126" y="260">Feb</text>
+                              <text x="202" y="260">Mar</text>
+                              <text x="278" y="260">Apr</text>
+                              <text x="354" y="260">May</text>
+                              <text x="430" y="260">Jun</text>
+                            </g>
+                            <g fill="var(--color-desktop)">
+                              <rect x="19.6" y="118.83" width="28.4" height="121.17" rx="4"></rect>
+                              <rect x="95.6" y="41.31" width="28.4" height="198.69" rx="4"></rect>
+                              <rect x="171.6" y="85.61" width="28.4" height="154.39" rx="4"></rect>
+                              <rect x="247.6" y="192.45" width="28.4" height="47.55" rx="4"></rect>
+                              <rect x="323.6" y="103.85" width="28.4" height="136.15" rx="4"></rect>
+                              <rect x="399.6" y="100.59" width="28.4" height="139.41" rx="4"></rect>
+                            </g>
+                            <g fill="var(--color-mobile)">
+                              <rect x="52" y="187.89" width="28.4" height="52.11" rx="4"></rect>
+                              <rect x="128" y="109.71" width="28.4" height="130.29" rx="4"></rect>
+                              <rect x="204" y="161.83" width="28.4" height="78.17" rx="4"></rect>
+                              <rect x="280" y="116.23" width="28.4" height="123.77" rx="4"></rect>
+                              <rect x="356" y="155.31" width="28.4" height="84.69" rx="4"></rect>
+                              <rect x="432" y="148.8" width="28.4" height="91.2" rx="4"></rect>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="12" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="62" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="70" y="29.6" class="fill-foreground font-medium">January</text>
+                                <rect x="70" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="84" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="170.8" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">186</text>
+                                <rect x="70" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="84" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="170.8" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">80</text>
+                              </g>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="88" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="138" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="146" y="29.6" class="fill-foreground font-medium">February</text>
+                                <rect x="146" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="160" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="246.8" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">305</text>
+                                <rect x="146" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="160" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="246.8" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">200</text>
+                              </g>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="164" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="214" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="222" y="29.6" class="fill-foreground font-medium">March</text>
+                                <rect x="222" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="236" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="322.8" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">237</text>
+                                <rect x="222" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="236" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="322.8" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">120</text>
+                              </g>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="240" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="290" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="298" y="29.6" class="fill-foreground font-medium">April</text>
+                                <rect x="298" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="312" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="398.8" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">73</text>
+                                <rect x="298" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="312" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="398.8" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">190</text>
+                              </g>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="316" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="225.2" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="233.2" y="29.6" class="fill-foreground font-medium">May</text>
+                                <rect x="233.2" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="247.2" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="334" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">209</text>
+                                <rect x="233.2" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="247.2" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="334" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">130</text>
+                              </g>
+                            </g>
+                            <g class="group/chart-band">
+                              <rect x="392" y="12" width="76" height="228" fill="transparent"></rect>
+                              <g class="pointer-events-none opacity-0 transition-opacity group-hover/chart-band:opacity-100">
+                                <rect x="301.2" y="12" width="116.8" height="62" rx="6" class="fill-background stroke-border/50 drop-shadow-xl" stroke="currentColor"></rect>
+                                <text x="309.2" y="29.6" class="fill-foreground font-medium">June</text>
+                                <rect x="309.2" y="40" width="8" height="8" rx="2" fill="var(--color-desktop)"></rect>
+                                <text x="323.2" y="47.6" class="fill-muted-foreground">Desktop</text>
+                                <text x="410" y="47.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">214</text>
+                                <rect x="309.2" y="58" width="8" height="8" rx="2" fill="var(--color-mobile)"></rect>
+                                <text x="323.2" y="65.6" class="fill-muted-foreground">Mobile</text>
+                                <text x="410" y="65.6" text-anchor="end" class="fill-foreground font-mono font-medium tabular-nums">140</text>
+                              </g>
+                            </g>
+                          </svg>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-tooltip-panel-code" aria-labelledby="tab-chart-tooltip-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-lg&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Tooltip&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;Hover a month&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartBar, visitors, shadcn.ChartOptions{
+			Tooltip:        <span class="hl-constant">true</span>,
+			HideYAxis:      <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Pie donut</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-pie-donut" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-pie-donut-panel-preview" id="tab-chart-pie-donut-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-pie-donut','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-pie-donut-panel-code" id="tab-chart-pie-donut-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-pie-donut','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-pie-donut-panel-preview" aria-labelledby="tab-chart-pie-donut-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-sm">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Pie Chart - Donut</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">January - June 2024</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-visitors: var(--chart-1);" data-chart="pie" class="flex flex-col justify-center text-xs aspect-square">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-background" stroke="currentColor" stroke-width="1">
+                              <path d="M150,8 A142,142 0 0 1 285.78,191.58 L231.47,174.95 A85.2,85.2 0 0 0 150,64.8 Z" fill="var(--chart-1)">
+                                <title>Chrome: 275</title>
+                              </path>
+                              <path d="M285.78,191.58 A142,142 0 0 1 137.96,291.49 L142.77,234.89 A85.2,85.2 0 0 0 231.47,174.95 Z" fill="var(--chart-2)">
+                                <title>Safari: 200</title>
+                              </path>
+                              <path d="M137.96,291.49 A142,142 0 0 1 11.29,180.39 L66.77,168.23 A85.2,85.2 0 0 0 142.77,234.89 Z" fill="var(--chart-3)">
+                                <title>Firefox: 187</title>
+                              </path>
+                              <path d="M11.29,180.39 A142,142 0 0 1 68.5,33.72 L101.1,80.23 A85.2,85.2 0 0 0 66.77,168.23 Z" fill="var(--chart-4)">
+                                <title>Edge: 173</title>
+                              </path>
+                              <path d="M68.5,33.72 A142,142 0 0 1 150,8 L150,64.8 A85.2,85.2 0 0 0 101.1,80.23 Z" fill="var(--chart-5)">
+                                <title>Other: 90</title>
+                              </path>
+                            </g>
+                          </svg>
+                          <div data-slot="chart-legend" class="flex flex-wrap items-center justify-center gap-4 pt-3">
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-1)"></div>Chrome
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-2)"></div>Safari
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-3)"></div>Firefox
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-4)"></div>Edge
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-5)"></div>Other
+                            </div>
+                          </div>
+                          <table class="sr-only">
+                            <caption>Visitors per browser</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Visitors</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">Chrome</th>
+                                <td>275</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Safari</th>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Firefox</th>
+                                <td>187</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Edge</th>
+                                <td>173</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Other</th>
+                                <td>90</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-pie-donut-panel-code" aria-labelledby="tab-chart-pie-donut-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Pie Chart - Donut&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;January - June 2024&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartPie, browsers, shadcn.ChartOptions{
+			Donut:  <span class="hl-number">0.6</span>,
+			Legend: <span class="hl-constant">true</span>,
+			Label:  <span class="hl-string">&quot;Visitors per browser&quot;</span>,
+		}, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;aspect-square&quot;</span>)),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Radar</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-radar" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-radar-panel-preview" id="tab-chart-radar-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-radar','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-radar-panel-code" id="tab-chart-radar-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-radar','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-radar-panel-preview" aria-labelledby="tab-chart-radar-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-sm">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Radar Chart - Multiple</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">Showing total visitors for the last 6 months</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-desktop: var(--chart-1); --color-mobile: var(--chart-2);" data-chart="radar" class="flex flex-col justify-center text-xs aspect-square">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g class="stroke-border" stroke="currentColor" fill="none">
+                              <polygon points="150,120 175.98,135 175.98,165 150,180 124.02,165 124.02,135"></polygon>
+                              <polygon points="150,90 201.96,120 201.96,180 150,210 98.04,180 98.04,120"></polygon>
+                              <polygon points="150,60 227.94,105 227.94,195 150,240 72.06,195 72.06,105"></polygon>
+                              <polygon points="150,30 253.92,90 253.92,210 150,270 46.08,210 46.08,90"></polygon>
+                              <line x1="150" y1="150" x2="150" y2="30"></line>
+                              <line x1="150" y1="150" x2="253.92" y2="90"></line>
+                              <line x1="150" y1="150" x2="253.92" y2="210"></line>
+                              <line x1="150" y1="150" x2="150" y2="270"></line>
+                              <line x1="150" y1="150" x2="46.08" y2="210"></line>
+                              <line x1="150" y1="150" x2="46.08" y2="90"></line>
+                            </g>
+                            <g class="fill-muted-foreground">
+                              <text x="150" y="18" text-anchor="middle" dy="0.32em">Jan</text>
+                              <text x="264.32" y="84" text-anchor="start" dy="0.32em">Feb</text>
+                              <text x="264.32" y="216" text-anchor="start" dy="0.32em">Mar</text>
+                              <text x="150" y="282" text-anchor="middle" dy="0.32em">Apr</text>
+                              <text x="35.68" y="216" text-anchor="end" dy="0.32em">May</text>
+                              <text x="35.68" y="84" text-anchor="end" dy="0.32em">Jun</text>
+                            </g>
+                            <g fill="var(--color-desktop)" stroke="var(--color-desktop)">
+                              <polygon points="150,94.2 229.24,104.25 211.57,185.55 150,171.9 95.7,181.35 94.4,117.9" fill-opacity="0.6" stroke-width="2"></polygon>
+                              <circle cx="150" cy="94.2" r="8" fill="transparent" stroke="none">
+                                <title>January: Desktop 186</title>
+                              </circle>
+                              <circle cx="229.24" cy="104.25" r="8" fill="transparent" stroke="none">
+                                <title>February: Desktop 305</title>
+                              </circle>
+                              <circle cx="211.57" cy="185.55" r="8" fill="transparent" stroke="none">
+                                <title>March: Desktop 237</title>
+                              </circle>
+                              <circle cx="150" cy="171.9" r="8" fill="transparent" stroke="none">
+                                <title>April: Desktop 73</title>
+                              </circle>
+                              <circle cx="95.7" cy="181.35" r="8" fill="transparent" stroke="none">
+                                <title>May: Desktop 209</title>
+                              </circle>
+                              <circle cx="94.4" cy="117.9" r="8" fill="transparent" stroke="none">
+                                <title>June: Desktop 214</title>
+                              </circle>
+                            </g>
+                            <g fill="var(--color-mobile)" stroke="var(--color-mobile)">
+                              <polygon points="150,126 201.96,120 181.18,168 150,207 116.23,169.5 113.63,129" fill-opacity="0.6" stroke-width="2"></polygon>
+                              <circle cx="150" cy="126" r="8" fill="transparent" stroke="none">
+                                <title>January: Mobile 80</title>
+                              </circle>
+                              <circle cx="201.96" cy="120" r="8" fill="transparent" stroke="none">
+                                <title>February: Mobile 200</title>
+                              </circle>
+                              <circle cx="181.18" cy="168" r="8" fill="transparent" stroke="none">
+                                <title>March: Mobile 120</title>
+                              </circle>
+                              <circle cx="150" cy="207" r="8" fill="transparent" stroke="none">
+                                <title>April: Mobile 190</title>
+                              </circle>
+                              <circle cx="116.23" cy="169.5" r="8" fill="transparent" stroke="none">
+                                <title>May: Mobile 130</title>
+                              </circle>
+                              <circle cx="113.63" cy="129" r="8" fill="transparent" stroke="none">
+                                <title>June: Mobile 140</title>
+                              </circle>
+                            </g>
+                          </svg>
+                          <div data-slot="chart-legend" class="flex flex-wrap items-center justify-center gap-4 pt-3">
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-desktop)"></div>Desktop
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--color-mobile)"></div>Mobile
+                            </div>
+                          </div>
+                          <table class="sr-only">
+                            <caption>Visitors per month</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Desktop</th>
+                                <th scope="col">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">January</th>
+                                <td>186</td>
+                                <td>80</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">February</th>
+                                <td>305</td>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">March</th>
+                                <td>237</td>
+                                <td>120</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">April</th>
+                                <td>73</td>
+                                <td>190</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">May</th>
+                                <td>209</td>
+                                <td>130</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">June</th>
+                                <td>214</td>
+                                <td>140</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-radar-panel-code" aria-labelledby="tab-chart-radar-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Radar Chart - Multiple&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;Showing total visitors for the last 6 months&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartRadar, visitors, shadcn.ChartOptions{
+			Legend:         <span class="hl-constant">true</span>,
+			FormatCategory: month,
+			Label:          <span class="hl-string">&quot;Visitors per month&quot;</span>,
+		}, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;aspect-square&quot;</span>)),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+            <section class="mb-10">
+              <h3 class="mb-3 text-sm font-medium text-muted-foreground">Radial</h3>
+              <div data-slot="tabs" data-tabs="tab-chart-radial" class="flex flex-col gap-2">
+                <div data-slot="tabs-list" role="tablist" class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="true" aria-controls="tab-chart-radial-panel-preview" id="tab-chart-radial-tab-preview" data-tabs-value="preview" onclick="tabsSelect('tab-chart-radial','preview')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Preview</button>
+                  <button data-slot="tabs-trigger" type="button" role="tab" aria-selected="false" aria-controls="tab-chart-radial-panel-code" id="tab-chart-radial-tab-code" data-tabs-value="code" tabindex="-1" onclick="tabsSelect('tab-chart-radial','code')" class="aria-selected:bg-background dark:aria-selected:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:aria-selected:border-input dark:aria-selected:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 aria-selected:shadow-sm [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4">Code</button>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-radial-panel-preview" aria-labelledby="tab-chart-radial-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
+                  <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
+                    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full max-w-sm">
+                      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                        <div data-slot="card-title" class="leading-none font-semibold">Radial Chart</div>
+                        <div data-slot="card-description" class="text-muted-foreground text-sm">January - June 2024</div>
+                      </div>
+                      <div data-slot="card-content" class="px-6">
+                        <div data-slot="chart" style="--color-visitors: var(--chart-1);" data-chart="radial" class="flex flex-col justify-center text-xs aspect-square">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" class="size-full overflow-visible" aria-hidden="true" font-size="12">
+                            <g fill="none" stroke-width="14.91" stroke-linecap="round">
+                              <circle cx="150" cy="150" r="131.35" class="stroke-muted" stroke="currentColor"></circle>
+                              <path d="M150,18.65 A131.35,131.35 0 1 1 149.98,18.65" stroke="var(--chart-1)">
+                                <title>Chrome: 275</title>
+                              </path>
+                            </g>
+                            <g fill="none" stroke-width="14.91" stroke-linecap="round">
+                              <circle cx="150" cy="150" r="110.05" class="stroke-muted" stroke="currentColor"></circle>
+                              <path d="M150,39.95 A110.05,110.05 0 1 1 41.07,165.66" stroke="var(--chart-2)">
+                                <title>Safari: 200</title>
+                              </path>
+                            </g>
+                            <g fill="none" stroke-width="14.91" stroke-linecap="round">
+                              <circle cx="150" cy="150" r="88.75" class="stroke-muted" stroke="currentColor"></circle>
+                              <path d="M150,61.25 A88.75,88.75 0 1 1 69.7,187.79" stroke="var(--chart-3)">
+                                <title>Firefox: 187</title>
+                              </path>
+                            </g>
+                            <g fill="none" stroke-width="14.91" stroke-linecap="round">
+                              <circle cx="150" cy="150" r="67.45" class="stroke-muted" stroke="currentColor"></circle>
+                              <path d="M150,82.55 A67.45,67.45 0 1 1 101.1,196.45" stroke="var(--chart-4)">
+                                <title>Edge: 173</title>
+                              </path>
+                            </g>
+                            <g fill="none" stroke-width="14.91" stroke-linecap="round">
+                              <circle cx="150" cy="150" r="46.15" class="stroke-muted" stroke="currentColor"></circle>
+                              <path d="M150,103.85 A46.15,46.15 0 0 1 190.82,171.54" stroke="var(--chart-5)">
+                                <title>Other: 90</title>
+                              </path>
+                            </g>
+                          </svg>
+                          <div data-slot="chart-legend" class="flex flex-wrap items-center justify-center gap-4 pt-3">
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-1)"></div>Chrome
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-2)"></div>Safari
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-3)"></div>Firefox
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-4)"></div>Edge
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <div class="size-2 shrink-0 rounded-[2px]" style="background-color: var(--chart-5)"></div>Other
+                            </div>
+                          </div>
+                          <table class="sr-only">
+                            <caption>Visitors per browser</caption>
+                            <thead>
+                              <tr>
+                                <td></td>
+                                <th scope="col">Visitors</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <th scope="row">Chrome</th>
+                                <td>275</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Safari</th>
+                                <td>200</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Firefox</th>
+                                <td>187</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Edge</th>
+                                <td>173</td>
+                              </tr>
+                              <tr>
+                                <th scope="row">Other</th>
+                                <td>90</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div data-slot="tabs-content" role="tabpanel" id="tab-chart-radial-panel-code" aria-labelledby="tab-chart-radial-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
+                  <pre class="hl mt-2"><code>shadcn.<span class="hl-function">Card</span>(html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;w-full max-w-sm&quot;</span>),
+	shadcn.<span class="hl-function">CardHeader</span>(
+		shadcn.<span class="hl-function">CardTitle</span>(<span class="hl-string">&quot;Radial Chart&quot;</span>),
+		shadcn.<span class="hl-function">CardDescription</span>(<span class="hl-string">&quot;January - June 2024&quot;</span>),
+	),
+	shadcn.<span class="hl-function">CardContent</span>(
+		shadcn.<span class="hl-function">Chart</span>(shadcn.ChartRadial, browsers, shadcn.ChartOptions{
+			Legend: <span class="hl-constant">true</span>,
+			Label:  <span class="hl-string">&quot;Visitors per browser&quot;</span>,
+		}, html.<span class="hl-function">Class</span>(<span class="hl-string">&quot;aspect-square&quot;</span>)),
+	),
+)</code></pre>
+                </div>
+                <script>if(!window.tabsSelect){window.tabsSelect=function(id,value){var r=document.querySelector('[data-tabs="'+id+'"]');if(!r)return;r.querySelectorAll('[data-slot="tabs-trigger"]').forEach(function(t){var on=t.getAttribute('data-tabs-value')===value;t.setAttribute('aria-selected',on);t.setAttribute('tabindex',on?'0':'-1');});r.querySelectorAll('[data-slot="tabs-content"]').forEach(function(p){if(p.getAttribute('data-tabs-value')===value)p.removeAttribute('hidden');else p.setAttribute('hidden','');});};}</script>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

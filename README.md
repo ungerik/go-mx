@@ -148,6 +148,10 @@ For streaming output or serving over HTTP, render a `Component` into an
   agents, added to a server of the official Go SDK, plus a guard for the HTTP
   endpoint. Its own nested module, so the SDK stays out of core. See
   [mcp/README.md](mcp/README.md).
+- **`stdoptions`** — ISO 4217 currencies, ISO 639-1 languages and ISO 3166-1
+  countries as named option lists for reflected form fields, English and
+  German names generated from Unicode CLDR. See
+  [stdoptions/README.md](stdoptions/README.md).
 - **`doc`** — higher-level abstractions, partially implemented.
 
 ## Streaming
@@ -217,6 +221,14 @@ Stripe Checkout Session, a signed upload URL, an OAuth handoff — use
 `mx.ReflectFormHandlerRedirecting`, whose `onSubmit` returns
 `(redirect string, err error)`; the returned URL wins, and an empty
 string falls back to `cfg.Redirect` then the request path.
+
+An htmx submit can update the page around the form: `onSubmit` adds
+out-of-band fragments with `mx.AddOutOfBand(ctx, comps...)`, each marked
+`hx.SwapOOB` or `hx.SwapOOBTrue` with the id of what it replaces, and they are
+rendered after the form when the request carries `HX-Request: true`. A
+successful submit with fragments and no destination of its own is answered
+with the form re-rendered from a fresh load instead of the redirect, whose
+response could not carry them; a plain browser submit ignores them.
 
 When `onSubmit` fails, the form re-renders with the submitted values. A
 `mx.FieldErrors` puts each message under its field (a path no input shows, such
@@ -292,7 +304,27 @@ must keep it as secret as that value. A decider or handler of your own that
 hides an error reports it through `mx.ReportHiddenError(ctx, err)`, which
 applies the same rules; `mx.FormErrorText(ctx, err)` returns the text a form
 shows for an error no input shows, and `mx.FieldErrorTexts(err)` the
-messages a field shows for one of its errors.
+messages a field shows for one of its errors. For a field's error the hook's
+`mx.FieldPathFromContext(ctx)` returns the field's path, which a "required"
+does not name.
+
+A text, textarea or catch-all field takes `form:"minlength=…,maxlength=…"`,
+which become the input's attributes and are checked on the server too
+(`mx.CheckTextLength`, counted in UTF-16 code units as the browser counts), and
+`form:"autocomplete=…"` and `form:"inputmode=…"`, which tell a browser or
+password manager what to fill in and which keyboard to show.
+
+A file field (`form:"widget=file"`, or any `*multipart.FileHeader` field)
+binds a `string` to the file name, a `[]byte` to its content and a
+`*multipart.FileHeader` to the upload itself, which `onSubmit` opens; its
+temporary file is removed when the handler returns. A `[]string`, `[][]byte`
+or `[]*multipart.FileHeader` field takes several files through a multiple
+input (`mx.MultipleFiles`), and `form:"accept=image/*"` limits the picker. The
+shadcn renderer previews the chosen files and shows the progress of an htmx
+upload. A `database/sql` text such as a `sql.NullString` holding what an input
+cannot show unchanged, a NUL, invalid UTF-8 or (in a one-line input) a line
+break, shows as the input can hold it with a note saying so, and saving the
+shown text unchanged keeps the stored text.
 
 The `date`, `datetime` and `time` widgets render the matching input for a
 `time.Time` and also for a field that holds its value as text: a `string`, a
@@ -329,7 +361,19 @@ after an add-row or remove-row click. SQL-style text such as
 named string type whose `Format` writes the input's layout and whose
 `UnmarshalText` stores its own spelling keeps such a column editable. A date
 struct reads its own text back, so text of its own that the picker cannot show
-renders in a text input that saves unchanged. A `form:"sensitive"` date never
+renders in a text input that saves unchanged.
+
+`form:"widget=datepicker"` is a date field that `shadcn.FieldDecider` renders
+as upstream's DatePicker recipe instead of a date input: a popover trigger
+showing the picked day and a select-mode `shadcn.Calendar` whose hidden input
+submits what a date input submits, so it binds exactly like `widget=date`
+(which is what the html renderer shows for it). A readonly field, or stored
+text the calendar cannot show, stays a date or text input.
+`shadcn.ContextWithDatePickerOptions` hands the picker its `CalendarOptions`
+per field, `MonthURL` among them for the other months, answered by
+`shadcn.DatePickerCalendar`.
+
+A `form:"sensitive"` date never
 shows its value, like a sensitive text input; as with a password field, a
 sensitive input left blank keeps its stored value (a select, which shows its
 stored option, does not), and an optional one has a clear control to empty it,
@@ -360,7 +404,8 @@ server-controlled columns itself. Either way an `onSubmit` that fails must not
 reorder or remove the rows. A repeatable field takes at most
 `mx.DefaultMaxRows` rows (1000), or the `form:"maxrows=N"` of its tag: the
 add-row button is gone at the cap, and a POST with more rows is rejected
-before any row is bound.
+before any row is bound. A readonly repeatable field with no rows shows
+`mx.RepeatableNoRowsText` ("None") instead of an empty box.
 `form:"readonly"` on the repeatable field itself, or on a section, nested or
 embedded struct, makes everything in it readonly, and `form:"-"` on an
 embedded struct omits its fields.
@@ -386,6 +431,11 @@ type InvoiceDraft struct {
     PartnerID uuid.UUID `form:"options=partners,label=Partner,required"`
 }
 ```
+
+Common lists need no code of your own: after `stdoptions.Register()`, a field
+takes `form:"options=iso4217"` (currencies), `"iso639-1"` (languages) or
+`"iso3166-1"` (countries), named in English or German from Unicode CLDR per
+`stdoptions.ContextWithLanguage` (see [`stdoptions`](stdoptions/README.md)).
 
 The per-request option list is a trust boundary for values the browser
 submits: on POST the handler re-resolves the list with the request context
@@ -441,14 +491,9 @@ error routing path.
 
 ## To Do
 
-The `mx` reflection to-do list. Everything else deferred — per package, with
-priorities and context — is in [TODOS.md](TODOS.md).
-
-- [ ] More ReflectInputOptions
-- [x] Slice-of-struct fields (`form:"repeatable"`)
-- [ ] Rich file upload widget (preview, multi-file, progress)
-- [ ] HTMX OOB fragment responses
-- [ ] OptionsProvider registry sub-package (ISO 4217, ISO 639, country codes)
+Deferred work, per package and with priorities and context, is in
+[TODOS.md](TODOS.md); the shadcn/ui port has its own list in
+[shadcn/TODOS.md](shadcn/TODOS.md).
 
 ## License
 

@@ -2,6 +2,7 @@ package mx
 
 import (
 	"encoding"
+	"mime/multipart"
 	"reflect"
 	"sync"
 	"time"
@@ -22,7 +23,8 @@ import (
 //  4. Anonymous embedded struct field, no section/nested tag →
 //     FieldKindInline (the walker visits its visible fields instead)
 //  5. form:"widget=textarea" tag → FieldKindTextarea
-//  6. form:"widget=file" tag → FieldKindFile
+//  6. form:"widget=file" tag, or a *multipart.FileHeader or
+//     []*multipart.FileHeader field → FieldKindFile
 //  7. form:"widget=<other>" tag (text/email/url/tel/date/datetime/
 //     time/password/select/radio/switch/checkbox) → FieldKindString,
 //     FieldKindDateTime, or FieldKindBool depending on the widget name
@@ -137,6 +139,11 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 		}
 	}
 
+	// 6. an upload, which needs no tag
+	if t := field.Type; t == reflect.TypeFor[*multipart.FileHeader]() || t == reflect.TypeFor[[]*multipart.FileHeader]() {
+		return FieldKindFile, tag
+	}
+
 	// 5-7. widget tag override
 	if tag.Widget != "" {
 		switch tag.Widget {
@@ -144,7 +151,7 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 			return FieldKindTextarea, tag
 		case "file":
 			return FieldKindFile, tag
-		case "date", "datetime", "datetime-local", "time":
+		case "date", "datepicker", "datetime", "datetime-local", "time":
 			return FieldKindDateTime, tag
 		case "switch", "checkbox":
 			return FieldKindBool, tag
@@ -191,7 +198,7 @@ func detectField(path FieldPath, field reflect.StructField, value reflect.Value)
 			return FieldKindTextarea, tag
 		case "file":
 			return FieldKindFile, tag
-		case "date", "datetime", "datetime-local", "time":
+		case "date", "datepicker", "datetime", "datetime-local", "time":
 			return FieldKindDateTime, tag
 		case "switch", "checkbox":
 			return FieldKindBool, tag
@@ -285,7 +292,7 @@ func driverValueKind(t reflect.Type) FieldKind {
 		return cached.(FieldKind)
 	}
 	kind := FieldKindCatchAll
-	if _, ok := DriverValueText(reflect.New(t).Elem()); ok {
+	if DriverValueType(t) {
 		scans := func(src any) (ok bool) {
 			defer func() {
 				if recover() != nil {

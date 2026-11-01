@@ -70,10 +70,18 @@ func (c *Config) lineElement(raw string) *mx.Element {
 		// printed with raw escapes (jq -C) still parses as one.
 		raw = stripANSI(raw)
 	}
+	if c.OverwriteCR {
+		// Before the cap, for the reason stripping is: MaxLineLen counts what
+		// is shown, not the redraws a progress bar overwrote.
+		raw = overwriteCR(raw)
+	}
 	raw = c.truncate(raw)
 	if fields, ok := parseRecord(raw, c.maxDepth()); ok {
 		if !c.KeepANSI {
 			stripFieldsANSI(fields)
+		}
+		if c.OverwriteCR {
+			mapFieldStrings(fields, overwriteCR)
 		}
 		return c.recordLine(fields)
 	}
@@ -128,7 +136,91 @@ func (c *Config) recordLine(fields []field) *mx.Element {
 			parts = append(parts, c.pair(f.key, f.val))
 		}
 	}
+	if c.Expandable && len(fields) > 0 {
+		return c.line(level, mx.Components{html.Details(
+			html.Class(c.class(ClassDetails)),
+			html.Summary(parts),
+			c.pretty(fields),
+		)})
+	}
 	return c.line(level, parts)
+}
+
+// prettyIndent is one level of indentation in an expanded record.
+const prettyIndent = "  "
+
+// pretty renders a record expanded for [Config.Expandable]: the indenting
+// variant of the compact rendering, with every field on a line of its own and
+// the same key=value syntax and classes, so a reader who learned one reads the
+// other and the filter matches "status=200" in both. No field is promoted:
+// the summary already shows the timestamp, level and message that way, and
+// the expanded record is the whole of it, keys included.
+//
+// The <pre> holds element children, which an indenting writer would separate
+// with visible whitespace — the reason a multiline value's <pre> keeps to a
+// text-only child. Here it is safe because a line only ever renders through compact,
+// whose writer does not indent.
+func (c *Config) pretty(fields []field) *mx.Element {
+	comps := make(mx.Components, 0, len(fields)*4)
+	for i, f := range fields {
+		if i > 0 {
+			comps = append(comps, mx.Text("\n"))
+		}
+		comps = append(comps, c.prettyPair(f.key, f.val, 0))
+	}
+	return html.Pre(html.Class(c.class(ClassPretty)), comps)
+}
+
+// prettyPair renders "key=value" at the given depth of an expanded record.
+func (c *Config) prettyPair(key string, v value, depth int) mx.Component {
+	return mx.Components{
+		c.span(ClassKey, key),
+		c.span(ClassPunct, "="),
+		c.prettyValue(v, depth),
+	}
+}
+
+// prettyValue renders a value of an expanded record. Scalars render exactly as
+// in the compact form; an object or array opens on the line of its key, puts
+// each member on a line of its own one level deeper, and closes on a line of
+// its own at the depth it opened.
+func (c *Config) prettyValue(v value, depth int) mx.Component {
+	inner := "\n" + strings.Repeat(prettyIndent, depth+1)
+	switch v.kind {
+	case kindObject:
+		if len(v.fields) == 0 {
+			return c.span(ClassPunct, "{}")
+		}
+		comps := make(mx.Components, 0, len(v.fields)*2+3)
+		comps = append(comps, c.span(ClassPunct, "{"))
+		for _, f := range v.fields {
+			comps = append(comps, mx.Text(inner), c.prettyPair(f.key, f.val, depth+1))
+		}
+		return append(comps, mx.Text("\n"+strings.Repeat(prettyIndent, depth)), c.span(ClassPunct, "}"))
+	case kindArray:
+		if len(v.items) == 0 {
+			return c.span(ClassPunct, "[]")
+		}
+		comps := make(mx.Components, 0, len(v.items)*3+3)
+		comps = append(comps, c.span(ClassPunct, "["))
+		for i, item := range v.items {
+			if i > 0 {
+				comps = append(comps, c.span(ClassPunct, ","))
+			}
+			comps = append(comps, mx.Text(inner), c.prettyValue(item, depth+1))
+		}
+		return append(comps, mx.Text("\n"+strings.Repeat(prettyIndent, depth)), c.span(ClassPunct, "]"))
+	case kindString:
+		if strings.ContainsAny(v.text, "\n\r") {
+			// A multiline value cannot be a <pre> of its own inside this one,
+			// so it starts on the next line and each of its lines is indented
+			// one level deeper than its key, which keeps a stack trace's own
+			// indentation intact relative to its first line.
+			text := strings.ReplaceAll(normalizeNewlines(v.text), "\n", inner)
+			return mx.Components{mx.Text(inner), c.span(ClassString, text)}
+		}
+	}
+	return c.renderValue(v)
 }
 
 // textLine renders a line that is not a JSON record.

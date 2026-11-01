@@ -85,13 +85,15 @@ const (
 
 // view configures the renderer. MessageKey is set because the generated records
 // are shaped like log/slog's, where the message field is "msg". SearchParam
-// makes the filter a search the stream handler answers. Height is left
-// at its default because the page below makes the view a flex item filling the
-// window, which overrides it.
+// makes the filter a search the stream handler answers, and Expandable lets a
+// record with nested attributes open into its pretty-printed form. Height is
+// left at its default because the page below makes the view a flex item
+// filling the window, which overrides it.
 var view = &logview.Config{
 	MessageKey:  "msg",
 	MaxLines:    400,
 	SearchParam: "q",
+	Expandable:  true,
 	Theme:       themeWithFatalIcon(),
 }
 

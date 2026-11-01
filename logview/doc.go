@@ -114,8 +114,15 @@
 // in a log, is what the view colors already. [Config.KeepANSI] keeps them as
 // text.
 //
-// # Non-goals
+// A carriage return is a line break by default, so a progress bar that
+// redraws itself with "\r" renders as one line per redraw.
+// [Config.OverwriteCR] reads it the way a terminal does instead, keeping only
+// the text after the last carriage return of each line segment.
 //
-// A carriage return is a line break here, not a terminal overwrite, so a
-// progress-bar line renders as several lines.
+// # Expandable records
+//
+// [Config.Expandable] wraps each JSON record in a <details> whose summary is
+// the line as it renders without it, and which opens to the whole record
+// pretty-printed: one field per line, nested objects and arrays indented,
+// colored with the same classes.
 package logview

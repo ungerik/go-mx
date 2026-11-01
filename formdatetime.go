@@ -66,7 +66,9 @@ func (s DateTimeInputSpec) TextFallback() bool {
 // what the input submits.
 //
 // form:"widget=date" renders type="date", form:"widget=time" type="time",
-// and any other widget type="datetime-local". A [FormWidgetHint] counts
+// and any other widget type="datetime-local". form:"widget=datepicker" is
+// a date input to every renderer that has no date picker of its own, such
+// as the html one; the shadcn renderer shows its Calendar. A [FormWidgetHint] counts
 // as the widget, because [DetectField] puts it into the tag. A time.Time
 // is formatted for that type, and the zero time renders no value. So is a
 // type that wraps time.Time: a type defined as time.Time, or one whose
@@ -147,12 +149,18 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		}
 		v = v.Elem()
 	}
+	// A time-of-day type is zero at midnight, so its zero is 00:00; a type
+	// wrapping a time.Time is zero when unset.
+	zeroIsMidnight := inputType == "time"
+	if _, wraps := innerTime(v); wraps {
+		zeroIsMidnight = false
+	}
 	if ownSpelling {
 		if v.Kind() == reflect.String && !ImplementsTextMarshaler(v.Type()) {
 			if !IsNull(safeInterface(v)) {
 				spec.Value = v.String()
 			}
-		} else if text, ok := marshaledText(v); ok {
+		} else if text, ok := marshaledText(v, zeroIsMidnight); ok {
 			spec.Value = text
 		}
 		return spec
@@ -180,7 +188,7 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 			return spec
 		}
 	}
-	if text, ok := marshaledText(v); ok {
+	if text, ok := marshaledText(v, zeroIsMidnight); ok {
 		// RFC 3339 is the text of an embedded time.Time.
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
 			spec.Value = t.Format(tt.layouts[0])
@@ -498,7 +506,7 @@ func CheckDateTimeRange(tag FormTag, raw string, t time.Time) error {
 // dateTimeInputType maps a date/time widget to its input type.
 func dateTimeInputType(tag FormTag) string {
 	switch tag.Widget {
-	case "date":
+	case "date", "datepicker":
 		return "date"
 	case "time":
 		return "time"
@@ -625,8 +633,10 @@ func formatterOf(v reflect.Value) (dateFormatter, bool) {
 // marshaledText returns the text of a dereferenced value that is neither
 // text nor a time.Time but has a MarshalText method, such as a date struct.
 // A null or zero value has none, and neither has a value whose methods
-// panic, such as a nil embedded pointer.
-func marshaledText(v reflect.Value) (text string, ok bool) {
+// panic, such as a nil embedded pointer. With zeroIsValue a zero value has
+// its text, for a time-of-day type such as civil.Time, which is zero at
+// midnight and cannot tell an unset time from 00:00: only null is no time.
+func marshaledText(v reflect.Value, zeroIsValue bool) (text string, ok bool) {
 	defer func() {
 		if recover() != nil {
 			text, ok = "", false
@@ -636,12 +646,14 @@ func marshaledText(v reflect.Value) (text string, ok bool) {
 	if iface == nil || IsNull(iface) {
 		return "", false
 	}
-	if z, isZeroable := iface.(Zeroable); isZeroable {
-		if z.IsZero() {
+	if !zeroIsValue {
+		if z, isZeroable := iface.(Zeroable); isZeroable {
+			if z.IsZero() {
+				return "", false
+			}
+		} else if v.IsZero() {
 			return "", false
 		}
-	} else if v.IsZero() {
-		return "", false
 	}
 	return callMarshalText(v)
 }
