@@ -104,6 +104,38 @@ func TestFieldLabelAsCard(t *testing.T) {
 	}
 }
 
+func TestFieldLabelCardDrawsFocusRingOnce(t *testing.T) {
+	// The card takes over the focus ring of the control it wraps, and each
+	// native control drops its own there; Cn must keep both sides, since the
+	// variants differ from the controls' own focus-visible: ring. The classes
+	// diverge from upstream's (see fieldLabelClasses), which compile to a
+	// selector that never wins over focus-visible: and hits inline labels.
+	for name, control := range map[string]any{
+		"checkbox": Checkbox(),
+		"radio":    RadioGroupItem("plan", "pro"),
+		"switch":   Switch(),
+	} {
+		out := render(t, FieldLabel(Field("", FieldTitle("Choice"), control)))
+		for _, want := range []string{
+			"has-[>[data-slot=field]]:has-[:focus-visible]:ring-3",
+			"has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:not-has-checked:hover:bg-muted/50",
+			"group-has-[>[data-slot=field]_:focus-visible]/field-label:ring-0",
+			"focus-visible:ring-[3px]",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s: missing %q: %s", name, want, out)
+			}
+		}
+		if strings.Contains(out, "group-has-[:focus-visible]/field-label:") {
+			t.Errorf("%s: upstream's unscoped field-label prefix: %s", name, out)
+		}
+		// Base UI's data-checked attribute does not exist on a native input.
+		if strings.Contains(out, "data-checked") {
+			t.Errorf("%s: leaked Base UI data-checked selector: %s", name, out)
+		}
+	}
+}
+
 func TestFieldContent(t *testing.T) {
 	// FieldContent stacks a label and description as one column inside a Field.
 	out := render(t, FieldContent(FieldTitle("Name"), FieldDescription("Helper")))

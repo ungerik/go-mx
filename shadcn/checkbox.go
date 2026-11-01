@@ -20,7 +20,15 @@ const checkboxCheckURL = "data:image/svg+xml;utf8," +
 // background-image data URL on the appearance-none input — a deliberate
 // divergence, mirroring the Switch thumb / RadioGroup dot. The Radix
 // data-[state=checked]:* selectors all become checked:* on a native input.
-var checkboxClasses = "peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-transparent shadow-xs transition-shadow outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 checked:bg-primary checked:border-primary dark:checked:bg-primary bg-no-repeat bg-center bg-[length:0.75rem_0.75rem] checked:bg-[url(\"" + checkboxCheckURL + "\")]"
+// The trailing group-has-[>[data-slot=field]_:focus-visible]/field-label:
+// classes adapt style-vega.css: inside a [FieldLabel] choice card (a
+// FieldLabel wrapping a [Field]) the card draws the focus ring, so the checkbox
+// drops its own. They deliberately diverge from upstream's
+// group-has-[:focus-visible]/field-label: prefix, which never wins over the
+// checkbox's own focus-visible: classes and also matches an inline label; see
+// fieldLabelClasses in field.go.
+var checkboxClasses = "peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-transparent shadow-xs transition-shadow outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 checked:bg-primary checked:border-primary dark:checked:bg-primary bg-no-repeat bg-center bg-[length:0.75rem_0.75rem] checked:bg-[url(\"" + checkboxCheckURL + "\")]" +
+	" group-has-[>[data-slot=field]_:focus-visible]/field-label:ring-0 group-has-[>[data-slot=field]_:focus-visible]/field-label:not-checked:border-input group-has-[>[data-slot=field]_:focus-visible]/field-label:checked:border-primary"
 
 // Checkbox renders a shadcn/ui checkbox as a styled void <input type="checkbox">.
 // Pass html.Checked to start in the checked state, html.Name/html.Value for

@@ -46,7 +46,7 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 
 ## Open ports
 
-Four components remain unported. Every one has been triaged; none is
+Seven components remain unported. Every one has been triaged; none is
 blocked by another port.
 
 ### NativeSelect
@@ -158,6 +158,89 @@ naturally alongside them (port on demand).
 **Effort:** S (Cx 1–2)
 **Priority:** P4
 **Depends on:** None
+
+### CodeBlock
+
+**What:** Port `CodeBlock` — `CodeBlock(variant default|destructive, size
+default|sm)` / `CodeBlockHeader` / `CodeBlockTitle` / `CodeBlockActions` /
+`CodeBlockCopyButton` / `CodeBlockContent` / `CodeBlockLine` /
+`CodeBlockFooter`.
+
+**Why:** A framed code listing with a title bar and a copy button. The
+`highlight` package already renders the tokens, so a `CodeBlock` would give
+its output a shadcn frame.
+
+**Context:** Triaged 2026-11-01; added upstream 2026-10-14 in the "AI
+elements" batch (shadcn-ui/ui#12307), Base UI registry only. Markup apart
+from `CodeBlockCopyButton`, which writes its `value` to
+`navigator.clipboard` and shows a check icon for two seconds: one small
+shared inline script toggling `data-copied`, the same pattern as the
+other script-backed components. The actions bar fades in on hover and
+focus-within with pure CSS (`group-hover/code-block:opacity-100`). Classes:
+`.cn-code-block*` in `style-vega.css`, reconstructed per the porting guide
+below. Decide whether `CodeBlockContent` takes a `highlight` component
+directly or stays agnostic; `shadcn` must not import `highlight` if
+`highlight` keeps depending only on `mx` and `html` (the reverse import is
+fine).
+
+**Effort:** M (Cx 3)
+**Priority:** P3
+**Depends on:** None
+
+### Trace
+
+**What:** Port `Trace` — a vertical activity trail of tool calls or agent
+steps: `Trace` / `TraceLine` / `TraceIcon` / `TraceTitle` /
+`TraceDescription` / `TraceCollapsible` / `TraceCollapsibleTrigger` /
+`TraceCollapsibleContent`, with a `data-status` (error turns the trigger
+destructive).
+
+**Why:** Pure markup plus a collapsible, so it is cheap, and it fits the
+chat set above: an agent transcript streamed over `mx.SSEResponse` shows
+its steps as a trace.
+
+**Context:** Triaged 2026-11-01; added upstream 2026-10-14 with CodeBlock
+(shadcn-ui/ui#12307). `TraceCollapsible*` wraps upstream's Collapsible, so
+it maps onto our `<details>`-based `Collapsible`; the chevron's
+`group-aria-expanded/…:rotate-90` becomes `group-open:rotate-90` on the
+`<details>`. Classes: `.cn-trace*` in `style-vega.css`. Port on demand,
+alongside the chat set.
+
+**Effort:** S (Cx 2)
+**Priority:** P4
+**Depends on:** None
+
+### Questionnaire
+
+**What:** Port `Questionnaire` — a one-question-at-a-time form with
+choice cards, free-text input, progress, keyboard shortcuts and
+previous/next/skip/submit: `Questionnaire` / `QuestionnaireItem` /
+`QuestionnaireTitle` / `QuestionnaireDescription` / `QuestionnaireChoices` /
+`QuestionnaireChoice` / `QuestionnaireChoiceDescription` /
+`QuestionnaireInput` / `QuestionnaireError` / `QuestionnaireProgress` /
+`QuestionnaireActions` / `QuestionnairePrevious` / `QuestionnaireNext` /
+`QuestionnaireSkip` / `QuestionnaireSubmit`.
+
+**Why:** A survey or onboarding flow is a plausible server-rendered use,
+and the step logic maps naturally onto htmx (each step a request, the
+server validates and returns the next item).
+
+**Context:** Triaged 2026-11-01; added upstream 2026-08-05
+(shadcn-ui/ui#11414). Unlike the other new components it wraps a headless
+primitive, `@shadcn/react/questionnaire`, which owns the step state,
+choice selection, letter/number shortcuts and validation; none of that is
+markup. Two shapes: (a) steps as htmx round-trips (`hx.Post` per step,
+server-side validation through the reflected-form rules), no client
+script beyond shortcuts; (b) all items in one `<form>` with a shared
+inline script showing one at a time. (a) fits the library better. The
+choice cards are native radios/checkboxes and reuse the `FieldLabel` card
+look, which upstream unified with them in shadcn-ui/ui#11436. Decide (a)
+or (b) before building.
+
+**Effort:** L (Cx 5)
+**Priority:** P4
+**Depends on:** None
+**Blocked by:** The step-model decision above.
 
 ---
 
@@ -361,6 +444,52 @@ should land before them.
 
 ---
 
+## Upstream sync
+
+What each port was last compared against. To catch up, diff upstream from
+the recorded ref to its current head and port what changed; then update the
+row.
+
+| Port | Upstream | Last synced | How to diff |
+|------|----------|-------------|-------------|
+| `clsx/` | [lukeed/clsx](https://github.com/lukeed/clsx) | v2.1.1 (`e2dc836`) | `gh api repos/lukeed/clsx/releases` (unchanged since 2024) |
+| `twmerge/` | [dcastil/tailwind-merge](https://github.com/dcastil/tailwind-merge) | tailwind-merge@3.7.0 (`511d68a`) plus the unreleased fix #721 (merged 2026-10-11) | `git diff tailwind-merge@3.7.0 <new> -- packages/tailwind-merge/src/lib packages/tailwind-merge/tests` |
+| `cva/` `New` | [joe-bell/cva](https://github.com/joe-bell/cva) class-variance-authority | v0.7.1 (`45462dd`) | npm `class-variance-authority`; v0.7.1 is still the latest |
+| `cva/` `Config.Composes` | joe-bell/cva `cva` beta | v1.0.0-beta.12 (`1d93698`) | `packages/cva/src/config.ts` and the "cva — composes" tests in `index.test.ts` |
+| components from `new-york-v4` | shadcn-ui/ui `apps/v4/registry/new-york-v4/ui` | frozen; checked at `c0d63c3` (2026-10-31) | `gh api "repos/shadcn-ui/ui/commits?path=apps/v4/registry/new-york-v4/ui&since=<date>"` |
+| components reconstructed from `style-vega.css` (Field, Kbd, Spinner, Empty, Item, ButtonGroup, InputGroup) | shadcn-ui/ui `apps/v4/registry/styles/style-vega.css` + `bases/base/ui` | `c0d63c3` (2026-10-31) | fetch the CSS at the old and new ref and `diff`; check the `.cn-<component>` rules of the ported components |
+
+Policy for a sync:
+
+- A changed `style-vega.css` rule of a component pinned to `new-york-v4`
+  (Checkbox, RadioGroup, Switch, …) is **not** ported: those stay on their
+  frozen class strings. The exception is a rule that only takes effect
+  inside a reconstructed component, like the
+  `group-has-[:focus-visible]/field-label:` classes the 2026-11-01 sync
+  added to Checkbox, RadioGroupItem and Switch so a `FieldLabel` choice
+  card draws its focus ring once.
+- **Known upstream bugs the port fixes.** These classes diverge from
+  `style-vega.css` at `c0d63c3` because upstream's do not work (details on
+  `fieldLabelClasses` in `field.go`). On each sync, check whether upstream
+  fixed them and return to its classes if it did:
+  - the controls' `group-has-[:focus-visible]/field-label:` overrides, which
+    the port writes `group-has-[>[data-slot=field]_:focus-visible]/field-label:`
+    (upstream's never beat `focus-visible:ring-[3px]` and also match an
+    inline `FieldLabel`);
+  - the `FieldLabel` card hover, where the port adds `not-has-checked:`
+    (upstream's hover tint hides a checked card's `has-checked:` tint).
+- The `*-aria` rules belong to upstream's third primitive base, React Aria
+  (shadcn-ui/ui#11208, July 2026). This port uses no primitive library, so
+  they are ignored.
+- **`cn` is not adopted.** Since 2026-09-04 (shadcn-ui/ui#11758) upstream
+  imports `cn` from its own [`cn`](https://github.com/shadcn-ui/cn) package,
+  a new merge engine that replaces clsx + tailwind-merge with the same API.
+  `twmerge/` keeps porting tailwind-merge: it is still released, the Go port
+  transcribes its config line by line, and `cn` is a different
+  implementation at 0.x. `shadcn.Cn` has the same contract either way.
+  Revisit if tailwind-merge stops being maintained or `cn` and
+  tailwind-merge start resolving a class differently.
+
 ## Upstream restructure (July 2026) — findings & porting guide
 
 Verified against the `shadcn-ui/ui` repo and the
@@ -492,7 +621,7 @@ phases satisfy.
 ### Phase 0 — Foundations
 
 - [x] **clsx** — `clsx` npm-package port; `Join` (`clsx/` subpackage)
-- [x] **twmerge** — `tailwind-merge` v3.6.0 port; `Merge` (`twmerge/` subpackage)
+- [x] **twmerge** — `tailwind-merge` v3.7.0 port; `Merge` (`twmerge/` subpackage)
 - [x] **cva** — `class-variance-authority` port (`cva/` subpackage)
 - [x] **Cn** — thin `cn` helper composing clsx + twmerge (`cn.go`)
 - [x] **finish** — shared class/attrib merge (`component.go`)

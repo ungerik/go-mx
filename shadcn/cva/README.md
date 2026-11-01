@@ -46,32 +46,39 @@ buttonVariants(map[string]string{"class": "w-full"})
 // → base + default variant + default size + "w-full"
 ```
 
-## Composing resolvers
+## Composing configs
 
-`cva.Compose` merges several resolvers into one, so a component can build on
+`Config.Composes` builds a config on other configs, so a component can share
 another component's variants instead of restating them:
 
 ```go
-box := cva.New(cva.Config{
+box := cva.Config{
     Variants:        map[string]map[string]string{"shadow": {"sm": "shadow-sm", "md": "shadow-md"}},
     DefaultVariants: map[string]string{"shadow": "sm"},
-})
-stack := cva.New(cva.Config{
+}
+stack := cva.Config{
     Variants: map[string]map[string]string{"gap": {"1": "gap-1", "2": "gap-2"}},
+}
+card := cva.New(cva.Config{
+    Composes: []cva.Config{box, stack},
+    Base:     "rounded-lg border",
 })
-card := cva.Compose(box, stack)
 
 card(map[string]string{"gap": "2", "class": "w-full"})
-// → "shadow-sm gap-2 w-full"
+// → "shadow-sm gap-2 rounded-lg border w-full"
 ```
 
-Every part gets the same props minus the reserved `"class"` key, their
-non-empty results are joined in argument order, and the `"class"` override is
-appended once at the end. A part reads only the variant names its own `Config`
-declares, so props meant for one part are ignored by the others. `Compose` is
-ported from cva v1.0.0-beta (the successor package to
-class-variance-authority, same author and license), since v0.7.1 has no
-`compose`.
+The composed configs resolve first, in order, then the config's own base,
+variants and compound variants, then the `"class"` override, once. Each
+composed config gets the caller's props minus `"class"`, laid over the
+effective defaults: the composed configs' `DefaultVariants`, a later one
+overriding an earlier one, overridden by the config's own. So a composer can
+retune a composed default, and its own variants and compound variants can
+test a composed variant. `Composes` is ported from cva v1.0.0-beta.12 (the
+successor package to class-variance-authority, same author and license),
+since v0.7.1 has nothing like it; it takes `Config` values because, as
+upstream accepts only `cva()` components, a composed config must expose its
+variants and defaults, which a compiled `Variants` function does not.
 
 ## Typed variant props instead of `VariantProps`
 
@@ -121,7 +128,7 @@ cva's TypeScript API maps onto Go types one-to-one:
 | `config.defaultVariants`          | `Config.DefaultVariants`   |
 | `props` object                    | `props` map argument       |
 | `props.class` / `props.className` | the reserved `"class"` key |
-| `compose(...components)` (v1.0.0-beta) | `Compose(...)`     |
+| `config.composes` (v1.0.0-beta.12) | `Config.Composes`  |
 
 The Go types are: `Config.Variants` is `map[string]map[string]string`,
 `CompoundVariants` is `[]Compound`, `DefaultVariants` is `map[string]string`,
@@ -130,8 +137,8 @@ and `Variants` is `func(props map[string]string) string`.
 Resolution order matches cva v0.7.1: **base**, then **one class set per
 variant** (the caller's value, or the default when the prop is omitted or
 empty — mirroring cva's `falsyToString(prop) || falsyToString(default)`), then
-**matching compound variants** (evaluated against defaults overlaid with
-props), then the **`"class"` override**. Boolean variants need no special
+**matching compound variants** (evaluated against defaults overlaid with the
+non-empty props), then the **`"class"` override**. Boolean variants need no special
 handling: pass `"true"`/`"false"` as the prop value and key the config the same
 way (Go has no distinct boolean prop type, so cva's boolean-key coercion
 collapses to plain string keys).
@@ -146,8 +153,19 @@ class-variance-authority v0.7.1's own test suite.
   sorting the variant names. The resolved class *set* is identical to cva's, and
   callers tailwind-merge the result anyway, so the order does not affect the
   final styling.
-- **Not ported:** the `defineConfig` / `onComplete` hooks of cva v1.0.0-beta,
-  since `shadcn.Cn` already post-processes classes at the component boundary,
+- **An empty prop counts as omitted in compound variants too.** cva falls
+  back to the default for an empty variant prop but matches compound
+  variants against defaults overlaid with every defined prop, so there `""`
+  overrides the default. Go callers pass `""` for an unset variant (shadcn's
+  components do), which under cva's rule would make a compound variant on a
+  default value miss exactly when the variant is unset, and would make a
+  config resolve differently once wrapped in `Composes`, which forwards only
+  non-empty props. Here the composed configs, the variants and the compound
+  variants all resolve the same value. A compound variant listing `""` still
+  matches a variant that neither the props nor the defaults set.
+- **Not ported:** the `defineConfig` options of cva v1.0.0-beta.12 (a custom
+  `cx` concatenator, which replaced the earlier hooks), since `shadcn.Cn`
+  already post-processes classes at the component boundary,
   and the `VariantProps` type helper, whose role typed variant parameters fill
   (see [above](#typed-variant-props-instead-of-variantprops)).
 

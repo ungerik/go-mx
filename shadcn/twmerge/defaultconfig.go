@@ -1,6 +1,6 @@
 package twmerge
 
-// getDefaultConfig is a faithful port of tailwind-merge v3.6.0's
+// getDefaultConfig is a faithful port of tailwind-merge v3.7.0's
 // getDefaultConfig (src/lib/default-config.ts), targeting Tailwind CSS v4.
 //
 // The class group ids, theme scales and conflict tables are transcribed
@@ -104,7 +104,7 @@ func getDefaultConfig() *twConfig {
 	}
 	scaleSizingInline := func() classGroup {
 		return append(classGroup{
-			isFraction, "screen", "full", "dvw", "lvw", "svw", "min", "max", "fit",
+			themeContainer, isFraction, "screen", "full", "dvw", "lvw", "svw", "min", "max", "fit",
 		}, scaleUnambiguousSpacing()...)
 	}
 	scaleSizingBlock := func() classGroup {
@@ -199,7 +199,7 @@ func getDefaultConfig() *twConfig {
 		g("container", classGroup{"container"}),
 		grp("container-type", "@container", classGroup{"", "normal", "size", isArbitraryVariable, isArbitraryValue}),
 		g("container-named", classGroup{isNamedContainerQuery}),
-		grp("columns", "columns", classGroup{isNumber, isArbitraryValue, isArbitraryVariable, themeContainer}),
+		grp("columns", "columns", classGroup{isNumber, "auto", isArbitraryValue, isArbitraryVariable, themeContainer}),
 		grp("break-after", "break-after", scaleBreak()),
 		grp("break-before", "break-before", scaleBreak()),
 		grp("break-inside", "break-inside", classGroup{"auto", "avoid", "avoid-page", "avoid-column"}),
@@ -315,7 +315,7 @@ func getDefaultConfig() *twConfig {
 		}, scaleSizing()...)),
 		grp("h", "h", append(classGroup{"screen", "lh"}, scaleSizing()...)),
 		grp("min-h", "min-h", append(classGroup{"screen", "lh", "none"}, scaleSizing()...)),
-		grp("max-h", "max-h", append(classGroup{"screen", "lh"}, scaleSizing()...)),
+		grp("max-h", "max-h", append(classGroup{"screen", "lh", "none"}, scaleSizing()...)),
 
 		// --- Typography ---
 		grp("font-size", "text", classGroup{"base", themeText, isArbitraryVariableLength, isArbitraryLength}),
@@ -337,7 +337,7 @@ func getDefaultConfig() *twConfig {
 		g("fvn-fraction", classGroup{"diagonal-fractions", "stacked-fractions"}),
 		grp("tracking", "tracking", classGroup{themeTracking, isArbitraryVariable, isArbitraryValue}),
 		grp("line-clamp", "line-clamp", classGroup{isNumber, "none", isArbitraryVariable, isArbitraryNumber}),
-		grp("leading", "leading", append(classGroup{themeLeading}, scaleUnambiguousSpacing()...)),
+		grp("leading", "leading", append(classGroup{"none", themeLeading}, scaleUnambiguousSpacing()...)),
 		grp("list-image", "list-image", classGroup{"none", isArbitraryVariable, isArbitraryValue}),
 		grp("list-style-position", "list", classGroup{"inside", "outside"}),
 		grp("list-style-type", "list", classGroup{"disc", "decimal", "none", isArbitraryVariable, isArbitraryValue}),
@@ -379,7 +379,7 @@ func getDefaultConfig() *twConfig {
 					isInteger, isArbitraryVariable, isArbitraryValue,
 				},
 				"radial": classGroup{"", isArbitraryVariable, isArbitraryValue},
-				"conic":  classGroup{isInteger, isArbitraryVariable, isArbitraryValue},
+				"conic":  classGroup{"", isInteger, isArbitraryVariable, isArbitraryValue},
 			},
 			isArbitraryVariableImage, isArbitraryImage,
 		}),
@@ -442,7 +442,7 @@ func getDefaultConfig() *twConfig {
 		grp("outline-color", "outline", scaleColor()),
 
 		// --- Effects ---
-		grp("shadow", "shadow", classGroup{"", "none", themeShadow, isArbitraryVariableShadow, isArbitraryShadow}),
+		grp("shadow", "shadow", classGroup{"", "inner", "none", themeShadow, isArbitraryVariableShadow, isArbitraryShadow}),
 		grp("shadow-color", "shadow", scaleColor()),
 		grp("inset-shadow", "inset-shadow", classGroup{"none", themeInsetShadow, isArbitraryVariableShadow, isArbitraryShadow}),
 		grp("inset-shadow-color", "inset-shadow", scaleColor()),
@@ -654,16 +654,16 @@ func getDefaultConfig() *twConfig {
 			"overflow":         {"overflow-x", "overflow-y"},
 			"overscroll":       {"overscroll-x", "overscroll-y"},
 			"inset":            {"inset-x", "inset-y", "inset-bs", "inset-be", "start", "end", "top", "right", "bottom", "left"},
-			"inset-x":          {"right", "left"},
-			"inset-y":          {"top", "bottom"},
+			"inset-x":          {"start", "end", "right", "left"},
+			"inset-y":          {"inset-bs", "inset-be", "top", "bottom"},
 			"flex":             {"basis", "grow", "shrink"},
 			"gap":              {"gap-x", "gap-y"},
 			"p":                {"px", "py", "ps", "pe", "pbs", "pbe", "pt", "pr", "pb", "pl"},
-			"px":               {"pr", "pl"},
-			"py":               {"pt", "pb"},
+			"px":               {"ps", "pe", "pr", "pl"},
+			"py":               {"pbs", "pbe", "pt", "pb"},
 			"m":                {"mx", "my", "ms", "me", "mbs", "mbe", "mt", "mr", "mb", "ml"},
-			"mx":               {"mr", "ml"},
-			"my":               {"mt", "mb"},
+			"mx":               {"ms", "me", "mr", "ml"},
+			"my":               {"mbs", "mbe", "mt", "mb"},
 			"size":             {"w", "h"},
 			"font-size":        {"leading"},
 			"fvn-normal":       {"fvn-ordinal", "fvn-slashed-zero", "fvn-figure", "fvn-spacing", "fvn-fraction"},
@@ -689,29 +689,29 @@ func getDefaultConfig() *twConfig {
 				"border-w-x", "border-w-y", "border-w-s", "border-w-e", "border-w-bs", "border-w-be",
 				"border-w-t", "border-w-r", "border-w-b", "border-w-l",
 			},
-			"border-w-x": {"border-w-r", "border-w-l"},
-			"border-w-y": {"border-w-t", "border-w-b"},
+			"border-w-x": {"border-w-s", "border-w-e", "border-w-r", "border-w-l"},
+			"border-w-y": {"border-w-bs", "border-w-be", "border-w-t", "border-w-b"},
 			"border-color": {
 				"border-color-x", "border-color-y", "border-color-s", "border-color-e",
 				"border-color-bs", "border-color-be", "border-color-t", "border-color-r",
 				"border-color-b", "border-color-l",
 			},
-			"border-color-x": {"border-color-r", "border-color-l"},
-			"border-color-y": {"border-color-t", "border-color-b"},
+			"border-color-x": {"border-color-s", "border-color-e", "border-color-r", "border-color-l"},
+			"border-color-y": {"border-color-bs", "border-color-be", "border-color-t", "border-color-b"},
 			"translate":      {"translate-x", "translate-y", "translate-none"},
 			"translate-none": {"translate", "translate-x", "translate-y", "translate-z"},
 			"scroll-m": {
 				"scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mbs", "scroll-mbe",
 				"scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml",
 			},
-			"scroll-mx": {"scroll-mr", "scroll-ml"},
-			"scroll-my": {"scroll-mt", "scroll-mb"},
+			"scroll-mx": {"scroll-ms", "scroll-me", "scroll-mr", "scroll-ml"},
+			"scroll-my": {"scroll-mbs", "scroll-mbe", "scroll-mt", "scroll-mb"},
 			"scroll-p": {
 				"scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pbs", "scroll-pbe",
 				"scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl",
 			},
-			"scroll-px": {"scroll-pr", "scroll-pl"},
-			"scroll-py": {"scroll-pt", "scroll-pb"},
+			"scroll-px": {"scroll-ps", "scroll-pe", "scroll-pr", "scroll-pl"},
+			"scroll-py": {"scroll-pbs", "scroll-pbe", "scroll-pt", "scroll-pb"},
 			"touch":     {"touch-x", "touch-y", "touch-pz"},
 			"touch-x":   {"touch"},
 			"touch-y":   {"touch"},

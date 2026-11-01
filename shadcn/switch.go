@@ -15,9 +15,17 @@ import (
 // data-state rewrites: data-[state=checked]:bg-primary → checked:bg-primary;
 // data-[state=unchecked]:bg-input is the unprefixed base; the thumb's
 // data-[state=checked]:translate-x-[calc(100%-2px)] becomes
-// checked:before:translate-x-[calc(100%-2px)].
+// checked:before:translate-x-[calc(100%-2px)]. The
+// group-has-[>[data-slot=field]_:focus-visible]/field-label:
+// classes adapt style-vega.css: inside a [FieldLabel] choice card (a
+// FieldLabel wrapping a [Field]) the card draws the focus ring, so the switch
+// drops its own. They deliberately diverge from upstream's
+// group-has-[:focus-visible]/field-label: prefix, which never wins over the
+// switch's own focus-visible: classes and also matches an inline label; see
+// fieldLabelClasses in field.go.
 const switchClasses = "peer inline-flex h-[1.15rem] w-8 shrink-0 appearance-none items-center rounded-full border border-transparent bg-input shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary dark:bg-input/80" +
-	" before:content-[''] before:pointer-events-none before:block before:size-4 before:rounded-full before:bg-background before:ring-0 before:transition-transform before:translate-x-0 checked:before:translate-x-[calc(100%-2px)] dark:before:bg-foreground dark:checked:before:bg-primary-foreground"
+	" before:content-[''] before:pointer-events-none before:block before:size-4 before:rounded-full before:bg-background before:ring-0 before:transition-transform before:translate-x-0 checked:before:translate-x-[calc(100%-2px)] dark:before:bg-foreground dark:checked:before:bg-primary-foreground" +
+	" group-has-[>[data-slot=field]_:focus-visible]/field-label:ring-0 group-has-[>[data-slot=field]_:focus-visible]/field-label:border-transparent"
 
 // Switch renders a shadcn/ui switch as a styled void
 // <input type="checkbox" role="switch">. The track is the input itself; the

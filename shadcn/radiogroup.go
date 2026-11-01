@@ -35,8 +35,16 @@ func RadioGroup(name string, attribsChildren ...any) *mx.Element {
 // pseudo-element on the appearance-none input — a deliberate divergence,
 // mirroring the Switch thumb. data-[state=checked]:* is rewritten to checked:*
 // throughout; the dot stays in the DOM and scales 0→100 on :checked.
+// The group-has-[>[data-slot=field]_:focus-visible]/field-label:
+// classes adapt style-vega.css: inside a [FieldLabel] choice card (a
+// FieldLabel wrapping a [Field]) the card draws the focus ring, so the radio
+// drops its own. They deliberately diverge from upstream's
+// group-has-[:focus-visible]/field-label: prefix, which never wins over the
+// radio's own focus-visible: classes and also matches an inline label; see
+// fieldLabelClasses in field.go.
 const radioGroupItemClasses = "peer aspect-square size-4 shrink-0 appearance-none rounded-full border border-input bg-transparent shadow-xs text-primary outline-none transition-[color,box-shadow] inline-flex items-center justify-center focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 checked:border-primary" +
-	" before:content-[''] before:block before:size-2 before:rounded-full before:bg-primary before:scale-0 checked:before:scale-100 before:transition-transform"
+	" before:content-[''] before:block before:size-2 before:rounded-full before:bg-primary before:scale-0 checked:before:scale-100 before:transition-transform" +
+	" group-has-[>[data-slot=field]_:focus-visible]/field-label:ring-0 group-has-[>[data-slot=field]_:focus-visible]/field-label:not-checked:border-input group-has-[>[data-slot=field]_:focus-visible]/field-label:checked:border-primary"
 
 // RadioGroupItem renders one option in a [RadioGroup] as a styled void
 // <input type="radio">. Both name and value are typed leading parameters

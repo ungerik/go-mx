@@ -666,7 +666,7 @@ variant table.
 **Effort:** S
 **Priority:** P3
 **Depends on:** None
-**Completed:** 2026-11-01 — `cva.Compose` in `shadcn/cva/compose.go`, ported from cva v1.0.0-beta, with tests and a README section.
+**Completed:** 2026-11-01 — first as `cva.Compose`, then, the same day, as `cva.Config.Composes` in `shadcn/cva/cva.go`, because cva v1.0.0-beta.11 removed `compose()` for the `composes` option; ported from v1.0.0-beta.12 with its tests and a README section.
 
 ### Decide on a Go equivalent for cva's `VariantProps`
 

@@ -2,8 +2,8 @@ package twmerge
 
 import "testing"
 
-// TestMerge is derived verbatim from tailwind-merge v3.6.0's own test suite
-// (tests/*.test.ts). Each entry is one upstream
+// TestMerge is derived verbatim from tailwind-merge v3.7.0's own test suite
+// (packages/tailwind-merge/tests/*.test.ts). Each entry is one upstream
 // `expect(twMerge(...)).toBe(...)` assertion.
 func TestMerge(t *testing.T) {
 	cases := []struct {
@@ -32,6 +32,26 @@ func TestMerge(t *testing.T) {
 		{"touch-pan-x touch-pan-y touch-pinch-zoom touch-auto", "touch-auto"},
 		{"overflow-auto inline line-clamp-1", "line-clamp-1"},
 		{"line-clamp-1 overflow-auto inline", "line-clamp-1 overflow-auto inline"},
+		// Since Tailwind CSS v4 the axis utilities compile to logical shorthand
+		// properties (px → padding-inline), which fully override their
+		// logical-side longhands (ps → padding-inline-start).
+		{"ps-2 px-4", "px-4"},
+		{"pe-2 px-4", "px-4"},
+		{"px-4 ps-2", "px-4 ps-2"},
+		{"pbs-2 py-4", "py-4"},
+		{"ms-2 mx-4", "mx-4"},
+		{"mbe-2 my-4", "my-4"},
+		{"start-2 inset-x-4", "inset-x-4"},
+		{"end-2 inset-x-4", "inset-x-4"},
+		{"inset-bs-2 inset-y-4", "inset-y-4"},
+		{"border-s-2 border-x-4", "border-x-4"},
+		{"border-be-2 border-y-4", "border-y-4"},
+		{"border-s-red-500 border-x-blue-500", "border-x-blue-500"},
+		{"border-bs-red-500 border-y-blue-500", "border-y-blue-500"},
+		{"scroll-ms-2 scroll-mx-4", "scroll-mx-4"},
+		{"scroll-mbs-2 scroll-my-4", "scroll-my-4"},
+		{"scroll-ps-2 scroll-px-4", "scroll-px-4"},
+		{"scroll-pbe-2 scroll-py-4", "scroll-py-4"},
 
 		// --- class-group-conflicts ---
 		{"overflow-x-auto overflow-x-hidden", "overflow-x-hidden"},
@@ -46,6 +66,14 @@ func TestMerge(t *testing.T) {
 		{"normal-nums tabular-nums diagonal-fractions", "tabular-nums diagonal-fractions"},
 		{"tabular-nums diagonal-fractions normal-nums", "normal-nums"},
 		{"tabular-nums proportional-nums", "proportional-nums"},
+		{"columns-12 columns-auto", "columns-auto"},
+		{"columns-auto columns-2xl", "columns-2xl"},
+		{"max-w-lg max-w-none", "max-w-none"},
+		{"max-w-none max-w-lg", "max-w-lg"},
+		{"max-h-96 max-h-none", "max-h-none"},
+		{"max-h-none max-h-96", "max-h-96"},
+		{"max-h-[300px] max-h-none", "max-h-none"},
+		{"max-h-none max-h-screen", "max-h-screen"},
 
 		// --- standalone-classes ---
 		{"inline block", "block"},
@@ -65,6 +93,22 @@ func TestMerge(t *testing.T) {
 		{"bg-grey-5 bg-hotpink", "bg-hotpink"},
 		{"hover:bg-grey-5 hover:bg-hotpink", "hover:bg-hotpink"},
 		{"stroke-[hsl(350_80%_0%)] stroke-[10px]", "stroke-[hsl(350_80%_0%)] stroke-[10px]"},
+		{"text-sm text-[color(display-p3_1_0_0/50%)]", "text-sm text-[color(display-p3_1_0_0/50%)]"},
+		{"text-[color(display-p3_1_0_0/50%)] text-sm", "text-[color(display-p3_1_0_0/50%)] text-sm"},
+		{"text-red-500 text-[color(display-p3_1_0_0/50%)]", "text-[color(display-p3_1_0_0/50%)]"},
+		{"text-[color(display-p3_1_0_0/50%)] text-red-500", "text-red-500"},
+		{"border-2 border-[color(display-p3_1_0_0/50%)]", "border-2 border-[color(display-p3_1_0_0/50%)]"},
+		{"border-[color(display-p3_1_0_0/50%)] border-2", "border-[color(display-p3_1_0_0/50%)] border-2"},
+		{"stroke-2 stroke-[color(display-p3_1_0_0/50%)]", "stroke-2 stroke-[color(display-p3_1_0_0/50%)]"},
+		{"stroke-[color(display-p3_1_0_0/50%)] stroke-2", "stroke-[color(display-p3_1_0_0/50%)] stroke-2"},
+		{"text-sm text-[light-dark(white,rgb(0_0_0/50%))]", "text-sm text-[light-dark(white,rgb(0_0_0/50%))]"},
+		{"text-[light-dark(white,rgb(0_0_0/50%))] text-sm", "text-[light-dark(white,rgb(0_0_0/50%))] text-sm"},
+		{"text-red-500 text-[light-dark(white,rgb(0_0_0/50%))]", "text-[light-dark(white,rgb(0_0_0/50%))]"},
+		{"text-[light-dark(white,rgb(0_0_0/50%))] text-red-500", "text-red-500"},
+		{"border-2 border-[light-dark(white,rgb(0_0_0/50%))]", "border-2 border-[light-dark(white,rgb(0_0_0/50%))]"},
+		{"border-[light-dark(white,rgb(0_0_0/50%))] border-2", "border-[light-dark(white,rgb(0_0_0/50%))] border-2"},
+		{"stroke-2 stroke-[light-dark(white,rgb(0_0_0/50%))]", "stroke-2 stroke-[light-dark(white,rgb(0_0_0/50%))]"},
+		{"stroke-[light-dark(white,rgb(0_0_0/50%))] stroke-2", "stroke-[light-dark(white,rgb(0_0_0/50%))] stroke-2"},
 
 		// --- content-utilities ---
 		{"content-['hello'] content-[attr(data-content)]", "content-[attr(data-content)]"},
@@ -89,6 +133,14 @@ func TestMerge(t *testing.T) {
 		{"!right-2 !-inset-x-px", "!-inset-x-px"},
 		{"focus:!inline focus:!block", "focus:!block"},
 		{"![--my-var:20px] ![--my-var:30px]", "![--my-var:30px]"},
+		// Unreleased upstream fix #721: a leading `!` must not shift the
+		// postfix modifier position.
+		{"!text-lg/7 !text-sm", "!text-sm"},
+		{"!text-lg/7 !text-lg/9", "!text-lg/9"},
+		{"!text-lg/7 !text-sm/6", "!text-sm/6"},
+		{"!p-4/7 !p-2/9", "!p-2/9"},
+		{"!text-lg/[0/1] !text-sm", "!text-sm"},
+		{"!text-lg/7 font-medium!", "!text-lg/7 font-medium!"},
 
 		// --- arbitrary-values ---
 		{"m-[2px] m-[10px]", "m-[10px]"},
@@ -229,6 +281,21 @@ func TestMerge(t *testing.T) {
 		{"zoom-50 scale-125", "zoom-50 scale-125"},
 		{"tab-2 tab-8", "tab-8"},
 		{"tab-4 tabular-nums", "tab-4 tabular-nums"},
+		{"bg-conic bg-conic-10", "bg-conic-10"},
+		{"bg-conic-10 bg-conic", "bg-conic"},
+		{"bg-radial bg-conic/decreasing", "bg-conic/decreasing"},
+		{"bg-red-500 bg-conic", "bg-red-500 bg-conic"},
+		// shadow-inner is deprecated in v4 but still sets --tw-shadow, so it
+		// conflicts with other shadow utilities and not with shadow colors.
+		{"shadow-inner shadow-lg", "shadow-lg"},
+		{"shadow-lg shadow-inner", "shadow-inner"},
+		{"shadow-initial shadow-inner", "shadow-initial shadow-inner"},
+		{"inline-2xl inline-3xl", "inline-3xl"},
+		{"min-inline-xs min-inline-1/2", "min-inline-1/2"},
+		{"max-inline-svw max-inline-xl", "max-inline-xl"},
+
+		// --- theme (default theme only: the port has no extendTailwindMerge) ---
+		{"leading-4 leading-none", "leading-none"},
 	}
 
 	for _, c := range cases {
