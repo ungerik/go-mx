@@ -256,3 +256,12 @@ func TestCollectOptions_NilPointerFieldDoesNotPanic(t *testing.T) {
 		t.Errorf("nil pointer field must probe a zero element instead: %v", opts)
 	}
 }
+
+func TestNamedOption_Label(t *testing.T) {
+	if got := (NamedOption{Name: "Red", Value: "red"}).Label(); got != "Red" {
+		t.Errorf("Label = %q, want the name", got)
+	}
+	if got := (NamedOption{Value: "red"}).Label(); got != "red" {
+		t.Errorf("Label = %q, want the value of an option without a name", got)
+	}
+}

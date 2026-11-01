@@ -347,6 +347,94 @@ func TestSiteRegisterRoutes(t *testing.T) {
 	require.Contains(t, sitemapResponse.Body.String(), "<loc>https://example.com/blog/hello</loc>")
 }
 
+// LLMsTxtOptions and MarkdownAlternates make RegisterRoutes serve llms.txt
+// and the Markdown alternates it links, below the path of the BaseURL, next
+// to a catch-all route of the site's own pages. Unset, neither is served.
+func TestSiteRegisterRoutesLLMsTxtAndMarkdownAlternates(t *testing.T) {
+	markdown := func(path, title string) *web.Page {
+		return &web.Page{Path: path, Title: title, Published: published, ContentType: mx.ContentTypeMarkdown, Content: "Text of " + title + ".\n"}
+	}
+	draft := markdown("/draft", "Draft")
+	draft.Published = time.Time{}
+	soon := markdown("/soon", "Soon")
+	soon.Published = scheduled
+	source := testPages{
+		markdown("/", "Home"),
+		markdown("/faq", "FAQ"),
+		markdown("/a{b}", "Braces"),
+		draft,
+		soon,
+		{Path: "/about", Title: "About", Published: published, ContentType: mx.ContentTypeHTML, Content: "<p>About</p>"},
+	}
+	newMux := func(t *testing.T, site *web.Site) *http.ServeMux {
+		t.Helper()
+		mux := http.NewServeMux()
+		// The site's own pages, which the exact routes of the alternates
+		// neither conflict with nor take requests from.
+		mux.HandleFunc("GET /", func(response http.ResponseWriter, request *http.Request) {
+			response.Write([]byte("page " + request.URL.Path))
+		})
+		require.NoError(t, site.RegisterRoutes(mux))
+		return mux
+	}
+	get := func(mux *http.ServeMux, path string, header ...string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		for i := 0; i+1 < len(header); i += 2 {
+			request.Header.Set(header[i], header[i+1])
+		}
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+
+	site := &web.Site{BaseURL: "https://example.com/docs", Title: "Docs", Lang: "en", Sources: []web.PageSource{source}}
+	mux := newMux(t, site)
+	require.Equal(t, "page /docs/llms.txt", get(mux, "/docs/llms.txt").Body.String(), "llms.txt is opt-in")
+	require.Equal(t, "page /docs/faq.md", get(mux, "/docs/faq.md").Body.String(), "the alternates are opt-in")
+
+	site.LLMsTxtOptions = &web.LLMsTxtOptions{Summary: "The documentation."}
+	site.MarkdownAlternates = true
+	mux = newMux(t, site)
+
+	llms := get(mux, "/docs/llms.txt")
+	require.Equal(t, http.StatusOK, llms.Code)
+	require.Equal(t, mx.ContentTypeMarkdown, llms.Header().Get("Content-Type"))
+	require.Contains(t, llms.Body.String(), "> The documentation.\n")
+	require.Contains(t, llms.Body.String(), "- [FAQ](https://example.com/docs/faq.md)\n")
+
+	faq := get(mux, "/docs/faq.md")
+	require.Equal(t, http.StatusOK, faq.Code)
+	require.Equal(t, mx.ContentTypeMarkdown, faq.Header().Get("Content-Type"))
+	require.Contains(t, faq.Body.String(), "# FAQ\n")
+	require.Contains(t, faq.Body.String(), "Text of FAQ.\n")
+	etag := faq.Header().Get("ETag")
+	require.NotEmpty(t, etag)
+	require.Equal(t, http.StatusNotModified, get(mux, "/docs/faq.md", "If-None-Match", etag).Code)
+
+	require.Equal(t, http.StatusOK, get(mux, "/docs/index.md").Code)
+	// A "{" in a page path is a character of the pattern, no wildcard.
+	require.Contains(t, get(mux, "/docs/a%7Bb%7D.md").Body.String(), "# Braces\n")
+	// A page that is not public has its route, but no alternate to serve,
+	// and an HTML page no route.
+	require.Equal(t, http.StatusNotFound, get(mux, "/docs/draft.md").Code)
+	require.Equal(t, http.StatusNotFound, get(mux, "/docs/soon.md").Code)
+	require.Equal(t, "page /docs/about.md", get(mux, "/docs/about.md").Body.String())
+	require.Equal(t, "page /docs/faq", get(mux, "/docs/faq").Body.String())
+
+	// Whether a page is public is decided for every request, so a draft
+	// published after the routes were registered is served.
+	draft.Published = published
+	require.Equal(t, http.StatusOK, get(mux, "/docs/draft.md").Code)
+
+	// The routes of the alternates need the pages, so a failing source
+	// fails the registration.
+	site = &web.Site{BaseURL: "https://example.com", Sources: []web.PageSource{errorPages{}}, MarkdownAlternates: true}
+	require.ErrorContains(t, site.RegisterRoutes(http.NewServeMux()), "source unavailable")
+
+	site = &web.Site{BaseURL: "https://example.com", SitemapPath: web.LLMsTxtPath, LLMsTxtOptions: &web.LLMsTxtOptions{}}
+	require.ErrorContains(t, site.Validate(), "llms.txt")
+}
+
 func TestSiteRegisterRoutesInvalid(t *testing.T) {
 	// Without a valid BaseURL the site cannot build a single absolute URL, so
 	// registering its routes fails instead of serving a robots.txt and

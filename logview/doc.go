@@ -9,7 +9,8 @@
 // reads as one log.
 //
 // [Config.View] is the surface those lines stream into: a filter over the lines
-// already received, a pause button that holds the view without dropping
+// already received (or, with [Config.SearchParam], a search the handler
+// answers), a pause button that holds the view without dropping
 // anything, a scroll area that follows the stream, and a sink for an in-band
 // stream error. Scrolling up pauses as well — reading something on screen and
 // holding the stream still are the same intent — and scrolling back to the
@@ -87,11 +88,34 @@
 // The one thing the package does not style is the scroll area, which is
 // [shadcn.ScrollArea] and needs Tailwind like the rest of that package.
 //
+// # Searching
+//
+// By default the filter hides the lines in the view that do not match, which
+// leaves out the lines [Config.MaxLines] already dropped and the backlog behind
+// the stream. Setting [Config.SearchParam] makes it a search of the whole log:
+// a change of filter reconnects the stream with the filter as that query
+// parameter, and the handler answers with the matching lines of its backlog,
+// then the matching live ones, testing each with [Config.Matches]:
+//
+//	query := r.URL.Query().Get(cfg.SearchParam)
+//	for line := range tail(r.Context(), mx.LastEventID(r)) {
+//		if !cfg.Matches(line.Text, query) {
+//			continue
+//		}
+//		// send it as above
+//	}
+//
+// # Terminal output
+//
+// ANSI escape sequences — SGR colors and the other CSI, OSC and short ESC
+// sequences — are removed before a line is parsed, so a colorizing logger or
+// raw terminal output reads as text rather than as "[31m" garbage. The colors
+// themselves are not mapped to the theme: severity, the one thing they encode
+// in a log, is what the view colors already. [Config.KeepANSI] keeps them as
+// text.
+//
 // # Non-goals
 //
-// ANSI escape sequences are not interpreted; a stream carrying them shows them
-// as text. The filter searches the lines in the DOM, not the backlog behind the
-// stream — a search over everything belongs in the handler, as a parameter of
-// the stream URL. A carriage return is a line break here, not a terminal
-// overwrite, so a progress-bar line renders as several lines.
+// A carriage return is a line break here, not a terminal overwrite, so a
+// progress-bar line renders as several lines.
 package logview

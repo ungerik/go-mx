@@ -363,7 +363,7 @@ func (s *Site) LLMsTxt(ctx context.Context, opts LLMsTxtOptions) (*LLMsTxt, erro
 		if !page.Indexable() {
 			continue
 		}
-		if _, ok := page.MarkdownSource(); !ok {
+		if !page.HasMarkdownSource() {
 			continue
 		}
 		alternateURL, err := s.MarkdownAlternateURL(page)

@@ -25,7 +25,7 @@ you created:
 | Tool                                      | Returns |
 |-------------------------------------------|---------|
 | `search_pages(query, language?, limit?)`  | Pages containing every word of the query in their title, description or Markdown source, best match first, each with a snippet. 10 results unless asked for another number, at most 25. A query is at most 16 distinct words and 256 bytes, since each word is searched in the text of every page. |
-| `list_pages(language?)`                   | Every page, without snippets. |
+| `list_pages(language?, limit?, cursor?)`  | The pages in the order of the source, without snippets: 50 unless asked for another number, at most 200. If there are more, `next_cursor` is set; passing it as `cursor` lists the next ones. The cursor is a position in the list, so a page added or removed between two calls moves the ones after it by one. |
 | `get_page(path)`                          | The [Markdown alternate](../web/markdown.go) of one page as text, with its metadata as structured content. `path` is the page path or any URL the other tools return. Truncated at `MaxResponseBytes` (64 KiB by default) with a note pointing at the full page. |
 
 Each result carries the title, description, canonical URL, Markdown URL,
@@ -46,8 +46,9 @@ Markdown source is published as it is, HTML comments included, which your HTML
 renderer may drop from the page.
 
 **The `.md` URLs have to exist.** `markdown_url` and the note on a truncated
-page point at `Site.MarkdownAlternateURL`, so serve the alternates there with
-`Site.ServeMarkdown`.
+page point at `Site.MarkdownAlternateURL`, so serve the alternates there:
+`Site.MarkdownAlternates` has `Site.RegisterRoutes` do it, or serve them
+yourself with `Site.ServeMarkdown`.
 
 **Nothing is exposed without a source.** There is no default: passing a source
 is the explicit act of publishing it, and a nil source registers nothing and
@@ -79,7 +80,9 @@ goroutines of its own, outside `net/http`'s per-request recover, so the page
 tools recover their panics themselves; tools of your own on the same server
 need the same.
 A page whose URLs cannot be built is left out of the results and reported
-there, rather than taking every other page offline with it.
+there, rather than taking every other page offline with it. It is reported by
+every call that searches or lists it; `get_page` compares the other pages by
+their path and builds the URLs of the page asked for only.
 
 ## Your own tools on the same server
 

@@ -753,6 +753,160 @@ func TestRepeatable_RowCellsStartFromOrigin(t *testing.T) {
 	}
 }
 
+type keyedLine struct {
+	ID         int `form:"key"`
+	Desc       string
+	ApprovedBy string `form:"readonly"`
+}
+
+type keyedSheet struct {
+	Lines []keyedLine `form:"repeatable"`
+}
+
+// A row type with a form:"key" cell is matched by key, not by its __row__
+// marker: a submitted row starts from the loaded row with its key, so a
+// tampered POST cannot save one row's readonly cells under another row's
+// key, a key naming no loaded row, or one already claimed, makes a new row
+// with a zero key, and a key cell is never written from the POST.
+func TestRepeatable_KeyedRowsMatchByKey(t *testing.T) {
+	var saved *keyedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*keyedSheet, error) {
+			return &keyedSheet{Lines: []keyedLine{{1, "a", "alice"}, {2, "b", "bob"}}}, nil
+		},
+		func(_ context.Context, s *keyedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	// Row 0 names loaded row 0 by its marker but row 1 by its key.
+	addRow(form, "Lines", 0, map[string]string{"ID": "2", "Desc": "x", "ApprovedBy": "mallory"})
+	addRow(form, "Lines", 1, map[string]string{"ID": "99", "Desc": "y"})
+	addRow(form, "Lines", 2, map[string]string{"ID": "2", "Desc": "z"})
+	addRow(form, "Lines", 3, map[string]string{"ID": "1", "Desc": "w"})
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	want := []keyedLine{{2, "x", "bob"}, {0, "y", ""}, {0, "z", ""}, {1, "w", "alice"}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+// The key follows the record: when the stored rows changed order between
+// the GET and the POST, each row still starts from its own record, through
+// an add-row click, and the added row's zero key claims no loaded row.
+func TestRepeatable_KeyedRowsSurviveReorder(t *testing.T) {
+	stored := []keyedLine{{1, "a", "alice"}, {2, "b", "bob"}}
+	var saved *keyedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*keyedSheet, error) {
+			return &keyedSheet{Lines: slices.Clone(stored)}, nil
+		},
+		func(_ context.Context, s *keyedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	shown := renderedValues(get.Body.String())
+	if shown.Get("Lines-1-ID") != "2" {
+		t.Fatalf("GET must render the key of row 1: %s", get.Body.String())
+	}
+	slices.Reverse(stored)
+
+	shown.Set("__cmd__", AddRowCommand("Lines"))
+	added := renderedValues(postForm(t, h, shown).Body.String())
+	added.Del("__cmd__")
+	added.Set("Lines-2-Desc", "c")
+	if rec := postForm(t, h, added); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Save: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	want := []keyedLine{{1, "a", "alice"}, {2, "b", "bob"}, {0, "c", ""}}
+	if saved == nil || !reflect.DeepEqual(saved.Lines, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type keyedRecord struct {
+	ID   int `form:"key"`
+	Name string
+}
+
+// A top-level key renders as a hidden input and keeps the loaded value,
+// whatever the POST sends for it.
+func TestReflectForm_TopLevelKeyIsNotParsed(t *testing.T) {
+	var saved *keyedRecord
+	h := ReflectFormHandler(
+		func(context.Context) (*keyedRecord, error) { return &keyedRecord{ID: 7, Name: "a"}, nil },
+		func(_ context.Context, r *keyedRecord) error { saved = r; return nil },
+		newTestDecider(),
+	)
+	form := url.Values{}
+	for name, val := range map[string]string{"ID": "8", "Name": "b"} {
+		form.Set(PresentSentinelName(FieldPath(name)), "1")
+		form.Set(name, val)
+	}
+	if rec := postForm(t, h, form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if want := (keyedRecord{ID: 7, Name: "b"}); saved == nil || *saved != want {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+}
+
+type cappedSheet struct {
+	Lines []lineItem `form:"repeatable,maxrows=2"`
+}
+
+// form:"maxrows=N" caps a repeatable field: the add-row button is gone at
+// the cap, a forged add-row click past it adds nothing, and a POST with
+// more rows is rejected before any row is bound. DefaultMaxRows caps a
+// field without the tag.
+func TestRepeatable_MaxRows(t *testing.T) {
+	var saved *cappedSheet
+	h := ReflectFormHandler(
+		func(context.Context) (*cappedSheet, error) {
+			return &cappedSheet{Lines: []lineItem{{Desc: "a"}, {Desc: "b"}}}, nil
+		},
+		func(_ context.Context, s *cappedSheet) error { saved = s; return nil },
+		newTestDecider(),
+	)
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/", nil))
+	if body := get.Body.String(); strings.Contains(body, AddRowCommand("Lines")) {
+		t.Errorf("the add-row button must be hidden at the cap: %s", body)
+	}
+
+	form := url.Values{}
+	for i := range 3 {
+		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
+	}
+	rec := postForm(t, h, form)
+	if body := rec.Body.String(); rec.Code != http.StatusOK || saved != nil || !strings.Contains(body, `data-error="Lines">at most 2 rows<`) {
+		t.Errorf("3 rows: status %d, saved %+v, body %s", rec.Code, saved, body)
+	}
+
+	form = url.Values{}
+	for i := range 2 {
+		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
+	}
+	form.Set(sentinelCommand, AddRowCommand("Lines"))
+	if rows := renderedValues(postForm(t, h, form).Body.String()); rows.Has(RowSentinelName("Lines-2")) {
+		t.Error("a forged add-row click past the cap must add nothing")
+	}
+
+	prev := DefaultMaxRows
+	t.Cleanup(func() { DefaultMaxRows = prev })
+	DefaultMaxRows = 1
+	form = url.Values{}
+	for i := range 2 {
+		addRow(form, "Lines", i, map[string]string{"Desc": strconv.Itoa(i)})
+	}
+	uncapped := ReflectFormHandler(nil, func(context.Context, *invoice) error { return nil }, newTestDecider())
+	if body := postForm(t, uncapped, form).Body.String(); !strings.Contains(body, `data-error="Lines">at most 1 row<`) {
+		t.Errorf("DefaultMaxRows must cap a field without the tag: %s", body)
+	}
+}
+
 type lockedSheet struct {
 	Lines []approvalLine `form:"repeatable,readonly"`
 }
@@ -864,4 +1018,24 @@ func postForm(t *testing.T, h http.Handler, form url.Values) *httptest.ResponseR
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
+}
+
+// An error of the repeatable field itself that joins several messages shows
+// each in a paragraph of its own inside the box.
+func TestRepeatable_FieldErrorWithSeveralMessages(t *testing.T) {
+	h := ReflectFormHandler(
+		func(context.Context) (*invoice, error) { return &invoice{}, nil },
+		func(context.Context, *invoice) error {
+			return FieldErrors{"Lines": errors.Join(FormMessage("Add at least one line."), FormMessage("Add a total line."))}
+		},
+		newTestDecider(),
+	)
+	form := url.Values{}
+	form.Set(PresentSentinelName("Lines"), "1")
+	body := postForm(t, h, form).Body.String()
+	for _, text := range []string{"Add at least one line.", "Add a total line."} {
+		if !strings.Contains(body, `data-error="Lines">`+text+`</p>`) {
+			t.Errorf("missing %q in %s", text, body)
+		}
+	}
 }

@@ -15,6 +15,8 @@ package web
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"iter"
@@ -102,6 +104,32 @@ type Site struct {
 	// Routes are the site's own routes, registered on the mux passed to
 	// [Site.RegisterRoutes] together with the robots.txt and sitemap routes.
 	Routes []mx.Route
+
+	// LLMsTxtOptions, if set, has [Site.RegisterRoutes] serve the llms.txt
+	// that [Site.LLMsTxt] builds with these options (see
+	// [Site.HandleLLMsTxt]) at [LLMsTxtPath] below the BaseURL. Nil serves
+	// none: pointing agents at the site's pages is a publishing decision of
+	// its own, not a side effect of having a sitemap.
+	LLMsTxtOptions *LLMsTxtOptions
+
+	// MarkdownAlternates, if set, has [Site.RegisterRoutes] serve the
+	// Markdown alternate of every public page with a Markdown source at its
+	// [MarkdownPath], the URL [Site.MarkdownAlternateURL], llms.txt and the
+	// MCP page tools link. The alternate is served by
+	// [Site.ServeMarkdownDocument] with a hash of the document as its ETag.
+	// A site that serves the alternates itself, under the page URL by
+	// [AcceptsMarkdown], with its own revision as ETag or with Sections of
+	// its own, leaves it unset.
+	//
+	// Every page with a text/markdown ContentType when the Sources are read
+	// without content gets a route of its own when RegisterRoutes is called,
+	// because http.ServeMux cannot match a path by its suffix and a catch-all
+	// pattern would conflict with the routes serving the pages, or take
+	// their requests. Whether the page is public and what it says is decided
+	// for every request, so a page published or changed later is served as
+	// it is then, but the alternate of a page added to the Sources later has
+	// no route until the routes are registered on a new mux.
+	MarkdownAlternates bool
 }
 
 // Validate returns an error if BaseURL is not an absolute http or https URL
@@ -134,6 +162,9 @@ func (s *Site) Validate() error {
 	}
 	if route == RobotsTxtPath {
 		return fmt.Errorf("Site.SitemapPath %q collides with the robots.txt path", s.SitemapPath)
+	}
+	if s.LLMsTxtOptions != nil && s.SitemapPathOrDefault() == LLMsTxtPath {
+		return fmt.Errorf("Site.SitemapPath %q collides with the llms.txt path", s.SitemapPath)
 	}
 	if s.Robots != nil {
 		return s.Robots.Validate()
@@ -186,14 +217,21 @@ func (s *Site) SitemapRoutePath() (string, error) {
 	if err := validateSitePath(sitemapPath); err != nil {
 		return "", fmt.Errorf("Site.SitemapPath: %w", err)
 	}
+	return routePath(base, sitemapPath), nil
+}
+
+// routePath returns the path below the root of the host that the site at
+// base serves sitePath from, escaped as http.ServeMux patterns are, so a
+// "{" of the path is no wildcard.
+func routePath(base *url.URL, sitePath string) string {
 	// JoinPath returns a relative path when the base URL has none of its own
 	// (EscapedPath is "sitemap.xml", not "/sitemap.xml"), while a ServeMux
 	// pattern has to be rooted.
-	route := base.JoinPath(sitemapPath).EscapedPath()
+	route := base.JoinPath(sitePath).EscapedPath()
 	if !strings.HasPrefix(route, "/") {
 		route = "/" + route
 	}
-	return route, nil
+	return route
 }
 
 // URL returns the absolute URL of an absolute path within the site, joining it
@@ -471,12 +509,17 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 
 // RegisterRoutes registers the site's robots.txt and sitemap handlers together
 // with the site's Routes on mux, returning the error from [Site.Validate] if
-// the site is not configured completely enough to build absolute URLs.
+// the site is not configured completely enough to build absolute URLs. With
+// LLMsTxtOptions set it registers [Site.HandleLLMsTxt] too, and with
+// MarkdownAlternates the Markdown alternates of the pages, for which it reads
+// the Sources once without content and returns their error.
 //
 // The handlers are registered at their path below the root of the host, so mux
 // has to be the one serving that root. That is not a limitation of this
 // package but of robots.txt: crawlers only ever read it from "/robots.txt", so
 // a site below a path prefix still has to serve it from the root of the host.
+// The sitemap, llms.txt and the alternates are served below the path of the
+// BaseURL, where their URLs point.
 func (s *Site) RegisterRoutes(mux *http.ServeMux) (err error) {
 	// http.ServeMux reports a malformed pattern or a pattern that conflicts
 	// with one already registered by panicking. Validate catches what it can
@@ -497,10 +540,147 @@ func (s *Site) RegisterRoutes(mux *http.ServeMux) (err error) {
 	}
 	mux.HandleFunc("GET "+RobotsTxtPath, s.HandleRobotsTxt)
 	mux.HandleFunc("GET "+sitemapRoute, s.HandleSitemapXML)
+	base, err := s.baseURL()
+	if err != nil {
+		return err
+	}
+	if s.LLMsTxtOptions != nil {
+		mux.HandleFunc("GET "+routePath(base, LLMsTxtPath), s.HandleLLMsTxt)
+	}
+	if s.MarkdownAlternates {
+		if err := s.registerMarkdownAlternates(mux, base); err != nil {
+			return err
+		}
+	}
 	for _, route := range s.Routes {
 		route.Register(mux)
 	}
 	return nil
+}
+
+// registerMarkdownAlternates registers a route at the [MarkdownPath] of every
+// page of the Sources with a text/markdown ContentType (see
+// Site.MarkdownAlternates). The pattern is the exact path, which is more
+// specific than any wildcard of the site's other routes and conflicts only
+// with a route for the same path, which ServeMux reports. A page whose path
+// has no Markdown path has no alternate to route.
+func (s *Site) registerMarkdownAlternates(mux *http.ServeMux, base *url.URL) error {
+	registered := make(map[string]bool)
+	for page, err := range s.Pages(context.Background(), false) {
+		if err != nil {
+			return err
+		}
+		if page.Path == "" || !isMarkdown(page.ContentType) {
+			continue
+		}
+		markdownPath, err := MarkdownPath(page.Path)
+		if err != nil {
+			continue
+		}
+		// Two sources may yield one path, and ServeMux panics on a second
+		// registration; the handler finds the first public one of them.
+		route := routePath(base, markdownPath)
+		if registered[route] {
+			continue
+		}
+		registered[route] = true
+		pagePath := page.Path
+		mux.HandleFunc("GET "+route, func(response http.ResponseWriter, request *http.Request) {
+			s.serveMarkdownAlternate(response, request, pagePath)
+		})
+	}
+	return nil
+}
+
+// serveMarkdownAlternate serves the Markdown alternate of the first public
+// page of the Sources at pagePath with a Markdown source, or a 404 if there
+// is none, like for a page that does not exist. Only the content of that page
+// is read where its source can find it by path (see [markdownAlternatePage]),
+// not every page before it. The ETag is a hash of the
+// document, which covers everything the alternate says, while a
+// Last-Modified from the page's dates would miss a changed translation and
+// let a client revalidating by date keep the old document.
+func (s *Site) serveMarkdownAlternate(response http.ResponseWriter, request *http.Request, pagePath string) {
+	for _, source := range s.Sources {
+		page, err := markdownAlternatePage(request.Context(), source, pagePath)
+		if err != nil {
+			mx.RespondNonContextError(response, request, err)
+			return
+		}
+		if page == nil {
+			continue
+		}
+		doc, err := s.MarkdownAlternate(page)
+		if err != nil {
+			mx.RespondNonContextError(response, request, err)
+			return
+		}
+		hash := sha256.Sum256(doc.Bytes())
+		s.ServeMarkdownDocument(response, request, page, doc, hex.EncodeToString(hash[:16]), time.Time{})
+		return
+	}
+	http.NotFound(response, request)
+}
+
+// pagesAtSource is a [PageSource] that iterates only its pages at one path
+// without reading the others, as a [GlobPageSource] does.
+type pagesAtSource interface {
+	pagesAt(ctx context.Context, pagePath string, withContent bool) iter.Seq2[*Page, error]
+}
+
+// markdownAlternatePage returns the first public page of source at pagePath
+// with a Markdown source, or nil if it has none. Content is read only for
+// that page where the source finds pages by path ([pagesAtSource]). Any other
+// source is first iterated without content, so one without such a page has
+// no content read at all, and one with it only up to the page.
+func markdownAlternatePage(ctx context.Context, source PageSource, pagePath string) (*Page, error) {
+	isPublicAt := func(page *Page) bool { return page.Path == pagePath && page.Indexable() }
+	withContent := func() iter.Seq2[*Page, error] { return source.Pages(ctx, true) }
+	if atPath, ok := source.(pagesAtSource); ok {
+		withContent = func() iter.Seq2[*Page, error] { return atPath.pagesAt(ctx, pagePath, true) }
+	} else {
+		found := false
+		for page, err := range source.Pages(ctx, false) {
+			if err != nil {
+				return nil, err
+			}
+			if isPublicAt(page) && isMarkdown(page.ContentType) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil
+		}
+	}
+	for page, err := range withContent() {
+		if err != nil {
+			return nil, err
+		}
+		if isPublicAt(page) && page.HasMarkdownSource() {
+			return page, nil
+		}
+	}
+	return nil, nil
+}
+
+// HandleLLMsTxt builds the site's llms.txt with [Site.LLMsTxt] from
+// LLMsTxtOptions, the zero options when it is nil, and writes it as a
+// text/markdown response (see [LLMsTxt.HandleHTTP]), implementing
+// http.HandlerFunc. Like the sitemap it is built from the Sources for every
+// request, with their content; a site with expensive sources should cache
+// it.
+func (s *Site) HandleLLMsTxt(response http.ResponseWriter, request *http.Request) {
+	var opts LLMsTxtOptions
+	if s.LLMsTxtOptions != nil {
+		opts = *s.LLMsTxtOptions
+	}
+	llms, err := s.LLMsTxt(request.Context(), opts)
+	if err != nil {
+		mx.RespondNonContextError(response, request, err)
+		return
+	}
+	llms.HandleHTTP(response, request)
 }
 
 // HandleRobotsTxt writes the site's robots.txt as a plain text response,

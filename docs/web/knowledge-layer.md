@@ -48,9 +48,12 @@ page := &web.Page{
 A `GlobPageSource` reads `lang` from the front matter; alternates are up to the
 source, since only it knows which pages translate each other.
 
-The `Site` registers robots.txt and the sitemap itself. llms.txt, the Markdown
-alternates and the MCP endpoint are publishing decisions, so they are wired
-explicitly:
+The `Site` registers robots.txt and the sitemap itself. llms.txt and the
+Markdown alternates are publishing decisions: set `LLMsTxtOptions` and
+`MarkdownAlternates` to have `RegisterRoutes` serve them, or wire them yourself
+as below when the alternate is served under the page URL by `AcceptsMarkdown`,
+carries your own revision as ETag, or has `Sections`. The MCP endpoint is
+always wired explicitly:
 
 ```go
 site := &web.Site{
@@ -86,7 +89,7 @@ mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
     w.Header().Add("Vary", "Accept")
     // The same page as Markdown, at its .md URL or for a client asking for
     // it — if it has a Markdown source; otherwise ServeMarkdown answers 404.
-    _, hasMarkdown := page.MarkdownSource()
+    hasMarkdown := page.HasMarkdownSource()
     if strings.HasSuffix(r.URL.Path, ".md") || (hasMarkdown && web.AcceptsMarkdown(r)) {
         site.ServeMarkdown(w, r, page, revision(page), page.LastModified())
         return

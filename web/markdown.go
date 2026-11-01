@@ -269,7 +269,7 @@ func (s *Site) MarkdownAlternateURL(page *Page) (string, error) {
 // A page without a Markdown source has no alternate to serve and gets a 404;
 // any other failure of [Site.MarkdownAlternate] is a 500.
 func (s *Site) ServeMarkdown(response http.ResponseWriter, request *http.Request, page *Page, etag string, lastMod time.Time) {
-	if _, ok := page.MarkdownSource(); !ok {
+	if !page.HasMarkdownSource() {
 		http.NotFound(response, request)
 		return
 	}
@@ -366,7 +366,7 @@ func headerListContains(values []string, element string) bool {
 // (see [Site.MarkdownAlternateURL]) behind one:
 //
 //	response.Header().Add("Vary", "Accept")
-//	if _, ok := page.MarkdownSource(); ok && web.AcceptsMarkdown(request) {
+//	if page.HasMarkdownSource() && web.AcceptsMarkdown(request) {
 //	    site.ServeMarkdown(response, request, page, etag, lastMod)
 //	    return
 //	}

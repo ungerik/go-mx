@@ -2,6 +2,7 @@ package logview
 
 import (
 	"context"
+	"slices"
 	"strconv"
 
 	"github.com/ungerik/go-mx"
@@ -28,9 +29,16 @@ import (
 // The page needs [Config.StyleElement] in its head, plus hx.ScriptFromCDN and
 // hx.ScriptSSEFromCDN for the stream itself. The handler on the other end sends
 // each line as [Config.Line] under the event name [Config.Event].
+//
+// The connection attributes, sse-connect and sse-close, are moved from the
+// root to an inner element that holds the scroll area and the error sink but
+// not the toolbar. hx-ext stays on the root, where htmx inherits it. Moving
+// them is what lets [Config.SearchParam] reconnect the stream by replacing
+// that element, without replacing the filter input the reader is typing in.
 func (c *Config) View(attribsChildren ...any) *mx.Element {
 	root := html.Div(attribsChildren...)
 	backlog := root.Children
+	connection := takeConnectionAttribs(root)
 
 	lines := html.Div(
 		html.Class(c.class(ClassLines)),
@@ -106,18 +114,56 @@ func (c *Config) View(attribsChildren ...any) *mx.Element {
 	// mx.SSEEventError needs somewhere to land or the log just stops.
 	errorSink := html.Div(
 		html.Class(c.class(ClassError)),
+		mx.ConstAttrib(attrError+"="),
 		html.Role("alert"),
 		hx.SSESwap(mx.SSEEventError),
 	)
+
+	// The connecting element. It holds both sse-swap targets, because the SSE
+	// extension delivers an event only to targets inside the element that
+	// opened the connection, and it leaves the toolbar out, because replacing
+	// it is how a search reconnects. It is a flex column filling what the
+	// toolbar leaves, for the reason the scroll area's style gives, and its
+	// style is inline for the same reason too.
+	stream := html.Div(
+		mx.ConstAttrib(attrStream+"="),
+		html.Style("flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column"),
+	)
+	stream.Attribs = append(stream.Attribs, connection...)
+	stream.Children = mx.Components{area, errorSink}
 
 	mergeClass(root, c.class(ClassView))
 	root.Attribs = append(root.Attribs,
 		mx.ConstAttrib(attrView+"="),
 		html.Attrib(attrMaxLines, strconv.Itoa(c.maxLines())),
 	)
+	if c.SearchParam != "" {
+		root.Attribs = append(root.Attribs, html.Attrib(attrSearch, c.SearchParam))
+	}
 	// The script comes last so the view is fully parsed when it wires up.
-	root.Children = mx.Components{toolbar, area, errorSink, html.ScriptJS(logViewScript)}
+	root.Children = mx.Components{toolbar, stream, html.ScriptJS(logViewScript)}
 	return root
+}
+
+// connectionAttribs are the attributes the htmx SSE extension reads from the
+// element that opens the connection itself, never from an ancestor, in both
+// the plain and the data- spelling it accepts.
+var connectionAttribs = []string{"sse-connect", "data-sse-connect", "sse-close", "data-sse-close"}
+
+// takeConnectionAttribs removes the connection attributes from e and returns
+// them, in the order the caller passed them.
+func takeConnectionAttribs(e *mx.Element) []mx.Attrib {
+	var taken []mx.Attrib
+	kept := e.Attribs[:0]
+	for _, a := range e.Attribs {
+		if slices.Contains(connectionAttribs, a.AttribName()) {
+			taken = append(taken, a)
+		} else {
+			kept = append(kept, a)
+		}
+	}
+	e.Attribs = kept
+	return taken
 }
 
 // mergeClass prepends classes to the element's class attribute, merging with

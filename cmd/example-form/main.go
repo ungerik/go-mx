@@ -59,7 +59,7 @@ type LineItem struct {
 // Profile is the synthetic admin record. Every tag combination below
 // is intentional and round-trips through the shadcn decider.
 type Profile struct {
-	ID       string `form:"hidden"`
+	ID       string `form:"key"`
 	Name     string `form:"required,placeholder=Full name"`
 	Email    string `form:"required,widget=email"`
 	Bio      string `form:"widget=textarea,help=Short bio for the public profile"`
@@ -135,7 +135,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/admin/profile", mx.ReflectFormHandler(s.Load, s.Save))
+	mux.Handle("/admin/profile", mx.ReflectFormHandlerWith(mx.ReflectFormConfig{FormMessage: shadcn.FormMessage}, s.Load, s.Save))
 	handler := mx.Middleware(shadcn.FieldDecider)(mux)
 
 	fmt.Printf("listening on %s\n", *addr)

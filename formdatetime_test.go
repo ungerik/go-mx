@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -206,7 +207,12 @@ func TestDateTimeInput(t *testing.T) {
 		{"datetime seconds", reflect.ValueOf("2026-07-06T09:05:07"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
 		{"datetime-local widget", reflect.ValueOf("2026-07-06T09:05"), FormTag{Widget: "datetime-local"}, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
 		{"datetime with zone", reflect.ValueOf("2026-07-06T09:05:07Z"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07Z", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
-		{"datetime with fraction", reflect.ValueOf("2026-07-06T09:05:07.5"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07.5", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		// A fraction of up to three digits is what an input with a step under
+		// a second sends; more is no value an input holds.
+		{"datetime with fraction", reflect.ValueOf("2026-07-06T09:05:07.5"), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07.5", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
+		{"datetime with a long fraction", reflect.ValueOf("2026-07-06T09:05:07.1234"), datetime, DateTimeInputSpec{"text", "2026-07-06T09:05:07.1234", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
+		{"time with fraction off min", reflect.ValueOf("09:05:07.25"), FormTag{Widget: "time", Min: "08:00"}, DateTimeInputSpec{"time", "09:05:07.25", "HH:MM", "any", false, time.Time{}}},
+		{"time.Time with a fraction", reflect.ValueOf(time.Date(2026, 7, 6, 9, 5, 7, 123456789, time.UTC)), datetime, DateTimeInputSpec{"datetime-local", "2026-07-06T09:05:07.123", "YYYY-MM-DDTHH:MM", "", false, time.Time{}}},
 		{"datetime with space", reflect.ValueOf("2026-07-06 09:05"), datetime, DateTimeInputSpec{"text", "2026-07-06 09:05", "YYYY-MM-DDTHH:MM", "", true, time.Time{}}},
 		{"time minutes", reflect.ValueOf("09:05"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
 		{"time drops zero seconds", reflect.ValueOf("09:05:00"), clock, DateTimeInputSpec{"time", "09:05", "HH:MM", "", false, time.Time{}}},
@@ -345,8 +351,10 @@ func TestParseDateTimeInput(t *testing.T) {
 		{name: "datetime seconds", tag: datetime, raw: "2026-07-06T09:05:07", want: "2026-07-06T09:05:07"},
 		{name: "datetime zone", tag: datetime, raw: "2026-07-06T09:05:07Z",
 			wantErr: `"2026-07-06T09:05:07Z" is not a date and time in the format YYYY-MM-DDTHH:MM`},
-		{name: "datetime fraction", tag: datetime, raw: "2026-07-06T09:05:07.123",
-			wantErr: `"2026-07-06T09:05:07.123" is not a date and time in the format YYYY-MM-DDTHH:MM`},
+		{name: "datetime fraction", tag: datetime, raw: "2026-07-06T09:05:07.120", want: "2026-07-06T09:05:07.12"},
+		{name: "time fraction", tag: clock, raw: "09:05:00.5", want: "09:05:00.5"},
+		{name: "datetime long fraction", tag: datetime, raw: "2026-07-06T09:05:07.1234",
+			wantErr: `"2026-07-06T09:05:07.1234" is not a date and time in the format YYYY-MM-DDTHH:MM`},
 		{name: "time minutes", tag: clock, raw: "09:05", want: "09:05"},
 		{name: "time zero seconds", tag: clock, raw: "09:05:00", want: "09:05"},
 		{name: "time seconds", tag: clock, raw: "09:05:07", want: "09:05:07"},
@@ -429,9 +437,9 @@ func TestDateTimeInputSpecTextFallback(t *testing.T) {
 func TestDateTimeInputLayout(t *testing.T) {
 	for widget, want := range map[string]string{
 		"date":     "2006-01-02",
-		"datetime": "2006-01-02T15:04:05",
-		"time":     "15:04:05",
-		"":         "2006-01-02T15:04:05",
+		"datetime": "2006-01-02T15:04:05.999",
+		"time":     "15:04:05.999",
+		"":         "2006-01-02T15:04:05.999",
 	} {
 		if got := DateTimeInputLayout(FormTag{Widget: widget}); got != want {
 			t.Errorf("DateTimeInputLayout(%q) = %q, want %q", widget, got, want)
@@ -474,5 +482,23 @@ func TestCheckDateTimeRange_DateIgnoresClock(t *testing.T) {
 	}
 	if err := CheckDateTimeRange(tag, "2026-03-09", time.Date(2026, 3, 9, 0, 0, 0, 0, havana)); err == nil {
 		t.Error("the day after max must be rejected")
+	}
+}
+
+// The date and time errors are DateTimeErrors a renderer can translate from
+// their fields, user messages that quote the submitted text only where it
+// may be echoed.
+func TestDateTimeError(t *testing.T) {
+	tag := FormTag{Widget: "date", Min: "2026-01-01"}
+	var dte *DateTimeError
+	if err := DateTimeFormatError(tag, "06.07.2026"); !errors.As(err, &dte) || dte.Problem != DateTimeNotInFormat || dte.Value != "06.07.2026" || dte.Format != "YYYY-MM-DD" {
+		t.Errorf("format error: %#v", err)
+	}
+	if msg, ok := UserMessage(DateTimeFormatError(tag, "x")); !ok || msg != `"x" is not a date in the format YYYY-MM-DD` {
+		t.Errorf("UserMessage = %q, %t", msg, ok)
+	}
+	tag.Sensitive = true
+	if err := CheckDateTimeRange(tag, "2025-06-01", time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)); !errors.As(err, &dte) || dte.Problem != DateTimeTooEarly || dte.Value != "" || err.Error() != "earlier than 2026-01-01" {
+		t.Errorf("sensitive range error: %v", err)
 	}
 }

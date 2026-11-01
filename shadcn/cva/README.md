@@ -46,6 +46,68 @@ buttonVariants(map[string]string{"class": "w-full"})
 // → base + default variant + default size + "w-full"
 ```
 
+## Composing resolvers
+
+`cva.Compose` merges several resolvers into one, so a component can build on
+another component's variants instead of restating them:
+
+```go
+box := cva.New(cva.Config{
+    Variants:        map[string]map[string]string{"shadow": {"sm": "shadow-sm", "md": "shadow-md"}},
+    DefaultVariants: map[string]string{"shadow": "sm"},
+})
+stack := cva.New(cva.Config{
+    Variants: map[string]map[string]string{"gap": {"1": "gap-1", "2": "gap-2"}},
+})
+card := cva.Compose(box, stack)
+
+card(map[string]string{"gap": "2", "class": "w-full"})
+// → "shadow-sm gap-2 w-full"
+```
+
+Every part gets the same props minus the reserved `"class"` key, their
+non-empty results are joined in argument order, and the `"class"` override is
+appended once at the end. A part reads only the variant names its own `Config`
+declares, so props meant for one part are ignored by the others. `Compose` is
+ported from cva v1.0.0-beta (the successor package to
+class-variance-authority, same author and license), since v0.7.1 has no
+`compose`.
+
+## Typed variant props instead of `VariantProps`
+
+In TypeScript, `VariantProps<typeof buttonVariants>` derives a props type from
+the cva config, so a caller who writes `variant="outlin"` gets a compile error.
+This package has no equivalent helper, on purpose: the Go answer is a named
+string type per variant, declared next to the component, which the component
+takes as typed parameters and converts to the props map at one place.
+
+```go
+type ButtonVariant string //#enum
+
+const (
+    ButtonDefault ButtonVariant = "default"
+    ButtonOutline ButtonVariant = "outline"
+)
+
+func ButtonClasses(variant ButtonVariant, size ButtonSize) string {
+    return shadcn.Cn(buttonVariants(map[string]string{
+        "variant": string(variant.ValidOr(ButtonDefault)),
+        "size":    string(size.ValidOr(SizeDefault)),
+    }))
+}
+```
+
+This is what [`shadcn.Button`](../button.go) and the other ported components
+do. A caller sees the variant names as constants in the documentation and in
+completion, a value of the wrong variant type does not compile, and the
+go-enum `ValidOr` resolves an unknown value (an untyped string constant still
+converts implicitly, and a value may come from a request) to the default at
+run time. A generic helper could not do better: Go generics cannot derive a
+struct type or a set of constants from the keys of a runtime `Config` map, so
+it would either reflect over a props struct at run time, which checks nothing
+at compile time, or restate the variant names, which the typed constants
+already do.
+
 ## How it was ported
 
 cva's TypeScript API maps onto Go types one-to-one:
@@ -59,6 +121,7 @@ cva's TypeScript API maps onto Go types one-to-one:
 | `config.defaultVariants`          | `Config.DefaultVariants`   |
 | `props` object                    | `props` map argument       |
 | `props.class` / `props.className` | the reserved `"class"` key |
+| `compose(...components)` (v1.0.0-beta) | `Compose(...)`     |
 
 The Go types are: `Config.Variants` is `map[string]map[string]string`,
 `CompoundVariants` is `[]Compound`, `DefaultVariants` is `map[string]string`,
@@ -83,9 +146,10 @@ class-variance-authority v0.7.1's own test suite.
   sorting the variant names. The resolved class *set* is identical to cva's, and
   callers tailwind-merge the result anyway, so the order does not affect the
   final styling.
-- **Not ported:** cva's `compose`, the `defineConfig` / `onComplete` hooks, and
-  the `VariantProps` type helper. In Go a typed props struct or named constants
-  fill the role of `VariantProps`.
+- **Not ported:** the `defineConfig` / `onComplete` hooks of cva v1.0.0-beta,
+  since `shadcn.Cn` already post-processes classes at the component boundary,
+  and the `VariantProps` type helper, whose role typed variant parameters fill
+  (see [above](#typed-variant-props-instead-of-variantprops)).
 
 ## License
 

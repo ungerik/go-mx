@@ -120,8 +120,10 @@ const (
 
 	// FieldKindCatchAll means no rule matched. The renderer falls back
 	// to a text input and Parse requires the value type to implement
-	// encoding.TextUnmarshaler, or to be a database/sql type that
-	// [DriverValueText] writes and its Scan method reads back.
+	// encoding.TextUnmarshaler, or to be a database/sql type holding text,
+	// such as sql.NullString, that [DriverValueText] writes and its Scan
+	// method reads back (one holding a bool, a number or a time gets that
+	// kind instead).
 	FieldKindCatchAll
 )
 
@@ -149,6 +151,98 @@ func KeepsStoredValue(tag FormTag, kind FieldKind, value reflect.Value) bool {
 		return false
 	}
 	return !(value.CanInterface() && IsNull(value.Interface()))
+}
+
+// BrowserTag is the tag a field's input renders with: a form:"sensitive"
+// input that holds a stored value shows none, and a blank keeps the stored
+// value ([KeepsStoredValue]), so the browser must not demand one; neither
+// must a file input whose field holds a file. The form handler still
+// rejects a blank required field when nothing is stored.
+func BrowserTag(tag FormTag, kind FieldKind, value reflect.Value) FormTag {
+	_, storedFile := StoredFile(value)
+	if tag.Required && (KeepsStoredValue(tag, kind, value) || kind == FieldKindFile && storedFile) {
+		tag.Required = false
+	}
+	return tag
+}
+
+// AddDescribedBy adds ids to the aria-describedby of the form control in c,
+// the first input that is not hidden, select or textarea, or element with
+// role="group" (a checkbox set), found depth-first through [Components] and
+// element children, keeping the ids it has. A renderer links a field's help
+// and error messages with it, so a screen reader reads them with the
+// control: role="alert" on server-rendered markup is not announced on a
+// full page load. It reports whether c holds such a control; a component
+// whose markup is only built while rendering, such as a [ComponentFunc], is
+// not searched.
+func AddDescribedBy(c Component, ids ...string) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	switch c := c.(type) {
+	case *Element:
+		if isDescribableControl(c) {
+			value := strings.Join(ids, " ")
+			if i := c.AttribIndex("aria-describedby"); i >= 0 {
+				if old, err := c.Attribs[i].AttribValue(context.Background()); err == nil && old != "" {
+					value = old + " " + value
+				}
+				c.Attribs[i] = Attribute{Name: "aria-describedby", Value: value}
+			} else {
+				c.Attribs = append(c.Attribs, Attribute{Name: "aria-describedby", Value: value})
+			}
+			return true
+		}
+		return AddDescribedBy(c.Children, ids...)
+	case Components:
+		for _, child := range c {
+			if AddDescribedBy(child, ids...) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isDescribableControl reports whether e is a form control a description
+// belongs to (see [AddDescribedBy]).
+func isDescribableControl(e *Element) bool {
+	attrib := func(name string) string {
+		if i := e.AttribIndex(name); i >= 0 {
+			if value, err := e.Attribs[i].AttribValue(context.Background()); err == nil {
+				return value
+			}
+		}
+		return ""
+	}
+	switch e.Name {
+	case "input":
+		return attrib("type") != "hidden"
+	case "select", "textarea":
+		return true
+	}
+	return attrib("role") == "group"
+}
+
+// StoredFile reports whether a file field's value holds a file, bytes or a
+// file name, and returns the name a string field holds, "" for bytes. A
+// file input left empty keeps it, so a required one demands no new upload
+// ([BrowserTag]), and a renderer says that a file is stored, as the
+// browser labels the input "No file chosen" either way.
+func StoredFile(value reflect.Value) (name string, ok bool) {
+	for value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return "", false
+		}
+		value = value.Elem()
+	}
+	switch value.Kind() {
+	case reflect.String:
+		return value.String(), value.Len() > 0
+	case reflect.Slice:
+		return "", value.Len() > 0
+	}
+	return "", false
 }
 
 // String returns the kind's name (handy in error messages and tests).

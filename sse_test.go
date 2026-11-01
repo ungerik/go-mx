@@ -363,13 +363,23 @@ func TestSSEResponse_SendErrorIsSilentForContextErrors(t *testing.T) {
 	// The client that would read the report is the one that disconnected, so
 	// there is nobody to tell — mirroring RespondNonContextError.
 	sse, rec := newSSETest(t)
+	gone, cancel := context.WithCancel(t.Context())
+	cancel()
 	for _, err := range []error{context.Canceled, context.DeadlineExceeded} {
-		if got := sse.SendError(t.Context(), err); got != nil {
+		if got := sse.SendError(gone, err); got != nil {
 			t.Errorf("SendError(%v) = %v, want nil", err, got)
 		}
 	}
 	if got := body(rec); got != "" {
 		t.Errorf("SendError wrote %q for a context error", got)
+	}
+	// A timeout of the stream's own call, while the client reads on, is an
+	// error event like any other.
+	if err := sse.SendError(t.Context(), context.DeadlineExceeded); err != nil {
+		t.Fatalf("SendError: %v", err)
+	}
+	if got := body(rec); !strings.Contains(got, "event: "+SSEEventError) {
+		t.Errorf("SendError of an own timeout wrote %q, want an error event", got)
 	}
 }
 
@@ -966,7 +976,9 @@ func TestSSEResponse_SendErrorReportsTheError(t *testing.T) {
 	rep.checkReported(t, true, hidden)
 
 	rep.reset()
-	if err := sse.SendError(ctx, fmt.Errorf("streaming: %w", context.Canceled)); err != nil {
+	gone, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := sse.SendError(gone, fmt.Errorf("streaming: %w", context.Canceled)); err != nil {
 		t.Fatalf("SendError: %v", err)
 	}
 	rep.checkReported(t, false)

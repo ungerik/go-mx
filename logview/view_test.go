@@ -164,3 +164,45 @@ func TestViewCustomLabels(t *testing.T) {
 func TestViewCustomEvent(t *testing.T) {
 	contains(t, render(t, (&Config{Event: "syslog"}).View()), `sse-swap="syslog"`)
 }
+
+func TestViewMovesTheConnectionOffTheRoot(t *testing.T) {
+	// sse-connect and sse-close move to the element holding the scroll area and
+	// the error sink, so a search can replace it without replacing the toolbar.
+	// hx-ext stays on the root, where htmx inherits it.
+	out := render(t, View(hx.Ext("sse"), hx.SSEConnect("/logs"), hx.SSEClose("done")))
+	root := out[:strings.Index(out, ">")]
+	contains(t, root, `hx-ext="sse"`, `data-mx-log-view=""`)
+	excludes(t, root, `sse-connect`, `sse-close`)
+	contains(t, out, `<div data-mx-log-stream="" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column" sse-connect="/logs" sse-close="done">`)
+
+	// Both sse-swap targets have to be inside the connecting element, since
+	// the extension only delivers an event to targets inside the element that
+	// opened the connection; the toolbar has to be outside it.
+	stream := strings.Index(out, `data-mx-log-stream`)
+	for _, target := range []string{`sse-swap="log"`, `sse-swap="` + mx.SSEEventError + `"`} {
+		if i := strings.Index(out, target); i < stream {
+			t.Errorf("%s is outside the connecting element: %s", target, out)
+		}
+	}
+	if strings.Index(out, `data-mx-log-filter`) > stream {
+		t.Errorf("the filter is inside the connecting element: %s", out)
+	}
+}
+
+func TestViewMovesTheDataSpelledConnection(t *testing.T) {
+	out := render(t, View(html.Attrib("data-sse-connect", "/logs")))
+	root := out[:strings.Index(out, ">")]
+	excludes(t, root, `data-sse-connect`)
+	contains(t, out, `data-mx-log-stream="" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column" data-sse-connect="/logs"`)
+}
+
+func TestViewSearchParam(t *testing.T) {
+	// The root names the parameter only when searching is configured: without
+	// it the script keeps the filter in the browser.
+	excludes(t, render(t, View()), `data-mx-log-search="`)
+	out := render(t, (&Config{SearchParam: "q"}).View(hx.SSEConnect("/logs")))
+	contains(t, out[:strings.Index(out, ">")], `data-mx-log-search="q"`)
+	// The script reconnects through htmx.swap, whose cleanup closes the old
+	// EventSource, and empties the copy's lines and error sink.
+	contains(t, out, "htmx.swap(stream,next.outerHTML", `[data-mx-log-error]`, `data-mx-log-error=""`)
+}

@@ -7,6 +7,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -420,23 +423,26 @@ func TestGlobPageSourceReadError(t *testing.T) {
 
 func TestGlobPageSourceUnreadableFile(t *testing.T) {
 	// A page file that has a stat but cannot be read ends the source with the
-	// read error when its content is read.
-	for _, name := range []string{"locked.md", "locked.html", "locked.txt"} {
-		file := filepath.Join(t.TempDir(), name)
-		require.NoError(t, os.WriteFile(file, []byte("locked\n"), 0o000))
-		_, err := os.ReadFile(file)
-		if err == nil {
-			t.Skip("root and Windows read a file without read permission")
-		}
+	// error. Every page file is opened once, also when no content is read,
+	// so the source fails without content too, as the page would when served.
+	for _, withContent := range []bool{true, false} {
+		for _, name := range []string{"locked.md", "locked.html", "locked.txt"} {
+			file := filepath.Join(t.TempDir(), name)
+			require.NoError(t, os.WriteFile(file, []byte("locked\n"), 0o000))
+			_, err := os.ReadFile(file)
+			if err == nil {
+				t.Skip("root and Windows read a file without read permission")
+			}
 
-		source := &web.GlobPageSource{Dir: fs.File(filepath.Dir(file)), Pattern: "locked.*"}
-		var results []error
-		for page, err := range source.Pages(context.Background(), true) {
-			require.Nilf(t, page, "file %s", name)
-			results = append(results, err)
+			source := &web.GlobPageSource{Dir: fs.File(filepath.Dir(file)), Pattern: "locked.*"}
+			var results []error
+			for page, err := range source.Pages(context.Background(), withContent) {
+				require.Nilf(t, page, "file %s, withContent %t", name, withContent)
+				results = append(results, err)
+			}
+			require.Lenf(t, results, 1, "file %s, withContent %t", name, withContent)
+			require.ErrorIsf(t, results[0], os.ErrPermission, "file %s, withContent %t", name, withContent)
 		}
-		require.Lenf(t, results, 1, "file %s", name)
-		require.ErrorIsf(t, results[0], os.ErrPermission, "file %s", name)
 	}
 }
 
@@ -554,8 +560,143 @@ func TestGlobPageSourceInvalidDir(t *testing.T) {
 
 	// The error goes to logs, so a password in the URI is redacted.
 	err := dirError(t, "sftp://deploy:hunter2@example.com/site")
-	require.ErrorContains(t, err, "GlobPageSource.Dir")
+	require.ErrorContains(t, err, `GlobPageSource.Dir "sftp://example.com/site"`)
 	require.NotContains(t, err.Error(), "hunter2")
+
+	// Regression: only a password was redacted, so a token in the user info
+	// or in the query went to the logs.
+	for _, uri := range []string{
+		"https://ghp_SECRET@github.com/x",
+		"https://example.com/x?access_token=SECRET",
+		"https://example.com/x#SECRET",
+		"sftp://deploy:SECRET@example.com/%zz",
+		// On Windows go-fs reads this as the local UNC path
+		// `\\user:SECRET@server\share`, which every other Dir error printed.
+		"file://user:SECRET@server/share",
+	} {
+		err := dirError(t, fs.File(uri))
+		require.ErrorContains(t, err, "GlobPageSource.Dir", uri)
+		require.NotContains(t, err.Error(), "SECRET", uri)
+	}
+}
+
+// A matched path is read with os, as it is spelled. Regression: it was read
+// through go-fs, which parsed a path spelling a file URI as that URI, so a
+// local decoy named "file:" was stat'ed while the file the URI named was
+// read and published.
+func TestGlobPageSourceURIShapedPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a colon is no character of a Windows file name")
+	}
+	secret := filepath.Join(t.TempDir(), "secret")
+	require.NoError(t, os.Mkdir(secret, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(secret, "page.md"), []byte("secret\n"), 0o600))
+	work := t.TempDir()
+	decoy := filepath.Join(work, "file:", "localhost"+secret)
+	require.NoError(t, os.MkdirAll(decoy, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(decoy, "page.md"), []byte("local\n"), 0o600))
+	t.Chdir(work)
+
+	source := &web.GlobPageSource{Pattern: "file://localhost" + secret + "/page.md"}
+	var contents []string
+	for page, err := range source.Pages(context.Background(), true) {
+		require.NoError(t, err)
+		contents = append(contents, fmt.Sprintf("%s", page.Content))
+	}
+	require.Equal(t, []string{"local\n"}, contents)
+}
+
+// cancelAfterContext is a context whose Err reports context.Canceled from
+// its nth call on, which cancels the source at a point inside its work
+// rather than before it starts.
+type cancelAfterContext struct {
+	context.Context
+	n     int32
+	calls atomic.Int32
+}
+
+func (c *cancelAfterContext) Err() error {
+	if c.calls.Add(1) >= c.n {
+		return context.Canceled
+	}
+	return nil
+}
+
+// The glob checks the context while it searches the directories, and a
+// read checks it between the chunks of a file. Regression: the context was
+// checked only between the glob, the stats and the reads, so a huge
+// directory or a large file held a cancelled request until it was done.
+func TestGlobPageSourceCancelledInsideGlobAndRead(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs Unix permissions that bind the user")
+	}
+	dir := t.TempDir()
+	for _, sub := range []string{"a", "locked"} {
+		require.NoError(t, os.Mkdir(filepath.Join(dir, sub), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, sub, "page.md"), []byte("page\n"), 0o600))
+	}
+	require.NoError(t, os.Chmod(filepath.Join(dir, "locked"), 0))
+	t.Cleanup(func() { os.Chmod(filepath.Join(dir, "locked"), 0o700) })
+
+	// The first check passes, so only a check inside the glob can stop it
+	// before it reaches the directory it cannot read.
+	ctx := &cancelAfterContext{Context: context.Background(), n: 2}
+	var results []error
+	for page, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md"}).Pages(ctx, false) {
+		require.Nil(t, page)
+		results = append(results, err)
+	}
+	require.Len(t, results, 1)
+	require.ErrorIs(t, results[0], context.Canceled)
+
+	// A file of 4 MiB is read in 64 chunks, far more checks than come
+	// before the read.
+	big := filepath.Join(t.TempDir(), "big.md")
+	require.NoError(t, os.WriteFile(big, []byte(strings.Repeat("x", 4<<20)), 0o600))
+	ctx = &cancelAfterContext{Context: context.Background(), n: 20}
+	results = nil
+	for page, err := range (&web.GlobPageSource{Dir: fs.File(filepath.Dir(big)), Pattern: "*.md"}).Pages(ctx, true) {
+		require.Nil(t, page)
+		results = append(results, err)
+	}
+	require.Len(t, results, 1)
+	require.ErrorIs(t, results[0], context.Canceled)
+}
+
+// Dir is the directory the glob runs below, not a pattern. Regression: Dir
+// and Pattern were joined into one pattern, so a directory named
+// "content[prod]" matched "contentp" and published its files, and one named
+// "site[1]" matched nothing.
+func TestGlobPageSourceGlobCharactersInDir(t *testing.T) {
+	parent := t.TempDir()
+	for name, content := range map[string]string{
+		"content[prod]/real.md": "real\n",
+		"contentp/other.md":     "other\n",
+		"site[1]/page.md":       "page\n",
+		"site1/decoy.md":        "decoy\n",
+	} {
+		file := filepath.Join(parent, filepath.FromSlash(name))
+		require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o700))
+		require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+	}
+	for _, confine := range []bool{false, true} {
+		for dir, want := range map[string][]string{"content[prod]": {"/real"}, "site[1]": {"/page"}} {
+			var paths []string
+			source := &web.GlobPageSource{Dir: fs.File(filepath.Join(parent, dir)), Pattern: "*.md", Confine: confine}
+			for page, err := range source.Pages(context.Background(), true) {
+				require.NoError(t, err, "Dir %s, Confine %t", dir, confine)
+				paths = append(paths, page.Path)
+			}
+			require.Equal(t, want, paths, "Dir %s, Confine %t", dir, confine)
+		}
+	}
+	// A pattern without a wildcard names one file below Dir, also literally.
+	var paths []string
+	for page, err := range (&web.GlobPageSource{Dir: fs.File(filepath.Join(parent, "site[1]")), Pattern: "page.md"}).Pages(context.Background(), false) {
+		require.NoError(t, err)
+		paths = append(paths, page.Path)
+	}
+	require.Equal(t, []string{"/page"}, paths)
 }
 
 func TestGlobPageSourceFileGoneWhileIterating(t *testing.T) {
@@ -602,4 +743,186 @@ func TestGlobPageSourceLiteralTildeDir(t *testing.T) {
 	markdown, ok := pages[0].MarkdownSource()
 	require.True(t, ok)
 	require.Equal(t, "literal\n", string(markdown))
+}
+
+// Confine keeps the source inside Dir: a symlink to a file or directory
+// outside of it fails the source, and a Pattern reaching above it is an
+// error, while a relative symlink that stays below Dir is followed. Without Confine, Dir is trusted and the symlink publishes
+// the file it points to.
+func TestGlobPageSourceConfine(t *testing.T) {
+	page := []byte("---\ntitle: Page\npublishDate: 2026-06-01T08:00:00Z\n---\nbody\n")
+	outside := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("secret"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "other.md"), page, 0o600))
+
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "blog"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "blog", "hello.md"), page, 0o600))
+	// os.Root follows only a relative symlink.
+	require.NoError(t, os.Symlink("hello.md", filepath.Join(dir, "blog", "alias.md")))
+	require.NoError(t, os.Symlink(outside, filepath.Join(dir, "linked")))
+
+	paths := func(t *testing.T, source *web.GlobPageSource) []string {
+		t.Helper()
+		var paths []string
+		for page, err := range source.Pages(context.Background(), true) {
+			require.NoError(t, err)
+			require.Equal(t, "body\n", fmt.Sprintf("%s", page.Content))
+			paths = append(paths, page.Path)
+		}
+		return paths
+	}
+	require.Equal(t, []string{"/blog/alias", "/blog/hello"},
+		paths(t, &web.GlobPageSource{Dir: fs.File(dir), Pattern: "blog/*.md", Confine: true}))
+	var linkErr error
+	for _, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md", Confine: true}).Pages(context.Background(), false) {
+		linkErr = err
+	}
+	require.ErrorContains(t, linkErr, "linked", "a symlinked directory outside of Dir must fail the source")
+	require.Equal(t, []string{"/blog/alias", "/blog/hello", "/linked/other"},
+		paths(t, &web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md"}),
+		"without Confine, Dir is trusted")
+
+	require.NoError(t, os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(dir, "leak.txt")))
+	var leakErr error
+	for page, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.txt", Confine: true}).Pages(context.Background(), true) {
+		require.Nil(t, page, "a symlink out of a confined Dir must not publish its target")
+		leakErr = err
+	}
+	require.ErrorContains(t, leakErr, "leak.txt")
+
+	for _, source := range []*web.GlobPageSource{
+		{Dir: fs.File(dir), Pattern: "../*/*.md", Confine: true},
+		{Dir: fs.File(dir), Pattern: "blog/../../*.md", Confine: true},
+		{Pattern: filepath.Join(dir, "blog", "*.md"), Confine: true},
+	} {
+		var failed bool
+		for _, err := range source.Pages(context.Background(), false) {
+			require.Error(t, err, "Pattern %q", source.Pattern)
+			failed = true
+		}
+		require.True(t, failed, "Pattern %q must fail", source.Pattern)
+	}
+	require.Equal(t, []string{"/blog/alias", "/blog/hello"},
+		paths(t, &web.GlobPageSource{Dir: fs.File(dir), Pattern: "linked/../blog/*.md", Confine: true}),
+		"a .. that stays below Dir is allowed")
+}
+
+// A directory the source cannot read fails it, Dir itself or one a wildcard
+// matched, instead of leaving its pages out of every sitemap without a word.
+// A hidden directory is not searched, so one that cannot be read is no
+// error either.
+func TestGlobPageSourceUnreadableDir(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs Unix permissions that bind the user")
+	}
+	page := []byte("---\ntitle: Page\npublishDate: 2026-06-01T08:00:00Z\n---\nbody\n")
+	dir := t.TempDir()
+	for _, sub := range []string{"blog", "locked", ".cache"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, sub), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, sub, "page.md"), page, 0o600))
+	}
+	for _, sub := range []string{"locked", ".cache"} {
+		require.NoError(t, os.Chmod(filepath.Join(dir, sub), 0))
+		t.Cleanup(func() { os.Chmod(filepath.Join(dir, sub), 0o700) })
+	}
+
+	firstErr := func(source *web.GlobPageSource) error {
+		for _, err := range source.Pages(context.Background(), false) {
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	require.ErrorContains(t, firstErr(&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md"}), "locked")
+	require.ErrorContains(t, firstErr(&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md", Confine: true}), "locked")
+	require.ErrorContains(t, firstErr(&web.GlobPageSource{Dir: fs.File(filepath.Join(dir, "locked")), Pattern: "*.md"}), "permission denied")
+	require.NoError(t, firstErr(&web.GlobPageSource{Dir: fs.File(dir), Pattern: "blog/*.md"}))
+
+	require.NoError(t, os.Chmod(filepath.Join(dir, "locked"), 0o700))
+	require.NoError(t, firstErr(&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*/*.md"}),
+		"an unreadable hidden directory is not searched")
+}
+
+// A Pattern without Dir that names a hidden directory with an escaped dot
+// gets its page paths below the fixed prefix before the escape, as it does
+// with Dir.
+func TestGlobPageSourceEscapedDotWithoutDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a backslash is a separator on Windows")
+	}
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".well-known"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".well-known", "security.txt"), []byte("Contact: x"), 0o600))
+	var paths []string
+	for page, err := range (&web.GlobPageSource{Pattern: dir + `/\.well-known/*.txt`}).Pages(context.Background(), false) {
+		require.NoError(t, err)
+		paths = append(paths, page.Path)
+	}
+	require.Equal(t, []string{"/.well-known/security"}, paths)
+}
+
+// A page file past MaxFileSize fails the source, also when no content is
+// read. Without content only the head of a Markdown file is read for its
+// front matter, and one whose front matter ends past the head is read whole.
+func TestGlobPageSourceMaxFileSize(t *testing.T) {
+	dir := t.TempDir()
+	long := strings.Repeat("x", 100<<10)
+	files := map[string]string{
+		"short.md":      "---\ntitle: Short\npublishDate: 2026-06-01T08:00:00Z\n---\n" + long + "\n",
+		"longmatter.md": "---\ntitle: Long\ndescription: " + long + "\npublishDate: 2026-06-01T08:00:00Z\n---\nbody\n",
+		"plain.md":      long + "\n",
+	}
+	for name, content := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	titles := map[string]string{}
+	for page, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md"}).Pages(context.Background(), false) {
+		require.NoError(t, err)
+		require.Nil(t, page.Content)
+		titles[page.Path] = page.Title
+	}
+	require.Equal(t, map[string]string{"/short": "Short", "/longmatter": "Long", "/plain": ""}, titles)
+
+	for _, withContent := range []bool{true, false} {
+		var sizeErr error
+		for _, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "short.md", MaxFileSize: 1 << 10}).Pages(context.Background(), withContent) {
+			sizeErr = err
+		}
+		require.ErrorContains(t, sizeErr, "short.md", "withContent %t", withContent)
+	}
+	for _, err := range (&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md", MaxFileSize: -1}).Pages(context.Background(), true) {
+		require.NoError(t, err, "a negative MaxFileSize is no limit")
+	}
+}
+
+// Serving a page's Markdown alternate reads that page's file alone, not
+// every file the glob matched before it: a file that has grown past
+// MaxFileSize since the routes were registered fails only its own page.
+func TestGlobPageSourceMarkdownAlternateReadsOnlyItsFile(t *testing.T) {
+	dir := t.TempDir()
+	page := func(title string) string {
+		return "---\ntitle: " + title + "\npublishDate: 2026-06-01T08:00:00Z\n---\nText of " + title + ".\n"
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.md"), []byte(page("A")), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.md"), []byte(page("B")), 0o600))
+	site := &web.Site{
+		BaseURL:            "https://example.com",
+		Sources:            []web.PageSource{&web.GlobPageSource{Dir: fs.File(dir), Pattern: "*.md", MaxFileSize: 1 << 10}},
+		MarkdownAlternates: true,
+	}
+	mux := http.NewServeMux()
+	require.NoError(t, site.RegisterRoutes(mux))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.md"), []byte(page(strings.Repeat("A", 2<<10))), 0o600))
+
+	get := func(path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		return rec
+	}
+	rec := get("/b.md")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "Text of B.")
+	require.Equal(t, http.StatusInternalServerError, get("/a.md").Code)
 }

@@ -92,9 +92,12 @@ const robotsNoIndex = "noindex, nofollow"
 //
 // Content is only loaded by a [PageSource] asked for it, so a page iterated
 // without content never has a Markdown alternate.
+//
+// String content is copied into the returned slice on every call; a caller
+// that only needs to know whether there is a Markdown source asks
+// [Page.HasMarkdownSource].
 func (p *Page) MarkdownSource() (source []byte, ok bool) {
-	mediaType, _, err := mime.ParseMediaType(p.ContentType)
-	if err != nil || mediaType != "text/markdown" {
+	if !p.HasMarkdownSource() {
 		return nil, false
 	}
 	switch content := p.Content.(type) {
@@ -104,6 +107,26 @@ func (p *Page) MarkdownSource() (source []byte, ok bool) {
 		return content, true
 	}
 	return nil, false
+}
+
+// HasMarkdownSource reports whether the page has a Markdown alternate, like
+// the ok result of [Page.MarkdownSource], without copying string content.
+func (p *Page) HasMarkdownSource() bool {
+	switch p.Content.(type) {
+	case string, []byte:
+	default:
+		return false
+	}
+	// The content is checked first, because it is cheaper than parsing the
+	// content type, and a page read without content has none.
+	return isMarkdown(p.ContentType)
+}
+
+// isMarkdown reports whether contentType is text/markdown, with any
+// parameters, like the charset of mx.ContentTypeMarkdown.
+func isMarkdown(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "text/markdown"
 }
 
 // Validate returns an error if the page's Path is set but not a valid path

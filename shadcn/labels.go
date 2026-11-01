@@ -3,6 +3,7 @@ package shadcn
 import (
 	"cmp"
 	"context"
+	"strings"
 
 	"github.com/ungerik/go-mx"
 )
@@ -118,6 +119,39 @@ type Labels struct {
 	// not in that format, so saving it unchanged fails: the text says so,
 	// not only the destructive color.
 	FormInvalidFormat string
+	// FormStoredFile is the note next to a reflected file input whose field
+	// holds a file name, with %s standing for the name, as the browser labels
+	// the input "No file chosen" also while a file is stored.
+	FormStoredFile string
+	// FormStoredFileUnnamed is that note for a field holding the file's bytes
+	// without a name.
+	FormStoredFileUnnamed string
+	// FormKeepStoredFile follows FormStoredFile or FormStoredFileUnnamed on an
+	// editable file input: an empty submission keeps the stored file.
+	FormKeepStoredFile string
+	// FormKeepStoredValue is the note under a reflected form:"sensitive"
+	// input while a value is stored: the input never shows it, and a blank
+	// keeps it.
+	FormKeepStoredValue string
+	// FormDateFormat, FormDateTimeFormat and FormTimeFormat are the formats
+	// to enter that a reflected date, datetime or time field's text input
+	// shows as its placeholder and in its hint, and its errors name, such as
+	// "TT.MM.JJJJ" for YYYY-MM-DD. The parser still reads only the input
+	// types' own forms; only what the user is shown is translated.
+	FormDateFormat     string
+	FormDateTimeFormat string
+	FormTimeFormat     string
+	// FormDateTimeNotInFormat is the error of a submitted date or time that
+	// is not in its format, with %s standing for the format.
+	FormDateTimeNotInFormat string
+	// FormDateTimeTooEarly and FormDateTimeTooLate are the errors of a date
+	// or time before its form:"min=…" or after its form:"max=…", with %s
+	// standing for the bound.
+	FormDateTimeTooEarly string
+	FormDateTimeTooLate  string
+	// FormDateTimeOutsideRange is the error of a time outside a range that
+	// wraps past midnight, with %s standing for min, then max.
+	FormDateTimeOutsideRange string
 }
 
 // DefaultLabels holds the strings used when the render context carries no
@@ -163,6 +197,17 @@ var englishLabels = Labels{
 	FormValuesNotAvailableReadonly: "(some current values are not available)",
 	FormExpectedFormat:             "Expected format:",
 	FormInvalidFormat:              "Not in the expected format:",
+	FormStoredFile:                 "Current file: %s",
+	FormStoredFileUnnamed:          "A file is stored.",
+	FormKeepStoredFile:             "Leave empty to keep it.",
+	FormKeepStoredValue:            "Leave blank to keep the current value.",
+	FormDateFormat:                 "YYYY-MM-DD",
+	FormDateTimeFormat:             "YYYY-MM-DDTHH:MM",
+	FormTimeFormat:                 "HH:MM",
+	FormDateTimeNotInFormat:        "Not in the format %s",
+	FormDateTimeTooEarly:           "Earlier than %s",
+	FormDateTimeTooLate:            "Later than %s",
+	FormDateTimeOutsideRange:       "Not between %s and %s",
 }
 
 // ctxKeyLabels is the unexported render-context key under which
@@ -229,6 +274,17 @@ func (l Labels) orDefaults() Labels {
 		FormValuesNotAvailableReadonly: cmp.Or(l.FormValuesNotAvailableReadonly, DefaultLabels.FormValuesNotAvailableReadonly, englishLabels.FormValuesNotAvailableReadonly),
 		FormExpectedFormat:             cmp.Or(l.FormExpectedFormat, DefaultLabels.FormExpectedFormat, englishLabels.FormExpectedFormat),
 		FormInvalidFormat:              cmp.Or(l.FormInvalidFormat, DefaultLabels.FormInvalidFormat, englishLabels.FormInvalidFormat),
+		FormStoredFile:                 cmp.Or(l.FormStoredFile, DefaultLabels.FormStoredFile, englishLabels.FormStoredFile),
+		FormStoredFileUnnamed:          cmp.Or(l.FormStoredFileUnnamed, DefaultLabels.FormStoredFileUnnamed, englishLabels.FormStoredFileUnnamed),
+		FormKeepStoredFile:             cmp.Or(l.FormKeepStoredFile, DefaultLabels.FormKeepStoredFile, englishLabels.FormKeepStoredFile),
+		FormKeepStoredValue:            cmp.Or(l.FormKeepStoredValue, DefaultLabels.FormKeepStoredValue, englishLabels.FormKeepStoredValue),
+		FormDateFormat:                 cmp.Or(l.FormDateFormat, DefaultLabels.FormDateFormat, englishLabels.FormDateFormat),
+		FormDateTimeFormat:             cmp.Or(l.FormDateTimeFormat, DefaultLabels.FormDateTimeFormat, englishLabels.FormDateTimeFormat),
+		FormTimeFormat:                 cmp.Or(l.FormTimeFormat, DefaultLabels.FormTimeFormat, englishLabels.FormTimeFormat),
+		FormDateTimeNotInFormat:        cmp.Or(l.FormDateTimeNotInFormat, DefaultLabels.FormDateTimeNotInFormat, englishLabels.FormDateTimeNotInFormat),
+		FormDateTimeTooEarly:           cmp.Or(l.FormDateTimeTooEarly, DefaultLabels.FormDateTimeTooEarly, englishLabels.FormDateTimeTooEarly),
+		FormDateTimeTooLate:            cmp.Or(l.FormDateTimeTooLate, DefaultLabels.FormDateTimeTooLate, englishLabels.FormDateTimeTooLate),
+		FormDateTimeOutsideRange:       cmp.Or(l.FormDateTimeOutsideRange, DefaultLabels.FormDateTimeOutsideRange, englishLabels.FormDateTimeOutsideRange),
 	}
 }
 
@@ -246,6 +302,35 @@ func clearFieldLabel(l Labels) string {
 		}
 	}
 	return ""
+}
+
+// dateTimeFormat returns the translation of format, the format to enter of
+// a date, datetime or time input ([mx.DateTimeInputSpec].Format).
+func (l Labels) dateTimeFormat(format string) string {
+	switch format {
+	case "YYYY-MM-DD":
+		return l.FormDateFormat
+	case "YYYY-MM-DDTHH:MM":
+		return l.FormDateTimeFormat
+	case "HH:MM":
+		return l.FormTimeFormat
+	}
+	return format
+}
+
+// dateTimeError returns the translation of e, the error of a submitted date
+// or time. It names the problem and the format or bounds, not the submitted
+// text, which a translated sentence could not place in every language.
+func (l Labels) dateTimeError(e *mx.DateTimeError) string {
+	switch e.Problem {
+	case mx.DateTimeTooEarly:
+		return strings.Replace(l.FormDateTimeTooEarly, "%s", e.Min, 1)
+	case mx.DateTimeTooLate:
+		return strings.Replace(l.FormDateTimeTooLate, "%s", e.Max, 1)
+	case mx.DateTimeOutsideRange:
+		return strings.Replace(strings.Replace(l.FormDateTimeOutsideRange, "%s", e.Min, 1), "%s", e.Max, 1)
+	}
+	return strings.Replace(l.FormDateTimeNotInFormat, "%s", l.dateTimeFormat(e.Format), 1)
 }
 
 // labelText returns a [mx.Component] that renders the Labels field selected by

@@ -118,7 +118,8 @@ SOFTWARE.
 
 ## class-variance-authority (cva)
 
-`shadcn/cva/` is a Go port of class-variance-authority (v0.7.1). It is a
+`shadcn/cva/` is a Go port of class-variance-authority (v0.7.1), plus
+`compose` from its successor cva (v1.0.0-beta). It is a
 **modified derivative** of the original TypeScript work: the API and behavior
 were reimplemented in Go. The original is licensed under the Apache License,
 Version 2.0.

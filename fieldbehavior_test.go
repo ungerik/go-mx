@@ -56,6 +56,41 @@ func TestKeepsStoredValue(t *testing.T) {
 	}
 }
 
+// An input drops HTML required where a blank keeps what is stored: a
+// sensitive value or a file the field already holds. The handler still
+// rejects a blank with nothing stored.
+func TestBrowserTag(t *testing.T) {
+	required := FormTag{Required: true}
+	sensitive := FormTag{Required: true, Sensitive: true}
+	for _, tc := range []struct {
+		name  string
+		tag   FormTag
+		kind  FieldKind
+		value any
+		want  bool
+	}{
+		{"required text", required, FieldKindString, "x", true},
+		{"stored sensitive text", sensitive, FieldKindString, "secret", false},
+		{"empty sensitive text", sensitive, FieldKindString, "", true},
+		{"stored file bytes", required, FieldKindFile, []byte("pdf"), false},
+		{"stored file name", required, FieldKindFile, new("scan.pdf"), false},
+		{"no file", required, FieldKindFile, []byte(nil), true},
+		{"empty file name", required, FieldKindFile, new(""), true},
+		{"nil file pointer", required, FieldKindFile, (*string)(nil), true},
+		{"optional", FormTag{}, FieldKindFile, []byte("pdf"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := BrowserTag(tc.tag, tc.kind, reflect.ValueOf(tc.value))
+			if got.Required != tc.want {
+				t.Errorf("BrowserTag(...).Required = %v, want %v", got.Required, tc.want)
+			}
+			if got.Sensitive != tc.tag.Sensitive {
+				t.Error("BrowserTag must change nothing but Required")
+			}
+		})
+	}
+}
+
 func TestFieldErrors_EmptyIsEmptyString(t *testing.T) {
 	if got := (FieldErrors{}).Error(); got != "" {
 		t.Errorf("empty FieldErrors.Error() = %q, want \"\"", got)
@@ -143,5 +178,28 @@ func TestSetField_RejectsMissing(t *testing.T) {
 	_, _, err := SetField(reflect.ValueOf(&s{}), "Missing")
 	if err == nil {
 		t.Errorf("expected error for missing field")
+	}
+}
+
+// AddDescribedBy finds the control below wrappers, skips hidden inputs, and
+// keeps the ids the control has.
+func TestAddDescribedBy(t *testing.T) {
+	control := NewVoidElement("input", Attribute{Name: "aria-describedby", Value: "x-format"})
+	c := Components{
+		NewVoidElement("input", Attribute{Name: "type", Value: "hidden"}),
+		NewElement("div", control),
+	}
+	if !AddDescribedBy(c, "x-help", "x-error-0") {
+		t.Fatal("no control found")
+	}
+	if got := renderToString(t, control); got != `<input aria-describedby="x-format x-help x-error-0"/>` {
+		t.Errorf("control = %s", got)
+	}
+	group := NewElement("div", Attribute{Name: "role", Value: "group"})
+	if !AddDescribedBy(group, "g-help") || group.AttribIndex("aria-describedby") < 0 {
+		t.Error("a role=group element is a control")
+	}
+	if AddDescribedBy(NewElement("p"), "x") || AddDescribedBy(control) {
+		t.Error("no control, or no ids, adds nothing")
 	}
 }

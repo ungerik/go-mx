@@ -2,6 +2,7 @@ package mx
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"reflect"
 	"sort"
@@ -29,33 +30,57 @@ import (
 //     the client sent back (discovered via the __row__ markers), in
 //     order. Removing a row's markup drops it; adding appends one.
 //
-// Row identity: v1 rebuilds the slice from the submitted values and does
-// not match submitted rows to previously loaded rows by a key. A stable
-// per-row key can still be round-tripped with a form:"hidden" sub-field
-// (its value is echoed through a hidden input and parsed back), which is
-// how a caller maps rows to records in onSubmit. A form:"readonly"
-// sub-field is rendered but never parsed. Each row's __row__ marker
-// carries the index of the loaded row it came from (its origin, written
-// "o<index>"), also
-// through the re-renders of add-row and remove-row clicks, and a rebuilt
-// row starts as a copy of that loaded row before the submission is
-// applied: a readonly cell keeps its loaded value, a rejected cell
-// behaves as the same top-level field does (it keeps the stored value, or
-// keeps the posted text where the field does, as an out-of-range number or
-// date and rejected date text), and a cell the client did not send is left
-// as loaded. An added row has no
-// origin and starts at the zero value. An origin is a position in the
-// slice load returns on that POST, so if the stored rows changed since
-// the GET, the values follow the row now at that position: key such rows
-// with a form:"hidden" sub-field and restore server-controlled columns in
-// onSubmit. For the same reason a failing onSubmit must not reorder or
-// remove the rows; rows it appends have no origin (and if the rows are
-// fewer, no row keeps one). The marker is
+// Row identity: a row type with form:"key" sub-fields, such as the ID of
+// the record a row stands for, is matched by key. A key cell is rendered
+// as a hidden input and never parsed, and a rebuilt row starts as a copy
+// of the loaded row whose key cells show the submitted text before the
+// submission is applied: a readonly cell keeps its loaded value, a rejected
+// cell behaves as the same top-level field does (it keeps the stored
+// value, or keeps the posted text where the field does, as an out-of-range
+// number or date and rejected date text), and a cell the client did not
+// send is left as loaded. Each loaded row is claimed by at most one
+// submitted row. A row whose key names no loaded row, such as an added
+// one, starts at the zero value, its key included, so a tampered POST can
+// reorder and drop the record's rows but cannot pair one row's readonly or
+// sensitive cells with another row's key, nor send a key of its own. As the
+// key follows the record, a row keeps its values also when the stored rows
+// changed since the GET.
+//
+// A row type without a key falls back to positions. Each row's __row__
+// marker carries the index of the loaded row it came from (its origin,
+// written "o<index>"), also through the re-renders of add-row and
+// remove-row clicks, and a rebuilt row starts as a copy of that loaded row
+// as above; an added row has no origin. An origin is a position in the
+// slice load returns on that POST, so if the stored rows changed since the
+// GET, the values follow the row now at that position. The marker is
 // client-controlled, so only the index of a loaded row that no earlier
 // submitted row claimed counts: a tampered POST can reorder the record's
 // rows but cannot copy one row onto a second or keep a row whose origin it
-// dropped. form:"readonly" on the repeatable field itself renders its rows
-// readonly, without add and remove buttons, and never rebuilds them.
+// dropped, while a form:"hidden" row ID, which is parsed, can pair one
+// row's readonly cells with another row's ID. Without a key, an onSubmit
+// that maps rows to records must restore server-controlled columns itself.
+// For the same reason a failing onSubmit must not reorder or remove the
+// rows; rows it appends have no origin (and if the rows are fewer, no row
+// keeps one).
+//
+// form:"readonly" on the repeatable field itself renders its rows
+// readonly, without add and remove buttons, and never rebuilds them. A
+// form:"readonly" sub-field is rendered but never parsed.
+
+// DefaultMaxRows is the default cap on the rows of a repeatable field,
+// which form:"maxrows=N" sets per field ([FormTag.MaxRows]). Rows are
+// otherwise bounded only by Go's form limits, and a POST of thousands of
+// forged row markers costs a page and allocations to match. A value of 0
+// or less removes the default cap.
+var DefaultMaxRows = 1000
+
+// maxRows returns the row cap of a repeatable field with tag, or 0 for none.
+func maxRows(tag FormTag) int {
+	if tag.MaxRows > 0 {
+		return tag.MaxRows
+	}
+	return max(DefaultMaxRows, 0)
+}
 
 const (
 	// sentinelCommand is the form-input name carrying an add/remove
@@ -168,13 +193,8 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 		hasFile = hasFile || cv.Kind == FieldKindFile || d(addedRow.Append(string(cv.Path)), cv.Field, cv.Value).Multipart
 	}
 
-	label := visit.Field.Name
-	if visit.Tag.Label != "" {
-		label = visit.Tag.Label
-	}
-
 	children := []any{
-		NewElement("legend", Text(label)),
+		NewElement("legend", Text(FieldLabel(visit.Field, visit.Tag))),
 		// Field-level __present marker: its absence means the field was
 		// not rendered, so parseRepeatable leaves the loaded slice
 		// untouched (the same mass-assignment allowlist scalar fields
@@ -221,7 +241,7 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 			hasFile = hasFile || rowFile
 		}
 	}
-	if !readonly {
+	if limit := maxRows(visit.Tag); !readonly && (limit <= 0 || slice.Len() < limit) {
 		children = append(children, repeatableAddButton(visit.Path))
 	}
 
@@ -302,7 +322,8 @@ type rowOrigins map[FieldPath][]int
 // submitted for this repeatable field. Rows are discovered via the
 // __row__ markers, parsed in submitted order into fresh elements, and
 // assigned as a new slice; a row starts as a copy of the loaded row its
-// marker names (see [rowOrigin]). Per-cell errors are recorded in out
+// key names, or for a row type without form:"key" cells its marker (see
+// [keyedRowOrigin] and [rowOrigin]). Per-cell errors are recorded in out
 // under the dense (post-rebuild) cell path so they line up with the
 // re-render, and the rows' origins in origins. A readonly repeatable
 // field keeps the loaded slice.
@@ -329,10 +350,24 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 		return
 	}
 	indices := repeatableRowIndices(form, visit.Path)
+	if limit := maxRows(visit.Tag); limit > 0 && len(indices) > limit {
+		// Rejected before a row is bound, so the rows stay as loaded.
+		err := fmt.Errorf("at most %d rows", limit)
+		if limit == 1 {
+			err = errors.New("at most 1 row")
+		}
+		out[visit.Path] = append(out[visit.Path], err)
+		return
+	}
 	elemIsPointer := sliceType.Elem().Kind() == reflect.Pointer
 	loaded := reflect.New(sliceType).Elem()
 	loaded.Set(slice)
 	claimed := map[int]bool{}
+	keyPaths := rowKeyPaths(structType)
+	var loadedByKey map[string][]int
+	if len(keyPaths) > 0 {
+		loadedByKey = loadedRowsByKey(loaded, structType)
+	}
 
 	newSlice := reflect.MakeSlice(sliceType, 0, len(indices))
 	rowsOrigin := make([]int, 0, len(indices))
@@ -340,7 +375,12 @@ func parseRepeatable(visit FieldVisit, d FieldDecider, r *http.Request, out map[
 		pos := newSlice.Len()
 		srcRow := visit.Path.Append(strconv.Itoa(srcIndex))
 		dstRow := visit.Path.Append(strconv.Itoa(pos))
-		origin := rowOrigin(form, srcRow, loaded.Len(), claimed)
+		var origin int
+		if len(keyPaths) > 0 {
+			origin = keyedRowOrigin(form, srcRow, keyPaths, loadedByKey, claimed)
+		} else {
+			origin = rowOrigin(form, srcRow, loaded.Len(), claimed)
+		}
 
 		structPtr := reflect.New(structType)
 		if origin >= 0 {
@@ -398,6 +438,75 @@ func rowOrigin(form map[string][]string, rowPath FieldPath, loadedLen int, claim
 	return origin
 }
 
+// rowKeyPaths returns the paths of the form:"key" cells of a repeatable
+// row's struct type, in walk order.
+func rowKeyPaths(structType reflect.Type) []FieldPath {
+	var paths []FieldPath
+	for cv := range ReflectFormFields(reflect.New(structType).Interface()) {
+		if cv.Tag.Key {
+			paths = append(paths, cv.Path)
+		}
+	}
+	return paths
+}
+
+// loadedRowsByKey maps the key of each loaded row (see [rowKey]), the text
+// of its form:"key" cells as their hidden inputs show it, to the indices of
+// the rows holding it. A row whose key cells are all zero has no key yet,
+// as a row never saved, and is left out.
+func loadedRowsByKey(loaded reflect.Value, structType reflect.Type) map[string][]int {
+	byKey := make(map[string][]int, loaded.Len())
+	for i := range loaded.Len() {
+		row := rowStructValue(loaded.Index(i), structType)
+		var cells []string
+		zero := true
+		for cv := range ReflectFormFields(row.Addr().Interface()) {
+			if cv.Tag.Key {
+				cells = append(cells, FormValueText(cv.Value))
+				zero = zero && cv.Value.IsZero()
+			}
+		}
+		if !zero {
+			key := rowKey(cells)
+			byKey[key] = append(byKey[key], i)
+		}
+	}
+	return byKey
+}
+
+// keyedRowOrigin returns the origin of the submitted row at rowPath for a
+// row type with form:"key" cells: the first loaded row no earlier row
+// claimed whose key equals the submitted key cells, or -1. The key decides
+// the origin, not the client-controlled __row__ marker, so a submitted row
+// starts from the loaded row with its key: a tampered POST cannot pair one
+// row's readonly or sensitive cells with another row's key, and the values
+// follow the record, also when the stored rows changed order since the GET.
+func keyedRowOrigin(form map[string][]string, rowPath FieldPath, keyPaths []FieldPath, loadedByKey map[string][]int, claimed map[int]bool) int {
+	cells := make([]string, len(keyPaths))
+	for i, path := range keyPaths {
+		if vals := form[string(rowPath.Append(string(path)))]; len(vals) > 0 {
+			cells[i] = vals[0]
+		}
+	}
+	for _, origin := range loadedByKey[rowKey(cells)] {
+		if !claimed[origin] {
+			claimed[origin] = true
+			return origin
+		}
+	}
+	return -1
+}
+
+// rowKey joins the text of a row's key cells into one map key, each cell
+// quoted so no two different cell lists join to the same text.
+func rowKey(cells []string) string {
+	quoted := make([]string, len(cells))
+	for i, cell := range cells {
+		quoted[i] = strconv.Quote(cell)
+	}
+	return strings.Join(quoted, ",")
+}
+
 // applyRepeatableCommand mutates the slice referenced by an add/remove
 // __cmd__ value on target (a pointer to the form struct). It runs AFTER
 // parseRepeatable has rebuilt the slice densely from the submitted
@@ -410,8 +519,12 @@ func applyRepeatableCommand(target any, cmd string, form map[string][]string, or
 	switch {
 	case strings.HasPrefix(cmd, cmdAddRow):
 		field := FieldPath(strings.TrimPrefix(cmd, cmdAddRow))
-		slice, _, err := SetField(root, field)
+		slice, structField, err := SetField(root, field)
 		if err != nil || slice.Kind() != reflect.Slice || !slice.CanSet() {
+			return
+		}
+		// The button is hidden at the cap, so a click past it is forged.
+		if limit := maxRows(ParseFormTag(structField)); limit > 0 && slice.Len() >= limit {
 			return
 		}
 		elemType := slice.Type().Elem()

@@ -346,8 +346,8 @@ func renderEventData(ctx context.Context, factory WriterFactory, comp Component)
 // Like [RespondNonContextError] it sends a generic "Internal Server Error"
 // unless [RevealInternalServerErrors] is set, passes err to [ReportError] with
 // ctx, and does nothing (returning a nil error) when err is a
-// context.Canceled or context.DeadlineExceeded, because the client that would
-// read it has disconnected.
+// context.Canceled or context.DeadlineExceeded while ctx is done, because the
+// client that would read it has disconnected.
 //
 // ctx is used to render the message and to report err, with its cancellation
 // stripped: a cancellation is often what caused err, and the report should

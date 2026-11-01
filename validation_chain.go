@@ -95,6 +95,22 @@ func RunValidationChain(value reflect.Value) []error {
 	return nil
 }
 
+// hasValidationChain reports whether t, or a pointer to it, has a method of
+// the validation chain [RunValidationChain] runs.
+func hasValidationChain(t reflect.Type) bool {
+	t = derefType(t)
+	if t == nil {
+		return false
+	}
+	for _, typ := range []reflect.Type{t, reflect.PointerTo(t)} {
+		if typ.Implements(reflect.TypeFor[Normalizer]()) || typ.Implements(reflect.TypeFor[SingleErrNormalizer]()) ||
+			typ.Implements(reflect.TypeFor[SingleErrValidator]()) || typ.Implements(reflect.TypeFor[Validator]()) {
+			return true
+		}
+	}
+	return false
+}
+
 // safeInterface returns value.Interface() unless reflect would panic
 // (unexported or zero value.Value). Returns nil in that case.
 func safeInterface(value reflect.Value) any {

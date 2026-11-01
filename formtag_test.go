@@ -1,6 +1,9 @@
 package mx
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseFormTagString(t *testing.T) {
 	cases := []struct {
@@ -21,6 +24,7 @@ func TestParseFormTagString(t *testing.T) {
 		{name: "section infers nested", raw: "section=Accounting",
 			want: FormTag{Section: "Accounting", Nested: true}},
 		{name: "hidden", raw: "hidden", want: FormTag{Hidden: true}},
+		{name: "key implies hidden", raw: "key", want: FormTag{Key: true, Hidden: true}},
 		{name: "readonly", raw: "readonly", want: FormTag{Readonly: true}},
 		{name: "sensitive", raw: "sensitive", want: FormTag{Sensitive: true}},
 		{name: "quoted label with comma",
@@ -30,6 +34,9 @@ func TestParseFormTagString(t *testing.T) {
 			want: FormTag{Options: "ISO4217"}},
 		{name: "repeatable", raw: "repeatable",
 			want: FormTag{Repeatable: true}},
+		{name: "maxrows", raw: "repeatable,maxrows=20",
+			want: FormTag{Repeatable: true, MaxRows: 20}},
+		{name: "maxrows not a positive number", raw: "maxrows=-1", want: FormTag{}},
 		// An apostrophe inside a value is a literal: only a quote that
 		// starts a value opens one, so the options after it still count.
 		{name: "apostrophe in a value",
@@ -46,5 +53,32 @@ func TestParseFormTagString(t *testing.T) {
 				t.Errorf("ParseFormTagString(%q) =\n  %+v\nwant\n  %+v", c.raw, got, c.want)
 			}
 		})
+	}
+}
+
+func TestFieldLabel(t *testing.T) {
+	field := reflect.StructField{Name: "Email"}
+	if got := FieldLabel(field, FormTag{}); got != "Email" {
+		t.Errorf("FieldLabel = %q, want the field name", got)
+	}
+	if got := FieldLabel(field, FormTag{Label: "E-mail address"}); got != "E-mail address" {
+		t.Errorf("FieldLabel = %q, want the tag's label", got)
+	}
+}
+
+func TestStringInputType(t *testing.T) {
+	for widget, want := range map[string]string{
+		"":         "text",
+		"text":     "text",
+		"email":    "email",
+		"url":      "url",
+		"tel":      "tel",
+		"password": "password",
+		"textarea": "text",
+		"color":    "text",
+	} {
+		if got := StringInputType(FormTag{Widget: widget}); got != want {
+			t.Errorf("StringInputType(%q) = %q, want %q", widget, got, want)
+		}
 	}
 }
