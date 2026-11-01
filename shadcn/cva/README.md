@@ -137,8 +137,8 @@ and `Variants` is `func(props map[string]string) string`.
 Resolution order matches cva v0.7.1: **base**, then **one class set per
 variant** (the caller's value, or the default when the prop is omitted or
 empty — mirroring cva's `falsyToString(prop) || falsyToString(default)`), then
-**matching compound variants** (evaluated against defaults overlaid with
-props), then the **`"class"` override**. Boolean variants need no special
+**matching compound variants** (evaluated against defaults overlaid with the
+non-empty props), then the **`"class"` override**. Boolean variants need no special
 handling: pass `"true"`/`"false"` as the prop value and key the config the same
 way (Go has no distinct boolean prop type, so cva's boolean-key coercion
 collapses to plain string keys).
@@ -153,6 +153,16 @@ class-variance-authority v0.7.1's own test suite.
   sorting the variant names. The resolved class *set* is identical to cva's, and
   callers tailwind-merge the result anyway, so the order does not affect the
   final styling.
+- **An empty prop counts as omitted in compound variants too.** cva falls
+  back to the default for an empty variant prop but matches compound
+  variants against defaults overlaid with every defined prop, so there `""`
+  overrides the default. Go callers pass `""` for an unset variant (shadcn's
+  components do), which under cva's rule would make a compound variant on a
+  default value miss exactly when the variant is unset, and would make a
+  config resolve differently once wrapped in `Composes`, which forwards only
+  non-empty props. Here the composed configs, the variants and the compound
+  variants all resolve the same value. A compound variant listing `""` still
+  matches a variant that neither the props nor the defaults set.
 - **Not ported:** the `defineConfig` options of cva v1.0.0-beta.12 (a custom
   `cx` concatenator, which replaced the earlier hooks), since `shadcn.Cn`
   already post-processes classes at the component boundary,

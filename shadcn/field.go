@@ -220,15 +220,40 @@ func FieldContent(attribsChildren ...any) *mx.Element {
 
 // fieldLabelClasses layers the Field-specific label classes over the shared
 // labelClasses, merged once at package init (both operands are constants).
+//
+// The choice card deliberately diverges from style-vega.css in two places,
+// each a bug there that compiling the classes with Tailwind shows:
+//
+//   - Hover: upstream's has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50
+//     is more specific than has-checked:bg-primary/5 and emitted after it, so
+//     a checked card turns grey under the pointer and looks unchecked. The
+//     added not-has-checked: keeps a checked card on its selected tint.
+//   - The controls inside: upstream gives [Checkbox], [RadioGroupItem] and
+//     [Switch] group-has-[:focus-visible]/field-label:ring-0 (plus border
+//     overrides) so only the card draws a focus ring. That ring-0 is exactly
+//     as specific as the control's own focus-visible:ring-[3px] and emitted
+//     first, so both rings show; and the prefix matches under any FieldLabel,
+//     so a control labelled inline, as in FieldLabel(Checkbox(), "Remember
+//     me"), loses its focus border with no card ring to replace it. The port
+//     writes the prefix as group-has-[>[data-slot=field]_:focus-visible]/field-label:,
+//     matching only a card whose direct Field child holds the focused
+//     control. The added attribute selector raises the specificity from
+//     (0,2,0) to (0,3,0), above the controls' focus-visible: classes.
+//
+// Upstream may fix either one later. On the next sync, compare the
+// .cn-field-label, .cn-checkbox, .cn-radio-group-item and .cn-switch rules and
+// go back to upstream's classes where it has.
 var fieldLabelClasses = Cn(labelClasses,
-	"group/field-label peer/field-label flex w-fit has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-checked:bg-primary/5 has-checked:border-primary/30 dark:has-checked:border-primary/20 dark:has-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-3 *:data-[slot=field]:p-3")
+	"group/field-label peer/field-label flex w-fit has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-checked:bg-primary/5 has-checked:border-primary/30 dark:has-checked:border-primary/20 dark:has-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:not-has-checked:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-3 *:data-[slot=field]:p-3")
 
 // FieldLabel is a [Label] for a [Field]'s control. It can also wrap a whole
 // [Field] to make a selectable card (the has-[>[data-slot=field]]: and
 // has-checked: classes) — e.g. a bordered radio choice. The card shows the
 // focus ring of the control inside it, and [Checkbox], [RadioGroupItem] and
-// [Switch] drop their own ring there (their group-has-[:focus-visible]/field-label:
-// classes) so the ring is drawn once.
+// [Switch] drop their own ring there (their
+// group-has-[>[data-slot=field]_:focus-visible]/field-label: classes) so the
+// ring is drawn once, while a control labelled inline keeps its own ring. A
+// checked card keeps its selected tint under the pointer.
 func FieldLabel(attribsChildren ...any) *mx.Element {
 	return finish(html.Label(attribsChildren...), "field-label", fieldLabelClasses)
 }

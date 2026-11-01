@@ -49,8 +49,9 @@ type Config struct {
 }
 
 // Compound is a conditional class selection. Class is appended when, for every
-// entry in When, the resolved variant value is one of the listed values. An
-// empty When matches unconditionally.
+// entry in When, the resolved variant value is one of the listed values. The
+// resolved value is the caller's prop, or the default when the prop is omitted
+// or empty. An empty When matches unconditionally.
 type Compound struct {
 	When  map[string][]string
 	Class string
@@ -67,15 +68,21 @@ type Variants func(props map[string]string) string
 // configs of cva v1.0.0-beta.12 (see [Config.Composes]): the composed configs,
 // then base, then one class set per variant (the caller's value, or the default
 // when the prop is omitted or empty), then matching compound variants, then the
-// props "class" override.
+// props "class" override. An empty prop counts as omitted at every step, so the
+// composed configs, the variants and the compound variants all resolve the
+// same value.
 // Boolean variants need no special handling — pass "true"/"false" as the prop
 // value and key the config the same way.
 //
-// Two deliberate divergences from the JavaScript original: variant class order
-// follows sorted variant names rather than declaration order (Go maps are
+// Three deliberate divergences from the JavaScript original: variant class
+// order follows sorted variant names rather than declaration order (Go maps are
 // unordered; the resolved class set is identical, and callers tailwind-merge
-// it anyway), and cva's defineConfig options and VariantProps helper are not
-// ported (the package README says what replaces VariantProps).
+// it anyway); compound variants treat an empty prop as omitted, where cva
+// matches them against a "" that overrides the default even though the variant
+// lookup falls back to it (Go callers pass "" for an unset variant, so cva's
+// rule would make a compound on a default miss whenever the variant is unset);
+// and cva's defineConfig options and VariantProps helper are not ported (the
+// package README says what replaces VariantProps).
 func New(config Config) Variants {
 	composed := make([]Variants, len(config.Composes))
 	for i, c := range config.Composes {
@@ -88,31 +95,37 @@ func New(config Config) Variants {
 		variantNames = append(variantNames, name)
 	}
 	slices.Sort(variantNames)
+	needResolved := len(composed) > 0 || len(config.CompoundVariants) > 0
 
 	return func(props map[string]string) string {
-		parts := make([]string, 0, len(composed)+len(variantNames)+3)
-		if len(composed) > 0 {
-			// Withholding "class" keeps a caller override from repeating once
-			// per composed config and keeps it last, where a tailwind-merge
-			// step lets it win. The defaults are copied only when a prop
-			// overrides one, so neither they nor the caller's map change; a
-			// resolver compiled by New never writes to its props.
-			forwarded, copied := defaults, false
+		// resolved is the defaults overlaid with the caller's non-empty props,
+		// what the composed configs and the compound variants see. Withholding
+		// "class" keeps a caller override from repeating once per composed
+		// config and keeps it last, where a tailwind-merge step lets it win.
+		// The defaults are copied only when a prop overrides one, so neither
+		// they nor the caller's map change; a resolver compiled by New never
+		// writes to its props.
+		var resolved map[string]string
+		if needResolved {
+			resolved = defaults
+			copied := false
 			for name, value := range props {
-				if name == "class" || value == "" || forwarded[name] == value {
+				if name == "class" || value == "" || resolved[name] == value {
 					continue
 				}
 				if !copied {
-					forwarded = make(map[string]string, len(defaults)+len(props))
-					maps.Copy(forwarded, defaults)
+					resolved = make(map[string]string, len(defaults)+len(props))
+					maps.Copy(resolved, defaults)
 					copied = true
 				}
-				forwarded[name] = value
+				resolved[name] = value
 			}
-			for _, resolve := range composed {
-				if cls := resolve(forwarded); cls != "" {
-					parts = append(parts, cls)
-				}
+		}
+
+		parts := make([]string, 0, len(composed)+len(variantNames)+3)
+		for _, resolve := range composed {
+			if cls := resolve(resolved); cls != "" {
+				parts = append(parts, cls)
 			}
 		}
 		if config.Base != "" {
@@ -131,25 +144,19 @@ func New(config Config) Variants {
 			}
 		}
 
-		if len(config.CompoundVariants) > 0 {
-			// Compound conditions match against defaults overlaid with props.
-			merged := make(map[string]string, len(defaults)+len(props))
-			maps.Copy(merged, defaults)
-			maps.Copy(merged, props)
-			for _, comp := range config.CompoundVariants {
-				if comp.Class == "" {
-					continue
+		for _, comp := range config.CompoundVariants {
+			if comp.Class == "" {
+				continue
+			}
+			match := true
+			for key, accepted := range comp.When {
+				if !slices.Contains(accepted, resolved[key]) {
+					match = false
+					break
 				}
-				match := true
-				for key, accepted := range comp.When {
-					if !slices.Contains(accepted, merged[key]) {
-						match = false
-						break
-					}
-				}
-				if match {
-					parts = append(parts, comp.Class)
-				}
+			}
+			if match {
+				parts = append(parts, comp.Class)
 			}
 		}
 

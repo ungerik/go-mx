@@ -86,6 +86,18 @@ func TestNew(t *testing.T) {
 			want:  "bg-blue",
 		},
 		{
+			// cva would match the compound against the "" (a divergence, see
+			// New): an empty prop counts as omitted for compounds too.
+			name: "empty-string prop falls back to default for compound match",
+			config: Config{
+				Variants:         map[string]map[string]string{"shadow": {"sm": "shadow-sm", "md": "shadow-md"}},
+				CompoundVariants: []Compound{{When: map[string][]string{"shadow": {"sm"}}, Class: "subtle"}},
+				DefaultVariants:  map[string]string{"shadow": "sm"},
+			},
+			props: map[string]string{"shadow": ""},
+			want:  "shadow-sm subtle",
+		},
+		{
 			name: "compound variant, scalar condition",
 			config: Config{
 				Variants: map[string]map[string]string{
@@ -303,5 +315,31 @@ func TestComposesLeavesInputsUnchanged(t *testing.T) {
 	// of one call must not leak into the defaults of the next.
 	if got, want := card(nil), "shadow-sm"; got != want {
 		t.Errorf("call after an override = %q, want %q", got, want)
+	}
+}
+
+// TestComposesEmptyPropResolvesOnce checks that an empty prop means the same
+// in a composed config as in the composer: the default, including the default
+// a composer retunes, for variants and compound variants alike.
+func TestComposesEmptyPropResolvesOnce(t *testing.T) {
+	shadow := Config{
+		Variants: map[string]map[string]string{"shadow": {"sm": "shadow-sm", "md": "shadow-md"}},
+		CompoundVariants: []Compound{
+			{When: map[string][]string{"shadow": {"sm"}}, Class: "flat"},
+			{When: map[string][]string{"shadow": {"md"}}, Class: "raised"},
+		},
+		DefaultVariants: map[string]string{"shadow": "sm"},
+	}
+	empty := map[string]string{"shadow": ""}
+	if got, want := New(Config{Composes: []Config{shadow}})(empty), New(shadow)(empty); got != want {
+		t.Errorf("composed = %q, standalone = %q", got, want)
+	}
+	card := New(Config{
+		Composes:         []Config{shadow},
+		CompoundVariants: []Compound{{When: map[string][]string{"shadow": {"md"}}, Class: "card-raised"}},
+		DefaultVariants:  map[string]string{"shadow": "md"},
+	})
+	if got, want := card(empty), "shadow-md raised card-raised"; got != want {
+		t.Errorf("retuned default = %q, want %q", got, want)
 	}
 }

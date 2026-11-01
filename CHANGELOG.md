@@ -443,7 +443,18 @@ API is still free to change.
 - **A `FieldLabel` choice card tints on hover and draws the focus ring.** As
   upstream's style sheet now does, the card wrapping a `Field` shows the
   focus ring of the control inside it, and `Checkbox`, `RadioGroupItem` and
-  `Switch` drop their own there.
+  `Switch` drop their own there. Unlike upstream, whose classes for this do
+  not take effect, the ring really is drawn once, a control labelled inline
+  keeps its own focus ring, and a checked card keeps its selected tint on
+  hover.
+- **`cva` compound variants treat an empty prop as omitted.** A variant
+  already fell back to its default for `""`, but a compound variant matched
+  the `""` itself, so a compound on a default value missed whenever a caller
+  passed the variant unset, and a config resolved differently once wrapped
+  in `Composes`. Now the composed configs, the variants and the compound
+  variants all see the default. This deliberately differs from
+  class-variance-authority, where an explicit `""` overrides the default in
+  compound matching.
 - **A `database/sql` type gets the widget of the value it holds.** A
   `sql.NullBool` is a checkbox with a clear control for its null, a
   `sql.NullInt64` or `sql.NullFloat64` a number input with its `min`, `max`

@@ -453,7 +453,7 @@ row.
 | Port | Upstream | Last synced | How to diff |
 |------|----------|-------------|-------------|
 | `clsx/` | [lukeed/clsx](https://github.com/lukeed/clsx) | v2.1.1 (`e2dc836`) | `gh api repos/lukeed/clsx/releases` (unchanged since 2024) |
-| `twmerge/` | [dcastil/tailwind-merge](https://github.com/dcastil/tailwind-merge) | tailwind-merge@3.7.0 (`511d68a`) | `git diff tailwind-merge@3.7.0 <new> -- packages/tailwind-merge/src/lib packages/tailwind-merge/tests` |
+| `twmerge/` | [dcastil/tailwind-merge](https://github.com/dcastil/tailwind-merge) | tailwind-merge@3.7.0 (`511d68a`) plus the unreleased fix #721 (merged 2026-10-11) | `git diff tailwind-merge@3.7.0 <new> -- packages/tailwind-merge/src/lib packages/tailwind-merge/tests` |
 | `cva/` `New` | [joe-bell/cva](https://github.com/joe-bell/cva) class-variance-authority | v0.7.1 (`45462dd`) | npm `class-variance-authority`; v0.7.1 is still the latest |
 | `cva/` `Config.Composes` | joe-bell/cva `cva` beta | v1.0.0-beta.12 (`1d93698`) | `packages/cva/src/config.ts` and the "cva — composes" tests in `index.test.ts` |
 | components from `new-york-v4` | shadcn-ui/ui `apps/v4/registry/new-york-v4/ui` | frozen; checked at `c0d63c3` (2026-10-31) | `gh api "repos/shadcn-ui/ui/commits?path=apps/v4/registry/new-york-v4/ui&since=<date>"` |
@@ -468,6 +468,16 @@ Policy for a sync:
   `group-has-[:focus-visible]/field-label:` classes the 2026-11-01 sync
   added to Checkbox, RadioGroupItem and Switch so a `FieldLabel` choice
   card draws its focus ring once.
+- **Known upstream bugs the port fixes.** These classes diverge from
+  `style-vega.css` at `c0d63c3` because upstream's do not work (details on
+  `fieldLabelClasses` in `field.go`). On each sync, check whether upstream
+  fixed them and return to its classes if it did:
+  - the controls' `group-has-[:focus-visible]/field-label:` overrides, which
+    the port writes `group-has-[>[data-slot=field]_:focus-visible]/field-label:`
+    (upstream's never beat `focus-visible:ring-[3px]` and also match an
+    inline `FieldLabel`);
+  - the `FieldLabel` card hover, where the port adds `not-has-checked:`
+    (upstream's hover tint hides a checked card's `has-checked:` tint).
 - The `*-aria` rules belong to upstream's third primitive base, React Aria
   (shadcn-ui/ui#11208, July 2026). This port uses no primitive library, so
   they are ignored.

@@ -761,7 +761,15 @@ self-contained result; these are the first components sourced that way:
   `Field` becomes a selectable card that highlights via native
   `has-checked:` when the control inside is checked, tints on hover and
   takes over the control's focus ring (the `Checkbox`, `RadioGroupItem` or
-  `Switch` inside drops its own, so the ring is drawn once).
+  `Switch` inside drops its own, so the ring is drawn once). Two of these
+  classes deliberately diverge from upstream's `style-vega.css`, which has
+  them wrong: there the controls' `group-has-[:focus-visible]/field-label:`
+  overrides never win over their own `focus-visible:` ring and also strip
+  the focus border of a control labelled inline, and the hover tint hides a
+  checked card's selected tint. The port scopes the overrides to the card
+  (`group-has-[>[data-slot=field]_:focus-visible]/field-label:`) and adds
+  `not-has-checked:` to the hover. If upstream fixes them, the next sync
+  returns to its classes.
 - **Kbd** — `Kbd` / `KbdGroup` for keyboard keys and shortcuts. Both render
   a `<kbd>` element, like upstream.
 - **Spinner** — `Spinner(…)`. The lucide loader-circle icon inlined as SVG
