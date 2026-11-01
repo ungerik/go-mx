@@ -1,4 +1,4 @@
-// Package twmerge is a Go port of tailwind-merge v3.6.0 (targeting Tailwind
+// Package twmerge is a Go port of tailwind-merge v3.7.0 (targeting Tailwind
 // CSS v4): [Merge] resolves Tailwind utility-class conflicts so that a later
 // class overrides an earlier conflicting one.
 //
@@ -12,7 +12,7 @@
 package twmerge
 
 // The tailwind-merge conflict-resolution algorithm, ported from
-// tailwind-merge v3.6.0 (src/lib/merge-classlist.ts and config-utils.ts).
+// tailwind-merge v3.7.0 (src/lib/merge-classlist.ts and config-utils.ts).
 
 import (
 	"slices"

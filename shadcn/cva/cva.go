@@ -2,16 +2,17 @@
 //
 // This file is a Go port of class-variance-authority (cva) v0.7.1,
 // Copyright 2022 Joe Bell, licensed under the Apache License, Version 2.0.
-// The library has been reimplemented in Go (a modified derivative work). See
-// THIRD-PARTY-LICENSES.md for the full license text.
+// Config.Composes is ported from its successor cva v1.0.0-beta.12, same
+// author and license. The library has been reimplemented in Go (a modified
+// derivative work). See THIRD-PARTY-LICENSES.md for the full license text.
 
 // Package cva ports class-variance-authority (cva) to Go.
 //
 // cva compiles a [Config] — a base class string plus a table of variants,
 // optional compound variants and defaults — into a [Variants] function that
 // resolves a props map to a concatenated class string. It is a faithful port
-// of class-variance-authority v0.7.1, plus [Compose] from its successor
-// cva v1.0.0-beta, which merges several resolvers into one.
+// of class-variance-authority v0.7.1, plus [Config.Composes] from its
+// successor cva v1.0.0-beta.12, which builds a config on other configs.
 //
 // Like the original, cva only concatenates classes; it does not resolve
 // Tailwind conflicts. Follow it with a tailwind-merge step (such as
@@ -27,6 +28,16 @@ import (
 // Config declares a component's style variants. Its fields mirror the cva
 // configuration object.
 type Config struct {
+	// Composes lists the configs this one builds on, so a component can share
+	// another component's variants instead of restating them. Each composed
+	// config resolves first, in order, with the caller's variant props (minus
+	// "class") over the effective defaults, then this config's own classes
+	// follow. The effective defaults are the composed configs' defaults, a
+	// later one overriding an earlier one, overridden by this config's own
+	// DefaultVariants: a composer can retune a composed default. Own variants
+	// and compound variants resolve against the effective defaults too, so a
+	// compound variant may test a composed variant.
+	Composes []Config
 	// Base classes always included in the output.
 	Base string
 	// Variants maps a variant name to a value-to-classes table.
@@ -52,9 +63,10 @@ type Variants func(props map[string]string) string
 
 // New compiles a [Config] into a [Variants] resolver.
 //
-// Resolution follows class-variance-authority v0.7.1: base, then one class set
-// per variant (the caller's value, or the default when the prop is omitted or
-// empty), then matching compound variants, then the props "class" override.
+// Resolution follows class-variance-authority v0.7.1: the composed configs (see
+// [Config.Composes]), then base, then one class set per variant (the caller's
+// value, or the default when the prop is omitted or empty), then matching
+// compound variants, then the props "class" override.
 // Boolean variants need no special handling — pass "true"/"false" as the prop
 // value and key the config the same way.
 //
@@ -62,9 +74,14 @@ type Variants func(props map[string]string) string
 // follows sorted variant names rather than declaration order (Go maps are
 // unordered; the resolved class set is identical, and callers tailwind-merge
 // it anyway), and cva's defineConfig hooks and VariantProps helper are not
-// ported (the package README says what replaces VariantProps). [Compose]
-// merges several resolvers.
+// ported (the package README says what replaces VariantProps).
 func New(config Config) Variants {
+	composed := make([]Variants, len(config.Composes))
+	for i, c := range config.Composes {
+		composed[i] = New(c)
+	}
+	defaults := effectiveDefaults(config)
+
 	variantNames := make([]string, 0, len(config.Variants))
 	for name := range config.Variants {
 		variantNames = append(variantNames, name)
@@ -72,7 +89,26 @@ func New(config Config) Variants {
 	slices.Sort(variantNames)
 
 	return func(props map[string]string) string {
-		parts := make([]string, 0, len(variantNames)+3)
+		parts := make([]string, 0, len(composed)+len(variantNames)+3)
+		if len(composed) > 0 {
+			// Withholding "class" keeps a caller override from repeating once
+			// per composed config and keeps it last, where a tailwind-merge
+			// step lets it win. A fresh map leaves the caller's as given.
+			forwarded := maps.Clone(defaults)
+			if forwarded == nil {
+				forwarded = make(map[string]string, len(props))
+			}
+			for name, value := range props {
+				if name != "class" && value != "" {
+					forwarded[name] = value
+				}
+			}
+			for _, resolve := range composed {
+				if cls := resolve(forwarded); cls != "" {
+					parts = append(parts, cls)
+				}
+			}
+		}
 		if config.Base != "" {
 			parts = append(parts, config.Base)
 		}
@@ -82,7 +118,7 @@ func New(config Config) Variants {
 			// cva's falsyToString(prop) || falsyToString(default).
 			value := props[name]
 			if value == "" {
-				value = config.DefaultVariants[name]
+				value = defaults[name]
 			}
 			if cls := config.Variants[name][value]; cls != "" {
 				parts = append(parts, cls)
@@ -91,8 +127,8 @@ func New(config Config) Variants {
 
 		if len(config.CompoundVariants) > 0 {
 			// Compound conditions match against defaults overlaid with props.
-			merged := make(map[string]string, len(config.DefaultVariants)+len(props))
-			maps.Copy(merged, config.DefaultVariants)
+			merged := make(map[string]string, len(defaults)+len(props))
+			maps.Copy(merged, defaults)
 			maps.Copy(merged, props)
 			for _, comp := range config.CompoundVariants {
 				if comp.Class == "" {
@@ -117,4 +153,29 @@ func New(config Config) Variants {
 
 		return strings.Join(parts, " ")
 	}
+}
+
+// effectiveDefaults returns the default variants config resolves with: those
+// of its composed configs in order, a later one overriding an earlier one,
+// then its own DefaultVariants. It returns nil when there are none.
+func effectiveDefaults(config Config) map[string]string {
+	if len(config.Composes) == 0 {
+		return config.DefaultVariants
+	}
+	var defaults map[string]string
+	for _, c := range config.Composes {
+		if d := effectiveDefaults(c); len(d) > 0 {
+			if defaults == nil {
+				defaults = make(map[string]string, len(d)+len(config.DefaultVariants))
+			}
+			maps.Copy(defaults, d)
+		}
+	}
+	if len(config.DefaultVariants) > 0 {
+		if defaults == nil {
+			return config.DefaultVariants
+		}
+		maps.Copy(defaults, config.DefaultVariants)
+	}
+	return defaults
 }

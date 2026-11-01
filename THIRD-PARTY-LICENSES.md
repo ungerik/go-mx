@@ -88,7 +88,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## tailwind-merge
 
-`shadcn/twmerge/` is a Go port of tailwind-merge (v3.6.0).
+`shadcn/twmerge/` is a Go port of tailwind-merge (v3.7.0).
 
 ```
 MIT License
@@ -119,7 +119,7 @@ SOFTWARE.
 ## class-variance-authority (cva)
 
 `shadcn/cva/` is a Go port of class-variance-authority (v0.7.1), plus
-`compose` from its successor cva (v1.0.0-beta). It is a
+`composes` from its successor cva (v1.0.0-beta.12). It is a
 **modified derivative** of the original TypeScript work: the API and behavior
 were reimplemented in Go. The original is licensed under the Apache License,
 Version 2.0.

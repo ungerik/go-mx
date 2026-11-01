@@ -37,7 +37,7 @@ shadcn.Cn("text-sm", "text-lg")      // "text-lg"
 
 `clsx.Join` accepts strings, `[]string`, nested `[]any` and `map[string]bool`
 conditional classes; see its doc comment for the contract. `twmerge.Merge` is a
-faithful port of `tailwind-merge` v3.6.0 (Tailwind CSS v4) — the merge
+faithful port of `tailwind-merge` v3.7.0 (Tailwind CSS v4) — the merge
 algorithm and full config live in the [`twmerge`](twmerge/) subpackage
 (`merge.go`, `classmap.go`, `validators.go`, `parse.go`, `defaultconfig.go`).
 
@@ -744,7 +744,8 @@ sources into named style sheets (`cn-*` classes); the registry this package
 transcribed its class strings from is frozen upstream. Components ported
 since then reconstruct the full class string per part from the new registry
 (component skeleton + the `style-vega.css` rules — see "Upstream restructure
-(July 2026)" in `TODOS.md` for the porting guide). Same conventions, same
+(July 2026)" in `TODOS.md` for the porting guide, and "Upstream sync" there
+for the upstream refs each port was last compared against). Same conventions, same
 self-contained result; these are the first components sourced that way:
 
 - **Field** — the form-field layout system that replaced the Form parts
@@ -758,7 +759,9 @@ self-contained result; these are the first components sourced that way:
   `FieldError` with the message; mark a disabled one with
   `html.DataAttr("disabled", "true")`. A `FieldLabel` wrapping a whole
   `Field` becomes a selectable card that highlights via native
-  `has-checked:` when the control inside is checked.
+  `has-checked:` when the control inside is checked, tints on hover and
+  takes over the control's focus ring (the `Checkbox`, `RadioGroupItem` or
+  `Switch` inside drops its own, so the ring is drawn once).
 - **Kbd** — `Kbd` / `KbdGroup` for keyboard keys and shortcuts. Both render
   a `<kbd>` element, like upstream.
 - **Spinner** — `Spinner(…)`. The lucide loader-circle icon inlined as SVG

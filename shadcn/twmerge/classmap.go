@@ -1,6 +1,6 @@
 package twmerge
 
-// Class-group resolution, ported from tailwind-merge v3.6.0
+// Class-group resolution, ported from tailwind-merge v3.7.0
 // (src/lib/class-group-utils.ts). A trie ("class map") is built from the
 // config's classGroups and used to resolve any class name to its group id.
 

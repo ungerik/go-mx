@@ -402,10 +402,13 @@ API is still free to change.
 - **`mx.CheckNumberRange` and `mx.BoundFieldError` are exported** for a
   decider of the application, the range check and the error bound the
   reflected forms apply to every field.
-- **`cva.Compose` merges several variant resolvers into one.** A component
-  can build on another component's variant table instead of restating it;
-  every part gets the same props, and the `"class"` override is added once at
-  the end (ported from cva v1.0.0-beta).
+- **`cva.Config.Composes` builds a variant config on other configs.** A
+  component can share another component's variant table instead of restating
+  it: the composed configs resolve first with the caller's props over the
+  merged defaults, a composer's `DefaultVariants` retune the composed ones,
+  and the `"class"` override is added once at the end. Ported from cva
+  v1.0.0-beta.12, which replaced its earlier `compose()` function with this
+  `composes` option.
 - **`logview` can search the whole log on the server.** With
   `Config.SearchParam` set, changing the filter reconnects the stream with
   the filter as a query parameter, and the handler answers with the matching
@@ -429,6 +432,16 @@ API is still free to change.
 
 ### Changed
 
+- **`shadcn/twmerge` follows tailwind-merge 3.7.0.** An axis shorthand now
+  overrides the logical sides (`ps-2 px-4` → `px-4`, likewise for `my`,
+  `inset-x`, `border-x`, `scroll-px` and the rest), `columns-auto`,
+  `max-h-none`, `leading-none`, bare `bg-conic`, `shadow-inner` and container
+  sizes like `inline-2xl` merge with their groups, and arbitrary `color()` and
+  `light-dark()` values are colors, not lengths.
+- **A `FieldLabel` choice card tints on hover and draws the focus ring.** As
+  upstream's style sheet now does, the card wrapping a `Field` shows the
+  focus ring of the control inside it, and `Checkbox`, `RadioGroupItem` and
+  `Switch` drop their own there.
 - **A `database/sql` type gets the widget of the value it holds.** A
   `sql.NullBool` is a checkbox with a clear control for its null, a
   `sql.NullInt64` or `sql.NullFloat64` a number input with its `min`, `max`

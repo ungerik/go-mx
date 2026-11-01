@@ -1,6 +1,6 @@
 package twmerge
 
-// Class-name parsing and modifier sorting, ported from tailwind-merge v3.6.0
+// Class-name parsing and modifier sorting, ported from tailwind-merge v3.7.0
 // (src/lib/parse-class-name.ts and src/lib/sort-modifiers.ts).
 
 import (

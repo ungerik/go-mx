@@ -221,11 +221,14 @@ func FieldContent(attribsChildren ...any) *mx.Element {
 // fieldLabelClasses layers the Field-specific label classes over the shared
 // labelClasses, merged once at package init (both operands are constants).
 var fieldLabelClasses = Cn(labelClasses,
-	"group/field-label peer/field-label flex w-fit has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-checked:bg-primary/5 has-checked:border-primary/30 dark:has-checked:border-primary/20 dark:has-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border *:data-[slot=field]:p-3")
+	"group/field-label peer/field-label flex w-fit has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-checked:bg-primary/5 has-checked:border-primary/30 dark:has-checked:border-primary/20 dark:has-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-3 *:data-[slot=field]:p-3")
 
 // FieldLabel is a [Label] for a [Field]'s control. It can also wrap a whole
 // [Field] to make a selectable card (the has-[>[data-slot=field]]: and
-// has-checked: classes) — e.g. a bordered radio choice.
+// has-checked: classes) — e.g. a bordered radio choice. The card shows the
+// focus ring of the control inside it, and [Checkbox], [RadioGroupItem] and
+// [Switch] drop their own ring there (their group-has-[:focus-visible]/field-label:
+// classes) so the ring is drawn once.
 func FieldLabel(attribsChildren ...any) *mx.Element {
 	return finish(html.Label(attribsChildren...), "field-label", fieldLabelClasses)
 }

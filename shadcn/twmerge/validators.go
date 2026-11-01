@@ -1,6 +1,6 @@
 package twmerge
 
-// Validators ported from tailwind-merge v3.6.0 (src/lib/validators.ts).
+// Validators ported from tailwind-merge v3.7.0 (src/lib/validators.ts).
 // They classify a class value fragment so the class-group trie can decide
 // which utility group a class belongs to.
 
@@ -17,7 +17,7 @@ var (
 	fractionRe          = regexp.MustCompile(`^\d+(?:\.\d+)?/\d+(?:\.\d+)?$`)
 	tshirtUnitRe        = regexp.MustCompile(`^(\d+(\.\d+)?)?(xs|sm|md|lg|xl)$`)
 	lengthUnitRe        = regexp.MustCompile(`\d+(%|px|r?em|[sdl]?v([hwib]|min|max)|pt|pc|in|cm|mm|cap|ch|ex|r?lh|cq(w|h|i|b|min|max))|\b(calc|min|max|clamp)\(.+\)|^0$`)
-	colorFunctionRe     = regexp.MustCompile(`^(rgba?|hsla?|hwb|(ok)?(lab|lch)|color-mix)\(.+\)$`)
+	colorFunctionRe     = regexp.MustCompile(`^(rgba?|hsla?|hwb|(ok)?(lab|lch)|color-mix|color|light-dark)\(.+\)$`)
 	shadowRe            = regexp.MustCompile(`^(inset_)?-?((\d+)?\.?(\d+)[a-z]+|0)_-?((\d+)?\.?(\d+)[a-z]+|0)`)
 	imageRe             = regexp.MustCompile(`^(url|image|image-set|cross-fade|element|(repeating-)?(linear|radial|conic)-gradient)\(.+\)$`)
 )

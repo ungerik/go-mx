@@ -35,8 +35,11 @@ func RadioGroup(name string, attribsChildren ...any) *mx.Element {
 // pseudo-element on the appearance-none input — a deliberate divergence,
 // mirroring the Switch thumb. data-[state=checked]:* is rewritten to checked:*
 // throughout; the dot stays in the DOM and scales 0→100 on :checked.
+// The group-has-[:focus-visible]/field-label: classes drop the radio's focus
+// ring inside a [FieldLabel] choice card, which draws it instead.
 const radioGroupItemClasses = "peer aspect-square size-4 shrink-0 appearance-none rounded-full border border-input bg-transparent shadow-xs text-primary outline-none transition-[color,box-shadow] inline-flex items-center justify-center focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 checked:border-primary" +
-	" before:content-[''] before:block before:size-2 before:rounded-full before:bg-primary before:scale-0 checked:before:scale-100 before:transition-transform"
+	" before:content-[''] before:block before:size-2 before:rounded-full before:bg-primary before:scale-0 checked:before:scale-100 before:transition-transform" +
+	" group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-checked:border-input group-has-[:focus-visible]/field-label:checked:border-primary"
 
 // RadioGroupItem renders one option in a [RadioGroup] as a styled void
 // <input type="radio">. Both name and value are typed leading parameters
