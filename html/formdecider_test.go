@@ -6689,6 +6689,71 @@ func TestReflectFormHandler_UnshowableDriverText(t *testing.T) {
 	}
 }
 
+// Text an input could not show unchanged comes back as the browser sends
+// it: a textarea's line breaks as CRLF, a one-line input's stripped. Saving
+// it unchanged keeps the stored text, of a database/sql type and of a plain
+// string alike.
+func TestReflectFormHandler_StoredTextKeptAsSubmitted(t *testing.T) {
+	type record struct {
+		Notes sql.NullString `form:"widget=textarea"`
+		Title string
+	}
+	stored := record{
+		Notes: sql.NullString{String: "x\x00\ny", Valid: true},
+		Title: "first line\nsecond line",
+	}
+	var saved *record
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*record, error) { r := stored; return &r, nil },
+		func(_ context.Context, r *record) error { saved = r; return nil },
+		FieldDecider,
+	)
+	post := func(notes, title string) *httptest.ResponseRecorder {
+		form := url.Values{
+			mx.PresentSentinelName("Notes"): {"1"}, "Notes": {notes},
+			mx.PresentSentinelName("Title"): {"1"}, "Title": {title},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	if rec := post("x\uFFFD\r\ny", "first linesecond line"); rec.Code != http.StatusSeeOther || saved == nil || saved.Notes != stored.Notes || saved.Title != stored.Title {
+		t.Errorf("an unchanged save must keep the stored text, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+	if rec := post("new", "first line second line"); rec.Code != http.StatusSeeOther || saved.Notes.String != "new" || saved.Title != "first line second line" {
+		t.Errorf("an edited value must be bound, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
+}
+
+// A nil pointer to a slice of files is allocated for the uploads.
+func TestReflectFormHandler_NilPointerFiles(t *testing.T) {
+	type record struct {
+		Names *[]string `form:"widget=file"`
+	}
+	var names []string
+	handler := mx.ReflectFormHandler(nil, func(_ context.Context, r *record) error {
+		if r.Names != nil {
+			names = *r.Names
+		}
+		return nil
+	}, FieldDecider)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField(mx.PresentSentinelName("Names"), "1")
+	w, _ := mw.CreateFormFile("Names", "a.txt")
+	_, _ = io.WriteString(w, "A")
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusSeeOther || strings.Join(names, ",") != "a.txt" {
+		t.Errorf("status %d, bound %v: %s", rec.Code, names, rec.Body)
+	}
+}
+
 // form:"minlength=…,maxlength=…,autocomplete=…,inputmode=…" become the
 // input's attributes, and the lengths are checked on the server too.
 func TestReflectFormHandler_TextTagOptions(t *testing.T) {

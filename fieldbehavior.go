@@ -245,6 +245,9 @@ func StoredFile(value reflect.Value) (name string, ok bool) {
 		}
 		value = value.Elem()
 	}
+	if !value.IsValid() {
+		return "", false
+	}
 	if MultipleFiles(value.Type()) {
 		var names []string
 		for i := range value.Len() {

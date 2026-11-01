@@ -106,6 +106,10 @@ func TestChartInvalidData(t *testing.T) {
 	for name, data := range map[string]ChartData{
 		"value count": {Categories: []string{"a", "b"}, Series: []ChartSeries{{Values: []float64{1}}}},
 		"NaN":         {Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{math.NaN()}}}},
+		// A color ending its declaration would add declarations of its own
+		// to the style attribute.
+		"series color":   {Categories: []string{"a"}, Series: []ChartSeries{{Color: "red; background: blue", Values: []float64{1}}}},
+		"category color": {Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{1}}}, CategoryColors: []string{"}"}},
 	} {
 		var b strings.Builder
 		if err := Chart(ChartBar, data, ChartOptions{}).Render(context.Background(), mx.NewCheckedWriter(&b)); err == nil {

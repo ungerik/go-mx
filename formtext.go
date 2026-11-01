@@ -2,6 +2,7 @@ package mx
 
 import (
 	"strconv"
+	"strings"
 	"unicode/utf16"
 )
 
@@ -9,13 +10,14 @@ import (
 // catch-all field, against the tag's form:"minlength=…,maxlength=…", as
 // the browser does with the input's attributes, so a scripted POST is held
 // to them too. The length is counted in UTF-16 code units, the browser's
-// unit. An empty text is not checked; Required rejects it. The error is a
-// [FormMessage] naming the bound, never the text.
+// unit, with a CRLF line break, which a browser submits for a textarea's
+// LF, counted once. An empty text is not checked; Required rejects it. The
+// error is a [FormMessage] naming the bound, never the text.
 func CheckTextLength(tag FormTag, raw string) error {
 	if raw == "" || tag.MinLength <= 0 && tag.MaxLength <= 0 {
 		return nil
 	}
-	n := 0
+	n := -strings.Count(raw, "\r\n")
 	for _, r := range raw {
 		n += utf16.RuneLen(r)
 	}

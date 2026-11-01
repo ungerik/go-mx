@@ -676,6 +676,9 @@ func parseField(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 			}
 			return guardBind(r.Context(), value, raw, tag, func() error { return setBool(value, raw) })
 		}
+		if (kind == mx.FieldKindString || kind == mx.FieldKindCatchAll) && keepsStoredLines(value, raw) {
+			return nil
+		}
 		return guardBind(r.Context(), value, raw, tag, func() error {
 			if err := setScalar(value, raw); err != nil {
 				return err
@@ -819,7 +822,7 @@ func setFile(value reflect.Value, fh *multipart.FileHeader, limit int64) error {
 // contents read into memory are bounded together by [mx.FormMaxMemory].
 func setFiles(ctx context.Context, value reflect.Value, files []*multipart.FileHeader) error {
 	limit := mx.FormMaxMemory(ctx)
-	slice := reflect.MakeSlice(reflect.Indirect(value).Type(), len(files), len(files))
+	slice := reflect.MakeSlice(derefType(value.Type()), len(files), len(files))
 	for i, fh := range files {
 		if err := setFile(slice.Index(i), fh, limit); err != nil {
 			return err
@@ -1077,6 +1080,30 @@ func isScanner(value reflect.Value) bool {
 // a one-line input.
 var lineBreakStripper = strings.NewReplacer("\r", "", "\n", "")
 
+// unchangedText reports whether raw, a posted value, is shown, the text the
+// input was rendered with, coming back unchanged: as it was, with the line
+// breaks a one-line input strips, or with the CRLF line breaks a browser
+// submits for a textarea's LF.
+func unchangedText(raw, shown string) bool {
+	if strings.Contains(raw, "\r\n") {
+		raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	}
+	return raw == shown || raw == lineBreakStripper.Replace(shown)
+}
+
+// keepsStoredLines reports whether raw, posted by a one-line input for a
+// string field, is the field's stored text without the line breaks the
+// input stripped from its value, so that saving the form unchanged keeps
+// them, as it keeps a database/sql text's.
+func keepsStoredLines(value reflect.Value, raw string) bool {
+	v := reflect.Indirect(value)
+	if !v.IsValid() || v.Kind() != reflect.String {
+		return false
+	}
+	stored := v.String()
+	return raw != stored && strings.ContainsAny(stored, "\r\n") && raw == lineBreakStripper.Replace(stored)
+}
+
 // setScanned binds raw to a database/sql type such as sql.NullInt64 with
 // its Scan method, which reads the text [mx.DriverValueText] writes: as a
 // string, as a driver gives text; as []byte, which the Scan of a JSON
@@ -1089,7 +1116,7 @@ func setScanned(value reflect.Value, raw string) error {
 	// The shown text comes back unchanged also when the input could not
 	// hold the stored text: a NUL or invalid UTF-8 shown as U+FFFD, a line
 	// break a one-line input strips.
-	if shown := mx.FormValueText(value); raw == shown || raw == lineBreakStripper.Replace(shown) {
+	if shown := mx.FormValueText(value); unchangedText(raw, shown) {
 		return nil
 	}
 	// Text longer than any number is rejected before a type that scans only

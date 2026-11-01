@@ -19,6 +19,10 @@ func TestCheckTextLength(t *testing.T) {
 		// The browser counts UTF-16 code units: an emoji is two.
 		{"a😀b", ""},
 		{"😀😀😀", "must be at most 4 characters"},
+		// A browser submits a textarea's line break as CRLF but counts it
+		// once against maxlength.
+		{"a\r\nbc", ""},
+		{"ab\r\ncd", "must be at most 4 characters"},
 	} {
 		err := CheckTextLength(tag, tt.raw)
 		got := ""

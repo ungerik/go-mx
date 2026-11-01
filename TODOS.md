@@ -8,6 +8,26 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 
 ## mx reflected forms
 
+### The date picker trigger is not described by its errors and help
+
+**What:** Give the trigger button of a `form:"widget=datepicker"` field the
+`aria-describedby` of its help and error messages, and the `hx-trigger` the
+htmx decider gives every other control.
+
+**Why:** A screen reader announces an invalid date picker without saying why:
+its `role="alert"` error is not linked to the button, so on a full page load
+it is never read. And an htmx form that validates on change skips the picker.
+
+**Context:** `datePickerField` in `shadcn/formdecider.go` builds its markup in
+a `mx.ComponentFunc`, because it reads `ContextWithDatePickerOptions` while
+rendering, so `mx.AddDescribedBy` and the hx decider cannot find the trigger.
+Pass the ids into the closure, or build the trigger outside it. Found by the
+/ship review (2026-11-01).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ### Core repeatable texts are English only
 
 **What:** Let the texts the core package renders for a repeatable field,

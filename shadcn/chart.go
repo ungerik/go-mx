@@ -191,7 +191,8 @@ type ChartSeries struct {
 	// table. "" uses Key.
 	Label string
 	// Color is the series' CSS color. "" uses the theme's --chart-<n>
-	// variable, cycling through --chart-1 … --chart-5.
+	// variable, cycling through --chart-1 … --chart-5. It is written into a
+	// style attribute, so a color holding ";", "{" or "}" is invalid.
 	Color string
 	// Values holds one value per category of the [ChartData]. NaN and
 	// infinities are invalid.
@@ -205,7 +206,8 @@ type ChartData struct {
 	Series     []ChartSeries
 	// CategoryColors colors the categories of a pie or radial chart, which
 	// draw a slice or ring per category of their one series. "" or a
-	// missing entry uses the theme's --chart-<n> variable, cycling.
+	// missing entry uses the theme's --chart-<n> variable, cycling. A color
+	// is invalid as a series' Color is.
 	CategoryColors []string
 }
 
@@ -264,7 +266,8 @@ const chartClasses = "flex aspect-video flex-col justify-center text-xs"
 
 // Chart renders data as a kind of chart. It returns an [mx.NewErrElement] for
 // data it cannot draw: a series whose value count differs from the category
-// count, or a value that is NaN or infinite. A Key that is no valid id is
+// count, a value that is NaN or infinite, or a color holding ";", "{" or
+// "}". A Key that is no valid id is
 // reported like any other invalid id of this package (see
 // [PanicOnInvalidID]).
 //
@@ -800,6 +803,9 @@ func chartSeries(data ChartData) ([]chartSeriesInfo, error) {
 		if info.label == "" {
 			info.label = info.key
 		}
+		if err := validateChartColor(info.color); err != nil {
+			return nil, fmt.Errorf("shadcn.Chart: series %q: %w", info.key, err)
+		}
 		if info.color == "" {
 			info.color = "var(--chart-" + strconv.Itoa(i%5+1) + ")"
 		}
@@ -812,6 +818,11 @@ func chartSeries(data ChartData) ([]chartSeriesInfo, error) {
 			}
 		}
 		series[i] = info
+	}
+	for _, c := range data.CategoryColors {
+		if err := validateChartColor(c); err != nil {
+			return nil, fmt.Errorf("shadcn.Chart: category color: %w", err)
+		}
 	}
 	return series, nil
 }
@@ -940,4 +951,13 @@ func chartAttr(name string, v float64) mx.Attrib {
 // than a pixel at any size the viewBox is shown at.
 func chartNum(v float64) string {
 	return strconv.FormatFloat(math.Round(v*100)/100, 'f', -1, 64)
+}
+
+// validateChartColor rejects a color that would end its declaration in the
+// style attribute it is written into and add declarations of its own.
+func validateChartColor(color string) error {
+	if strings.ContainsAny(color, ";{}") {
+		return fmt.Errorf("color %q holds one of ; { }", color)
+	}
+	return nil
 }

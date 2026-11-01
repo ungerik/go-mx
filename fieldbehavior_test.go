@@ -203,3 +203,10 @@ func TestAddDescribedBy(t *testing.T) {
 		t.Error("no control, or no ids, adds nothing")
 	}
 }
+
+// StoredFile of no value at all holds no file instead of panicking.
+func TestStoredFileInvalidValue(t *testing.T) {
+	if name, ok := StoredFile(reflect.Value{}); ok || name != "" {
+		t.Errorf("StoredFile(reflect.Value{}) = %q, %t", name, ok)
+	}
+}

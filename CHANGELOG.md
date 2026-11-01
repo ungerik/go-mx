@@ -524,8 +524,8 @@ API is still free to change.
   (StickToBottom now also sets `data-at-start`).
 - **Text-length, autocomplete and input-mode tag options.**
   `form:"minlength=…,maxlength=…"` become the input's attributes and are
-  checked on the server (`mx.CheckTextLength`, in UTF-16 code units as the
-  browser counts), and `form:"autocomplete=…,inputmode=…"` tell the browser
+  checked on the server (`mx.CheckTextLength`, in UTF-16 code units and
+  with a textarea's line break counted once, as the browser counts), and `form:"autocomplete=…,inputmode=…"` tell the browser
   what to fill in and which keyboard to show.
 - **Several files per field, and file previews.** A `[]string`, `[][]byte` or
   `[]*multipart.FileHeader` field takes a multiple file input and binds every
@@ -590,7 +590,8 @@ API is still free to change.
 - **A `database/sql` text an input cannot show is shown and kept.** A NUL or
   invalid UTF-8 shows as U+FFFD with a note, a line break in a one-line input
   gets a note, and saving the shown text unchanged keeps the stored text; a
-  new value is scanned, where every save used to fail.
+  new value is scanned, where every save used to fail. A plain string's line
+  breaks, which a one-line input strips, are kept the same way.
 
 - **Attribute values keep their line breaks and tabs.** The `CheckedWriter`
   writes them as `&#10;`, `&#13;` and `&#9;` instead of replacing them with
