@@ -216,11 +216,16 @@ control.
 A few components render text the caller never passes: the close button inside
 `DialogContent` / `SheetContent`, the `PaginationPrevious` / `PaginationNext`
 captions, the breadcrumb and pagination ellipsis screen-reader text, the
-`MessageScrollerButton` text, and the default `aria-label`s of `Breadcrumb`,
-`NavigationMenu`, `Pagination`, the `Calendar` month buttons,
+`MessageScrollerButton` text (also of the scroll-to-start button), the
+`Calendar` day names for today and a selected day, and the default
+`aria-label`s of `Breadcrumb`,
+`NavigationMenu`, `Pagination`, the `Calendar` month buttons and caption
+dropdowns,
 `CarouselPrevious`, `CarouselNext`, `CodeBlockCopyButton` (with its "Copied"
 state), `SidebarTrigger` and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
-sensitive field, the
+sensitive field, the "Pick a date" placeholder of a `widget=datepicker` field,
+the upload progress bar of a file input, the note under stored text an input
+cannot show unchanged, the
 disabled placeholder a select shows when the current value is not in its option
 list and the note below it where saving removes that value, the "Choose…" and "(none)" options on a select with no empty choice, the
 note an enum-set shows when stored members are hidden by the current list, and
@@ -316,8 +321,9 @@ fell back to `shadcn.DefaultLabels`. Fill it in.
 **`Calendar` is still English.** Weekday and month names need locale data Go's
 `time` package does not carry, so they are not part of `Labels`. Use
 `shadcn.CalendarWith(shadcn.CalendarOptions{WeekStart: time.Monday,
-WeekdayName: …, WeekdayLabel: …, MonthLabel: …, DayLabel: …}, month, selected)`
-instead.
+WeekdayName: …, WeekdayLabel: …, MonthLabel: …, MonthName: …, DayLabel: …},
+month, selected)` instead (`MonthName` names the months of the caption
+dropdowns).
 
 **One control needs a name the translation cannot know.** Pass your own
 `html.Attrib("aria-label", …)`; a caller-supplied attribute still wins over the

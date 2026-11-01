@@ -92,7 +92,7 @@ func CodeBlockFloating() mx.Component {
 		shadcn.CodeBlock("", shadcn.CodeBlockSizeSM,
 			shadcn.CodeBlockActions(shadcn.CodeBlockCopyButton("")),
 			shadcn.CodeBlockContent(shadcn.CodeBlockWrap,
-				"go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -base /go-mx/shadcn/gallery -static-highlight"),
+				"go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight"),
 		),
 		shadcn.CodeBlock(shadcn.CodeBlockDestructive, shadcn.CodeBlockSizeSM,
 			shadcn.CodeBlockContent(shadcn.CodeBlockWrap, "panic: runtime error: index out of range [3] with length 3"),

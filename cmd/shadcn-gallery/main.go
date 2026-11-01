@@ -33,7 +33,6 @@ import (
 )
 
 // docs is the ordered component catalog, alphabetical like the shadcn/ui docs.
-// Stage 2 grows this to all 35 shipped components.
 func docs() []ComponentDoc {
 	return []ComponentDoc{
 		{

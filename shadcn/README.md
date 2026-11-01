@@ -2,9 +2,9 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ungerik/go-mx/shadcn.svg)](https://pkg.go.dev/github.com/ungerik/go-mx/shadcn)
 
-A Go port of parts of [shadcn/ui](https://ui.shadcn.com), built on the go-mx
-`html` primitives. It contains a growing set of components, the thin `cn`
-class-merging helper, and faithful Go ports of the three npm packages
+A Go port of [shadcn/ui](https://ui.shadcn.com), built on the go-mx `html`
+primitives. It contains every component of the shadcn/ui registry, the thin
+`cn` class-merging helper, and faithful Go ports of the three npm packages
 shadcn/ui's class handling depends on — each in its own subpackage:
 
 - [`clsx`](clsx/) — flattens class-value arguments into one class string
@@ -46,7 +46,8 @@ algorithm and full config live in the [`twmerge`](twmerge/) subpackage
 shadcn/ui declares each component's style variants with
 [class-variance-authority](https://cva.style) (`cva`): a base class plus a
 table of variants, compound variants and defaults. The [`cva`](cva/)
-subpackage is a faithful Go port of cva v0.7.1.
+subpackage is a faithful Go port of cva v0.7.1, plus `Config.Composes` and
+`DefineConfig` from cva v1.0.0-beta.12.
 
 ```go
 buttonVariants := cva.New(cva.Config{
@@ -58,7 +59,8 @@ buttonVariants(map[string]string{"variant": "destructive"})
 ```
 
 Like the npm package, `cva` only concatenates classes — compose it with `Cn`
-to resolve Tailwind conflicts, just as shadcn/ui composes `cva` with `cn`.
+to resolve Tailwind conflicts, just as shadcn/ui composes `cva` with `cn`, or
+wire a merging concatenator in once with `cva.DefineConfig`.
 `Button` and `Alert` declare their variants this way.
 
 ## Component model — how a React component maps to Go

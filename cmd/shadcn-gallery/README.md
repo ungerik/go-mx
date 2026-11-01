@@ -72,12 +72,11 @@ names that function as `Example.ShowSource`, and the Code tab shows it.
 
 ## Status
 
-The gallery covers every ported `shadcn` component — 48 in all, one page
-each, listed alphabetically like the shadcn/ui docs (see `docs()` in
-`main.go` for the catalog).
-
-The only shadcn/ui component without a gallery page is **Chart**, which is
-deferred (a design decision is pending; see `shadcn/TODOS.md`).
+The gallery covers the whole shadcn/ui registry: 65 pages, one per
+component, listed alphabetically like the shadcn/ui docs (see `docs()` in
+`main.go` for the catalog). Combobox, Date Picker and Data Table are
+compositions rather than package functions, so their pages show the recipes,
+as upstream ships them.
 
 ## Syntax highlighting
 

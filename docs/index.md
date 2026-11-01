@@ -142,6 +142,7 @@ with the same name on one element), and can pretty-print with
 | `logview`    | Streamed log lines as a readable surface: a JSON record renders as promoted time and level plus `key=value` pairs colored by JSON type, with a filter that can search the whole log on the server, a pause toggle and a scroll area that follows the stream ([streaming docs](hx/)) |
 | `web`        | A site above `html`: pages from a `PageSource`, plus what crawlers and agents read from the public ones — sitemap, robots.txt, canonical and hreflang links, Markdown alternates and `llms.txt` ([knowledge layer](web/knowledge-layer.html)); `web/schemaorg` for typed structured data, embedded with `html.JSONLD` |
 | `mcp`        | A site's public pages as read-only [MCP](https://modelcontextprotocol.io) tools for AI agents, on a server of the official Go SDK; a nested module |
+| `stdoptions` | ISO 4217 currencies, ISO 639-1 languages and ISO 3166-1 countries as named option lists for reflected form fields, with English and German names from Unicode CLDR |
 | `pdf`        | Native PDF rendering mirroring the `html` component model, with the [fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined so there is no external PDF dependency, embedded files plus XMP metadata for PDF/A-3 e-invoices (ZUGFeRD/Factur-X), and a best-effort `pdf.SVG` that draws `svg`-package trees as native vector graphics |
 
 The root `mx` package holds the core abstractions (`Component`, `Element`,
