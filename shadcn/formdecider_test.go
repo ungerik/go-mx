@@ -1778,6 +1778,36 @@ func TestShadcn_DatePickerParses(t *testing.T) {
 	}
 }
 
+// The server holds a date picker to its min and max and to a date without a
+// time, as it does a date input; the calendar alone would not stop a POST.
+func TestShadcn_DatePickerParseChecks(t *testing.T) {
+	type form struct {
+		Day time.Time `form:"widget=datepicker,min=2026-01-01,max=2026-12-31"`
+	}
+	for _, tc := range []struct {
+		in      string
+		wantErr bool
+	}{
+		{"2025-12-31", true},
+		{"2027-01-01", true},
+		{"2026-06-15T10:00", true},
+		{"2026-06-15", false},
+	} {
+		var got form
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(url.Values{"Day": {tc.in}}.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(&got).Elem()
+		field, _ := v.Type().FieldByName("Day")
+		err := FieldDecider("Day", field, v.Field(0)).Parse("Day", field, v.Field(0), r)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("%s: err = %v, want error %t", tc.in, err, tc.wantErr)
+		}
+	}
+}
+
 type readonlyLookForm struct {
 	Name  string    `form:"readonly"`
 	Count int       `form:"readonly"`

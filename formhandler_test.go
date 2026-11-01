@@ -2810,3 +2810,45 @@ func TestReflectFormHandler_OutOfBand(t *testing.T) {
 		t.Error("outside a submit there is nowhere to add fragments")
 	}
 }
+
+// An htmx submit with out-of-band fragments is re-rendered in place only when
+// it has no other destination: a URL returned by onSubmit still redirects, and
+// a failing reload of the saved record is a 500, not the stale form.
+func TestReflectFormHandler_OutOfBandDestination(t *testing.T) {
+	type record struct{ Name string }
+	toast := NewElement("div", NewAttrib("id", "toast"), NewAttrib("hx-swap-oob", "true"), Text("Saved"))
+	loads := 0
+	h := ReflectFormHandlerRedirecting(ReflectFormConfig{},
+		func(context.Context) (*record, error) {
+			loads++
+			if loads > 1 {
+				return nil, errors.New("reload failed")
+			}
+			return &record{Name: "old"}, nil
+		},
+		func(ctx context.Context, r *record) (string, error) {
+			AddOutOfBand(ctx, toast)
+			if r.Name == "next" {
+				return "/next", nil
+			}
+			return "", nil
+		},
+		newTestDecider(),
+	)
+	post := func(name string) *httptest.ResponseRecorder {
+		loads = 0
+		form := url.Values{PresentSentinelName("Name"): {"1"}, "Name": {name}}
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := post("next"); rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/next" || strings.Contains(rec.Body.String(), "toast") {
+		t.Errorf("a returned URL wins over the in-place render, status %d, Location %q: %s", rec.Code, rec.Header().Get("Location"), rec.Body)
+	}
+	if rec := post("same"); rec.Code != http.StatusInternalServerError {
+		t.Errorf("a failing reload must answer 500, got %d: %s", rec.Code, rec.Body)
+	}
+}

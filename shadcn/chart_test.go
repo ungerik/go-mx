@@ -3,6 +3,7 @@ package shadcn
 import (
 	"context"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -125,6 +126,37 @@ func TestChartInvalidData(t *testing.T) {
 	out := render(t, Chart(ChartBar, ChartData{Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{-3}}}}, ChartOptions{}))
 	if !strings.Contains(out, `--color-series-1: var(--chart-1)`) || !strings.Contains(out, `<title>a: series-1 -3</title>`) {
 		t.Errorf("defaults: %s", out)
+	}
+}
+
+// Stacked bars stack positive and negative values apart, as Recharts'
+// diverging stacks do: a negative segment hangs from the zero line and the
+// next positive one sits on the positive stack, not on the net sum.
+func TestChartStackedMixedSigns(t *testing.T) {
+	out := render(t, Chart(ChartBar, ChartData{Categories: []string{"A"}, Series: []ChartSeries{
+		{Key: "a", Values: []float64{20}},
+		{Key: "b", Values: []float64{-10}},
+		{Key: "c", Values: []float64{5}},
+	}}, ChartOptions{Stacked: true}))
+	if !strings.Contains(out, `>-10</text>`) || !strings.Contains(out, `>25</text>`) {
+		t.Errorf("the axis spans the negative stack and the positive one: %s", out)
+	}
+	type span struct{ top, bottom float64 }
+	var bars []span
+	for _, m := range regexp.MustCompile(`<rect [^>]*y="([0-9.]+)"[^>]*height="([0-9.]+)"`).FindAllStringSubmatch(out, -1) {
+		y, _ := strconv.ParseFloat(m[1], 64)
+		h, _ := strconv.ParseFloat(m[2], 64)
+		bars = append(bars, span{y, y + h})
+	}
+	if len(bars) != 3 {
+		t.Fatalf("want 3 bars, got %d: %s", len(bars), out)
+	}
+	a, b, c := bars[0], bars[1], bars[2]
+	if math.Abs(b.top-a.bottom) > 0.01 {
+		t.Errorf("the negative segment must start at the zero line %v, starts at %v", a.bottom, b.top)
+	}
+	if math.Abs(c.bottom-a.top) > 0.01 {
+		t.Errorf("the second positive segment must sit on the first at %v, sits at %v", a.top, c.bottom)
 	}
 }
 
