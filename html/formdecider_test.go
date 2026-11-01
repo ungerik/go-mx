@@ -6725,6 +6725,10 @@ func TestReflectFormHandler_StoredTextKeptAsSubmitted(t *testing.T) {
 	if rec := post("new", "first line second line"); rec.Code != http.StatusSeeOther || saved.Notes.String != "new" || saved.Title != "first line second line" {
 		t.Errorf("an edited value must be bound, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
 	}
+	// A textarea shows line breaks, so one removed from it is an edit.
+	if rec := post("x\uFFFDy", "first linesecond line"); rec.Code != http.StatusSeeOther || saved.Notes.String != "x\uFFFDy" {
+		t.Errorf("a line break removed in a textarea must be saved, status %d, saved %+v: %s", rec.Code, saved, rec.Body)
+	}
 }
 
 // A nil pointer to a slice of files is allocated for the uploads.

@@ -37,11 +37,12 @@ func (h *Highlighter) Lines(tokens []Token) []mx.Components {
 	prefix := h.prefix()
 	lines := []mx.Components{{}}
 	for _, it := range h.items(tokens) {
-		for i, part := range strings.Split(it.Text, "\n") {
+		parts := strings.Split(it.Text, "\n")
+		for i, part := range parts {
 			if i > 0 {
 				lines = append(lines, mx.Components{})
 			}
-			if i < strings.Count(it.Text, "\n") {
+			if i < len(parts)-1 {
 				part = strings.TrimSuffix(part, "\r")
 			}
 			if part == "" {

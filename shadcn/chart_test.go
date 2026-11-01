@@ -110,6 +110,11 @@ func TestChartInvalidData(t *testing.T) {
 		// to the style attribute.
 		"series color":   {Categories: []string{"a"}, Series: []ChartSeries{{Color: "red; background: blue", Values: []float64{1}}}},
 		"category color": {Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{1}}}, CategoryColors: []string{"}"}},
+		// One that opens a function swallows the declarations after it.
+		"unbalanced color": {Categories: []string{"a"}, Series: []ChartSeries{{Color: "rgb(1 2 3", Values: []float64{1}}, {Values: []float64{1}}}},
+		// Values whose sums, scale or coordinates a float64 cannot hold.
+		"huge": {Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{1e308}}}},
+		"tiny": {Categories: []string{"a"}, Series: []ChartSeries{{Values: []float64{1e-320}}}},
 	} {
 		var b strings.Builder
 		if err := Chart(ChartBar, data, ChartOptions{}).Render(context.Background(), mx.NewCheckedWriter(&b)); err == nil {

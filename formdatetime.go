@@ -149,12 +149,18 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 		}
 		v = v.Elem()
 	}
+	// A time-of-day type is zero at midnight, so its zero is 00:00; a type
+	// wrapping a time.Time is zero when unset.
+	zeroIsMidnight := inputType == "time"
+	if _, wraps := innerTime(v); wraps {
+		zeroIsMidnight = false
+	}
 	if ownSpelling {
 		if v.Kind() == reflect.String && !ImplementsTextMarshaler(v.Type()) {
 			if !IsNull(safeInterface(v)) {
 				spec.Value = v.String()
 			}
-		} else if text, ok := marshaledText(v, inputType == "time"); ok {
+		} else if text, ok := marshaledText(v, zeroIsMidnight); ok {
 			spec.Value = text
 		}
 		return spec
@@ -182,7 +188,7 @@ func dateTimeInput(value reflect.Value, tag FormTag) DateTimeInputSpec {
 			return spec
 		}
 	}
-	if text, ok := marshaledText(v, inputType == "time"); ok {
+	if text, ok := marshaledText(v, zeroIsMidnight); ok {
 		// RFC 3339 is the text of an embedded time.Time.
 		if t, err := time.Parse(time.RFC3339Nano, text); err == nil {
 			spec.Value = t.Format(tt.layouts[0])

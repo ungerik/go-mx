@@ -530,3 +530,13 @@ func TestDateTimeInput_MidnightTimeOfDay(t *testing.T) {
 		t.Errorf("midnight shows %q, want 00:00", spec.Value)
 	}
 }
+
+// A type wrapping a time.Time is unset when zero, also in a time input: its
+// zero is no value, not midnight of year 1.
+func TestDateTimeInput_ZeroWrappedTimeInTimeInput(t *testing.T) {
+	var at struct{ time.Time }
+	v := reflect.ValueOf(&at).Elem()
+	if spec := DateTimeInput(v, FormTag{Widget: "time"}); spec.Value != "" {
+		t.Errorf("an unset wrapped time shows %q, want no value", spec.Value)
+	}
+}

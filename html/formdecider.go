@@ -1081,26 +1081,29 @@ func isScanner(value reflect.Value) bool {
 var lineBreakStripper = strings.NewReplacer("\r", "", "\n", "")
 
 // unchangedText reports whether raw, a posted value, is shown, the text the
-// input was rendered with, coming back unchanged: as it was, with the line
-// breaks a one-line input strips, or with the CRLF line breaks a browser
-// submits for a textarea's LF.
+// input was rendered with, coming back unchanged: as it was, or with the
+// CRLF line breaks a browser submits for a textarea's LF.
 func unchangedText(raw, shown string) bool {
-	if strings.Contains(raw, "\r\n") {
-		raw = strings.ReplaceAll(raw, "\r\n", "\n")
-	}
-	return raw == shown || raw == lineBreakStripper.Replace(shown)
+	return raw == shown || strings.Contains(raw, "\r\n") && strings.ReplaceAll(raw, "\r\n", "\n") == shown
 }
 
 // keepsStoredLines reports whether raw, posted by a one-line input for a
-// string field, is the field's stored text without the line breaks the
-// input stripped from its value, so that saving the form unchanged keeps
-// them, as it keeps a database/sql text's.
+// string or database/sql text field, is the field's stored text without the
+// line breaks the input stripped from its value, so that saving the form
+// unchanged keeps them.
 func keepsStoredLines(value reflect.Value, raw string) bool {
 	v := reflect.Indirect(value)
-	if !v.IsValid() || v.Kind() != reflect.String {
+	var stored string
+	switch {
+	case !v.IsValid():
+		return false
+	case isScanner(v):
+		stored = mx.FormValueText(v)
+	case v.Kind() == reflect.String:
+		stored = v.String()
+	default:
 		return false
 	}
-	stored := v.String()
 	return raw != stored && strings.ContainsAny(stored, "\r\n") && raw == lineBreakStripper.Replace(stored)
 }
 
@@ -1114,8 +1117,9 @@ func keepsStoredLines(value reflect.Value, raw string) bool {
 // handler checks form:"min=…,max=…", see checkScannedRange).
 func setScanned(value reflect.Value, raw string) error {
 	// The shown text comes back unchanged also when the input could not
-	// hold the stored text: a NUL or invalid UTF-8 shown as U+FFFD, a line
-	// break a one-line input strips.
+	// hold the stored text: a NUL or invalid UTF-8 shown as U+FFFD. The line
+	// breaks a one-line input strips are kept by parseField
+	// (keepsStoredLines), which knows the input.
 	if shown := mx.FormValueText(value); unchangedText(raw, shown) {
 		return nil
 	}

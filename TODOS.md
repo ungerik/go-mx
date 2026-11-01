@@ -28,6 +28,28 @@ Pass the ids into the closure, or build the trigger outside it. Found by the
 **Priority:** P3
 **Depends on:** None
 
+### A file uploaded with a failing submit is shown as kept
+
+**What:** After a submit that fails validation, do not tell the user that a
+file field "keeps" the file just uploaded with it, or keep that upload for
+the next submit.
+
+**Why:** The re-rendered form shows the upload of a `*multipart.FileHeader`
+or several-files field as stored, with the note that leaving the input blank
+keeps it. But the request's temporary files are removed when the response
+ends and the next submit loads the record without them, so an optional
+field's upload is lost without a word. The `[]byte` and `string` file fields
+behaved the same before.
+
+**Context:** `mx.StoredFile` in `fieldbehavior.go` and the stored-file note
+of the html and shadcn file inputs. Telling a value loaded from the record
+from one bound by the failing request needs the handler to pass that along.
+Found by the /ship review (2026-11-01).
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ### Core repeatable texts are English only
 
 **What:** Let the texts the core package renders for a repeatable field,

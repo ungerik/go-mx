@@ -192,7 +192,9 @@ type ChartSeries struct {
 	Label string
 	// Color is the series' CSS color. "" uses the theme's --chart-<n>
 	// variable, cycling through --chart-1 … --chart-5. It is written into a
-	// style attribute, so a color holding ";", "{" or "}" is invalid.
+	// style attribute, so it must be a single CSS value: one holding ";",
+	// "{", "}", a quote, a backslash, "/*" or unbalanced parentheses is
+	// invalid.
 	Color string
 	// Values holds one value per category of the [ChartData]. NaN and
 	// infinities are invalid.
@@ -266,8 +268,8 @@ const chartClasses = "flex aspect-video flex-col justify-center text-xs"
 
 // Chart renders data as a kind of chart. It returns an [mx.NewErrElement] for
 // data it cannot draw: a series whose value count differs from the category
-// count, a value that is NaN or infinite, or a color holding ";", "{" or
-// "}". A Key that is no valid id is
+// count, a value that is NaN, infinite or beyond ±1e300, values too close
+// together to scale, or a color that is no single CSS value. A Key that is no valid id is
 // reported like any other invalid id of this package (see
 // [PanicOnInvalidID]).
 //
@@ -367,6 +369,9 @@ func chartCartesianSVG(kind ChartKind, data ChartData, series []chartSeriesInfo,
 		hi, lo = max(hi, pos), min(lo, neg)
 	}
 	ticks := chartTicks(lo, hi, cmp.Or(opts.Ticks, 5))
+	if len(ticks) < 2 {
+		return mx.NewErrElement(fmt.Errorf("shadcn.Chart: values from %g to %g have no scale", lo, hi))
+	}
 	lo, hi = ticks[0], ticks[len(ticks)-1]
 
 	// The plot area inside the axis labels.
@@ -788,6 +793,10 @@ type chartSeriesInfo struct {
 	key, label, color string
 }
 
+// chartMaxValue bounds the values of a [Chart], so that the sums, scales and
+// coordinates computed from them stay finite.
+const chartMaxValue = 1e300
+
 // chartSeries resolves the defaults of data's series and checks that they
 // can be drawn.
 func chartSeries(data ChartData) ([]chartSeriesInfo, error) {
@@ -815,6 +824,9 @@ func chartSeries(data ChartData) ([]chartSeriesInfo, error) {
 		for j, v := range s.Values {
 			if math.IsNaN(v) || math.IsInf(v, 0) {
 				return nil, fmt.Errorf("shadcn.Chart: series %q has no number for %q", info.key, data.Categories[j])
+			}
+			if math.Abs(v) > chartMaxValue {
+				return nil, fmt.Errorf("shadcn.Chart: series %q has a value too large to draw for %q", info.key, data.Categories[j])
 			}
 		}
 		series[i] = info
@@ -858,6 +870,11 @@ func chartTicks(lo, hi float64, count int) []float64 {
 		lo, hi = min(lo, 0), max(hi, 1)
 	}
 	raw := (hi - lo) / float64(max(count, 1))
+	// A range too wide for a float64 or too narrow for a step it can hold
+	// has no ticks.
+	if math.IsInf(raw, 0) || math.IsNaN(raw) || raw < 1e-300 {
+		return nil
+	}
 	power := math.Pow(10, math.Floor(math.Log10(raw)))
 	step := power
 	switch e := raw / power; {
@@ -953,11 +970,25 @@ func chartNum(v float64) string {
 	return strconv.FormatFloat(math.Round(v*100)/100, 'f', -1, 64)
 }
 
-// validateChartColor rejects a color that would end its declaration in the
-// style attribute it is written into and add declarations of its own.
+// validateChartColor rejects a color that would not stay one value of the
+// style attribute it is written into: one that ends its declaration and adds
+// its own, or opens a string, comment or function that swallows the
+// declarations after it.
 func validateChartColor(color string) error {
-	if strings.ContainsAny(color, ";{}") {
-		return fmt.Errorf("color %q holds one of ; { }", color)
+	depth := 0
+	for _, r := range color {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		if depth < 0 {
+			break
+		}
+	}
+	if depth != 0 || strings.ContainsAny(color, `;{}"'\`) || strings.Contains(color, "/*") {
+		return fmt.Errorf("color %q is no single CSS value", color)
 	}
 	return nil
 }

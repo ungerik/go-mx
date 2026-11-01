@@ -48,8 +48,9 @@ type FormTag struct {
 	Options string
 
 	// Accept is a file input's accept attribute (form:"accept=…"), such as
-	// "image/*" or ".pdf,.docx": the file types the picker offers. It
-	// limits the picker only; check an upload's type on the server.
+	// "image/*", the file types the picker offers. A list holds commas, so
+	// it is quoted: form:"accept='.pdf,.docx'". It limits the picker only;
+	// check an upload's type on the server.
 	Accept string
 
 	// MinLength and MaxLength bound the length of a text, textarea or
