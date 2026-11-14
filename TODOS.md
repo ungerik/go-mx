@@ -106,8 +106,8 @@ adversarial review of the `html.Document` attributes change; predates it.
   output not well-formed; its doc comment says the check "holds for every
   markup target", which reads as a well-formedness promise.
 - `html.Document` checks a name before computing the value, so an
-  `mx.ErrAttrib` with an empty `Name` reports "invalid attribute name"
-  instead of its own error.
+  `mx.ErrAttrib` with an empty `Name` reports "empty attribute name" instead
+  of its own error.
 - A failing `BodyAttribs` value errors after the `<head>` is written (as
   documented), while `HTMLAttribs` values are all computed before any output.
 
