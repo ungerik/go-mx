@@ -501,7 +501,7 @@ func TestErrorHelpersNilContext(t *testing.T) {
 	rep.checkReported(t, false, hidden)
 
 	rep.reset()
-	if got := FormErrorText(nil, hidden); got != FormErrorMessage { //nolint:staticcheck
+	if got := FormErrorText(nil, hidden); got != DefaultFormTexts.Error { //nolint:staticcheck
 		t.Errorf("FormErrorText = %q", got)
 	}
 	rep.checkReported(t, false, hidden)

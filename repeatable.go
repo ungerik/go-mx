@@ -18,6 +18,7 @@ import (
 //   - A repeatable field ([]T or []*T tagged form:"repeatable") renders
 //     as a <fieldset>: one row per slice element plus an "Add row"
 //     submit button. Each existing row carries a "Remove" submit button.
+//     Both captions come from the request's [FormTexts].
 //   - Each row's sub-fields are rendered and parsed by the same
 //     [FieldDecider] used for top-level fields, under the row-scoped
 //     path "<Field>-<index>-<SubField>" (e.g. "Lines-0-Description").
@@ -174,9 +175,10 @@ func requestFormValues(r *http.Request) map[string][]string {
 // for renders the loaded slice, whose origins are the row indices. The
 // field's own errors, such as an onSubmit one asking for at least one row,
 // show after the legend. Each path whose errors an input shows is added to
-// consumed. hasFile reports a file cell, or one whose FieldBehavior sets
-// Multipart, which needs a multipart body.
-func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
+// consumed. texts supplies the row buttons' captions and the empty
+// readonly field's line. hasFile reports a file cell, or one whose
+// FieldBehavior sets Multipart, which needs a multipart body.
+func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath][]error, origins rowOrigins, consumed map[FieldPath]bool, texts FormTexts) (_ Component, hasFile bool) {
 	slice := visit.Value
 	structType := repeatableStructType(slice.Type())
 	if structType == nil {
@@ -234,7 +236,7 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 				}
 			}
 			structVal := rowStructValue(slice.Index(i), structType)
-			row, rowFile := renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed)
+			row, rowFile := renderRepeatableRow(visit.Path, i, origin, structVal, d, fieldErrs, readonly, consumed, texts.RemoveRow)
 			children = append(children, row)
 			// A loaded row can render a file cell a zero row has not, such
 			// as one in a section behind a pointer.
@@ -244,11 +246,11 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 	if readonly && (!slice.IsValid() || slice.Kind() != reflect.Slice || slice.Len() == 0) {
 		children = append(children, NewElement("p",
 			Attribute{Name: "data-repeatable-empty", Value: string(visit.Path)},
-			Text(RepeatableNoRowsText),
+			Text(texts.NoRows),
 		))
 	}
 	if limit := maxRows(visit.Tag); !readonly && (limit <= 0 || slice.Len() < limit) {
-		children = append(children, repeatableAddButton(visit.Path))
+		children = append(children, repeatableCommandButton(AddRowCommand(visit.Path), texts.AddRow))
 	}
 
 	attribs := []any{Attribute{Name: "data-repeatable", Value: string(visit.Path)}}
@@ -258,12 +260,12 @@ func renderRepeatable(visit FieldVisit, d FieldDecider, fieldErrs map[FieldPath]
 // renderRepeatableRow renders one row: every leaf sub-field of
 // structVal (rendered by d and wrapped with its __present sentinel),
 // the hidden __row__ marker carrying the row's origin (see
-// [rowOriginMarker]), and a "Remove" button. readonly renders every cell
-// readonly and no button. Each cell path whose errors an input shows is
+// [rowOriginMarker]), and a remove button captioned removeText. readonly
+// renders every cell readonly and no button. Each cell path whose errors an input shows is
 // added to consumed; a hidden cell, such as a per-row key, shows none.
 // hasFile reports a rendered file cell, or one whose FieldBehavior sets
 // Multipart.
-func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool) (_ Component, hasFile bool) {
+func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal reflect.Value, d FieldDecider, fieldErrs map[FieldPath][]error, readonly bool, consumed map[FieldPath]bool, removeText string) (_ Component, hasFile bool) {
 	rowPath := fieldPath.Append(strconv.Itoa(index))
 	var cells []any
 	for cv := range ReflectFormFields(structVal.Addr().Interface()) {
@@ -295,15 +297,11 @@ func renderRepeatableRow(fieldPath FieldPath, index, origin int, structVal refle
 		Attribute{Name: "value", Value: rowOriginMarker(origin)},
 	))
 	if !readonly {
-		cells = append(cells, repeatableCommandButton(DeleteRowCommand(rowPath), "Remove"))
+		cells = append(cells, repeatableCommandButton(DeleteRowCommand(rowPath), removeText))
 	}
 
 	attribs := []any{Attribute{Name: "data-row", Value: string(rowPath)}}
 	return NewElement("div", append(attribs, cells...)...), hasFile
-}
-
-func repeatableAddButton(fieldPath FieldPath) Component {
-	return repeatableCommandButton(AddRowCommand(fieldPath), "Add row")
 }
 
 // repeatableCommandButton emits a formnovalidate submit button carrying

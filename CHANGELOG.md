@@ -16,6 +16,18 @@ API is still free to change.
 
 ### Added
 
+- **Reflected forms follow the request's language.** The texts
+  `mx.ReflectFormHandler` renders on its own — the submit caption, the
+  generic form error, the retype notice after a row command, a repeatable
+  field's "Add row" and "Remove" buttons and its readonly "None" — are the
+  new `mx.FormTexts`, read from the request's context
+  (`mx.ContextWithFormTexts`, `mx.FormTextsFromContext`) and defaulting to
+  `mx.DefaultFormTexts`, as `shadcn.Labels` does for the components. A field
+  left empty falls back to the default and then to the built-in English.
+  They replace the package variables `mx.FormSubmitLabel`,
+  `mx.FormErrorMessage`, `mx.FormRetypeSensitiveMessage` and
+  `mx.RepeatableNoRowsText`; `ReflectFormConfig.SubmitLabel` still
+  overrides the caption of one handler.
 - **A public knowledge layer for crawlers and AI agents.** A site publishes the
   same pages as HTML, Markdown, an llms.txt index, schema.org JSON-LD and MCP
   tools, and every one of those surfaces lists exactly the pages
@@ -316,7 +328,7 @@ API is still free to change.
     and the `html`, `xml` and `web` handlers, and the panics the first two
     recover), a reflected
     form's load error, `SSEResponse.SendError`, an `onSubmit` error or an error
-    no input shows that the form answers with `mx.FormErrorMessage`, a
+    no input shows that the form answers with `mx.FormTexts.Error`, a
     sensitive field's "not a valid value", a failing context option list of
     `html.FieldDecider`, and the 500 of `pdf.Document.ServeHTTP`. Each such
     error arrives once, also two that read alike and share one message above
@@ -382,7 +394,7 @@ API is still free to change.
   blank keeps it; a `form:"sensitive"` input holding a value says that a
   blank keeps it; and an add-row or remove-row click after text was typed
   into a sensitive input says it must be typed again
-  (`mx.FormRetypeSensitiveMessage`). shadcn takes the captions from the new
+  (`mx.FormTexts.RetypeSensitive`). shadcn takes the captions from the new
   `Labels.FormStoredFile`, `FormStoredFileUnnamed`, `FormKeepStoredFile` and
   `FormKeepStoredValue`.
 - **Form-level messages can be styled.** `ReflectFormConfig.FormMessage`
@@ -803,7 +815,7 @@ API is still free to change.
   error.** An error that is neither `mx.FieldErrors` nor the new
   `mx.FormMessage` was shown above the form as its `Error()` text, which
   could carry SQL, addresses or a go-errs call stack. The form now shows
-  `mx.FormErrorMessage` ("The form could not be saved.", reassignable)
+  `mx.FormTexts.Error` ("The form could not be saved.", translatable)
   unless `mx.RevealInternalServerErrors` is set. Return a `mx.FormMessage`, or
   any error with a `UserMessage() string` method, also wrapped, for a message
   meant for the user.
@@ -833,7 +845,7 @@ API is still free to change.
 - **A required enum that was not sent keeps a stored zero that is one of its
   options** instead of reporting "required".
 - **A readonly repeatable field with no rows says so** ("None",
-  `mx.RepeatableNoRowsText`) instead of showing an empty box.
+  `mx.FormTexts.NoRows`) instead of showing an empty box.
 - **The error helpers no longer panic on a nil context or request** once a
   `ReportError` hook is set.
 - **A missing directory in a `GlobPageSource` pattern is an error, not an

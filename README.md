@@ -234,7 +234,7 @@ When `onSubmit` fails, the form re-renders with the submitted values. A
 `mx.FieldErrors` puts each message under its field (a path no input shows, such
 as a hidden field's, goes above the form like the next two); an error the user
 can fix is shown above the form as its user message (see below). Any other error
-is internal: the form shows `mx.FormErrorMessage` ("The form could not be
+is internal: the form shows `mx.FormTexts.Error` ("The form could not be
 saved.") instead of its text, unless `mx.RevealInternalServerErrors` is set. A
 body that cannot be
 parsed is answered with 400 (413 past the multipart limits, net/http's
@@ -405,7 +405,7 @@ reorder or remove the rows. A repeatable field takes at most
 `mx.DefaultMaxRows` rows (1000), or the `form:"maxrows=N"` of its tag: the
 add-row button is gone at the cap, and a POST with more rows is rejected
 before any row is bound. A readonly repeatable field with no rows shows
-`mx.RepeatableNoRowsText` ("None") instead of an empty box.
+`mx.FormTexts.NoRows` ("None") instead of an empty box.
 `form:"readonly"` on the repeatable field itself, or on a section, nested or
 embedded struct, makes everything in it readonly, and `form:"-"` on an
 embedded struct omits its fields.

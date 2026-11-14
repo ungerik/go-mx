@@ -214,7 +214,7 @@ re-renders with inline errors or 303-redirects on success. Return
 `mx.FormMessage("…")` from `onSubmit` for a message shown above the form, or any
 error with a `UserMessage() string` method, also wrapped, which a domain package
 can define without importing go-mx; any other error shows the generic
-`mx.FormErrorMessage`, so internal details stay out of the page, and goes to
+`mx.FormTexts.Error`, so internal details stay out of the page, and goes to
 `mx.ReportError` for the application to log.
 
 **Editing an existing record:** pass a non-nil `load` that returns the current

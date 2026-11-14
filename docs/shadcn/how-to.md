@@ -289,6 +289,18 @@ so the language is chosen per request — not per call site.
                labels = germanLabels
            }
            ctx := shadcn.ContextWithLabels(r.Context(), labels)
+           if strings.HasPrefix(r.URL.Path, "/de/") {
+               // The reflected form's own texts (submit caption,
+               // generic error, row buttons) come from the core package.
+               ctx = mx.ContextWithFormTexts(ctx, mx.FormTexts{
+                   Submit:          "Speichern",
+                   Error:           "Das Formular konnte nicht gespeichert werden.",
+                   RetypeSensitive: "Ein verborgener Wert wird nicht erneut angezeigt: bitte vor dem Speichern noch einmal eingeben.",
+                   AddRow:          "Zeile hinzufügen",
+                   RemoveRow:       "Entfernen",
+                   NoRows:          "Keine",
+               })
+           }
            next.ServeHTTP(w, r.WithContext(ctx))
        })
    }

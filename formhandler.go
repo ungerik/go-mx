@@ -36,31 +36,6 @@ var DefaultMaxMemory int64 = 4 << 20
 // handler via [ReflectFormConfig.MaxUploadSize].
 var DefaultMaxUploadSize int64 = 32 << 20
 
-// FormSubmitLabel is the default text rendered on the form's submit
-// button. Reassign to change globally; the renderer layer (html / hx /
-// shadcn) may also render its own button instead of relying on this.
-var FormSubmitLabel = "Save"
-
-// FormErrorMessage is the form-level message shown when onSubmit returns
-// an error that is neither [FieldErrors] nor a [UserMessageError]: such an
-// error may carry internal details and a call stack, so its text is shown
-// only when [RevealInternalServerErrors] is set (see [FormErrorText]).
-// Reassign to change it globally.
-var FormErrorMessage = "The form could not be saved."
-
-// RepeatableNoRowsText is the line a form:"readonly" repeatable field with
-// no rows shows in its fieldset, which has no add-row button, so that "no
-// entries" does not look like a broken render. Reassign to change it
-// globally, like [FormErrorMessage].
-var RepeatableNoRowsText = "None"
-
-// FormRetypeSensitiveMessage is the form-level message an add-row or
-// remove-row click re-renders the form with when text was typed into a
-// form:"sensitive" input: the input never shows its value, and the save
-// that follows reads the input, so the text must be typed again. Reassign
-// to change or translate it globally.
-var FormRetypeSensitiveMessage = "A value typed into a hidden input, such as a password, is not shown again: type it again before saving."
-
 // MaxFieldErrorLen bounds the error a field shows, and reports through
 // [ReportError], for a value a user posted: a parse or validation error of
 // a reflected form field, of any decider, whose text is longer than this
@@ -120,7 +95,7 @@ type ReflectFormConfig struct {
 	// not feed it untrusted input.
 	Action func(*http.Request) string
 
-	// SubmitLabel overrides [FormSubmitLabel] for this handler only.
+	// SubmitLabel overrides [FormTexts].Submit for this handler only.
 	SubmitLabel string
 
 	// FormMessage renders a message above the form, such as an onSubmit
@@ -147,7 +122,7 @@ type ReflectFormConfig struct {
 // as below, and a FieldErrors of only nil entries is a successful submit.
 // On any other error the form re-renders with a
 // form-level message, [FormErrorText]: the [UserMessage] of a
-// [UserMessageError] such as a [FormMessage], or [FormErrorMessage], with
+// [UserMessageError] such as a [FormMessage], or [FormTexts].Error, with
 // the error passed to [ReportError]. On
 // success the handler responds with 303 See Other to cfg.Redirect or
 // r.URL.Path when nil. A body that cannot be parsed is answered with 400,
@@ -251,10 +226,6 @@ func ReflectFormHandlerRedirecting[T any](
 	if maxUpload == 0 {
 		maxUpload = DefaultMaxUploadSize
 	}
-	submitLabel := cfg.SubmitLabel
-	if submitLabel == "" {
-		submitLabel = FormSubmitLabel
-	}
 	formMessage := cfg.FormMessage
 	if formMessage == nil {
 		formMessage = formMessageComponent
@@ -273,7 +244,11 @@ func ReflectFormHandlerRedirecting[T any](
 		if cfg.Action != nil {
 			action = cfg.Action(r)
 		}
-		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, submitLabel, action, origins, formMessage)
+		texts := FormTextsFromContext(r.Context())
+		if cfg.SubmitLabel != "" {
+			texts.Submit = cfg.SubmitLabel
+		}
+		comp := buildFormComponent(r.Context(), target, d, fieldErrs, formMsg, texts, action, origins, formMessage)
 		if fragments := outOfBandFragments(r); len(fragments) > 0 {
 			comp = append(Components{comp}, fragments...)
 		}
@@ -341,7 +316,7 @@ func ReflectFormHandlerRedirecting[T any](
 				parseAndValidate(target, d, r.WithContext(withoutReports(r.Context())), origins)
 				formMsg := ""
 				if sensitiveTextPosted(target, requestFormValues(r)) {
-					formMsg = FormRetypeSensitiveMessage
+					formMsg = FormTextsFromContext(r.Context()).RetypeSensitive
 				}
 				files.restore(target, origins)
 				applyRepeatableCommand(target, cmd, requestFormValues(r), origins)
@@ -963,7 +938,7 @@ func FormMaxMemory(ctx context.Context) int64 {
 
 // FormErrorText returns the text a form shows the user for err, an error
 // it cannot show at a field, such as one onSubmit returned that is no
-// [FieldErrors]: its [UserMessage], else [FormErrorMessage], or the error's
+// [FieldErrors]: its [UserMessage], else [FormTexts].Error from ctx, or the error's
 // own text when [RevealInternalServerErrors] is set, and "" for a nil err.
 // An error that is no user message is passed to [ReportError] with ctx
 // ([ReportHiddenError]). A decider of the application can use it for an
@@ -986,7 +961,7 @@ func FormErrorText(ctx context.Context, err error) string {
 	if RevealInternalServerErrors {
 		return err.Error()
 	}
-	return FormErrorMessage
+	return FormTextsFromContext(ctx).Error
 }
 
 // isBlank reports whether a value not sent counts as no value for a
@@ -1235,7 +1210,7 @@ func selfSubmitAction(r *http.Request) string {
 // submit button is appended so the form is usable out of the box;
 // renderers can layer their own buttons on top by returning extra
 // children.
-func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, submitLabel string, action string, origins rowOrigins, formMessage func(string) Component) Component {
+func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, fieldErrs map[FieldPath][]error, formMsg string, texts FormTexts, action string, origins rowOrigins, formMessage func(string) Component) Component {
 	type sectionEntry struct {
 		name       string
 		components []Component
@@ -1264,7 +1239,7 @@ func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, f
 			// sentinels and add/remove buttons; the core handler only
 			// places it into the right section.
 			var rowFiles bool
-			wrapped, rowFiles = renderRepeatable(visit, d, fieldErrs, origins, consumed)
+			wrapped, rowFiles = renderRepeatable(visit, d, fieldErrs, origins, consumed, texts)
 			hasFile = hasFile || rowFiles
 		} else {
 			beh := d(visit.Path, visit.Field, visit.Value)
@@ -1345,7 +1320,7 @@ func buildFormComponent[T any](ctx context.Context, target *T, d FieldDecider, f
 	for _, s := range sections {
 		children = append(children, renderSection(s.name, s.components))
 	}
-	children = append(children, submitButton(submitLabel))
+	children = append(children, submitButton(texts.Submit))
 
 	// A form posts urlencoded, which allows 10,000 values, unless a file
 	// input needs multipart, whose limit is 1,000 parts: every field takes

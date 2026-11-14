@@ -146,6 +146,11 @@ sets `FormClear`, it is that caption followed by the field label, so the box's
 accessible name keeps the caption's language. Translate the whole struct to
 avoid mixed-language output.
 
+The texts the reflected-form handler renders itself — the submit caption, the
+generic form error and a repeatable field's row buttons — belong to the core
+package, so a translated form also installs `mx.ContextWithFormTexts` with an
+`mx.FormTexts` in the same middleware.
+
 The second step matters because `DefaultLabels` is itself assignable: without a
 frozen English last resort, assigning it a struct that sets only some fields
 would make every other field fall back to its own empty value. Assign

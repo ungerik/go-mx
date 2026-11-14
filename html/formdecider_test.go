@@ -1397,7 +1397,7 @@ func TestFieldDecider_EnumSetParseReturnsProviderError(t *testing.T) {
 	// The provider's text stays out of the page (see
 	// TestFieldDecider_OptionListParseErrorNotShown); the failure does not.
 	err := FieldDecider("Tags", field, v.Field(0)).Parse("Tags", field, v.Field(0), r)
-	if err == nil || err.Error() != mx.FormErrorMessage {
+	if err == nil || err.Error() != mx.DefaultFormTexts.Error {
 		t.Fatalf("provider error = %v", err)
 	}
 	if len(f.Tags) != 1 || f.Tags[0] != "kept" {
@@ -5229,8 +5229,8 @@ func TestFieldDecider_OptionListParseErrorNotShown(t *testing.T) {
 	// The partners list reads the request context, which has none here.
 	for _, field := range []string{"Partner", "Tags"} {
 		err := parseFieldValue(t, &form{}, field, "a")
-		if err == nil || err.Error() != mx.FormErrorMessage {
-			t.Errorf("%s: error %v, want the generic %q", field, err, mx.FormErrorMessage)
+		if err == nil || err.Error() != mx.DefaultFormTexts.Error {
+			t.Errorf("%s: error %v, want the generic %q", field, err, mx.DefaultFormTexts.Error)
 		}
 	}
 	// A list that fails with a mx.FormMessage, also wrapped, means its text
@@ -5924,7 +5924,7 @@ func TestFieldDecider_OptionListErrorReported(t *testing.T) {
 	mx.RevealInternalServerErrors = true
 	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
 	// A sensitive field reveals nothing: the list's error may quote the value.
-	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || err.Error() != mx.FormErrorMessage || len(*reported) != 1 {
+	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || err.Error() != mx.DefaultFormTexts.Error || len(*reported) != 1 {
 		t.Errorf("a revealed sensitive option-list error: %v, reported %q; want the generic message, reported once", err, *reported)
 	}
 }
