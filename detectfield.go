@@ -32,24 +32,24 @@ import (
 //     which is also returned as the tag's Widget
 //  9. Type implementing the Enums()/EnumStrings() convention →
 //     FieldKindEnum
-// 10. map[T]struct{} where T satisfies the enum convention →
+//  10. map[T]struct{} where T satisfies the enum convention →
 //     FieldKindEnumSet
-// 11. []T where T satisfies the enum convention → FieldKindEnumSet
-// 12. bool / *bool → FieldKindBool
-// 13. int*/uint*/float* and pointer variants → FieldKindNumber
-// 14. time.Time, a type defined as it, or a struct embedding it as its only
+//  11. []T where T satisfies the enum convention → FieldKindEnumSet
+//  12. bool / *bool → FieldKindBool
+//  13. int*/uint*/float* and pointer variants → FieldKindNumber
+//  14. time.Time, a type defined as it, or a struct embedding it as its only
 //     field whose text is RFC 3339 (as it is without text methods of its
 //     own) → FieldKindDateTime (other single-value structs → catch-all)
 //     14.5. a database/sql type holding a bool, a number or a time, such
 //     as sql.NullBool, sql.NullInt64 or sql.NullTime → FieldKindBool,
 //     FieldKindNumber or FieldKindDateTime
-// 15. string / *string / named string types → FieldKindString
-// 16. []string / named-slice-of-string → FieldKindTextarea
-// 17. []byte / json.RawMessage-shaped types → FieldKindTextarea
-// 18. struct field, no tag, has TextMarshaler/
+//  15. string / *string / named string types → FieldKindString
+//  16. []string / named-slice-of-string → FieldKindTextarea
+//  17. []byte / json.RawMessage-shaped types → FieldKindTextarea
+//  18. struct field, no tag, has TextMarshaler/
 //     TextUnmarshaler → FieldKindCatchAll (renderer falls back to a
 //     text input)
-// 19. fallthrough → FieldKindCatchAll
+//  19. fallthrough → FieldKindCatchAll
 //
 // The first rule that matches wins. Notes:
 //   - "satisfies the enum convention" means the type has either
@@ -75,14 +75,14 @@ import (
 // is form:"sensitive" too: a password input never shows its value, so the
 // stored one stays out of the page and a blank submission keeps it.
 func DetectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
-	kind, tag := detectField(path, field, value)
+	kind, tag := detectField(field, value)
 	if tag.Widget == "password" {
 		tag.Sensitive = true
 	}
 	return kind, tag
 }
 
-func detectField(path FieldPath, field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
+func detectField(field reflect.StructField, value reflect.Value) (FieldKind, FormTag) {
 	tag := ParseFormTag(field)
 
 	// 1. explicit skip

@@ -2328,7 +2328,7 @@ func TestReflectFormHandlerRedirecting_NilOnSubmitPanics(t *testing.T) {
 		}
 	}()
 	load := func(context.Context) (*sampleStruct, error) { return &sampleStruct{}, nil }
-	_ = ReflectFormHandlerRedirecting[sampleStruct](ReflectFormConfig{}, load, nil)
+	_ = ReflectFormHandlerRedirecting(ReflectFormConfig{}, load, nil)
 }
 
 // A POST whose body is no form, such as JSON or one without a content

@@ -53,21 +53,70 @@ harmless, so only the closing sequences can break the document. Found as a
 **Priority:** P3
 **Depends on:** None
 
-### Element and attribute names are not checked
+### Element names are not checked
 
-**What:** Check element and attribute names against the HTML/XML name rules
-in `CheckedWriter.BeginElement`, `CheckedWriter.Attribute` and
-`Attribute.Validate`, which today reject only an empty name.
+**What:** Check element names against the HTML/XML name rules in
+`CheckedWriter.BeginElement`, which today rejects only an empty name.
 
 **Why:** A name holding a space, `>`, `=` or a quote is written as-is and
-breaks the markup. Names come from Go code almost always, but
-`html.Attrib(name, value)`, `xml.Element` and struct `attr` tags can carry a
-computed one.
+breaks the markup. Names come from Go code almost always, but `xml.Element`
+and a hand-built `mx.Element` can carry a computed one.
 
-**Context:** The `TODO regex for valid element name` / `attribute name`
-comments at the three places. Check a byte loop's cost on the render hot
-path; an allow-list writer (`allowedElems`) already skips the check for
-elements.
+**Context:** The `TODO regex for valid element name` comment in
+`checkedwriter.go`. Attribute names are already checked:
+`CheckedWriter.Attribute` and `Attribute.Validate` refuse every name
+`mx.ValidateAttribName` rejects; an element-name check can follow the same
+byte loop. Check its cost on the render hot path; an allow-list writer
+(`allowedElems`) already skips the check for elements.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A `ConstAttrib` without `=` panics
+
+**What:** Make `ConstAttrib.AttribName` and `AttribValue` handle a string
+without `=` (for example `mx.ConstAttrib("hidden")`) instead of slicing at
+index -1.
+
+**Why:** `string(a)[:strings.IndexByte(string(a), '=')]` panics with
+`slice bounds out of range [:-1]`, so one malformed constant crashes the
+render of the whole page; `html.Document` reaches it before writing anything,
+through the `BodyAttribs`/`HTMLAttribs` name check.
+
+**Context:** `attrib.go`, `ConstAttrib`. Either treat the whole string as the
+name with an empty value (a boolean-style attribute) or return an empty name,
+which `mx.ValidateAttribName` then refuses with an error. Found by the
+adversarial review of the `html.Document` attributes change; predates it.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Attribute names: case, UTF-8 and the order of checks
+
+**What:** Four loose ends of the attribute-name check:
+- `CheckedWriter.Attribute` refuses a duplicate name only in the same letter
+  case, while `html.Document` refuses `class` beside `CLASS`; HTML names are
+  ASCII case-insensitive, XML names are case-sensitive, so the writer would
+  need to know its target. `strings.EqualFold` in `html.Document` also folds
+  Unicode (`claſs` matches `class`), where HTML lowercases only ASCII.
+- `mx.ValidateAttribName` accepts invalid UTF-8 and names that are not valid XML
+  names (a leading digit, `?`). They cannot break out of the tag, but make XML
+  output not well-formed; its doc comment says the check "holds for every
+  markup target", which reads as a well-formedness promise.
+- `html.Document` checks a name before computing the value, so an
+  `mx.ErrAttrib` with an empty `Name` reports "empty attribute name" instead
+  of its own error.
+- A failing `BodyAttribs` value errors after the `<head>` is written (as
+  documented), while `HTMLAttribs` values are all computed before any output.
+
+**Why:** None is reachable from the repo's own callers today; each is a
+surprise for a downstream caller building names or values at runtime.
+
+**Context:** `checkedwriter.go` `Attribute`, `attrib.go` `ValidateAttribName`,
+`html/document.go` `checkAttribNames`/`Render`. Found by the adversarial
+review of the `html.Document` attributes change.
 
 **Effort:** S
 **Priority:** P4
@@ -110,6 +159,22 @@ head, or the file-name fallback the `.txt` case uses.
 
 **Effort:** S
 **Priority:** P3
+**Depends on:** None
+
+### An empty body from the page renderer hides the page's content
+
+**What:** Let `PageTypeRenderer.RenderPage` treat a `BodyChildren` that is an
+empty `mx.Components` like a nil one, so the content renderer still runs.
+
+**Why:** It checks `doc.BodyChildren != nil`; `html.NewDocument(title)` with no
+body arguments stores an empty `mx.Components`, a non-nil interface, so the
+page renders an empty `<body>` without an error and the `Page.Content` is lost.
+
+**Context:** `web/pagetyperenderer.go:40`. Found by the adversarial review of
+the `html.Document` attributes change; predates it (the field was `Body`).
+
+**Effort:** S
+**Priority:** P4
 **Depends on:** None
 
 ## doc

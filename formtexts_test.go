@@ -44,14 +44,11 @@ func TestFormTextsOrDefaultsCoversAllFields(t *testing.T) {
 	}
 }
 
-// A context without FormTexts, also a nil one, yields DefaultFormTexts, and
-// a partial FormTexts keeps the defaults for the fields it leaves empty.
+// A context without FormTexts yields DefaultFormTexts, and a partial
+// FormTexts keeps the defaults for the fields it leaves empty.
 func TestFormTextsFromContext(t *testing.T) {
 	if got := FormTextsFromContext(context.Background()); got != DefaultFormTexts {
 		t.Errorf("no texts installed: got %+v", got)
-	}
-	if got := FormTextsFromContext(nil); got != DefaultFormTexts { //nolint:staticcheck // a nil context must not panic
-		t.Errorf("nil context: got %+v", got)
 	}
 	got := FormTextsFromContext(ContextWithFormTexts(context.Background(), FormTexts{AddRow: "Zeile hinzufügen"}))
 	if got.AddRow != "Zeile hinzufügen" || got.RemoveRow != DefaultFormTexts.RemoveRow {

@@ -16,6 +16,16 @@ API is still free to change.
 
 ### Added
 
+- **`html.Document` puts attributes on `<html>` and `<body>`.** The new
+  `HTMLAttribs` render after `lang` on the root (a `class="no-js"`, a data-
+  attribute), the new `BodyAttribs` on `<body>` (the classes a vendored theme
+  stylesheet selects on, an id). `BodyAttribs` are written by the page's
+  writer and `HTMLAttribs` by a copy of it (a default `CheckedWriter` when
+  the page renders to another writer), so names are checked and values
+  escaped and quoted as on any element; an
+  attribute named `lang` in `HTMLAttribs` is refused, since `Lang` sets it,
+  and so is a name repeated in another letter case. A Document without the
+  new fields renders byte-for-byte as before; every field is now documented.
 - **A reflected form's own captions follow the request's language.** The
   texts `mx.ReflectFormHandler` renders around the fields — the submit caption, the
   generic form error, the retype notice after a row command, a repeatable
@@ -597,6 +607,12 @@ API is still free to change.
 
 ### Changed
 
+- **`html.Document.Body` is renamed `BodyChildren`**, since it holds the
+  children of `<body>`, not a `Body` element, and pairs with the new
+  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`. It is now
+  always rendered as those children, even when its value could also convert
+  to attributes (an `mx.AttribProvider`, a struct with `attr` tags), which
+  `Body(…)` used to turn into attributes of `<body>`.
 - **The gallery's pages link to each other relatively**, naming the
   `index.html` files (`components/button/index.html`, `../../index.html`), so
   `cmd/shadcn-gallery -out` writes a site that works under any URL path and
@@ -705,12 +721,12 @@ API is still free to change.
   the go-types string types trimmed them. Only a nil pointer is NULL now: an
   empty string or the Nil UUID is stored as such, where the go-types nullable
   types stored it as NULL.
-- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.1 instead of
+- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.8 instead of
   v0.1.0.** `web.GlobPageSource.Dir` is a go-fs `fs.File`, so a module that
   uses it moves up to the new go-fs as well, whose breaking changes, like the
   `context.Context` that `File.ReadAll` and `File.WriteAll` take now, are
   listed in its
-  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.1/docs/MIGRATION_v1.md).
+  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.8/docs/MIGRATION_v1.md).
   `GlobPageSource.Pages` checks its context before each file and passes it on
   to the file reads, so a cancelled context ends it with the context's error,
   also when it yields pages without content, as for a sitemap, or when no
@@ -833,6 +849,15 @@ API is still free to change.
 
 ### Fixed
 
+- **An attribute name can no longer break out of its start tag.**
+  `mx.CheckedWriter.Attribute` writes names unescaped and checked only that
+  they were not empty, so `mx.NewAttrib("x onload=alert(1)", "")` rendered an
+  event handler. It now refuses every name the new `mx.ValidateAttribName`
+  rejects (whitespace, controls, `"`, `'`, `>`, `/`, `=`, `<`), with an error
+  naming the offending character, as does `mx.Attribute.Validate`;
+  `mx.ValidAttribName` is its boolean form. Rendering an element with a nil
+  `mx.Attrib` in its attributes returns an error instead of panicking, and
+  `mx.Element.AttribIndex` skips a nil entry.
 - **A submit that fails no longer shows its uploads as stored.** The
   request's temporary files are removed with the response, so the re-rendered
   form said "Leave empty to keep it" about a file the next submit no longer

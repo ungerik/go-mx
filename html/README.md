@@ -419,13 +419,17 @@ html.UL(
 ```go
 type Document struct {
     Lang         string            // <html lang> tag; "" omits it
-    Title        string
-    Meta         map[string]string // name  -> content
+    HTMLAttribs  []mx.Attrib       // more <html> attributes, after lang
+
+    Title        string            // <title> text; "" omits it
+    Meta         map[string]string // name  -> content, sorted by name
     MetaProperty map[string]string // property -> content (Open Graph, …)
-    Stylesheets  []string          // <link rel="stylesheet"> hrefs
-    Style        string            // inline <style> after the stylesheets
-    HeadCustom   mx.Component       // extra <head> content, last
-    Body         mx.Component
+    Stylesheets  []string          // <link rel="stylesheet"> hrefs, in order
+    Style        string            // inline <style> after the stylesheets, unescaped
+    HeadCustom   mx.Component      // extra <head> content, last
+
+    BodyAttribs  []mx.Attrib       // <body> attributes
+    BodyChildren mx.Component      // children of <body>, wrapped by Render
 }
 ```
 
@@ -440,6 +444,35 @@ before. The value must be a BCP 47 tag charset
 (`[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*`); anything else makes `Render` return an
 error instead of emitting the attribute. `ValidLangTag(tag)` is that check on
 its own, for validating a tag before it reaches a document.
+
+`HTMLAttribs` and `BodyAttribs` put further attributes on the root and on
+`<body>`, for a theme whose CSS selects on body classes or a script that
+expects `class="no-js"` on the root:
+
+```go
+html.Document{
+    Lang:         "en",
+    HTMLAttribs:  []mx.Attrib{html.Class("no-js")},
+    BodyAttribs:  []mx.Attrib{html.Class("home page-template"), html.ID("top")},
+    BodyChildren: content,
+}
+// <html lang="en" class="no-js"> … <body class="home page-template" id="top">
+```
+
+`BodyAttribs` are written by the page's writer and `HTMLAttribs` by a copy of
+it (a default `CheckedWriter` when the page renders to another writer), so
+their names are checked and their values escaped and quoted as on any element;
+empty values render as `name=""`. `HTMLAttribs` follow `lang` in the order given. `Render` returns
+an error for an attribute named `lang` in `HTMLAttribs` (set `Lang` instead),
+and in either field for a nil entry, a duplicate (also one differing only in
+letter case, as HTML names are case-insensitive) or a name that is not a valid
+attribute name. These and every other `HTMLAttribs` error stop `Render`
+before anything is written; only a failing `BodyAttribs` value surfaces when
+`<body>` is written, after the `<head>`. Without either field
+the page renders exactly as before, except that `BodyChildren` are always the
+children of `<body>`: a value that also converts to attributes (an
+`mx.AttribProvider`, a struct with `attr` tags) no longer becomes attributes
+of `<body>`, as it did through the old `Body` field.
 
 Serving:
 
