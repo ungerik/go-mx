@@ -721,12 +721,12 @@ API is still free to change.
   the go-types string types trimmed them. Only a nil pointer is NULL now: an
   empty string or the Nil UUID is stored as such, where the go-types nullable
   types stored it as NULL.
-- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.1 instead of
+- **go-mx depends on `github.com/ungerik/go-fs` v1.0.0-rc.8 instead of
   v0.1.0.** `web.GlobPageSource.Dir` is a go-fs `fs.File`, so a module that
   uses it moves up to the new go-fs as well, whose breaking changes, like the
   `context.Context` that `File.ReadAll` and `File.WriteAll` take now, are
   listed in its
-  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.1/docs/MIGRATION_v1.md).
+  [migration guide](https://github.com/ungerik/go-fs/blob/v1.0.0-rc.8/docs/MIGRATION_v1.md).
   `GlobPageSource.Pages` checks its context before each file and passes it on
   to the file reads, so a cancelled context ends it with the context's error,
   also when it yields pages without content, as for a sitemap, or when no
