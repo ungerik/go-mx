@@ -6,6 +6,29 @@ build order lives in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
+## mx reflected forms
+
+### Core validation messages are English only
+
+**What:** Let the field errors the core form handling writes itself follow
+the request's language, as `mx.FormTexts` does for the handler's captions.
+
+**Why:** A translated form shows "Speichern" on its button but "required",
+"not a valid value" or "must be at least 3 characters" under a field.
+
+**Context:** `errors.New("required")` in `formhandler.go` (three places) and
+`html/formdecider.go`; the sensitive-field mask "not a valid value" in
+`formhandler.go` (the `MaskSensitiveError` calls and the `mask` constant)
+and `errors.go` (`FieldErrorTexts`); "the text is not a valid value" in
+`formhandler.go`; the length and range messages in `formtext.go` and
+`formnumber.go`. Check what compares against these texts before replacing
+them; the messages with a number need a format string, like shadcn's
+`Labels.FormDateTimeTooLate`.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## mx writer
 
 ### `CheckedWriter.Comment` writes text that closes the comment early
@@ -126,7 +149,7 @@ time (as shadcn's `ContextWithLabels`) would let a renderer install them.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-**Completed:** 2026-11-14 — the new `mx.FormTexts` (`ContextWithFormTexts`, `FormTextsFromContext`, `DefaultFormTexts`) holds every text the handler renders on its own: the row buttons and "None", and also the submit caption, the generic form error and the retype notice, which were English-only package variables too. It replaces `FormSubmitLabel`, `FormErrorMessage`, `FormRetypeSensitiveMessage` and `RepeatableNoRowsText`.
+**Completed:** 2026-11-14 — the new `mx.FormTexts` (`ContextWithFormTexts`, `FormTextsFromContext`, `DefaultFormTexts`) holds the texts the handler renders around the fields: the row buttons and "None", and also the submit caption, the generic form error and the retype notice, which were English-only package variables too. It replaces `FormSubmitLabel`, `FormErrorMessage`, `FormRetypeSensitiveMessage` and `RepeatableNoRowsText`.
 
 ### The date picker trigger is not described by its errors and help
 

@@ -5,10 +5,12 @@ import (
 	"context"
 )
 
-// FormTexts holds every user-visible string that [ReflectFormHandler]
-// renders on its own, without a decider or the caller passing it: the
-// submit button's caption, the generic form-level error, the notice after a
-// row command, and the row buttons and empty line of a repeatable field.
+// FormTexts holds the texts [ReflectFormHandler] renders around the fields,
+// without a decider or the caller passing them: the submit button's caption,
+// the generic form-level error, the notice after a row command, and the row
+// buttons and empty line of a repeatable field. The core validation
+// messages of a field, such as "required" or "not a valid value", are not
+// among them yet.
 //
 // The strings are resolved from the request's context, so one process can
 // serve several languages concurrently: install the request's FormTexts with

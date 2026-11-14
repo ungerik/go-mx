@@ -16,8 +16,8 @@ API is still free to change.
 
 ### Added
 
-- **Reflected forms follow the request's language.** The texts
-  `mx.ReflectFormHandler` renders on its own — the submit caption, the
+- **A reflected form's own captions follow the request's language.** The
+  texts `mx.ReflectFormHandler` renders around the fields — the submit caption, the
   generic form error, the retype notice after a row command, a repeatable
   field's "Add row" and "Remove" buttons and its readonly "None" — are the
   new `mx.FormTexts`, read from the request's context
@@ -27,7 +27,8 @@ API is still free to change.
   They replace the package variables `mx.FormSubmitLabel`,
   `mx.FormErrorMessage`, `mx.FormRetypeSensitiveMessage` and
   `mx.RepeatableNoRowsText`; `ReflectFormConfig.SubmitLabel` still
-  overrides the caption of one handler.
+  overrides the caption of one handler. The core validation messages of a
+  field ("required", "not a valid value", the length limits) stay English.
 - **A public knowledge layer for crawlers and AI agents.** A site publishes the
   same pages as HTML, Markdown, an llms.txt index, schema.org JSON-LD and MCP
   tools, and every one of those surfaces lists exactly the pages
