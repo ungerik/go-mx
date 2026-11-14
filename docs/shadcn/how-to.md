@@ -314,7 +314,8 @@ so the language is chosen per request — not per call site.
    ```
 
 No component call site changes. If your whole app is single-language, skip the
-middleware and assign `shadcn.DefaultLabels = germanLabels` at startup instead —
+middleware and assign `shadcn.DefaultLabels = germanLabels` at startup instead,
+and `mx.DefaultFormTexts` for a reflected form's own texts —
 do it during initialization, before the first render, and a partial assignment
 is safe because unset fields still fall through to the built-in English.
 
@@ -329,6 +330,10 @@ language is resolved at render time, not at construction.
 
 **A label still renders in English.** That field of your `Labels` is unset and
 fell back to `shadcn.DefaultLabels`. Fill it in.
+
+**A form's submit button or row buttons are still English.** Those are not
+`Labels` but `mx.FormTexts`, installed with `mx.ContextWithFormTexts` (step 2).
+A field's validation messages, such as "required", are not translatable yet.
 
 **`Calendar` is still English.** Weekday and month names need locale data Go's
 `time` package does not carry, so they are not part of `Labels`. Use

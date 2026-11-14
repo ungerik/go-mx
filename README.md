@@ -235,7 +235,10 @@ When `onSubmit` fails, the form re-renders with the submitted values. A
 as a hidden field's, goes above the form like the next two); an error the user
 can fix is shown above the form as its user message (see below). Any other error
 is internal: the form shows `mx.FormTexts.Error` ("The form could not be
-saved.") instead of its text, unless `mx.RevealInternalServerErrors` is set. A
+saved.") instead of its text, unless `mx.RevealInternalServerErrors` is set.
+`mx.FormTexts` holds the texts the handler renders itself (this one, the
+submit caption, a repeatable field's row buttons), taken from the request's
+context, where `mx.ContextWithFormTexts` installs a translation. A
 body that cannot be
 parsed is answered with 400 (413 past the multipart limits, net/http's
 10 MB for a urlencoded body or an `http.MaxBytesReader` limit) and never reaches
