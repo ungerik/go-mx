@@ -16,6 +16,19 @@ API is still free to change.
 
 ### Added
 
+- **A reflected form's own captions follow the request's language.** The
+  texts `mx.ReflectFormHandler` renders around the fields — the submit caption, the
+  generic form error, the retype notice after a row command, a repeatable
+  field's "Add row" and "Remove" buttons and its readonly "None" — are the
+  new `mx.FormTexts`, read from the request's context
+  (`mx.ContextWithFormTexts`, `mx.FormTextsFromContext`) and defaulting to
+  `mx.DefaultFormTexts`, as `shadcn.Labels` does for the components. A field
+  left empty falls back to the default and then to the built-in English.
+  They replace the package variables `mx.FormSubmitLabel`,
+  `mx.FormErrorMessage`, `mx.FormRetypeSensitiveMessage` and
+  `mx.RepeatableNoRowsText`; `ReflectFormConfig.SubmitLabel` still
+  overrides the caption of one handler. The core validation messages of a
+  field ("required", "not a valid value", the length limits) stay English.
 - **A public knowledge layer for crawlers and AI agents.** A site publishes the
   same pages as HTML, Markdown, an llms.txt index, schema.org JSON-LD and MCP
   tools, and every one of those surfaces lists exactly the pages
@@ -316,7 +329,7 @@ API is still free to change.
     and the `html`, `xml` and `web` handlers, and the panics the first two
     recover), a reflected
     form's load error, `SSEResponse.SendError`, an `onSubmit` error or an error
-    no input shows that the form answers with `mx.FormErrorMessage`, a
+    no input shows that the form answers with `mx.FormTexts.Error`, a
     sensitive field's "not a valid value", a failing context option list of
     `html.FieldDecider`, and the 500 of `pdf.Document.ServeHTTP`. Each such
     error arrives once, also two that read alike and share one message above
@@ -382,7 +395,7 @@ API is still free to change.
   blank keeps it; a `form:"sensitive"` input holding a value says that a
   blank keeps it; and an add-row or remove-row click after text was typed
   into a sensitive input says it must be typed again
-  (`mx.FormRetypeSensitiveMessage`). shadcn takes the captions from the new
+  (`mx.FormTexts.RetypeSensitive`). shadcn takes the captions from the new
   `Labels.FormStoredFile`, `FormStoredFileUnnamed`, `FormKeepStoredFile` and
   `FormKeepStoredValue`.
 - **Form-level messages can be styled.** `ReflectFormConfig.FormMessage`
@@ -803,7 +816,7 @@ API is still free to change.
   error.** An error that is neither `mx.FieldErrors` nor the new
   `mx.FormMessage` was shown above the form as its `Error()` text, which
   could carry SQL, addresses or a go-errs call stack. The form now shows
-  `mx.FormErrorMessage` ("The form could not be saved.", reassignable)
+  `mx.FormTexts.Error` ("The form could not be saved.", translatable)
   unless `mx.RevealInternalServerErrors` is set. Return a `mx.FormMessage`, or
   any error with a `UserMessage() string` method, also wrapped, for a message
   meant for the user.
@@ -833,7 +846,7 @@ API is still free to change.
 - **A required enum that was not sent keeps a stored zero that is one of its
   options** instead of reporting "required".
 - **A readonly repeatable field with no rows says so** ("None",
-  `mx.RepeatableNoRowsText`) instead of showing an empty box.
+  `mx.FormTexts.NoRows`) instead of showing an empty box.
 - **The error helpers no longer panic on a nil context or request** once a
   `ReportError` hook is set.
 - **A missing directory in a `GlobPageSource` pattern is an error, not an
@@ -955,7 +968,7 @@ API is still free to change.
 - **Pressing Enter saves a form with repeatable rows.** Enter in an input clicks the form's first submit button, which was the first row's "Remove" (or "Add row"), so it removed a row instead of saving. Such a form now starts with an out-of-sight default submit button that saves.
 - **A hidden number or bool binds.** A `form:"hidden"` int, float or bool went through the text binder, which cannot parse it, so every save of a form with such a hidden field, such as a numeric per-row key, failed. It binds as a number or checkbox value now; a nil `*bool` stays nil.
 - **A password widget no longer shows the stored password.** A field tagged `form:"widget=password"` (or hinted so) without `sensitive` rendered its stored value into the page. A password widget is now sensitive: it never shows its value, and a blank submission keeps the stored one.
-- **An error no input shows is reported.** A hidden field, a hidden cell in a repeatable row such as a per-row key, a field the decider does not render and a path that names no field have no place for a message, so a parse error of a tampered hidden value, or an `onSubmit` `mx.FieldErrors` entry for such a path (a typo, say), failed the save with no visible reason. Such errors are now shown above the form, once each, written as an `onSubmit` error is: the `UserMessage` of an `mx.UserMessageError` such as an `mx.FormMessage`, otherwise `mx.FormErrorMessage`. An error of a repeatable field itself, such as one asking for at least one row, shows inside its box after the legend. A nil entry in `mx.FieldErrors` is no error rather than a panic.
+- **An error no input shows is reported.** A hidden field, a hidden cell in a repeatable row such as a per-row key, a field the decider does not render and a path that names no field have no place for a message, so a parse error of a tampered hidden value, or an `onSubmit` `mx.FieldErrors` entry for such a path (a typo, say), failed the save with no visible reason. Such errors are now shown above the form, once each, worded as an `onSubmit` error would be, which is the `UserMessage` of an `mx.UserMessageError` such as an `mx.FormMessage`, otherwise `mx.FormTexts.Error`. An error of a repeatable field itself, such as one asking for at least one row, shows inside its box after the legend. A nil entry in `mx.FieldErrors` is no error rather than a panic.
 - **A field the decider renders as nothing is left alone.** It still got a `__present` sentinel, so every save blanked it; it gets none now.
 - **An upload is read into memory only up to `MaxMemory`.** A file field read the whole upload into a buffer of its size, whatever `ReflectFormConfig.MaxMemory` said, so one large POST could exhaust memory. A larger file is now a field error; the new `mx.FormMaxMemory(ctx)` tells a decider the limit.
 - **The note on unlisted checkbox-set members says they are removed.** It read "(some current values are not available)", although saving drops them; it now says "(… and are removed when you save)", in `html` and in `shadcn.Labels.FormValuesNotAvailable`. A readonly set, which is never saved and keeps them, still reads "(some current values are not available)" (`shadcn.Labels.FormValuesNotAvailableReadonly`).
@@ -968,7 +981,7 @@ API is still free to change.
 - **A required enum whose zero is an option saves it.** A required select could not save a constant whose value is the zero, such as `Low = iota` or an option `"0"`, from any list (`Enums`, `EnumStrings`, `NamedOptions`, `Options`, `form:"options=…"`); a blank choice is now told from the submitted text. A non-empty value that binds the zero of an enum without such a constant is validated, not taken as "no choice".
 - **An enum with nothing chosen shows "(none)" or "Choose…".** An enum whose zero is none of its options, such as an `iota+1` enum or an `int64` key from a list, showed "(current value not available)" and a note that saving removes it on a new record; its zero now selects the list's own empty option or the leading "(none)" ("Choose…" when required; a readonly select prompts no choice). `mx.SelectPreface` decides it for a renderer: it takes the field's value and returns the option the select shows along with the preface.
 - **A required file field that holds a file does not demand a new upload.** Its input rendered HTML `required`, so the browser blocked every save of the edit form until the user picked the file again, although a blank file input keeps the stored file.
-- **An option list that fails while a POST is read shows no internal error.** A context option list (`form:"options=…"` with a provider) failing during the parse put its error text, a go-errs call stack included, next to the field; it now shows the `UserMessage` of an `mx.UserMessageError` it returned, such as an `mx.FormMessage`, or `mx.FormErrorMessage` unless `mx.RevealInternalServerErrors` is set, also in a `form:"sensitive"` field.
+- **An option list that fails while a POST is read shows no internal error.** A context option list (`form:"options=…"` with a provider) failing during the parse put its error text, a go-errs call stack included, next to the field; it now shows the `UserMessage` of an `mx.UserMessageError` it returned, such as an `mx.FormMessage`, or `mx.FormTexts.Error` unless `mx.RevealInternalServerErrors` is set, also in a `form:"sensitive"` field.
 - **Rejected date text is not echoed back without a bound.** Date or time text longer than any input sends (64 bytes) is rejected without being bound into the re-render or quoted in the error, as a `database/sql` number's error does not quote long text, so one large POST cannot grow into a larger page.
 - **A date on its `max` day passes in zones whose clocks skip midnight.** A date read in such a zone starts at 01:00, which the range check compared as later than the `max` day; a date input's bounds now compare dates only.
 - **A value whose promoted methods panic no longer crashes the required check.** A struct embedding a nil pointer whose `IsNull` or `IsZero` is promoted panicked when the field was checked; it now counts as empty.

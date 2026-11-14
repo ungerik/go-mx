@@ -750,7 +750,7 @@ func TestReflectFormHandlerRedirecting_ErrorReRenders(t *testing.T) {
 		}
 		// An internal error's details never reach the page.
 		body := rec.Body.String()
-		if !strings.Contains(body, FormErrorMessage) || strings.Contains(body, "10.0.0.5") {
+		if !strings.Contains(body, DefaultFormTexts.Error) || strings.Contains(body, "10.0.0.5") {
 			t.Errorf("a plain error must show only the generic message: %s", body)
 		}
 	})
@@ -1110,7 +1110,7 @@ func TestReflectFormHandler_RowCommandRetypeSensitive(t *testing.T) {
 		addRow(form, "Lines", 0, map[string]string{"Token": tc.row})
 		form.Set(sentinelCommand, AddRowCommand("Lines"))
 		body := postForm(t, h, form).Body.String()
-		if got := strings.Contains(body, FormRetypeSensitiveMessage); got != tc.want {
+		if got := strings.Contains(body, DefaultFormTexts.RetypeSensitive); got != tc.want {
 			t.Errorf("%s: message shown %t, want %t: %s", tc.name, got, tc.want, body)
 		}
 	}
@@ -1134,7 +1134,7 @@ func TestReflectFormHandler_RowCommandRetypeSensitiveIndexGap(t *testing.T) {
 	addRow(form, "Lines", 0, map[string]string{"Token": ""})
 	addRow(form, "Lines", 2, map[string]string{"Token": "typed"})
 	form.Set(sentinelCommand, AddRowCommand("Lines"))
-	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, FormRetypeSensitiveMessage) {
+	if body := postForm(t, h, form).Body.String(); !strings.Contains(body, DefaultFormTexts.RetypeSensitive) {
 		t.Errorf("text typed into row 2 must ask to retype it: %s", body)
 	}
 }
@@ -1704,7 +1704,7 @@ func TestReflectFormHandler_UnshownErrorsAtFormLevel(t *testing.T) {
 		want string
 	}{
 		{"hidden cell message", FieldErrors{FieldPath("Lines").Append("0").Append("Key"): FormMessage("the row changed meanwhile")}, ">the row changed meanwhile<"},
-		{"hidden cell internal", FieldErrors{FieldPath("Lines").Append("0").Append("Key"): errors.New("pq: row 7 locked")}, ">" + FormErrorMessage + "<"},
+		{"hidden cell internal", FieldErrors{FieldPath("Lines").Append("0").Append("Key"): errors.New("pq: row 7 locked")}, ">" + DefaultFormTexts.Error + "<"},
 		{"misspelled path", FieldErrors{"Nmae": FormMessage("orphan message")}, ">orphan message<"},
 	} {
 		h := ReflectFormHandler(
@@ -1782,7 +1782,7 @@ func TestReflectFormHandler_ErrorsShowOnce(t *testing.T) {
 		hiddenKeyDecider(),
 	)
 	body := postForm(t, h, renderedValues(getBody(t, h))).Body.String()
-	for _, msg := range []string{"name taken", "desc too long", "too many lines", FormErrorMessage} {
+	for _, msg := range []string{"name taken", "desc too long", "too many lines", DefaultFormTexts.Error} {
 		if n := strings.Count(body, ">"+msg+"<"); n != 1 {
 			t.Errorf("%q shows %d times: %s", msg, n, body)
 		}
@@ -2378,7 +2378,7 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 	} {
 		body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String()
 		if !strings.Contains(body,
-			/*html*/ `<p role="alert" data-slot="form-message">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, FormErrorMessage) {
+			/*html*/ `<p role="alert" data-slot="form-message">The IBAN is not valid.</p>`) || strings.Contains(body, "checksum") || strings.Contains(body, "pq:") || strings.Contains(body, DefaultFormTexts.Error) {
 			t.Errorf("%v: want only the UserMessage in %s", submitErr, body)
 		}
 	}
@@ -2388,7 +2388,7 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 	rep.reset()
 
 	submitErr = errors.New("pq: connection refused to 10.0.0.5")
-	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, FormErrorMessage) {
+	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body, DefaultFormTexts.Error) {
 		t.Errorf("want the generic message in %s", body)
 	}
 	rep.checkReported(t, true, submitErr)
@@ -2407,7 +2407,7 @@ func TestReflectFormHandler_ReportsHiddenSubmitError(t *testing.T) {
 	}
 	RevealInternalServerErrors = false
 	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body,
-		/*html*/ `<p role="alert" data-slot="form-message">`+FormErrorMessage+ /*html*/ `</p>`) || strings.Contains(body, "10.0.0.5") {
+		/*html*/ `<p role="alert" data-slot="form-message">`+DefaultFormTexts.Error+ /*html*/ `</p>`) || strings.Contains(body, "10.0.0.5") {
 		t.Errorf("a context error must show the generic message: %s", body)
 	}
 	// A timeout of onSubmit's own call, while the client waits, is reported.
@@ -2444,7 +2444,7 @@ func TestReflectFormHandler_ReportsEachUnshownError(t *testing.T) {
 	form.Set("Name", "n")
 	addRow(form, "Lines", 0, map[string]string{"Key": "k", "Desc": "a"})
 	body := serveReportRequest(h, http.MethodPost, form).Body.String()
-	if strings.Count(body, ">"+FormErrorMessage+"<") != 1 || !strings.Contains(body, ">The IBAN is not valid.<") || strings.Contains(body, "pq:") || strings.Contains(body, "checksum") {
+	if strings.Count(body, ">"+DefaultFormTexts.Error+"<") != 1 || !strings.Contains(body, ">The IBAN is not valid.<") || strings.Contains(body, "pq:") || strings.Contains(body, "checksum") {
 		t.Errorf("want the generic message once and the UserMessage in %s", body)
 	}
 	rep.checkReported(t, true, locked, lockedToo)
@@ -2654,7 +2654,7 @@ func TestReflectFormHandler_BlankUserMessageIsHidden(t *testing.T) {
 		newTestDecider(),
 	)
 	if body := serveReportRequest(h, http.MethodPost, validSampleForm()).Body.String(); !strings.Contains(body,
-		/*html*/ `<p role="alert" data-slot="form-message">`+FormErrorMessage+ /*html*/ `</p>`) {
+		/*html*/ `<p role="alert" data-slot="form-message">`+DefaultFormTexts.Error+ /*html*/ `</p>`) {
 		t.Errorf("want the generic message in %s", body)
 	}
 	rep.checkReported(t, true, blankMessageError{})

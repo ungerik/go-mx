@@ -859,7 +859,7 @@ func setFiles(ctx context.Context, value reflect.Value, files []*multipart.FileH
 // The rejection is a plain validation error (rendered inline at the
 // field). A failure to resolve the option list itself becomes
 // [optionListError]: the [mx.UserMessage] of an error the list returned,
-// else [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set,
+// else [mx.FormTexts].Error unless [mx.RevealInternalServerErrors] is set,
 // with the error reported to [mx.ReportError].
 func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.FormTag, t reflect.Type, vals ...string) error {
 	if len(vals) == 0 || !mx.OptionsNeedContext(tag, t) {
@@ -876,7 +876,7 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 // while a POST was parsed. Like an onSubmit error, its text may carry
 // internal details and a call stack, so the field shows [mx.FormErrorText]:
 // the [mx.UserMessage] of a [mx.UserMessageError] the list returned, else
-// [mx.FormErrorMessage] unless [mx.RevealInternalServerErrors] is set, with
+// [mx.FormTexts].Error unless [mx.RevealInternalServerErrors] is set, with
 // the error reported to [mx.ReportError]. A form:"sensitive" field reveals
 // nothing, as the list's error may quote the value. The text is a
 // [mx.FormMessage], meant for the user, so the sensitive field's guard shows
@@ -884,7 +884,7 @@ func validateOptionMembership(ctx context.Context, value reflect.Value, tag mx.F
 func optionListError(ctx context.Context, err error, tag mx.FormTag) error {
 	text := mx.FormErrorText(ctx, err)
 	if _, ok := mx.UserMessage(err); !ok && tag.Sensitive {
-		text = mx.FormErrorMessage
+		text = mx.FormTextsFromContext(ctx).Error
 	}
 	return mx.FormMessage(text)
 }

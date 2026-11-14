@@ -28,6 +28,10 @@ import (
 // [DefaultLabels] field and then to the package's built-in English, so a
 // partial translation renders a default for the strings it does not cover
 // instead of an empty label.
+//
+// The texts [mx.ReflectFormHandler] renders itself, such as the submit
+// caption and a repeatable field's row buttons, are [mx.FormTexts], installed
+// with [mx.ContextWithFormTexts].
 type Labels struct {
 	// BreadcrumbNav is the aria-label of the [Breadcrumb] <nav> landmark.
 	BreadcrumbNav string

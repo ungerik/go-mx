@@ -1397,7 +1397,7 @@ func TestFieldDecider_EnumSetParseReturnsProviderError(t *testing.T) {
 	// The provider's text stays out of the page (see
 	// TestFieldDecider_OptionListParseErrorNotShown); the failure does not.
 	err := FieldDecider("Tags", field, v.Field(0)).Parse("Tags", field, v.Field(0), r)
-	if err == nil || err.Error() != mx.FormErrorMessage {
+	if err == nil || err.Error() != mx.DefaultFormTexts.Error {
 		t.Fatalf("provider error = %v", err)
 	}
 	if len(f.Tags) != 1 || f.Tags[0] != "kept" {
@@ -5229,8 +5229,8 @@ func TestFieldDecider_OptionListParseErrorNotShown(t *testing.T) {
 	// The partners list reads the request context, which has none here.
 	for _, field := range []string{"Partner", "Tags"} {
 		err := parseFieldValue(t, &form{}, field, "a")
-		if err == nil || err.Error() != mx.FormErrorMessage {
-			t.Errorf("%s: error %v, want the generic %q", field, err, mx.FormErrorMessage)
+		if err == nil || err.Error() != mx.DefaultFormTexts.Error {
+			t.Errorf("%s: error %v, want the generic %q", field, err, mx.DefaultFormTexts.Error)
 		}
 	}
 	// A list that fails with a mx.FormMessage, also wrapped, means its text
@@ -5924,8 +5924,45 @@ func TestFieldDecider_OptionListErrorReported(t *testing.T) {
 	mx.RevealInternalServerErrors = true
 	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
 	// A sensitive field reveals nothing: the list's error may quote the value.
-	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || err.Error() != mx.FormErrorMessage || len(*reported) != 1 {
+	if err := parseFieldValue(t, &form{}, "Sensitive", "a"); err == nil || err.Error() != mx.DefaultFormTexts.Error || len(*reported) != 1 {
 		t.Errorf("a revealed sensitive option-list error: %v, reported %q; want the generic message, reported once", err, *reported)
+	}
+}
+
+// The generic text that replaces a failed context option list's error is the
+// request's mx.FormTexts.Error, in a select, a set and a sensitive field,
+// whose guard shows it even with RevealInternalServerErrors set.
+func TestFieldDecider_OptionListErrorFormTexts(t *testing.T) {
+	recordReports(t)
+	const german = "Das Formular konnte nicht gespeichert werden."
+	type form struct {
+		Partner   string   `form:"options=test-html-partners"`
+		Tags      []string `form:"options=test-html-partners"`
+		Sensitive string   `form:"options=test-html-partners,sensitive"`
+	}
+	parse := func(field string) error {
+		values := url.Values{field: {"a"}}
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r = r.WithContext(mx.ContextWithFormTexts(r.Context(), mx.FormTexts{Error: german}))
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		v := reflect.ValueOf(&form{}).Elem()
+		sf, _ := v.Type().FieldByName(field)
+		path := mx.FieldPath(field)
+		return FieldDecider(path, sf, v.FieldByIndex(sf.Index)).Parse(path, sf, v.FieldByIndex(sf.Index), r)
+	}
+	for _, field := range []string{"Partner", "Tags", "Sensitive"} {
+		if err := parse(field); err == nil || err.Error() != german {
+			t.Errorf("%s: error %v, want the request's %q", field, err, german)
+		}
+	}
+	prev := mx.RevealInternalServerErrors
+	mx.RevealInternalServerErrors = true
+	t.Cleanup(func() { mx.RevealInternalServerErrors = prev })
+	if err := parse("Sensitive"); err == nil || err.Error() != german {
+		t.Errorf("revealed sensitive: error %v, want the request's %q", err, german)
 	}
 }
 

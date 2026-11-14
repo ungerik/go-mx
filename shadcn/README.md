@@ -197,6 +197,13 @@ package does not have, so they stay on the explicit
 "ship the hooks, not the translations" rule, just with a per-instance carrier
 because a calendar's week start is a rendering decision, not an ambient string.
 
+The texts the reflected-form handler renders itself — the submit caption, the
+generic form error, the retype notice after a row command, and a repeatable
+field's row buttons and readonly "None" — belong to the core package, so a
+translated form also installs `mx.ContextWithFormTexts` with an `mx.FormTexts`
+in the same middleware (or assigns `mx.DefaultFormTexts` program-wide). A
+field's core validation messages, such as "required", stay English.
+
 Set `html.Document.Lang` to the matching BCP 47 tag so the page also declares
 its language (WCAG 3.1.1).
 

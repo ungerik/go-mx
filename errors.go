@@ -12,7 +12,7 @@ var (
 	// RevealInternalServerErrors controls whether [RespondNonContextError] and
 	// [SSEResponse.SendError] include the actual error message in what they
 	// send, and whether a reflected form shows the text of an onSubmit
-	// error instead of [FormErrorMessage] ([FormErrorText]). It defaults to
+	// error instead of [FormTexts].Error ([FormErrorText]). It defaults to
 	// false, which sends a generic "Internal Server Error"; set it to true
 	// (typically in development) to expose the error text. [ReportError]
 	// gets the error either way.
