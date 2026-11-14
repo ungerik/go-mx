@@ -2,6 +2,7 @@ package html
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -85,17 +86,22 @@ func TestDocumentLang(t *testing.T) {
 
 	// An invalid tag must abort Render with an error rather than escape or
 	// interpolate attribute-breaking characters into the markup.
-	t.Run("invalid tag rejected", func(t *testing.T) {
-		var b strings.Builder
-		err := (&Document{Lang: `de" onload=x`, Title: "T"}).
-			Render(context.Background(), mx.NewCheckedWriter(&b))
-		if err == nil {
-			t.Fatalf("invalid Lang should error, got markup: %s", b.String())
-		}
-		if strings.Contains(b.String(), "onload") {
-			t.Errorf("invalid Lang must not reach the output: %s", b.String())
-		}
-	})
+	// With and without HTMLAttribs, since the <html> tag is built on two
+	// paths: a constant without them, the writer with them, which would
+	// escape a bad tag into the markup instead of refusing it.
+	for _, attribs := range [][]mx.Attrib{nil, {Class("no-js")}} {
+		t.Run(fmt.Sprintf("invalid tag rejected with %d HTMLAttribs", len(attribs)), func(t *testing.T) {
+			var b strings.Builder
+			err := (&Document{Lang: `de" onload=x`, HTMLAttribs: attribs, Title: "T"}).
+				Render(context.Background(), mx.NewCheckedWriter(&b))
+			if err == nil {
+				t.Fatalf("invalid Lang should error, got markup: %s", b.String())
+			}
+			if b.Len() != 0 {
+				t.Errorf("invalid Lang must stop Render before any output: %s", b.String())
+			}
+		})
+	}
 }
 
 func ExampleNewDocument() {
