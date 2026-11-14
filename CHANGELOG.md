@@ -16,6 +16,16 @@ API is still free to change.
 
 ### Added
 
+- **`html.Document` puts attributes on `<html>` and `<body>`.** The new
+  `HTMLAttribs` render after `lang` on the root (a `class="no-js"`, a data-
+  attribute), the new `BodyAttribs` on `<body>` (the classes a vendored theme
+  stylesheet selects on, an id). `BodyAttribs` are written by the page's
+  writer and `HTMLAttribs` by a copy of it (a default `CheckedWriter` when
+  the page renders to another writer), so names are checked and values
+  escaped and quoted as on any element; an
+  attribute named `lang` in `HTMLAttribs` is refused, since `Lang` sets it,
+  and so is a name repeated in another letter case. A Document without the
+  new fields renders byte-for-byte as before; every field is now documented.
 - **A reflected form's own captions follow the request's language.** The
   texts `mx.ReflectFormHandler` renders around the fields — the submit caption, the
   generic form error, the retype notice after a row command, a repeatable
@@ -597,6 +607,12 @@ API is still free to change.
 
 ### Changed
 
+- **`html.Document.Body` is renamed `BodyChildren`**, since it holds the
+  children of `<body>`, not a `Body` element, and pairs with the new
+  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`. It is now
+  always rendered as those children, even when its value could also convert
+  to attributes (an `mx.AttribProvider`, a struct with `attr` tags), which
+  `Body(…)` used to turn into attributes of `<body>`.
 - **The gallery's pages link to each other relatively**, naming the
   `index.html` files (`components/button/index.html`, `../../index.html`), so
   `cmd/shadcn-gallery -out` writes a site that works under any URL path and
@@ -833,6 +849,14 @@ API is still free to change.
 
 ### Fixed
 
+- **An attribute name can no longer break out of its start tag.**
+  `mx.CheckedWriter.Attribute` writes names unescaped and checked only that
+  they were not empty, so `mx.NewAttrib("x onload=alert(1)", "")` rendered an
+  event handler. It now refuses every name the new `mx.ValidAttribName`
+  rejects (whitespace, controls, `"`, `'`, `>`, `/`, `=`, `<`), as does
+  `mx.Attribute.Validate`. Rendering an element with a nil `mx.Attrib` in
+  its attributes returns an error instead of panicking, and
+  `mx.Element.AttribIndex` skips a nil entry.
 - **A submit that fails no longer shows its uploads as stored.** The
   request's temporary files are removed with the response, so the re-rendered
   form said "Leave empty to keep it" about a file the next submit no longer

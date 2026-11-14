@@ -37,14 +37,14 @@ func (t *PageTypeRenderer) RenderPage(ctx context.Context, page *Page) (html.Doc
 	if err != nil {
 		return html.Document{}, err
 	}
-	if doc.Body != nil || page.Content == nil {
+	if doc.BodyChildren != nil || page.Content == nil {
 		return doc, nil
 	}
 	contentTempl := t.ContentTypeRenderers[page.ContentType]
 	if contentTempl == nil {
 		return html.Document{}, errs.Errorf("no ContentRenderer for Page.ContentType %q", page.ContentType)
 	}
-	doc.Body, err = contentTempl.RenderContent(ctx, page.ContentType, page.Content)
+	doc.BodyChildren, err = contentTempl.RenderContent(ctx, page.ContentType, page.Content)
 	if err != nil {
 		return html.Document{}, err
 	}

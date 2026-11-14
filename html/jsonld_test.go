@@ -133,7 +133,7 @@ func TestJSONLDInDocumentHead(t *testing.T) {
 			"@type":    "WebPage",
 			"name":     "Structured",
 		}),
-		Body: html.P("Hello"),
+		BodyChildren: html.P("Hello"),
 	}
 	var b strings.Builder
 	err := doc.Render(context.Background(), mx.NewCheckedWriter(&b).WithIndent("", "  "))
