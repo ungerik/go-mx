@@ -18,8 +18,9 @@ the request's language, as `mx.FormTexts` does for the handler's captions.
 
 **Context:** `errors.New("required")` in `formhandler.go` (three places) and
 `html/formdecider.go`; the sensitive-field mask "not a valid value" in
-`formhandler.go` (the `MaskSensitiveError` calls and the `mask` constant)
-and `errors.go` (`FieldErrorTexts`); "the text is not a valid value" in
+`formhandler.go` (the `MaskSensitiveError` calls and the `mask` constant),
+`errors.go` (`FieldErrorTexts`) and `html/formdecider.go` (its own masks and
+`FormMessage("not a valid value")`); "the text is not a valid value" in
 `formhandler.go`; the length and range messages in `formtext.go` and
 `formnumber.go`. Check what compares against these texts before replacing
 them; the messages with a number need a format string, like shadcn's
@@ -357,7 +358,7 @@ as a shadcn `Labels` field passed down or a `ReflectFormConfig` option.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-**Completed:** 2026-11-01 — the fieldset shows a `<p data-repeatable-empty>` with `mx.RepeatableNoRowsText` ("None", reassignable like `FormErrorMessage`). The core repeatable texts are not per-request localizable; see "Core repeatable texts are English only".
+**Completed:** 2026-11-01 — the fieldset shows a `<p data-repeatable-empty>` with `mx.RepeatableNoRowsText` ("None", reassignable like `FormErrorMessage`). The core repeatable texts were not per-request localizable then; "Core repeatable texts are English only" (completed 2026-11-14) made them `mx.FormTexts` fields.
 
 ### shadcn readonly inputs look editable
 
