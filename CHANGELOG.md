@@ -852,10 +852,11 @@ API is still free to change.
 - **An attribute name can no longer break out of its start tag.**
   `mx.CheckedWriter.Attribute` writes names unescaped and checked only that
   they were not empty, so `mx.NewAttrib("x onload=alert(1)", "")` rendered an
-  event handler. It now refuses every name the new `mx.ValidAttribName`
-  rejects (whitespace, controls, `"`, `'`, `>`, `/`, `=`, `<`), as does
-  `mx.Attribute.Validate`. Rendering an element with a nil `mx.Attrib` in
-  its attributes returns an error instead of panicking, and
+  event handler. It now refuses every name the new `mx.ValidateAttribName`
+  rejects (whitespace, controls, `"`, `'`, `>`, `/`, `=`, `<`), with an error
+  naming the offending character, as does `mx.Attribute.Validate`;
+  `mx.ValidAttribName` is its boolean form. Rendering an element with a nil
+  `mx.Attrib` in its attributes returns an error instead of panicking, and
   `mx.Element.AttribIndex` skips a nil entry.
 - **A submit that fails no longer shows its uploads as stored.** The
   request's temporary files are removed with the response, so the re-rendered
