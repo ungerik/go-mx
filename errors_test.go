@@ -492,16 +492,17 @@ func TestFieldErrorTexts(t *testing.T) {
 	}
 }
 
-// A nil context or request, which Go's convention forbids, counts as
-// context.Background() instead of panicking once a ReportError hook is set.
-func TestErrorHelpersNilContext(t *testing.T) {
+// With a ReportError hook set, the error helpers report a hidden error, and
+// RespondNonContextError takes a nil request as one with a background
+// context instead of panicking.
+func TestErrorHelpersNilRequest(t *testing.T) {
 	rep := recordReports(t)
 	hidden := errors.New("pq: connection refused")
-	ReportHiddenError(nil, hidden) //nolint:staticcheck
+	ReportHiddenError(t.Context(), hidden)
 	rep.checkReported(t, false, hidden)
 
 	rep.reset()
-	if got := FormErrorText(nil, hidden); got != DefaultFormTexts.Error { //nolint:staticcheck
+	if got := FormErrorText(t.Context(), hidden); got != DefaultFormTexts.Error {
 		t.Errorf("FormErrorText = %q", got)
 	}
 	rep.checkReported(t, false, hidden)
