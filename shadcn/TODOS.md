@@ -99,12 +99,12 @@ row.
 
 | Port | Upstream | Last synced | How to diff |
 |------|----------|-------------|-------------|
-| `clsx/` | [lukeed/clsx](https://github.com/lukeed/clsx) | v2.1.1 (`e2dc836`) | `gh api repos/lukeed/clsx/releases` (unchanged since 2024) |
-| `twmerge/` | [dcastil/tailwind-merge](https://github.com/dcastil/tailwind-merge) | tailwind-merge@3.7.0 (`511d68a`) plus the unreleased fix #721 (merged 2026-10-11) | `git diff tailwind-merge@3.7.0 <new> -- packages/tailwind-merge/src/lib packages/tailwind-merge/tests` |
-| `cva/` `New` | [joe-bell/cva](https://github.com/joe-bell/cva) class-variance-authority | v0.7.1 (`45462dd`) | npm `class-variance-authority`; v0.7.1 is still the latest |
-| `cva/` `Config.Composes` | joe-bell/cva `cva` beta | v1.0.0-beta.12 (`1d93698`) | `packages/cva/src/config.ts` and the "cva — composes" tests in `index.test.ts` |
-| components from `new-york-v4` | shadcn-ui/ui `apps/v4/registry/new-york-v4/ui` | frozen; checked at `c0d63c3` (2026-10-31) | `gh api "repos/shadcn-ui/ui/commits?path=apps/v4/registry/new-york-v4/ui&since=<date>"` |
-| components reconstructed from `style-vega.css` (Field, Kbd, Spinner, Empty, Item, ButtonGroup, InputGroup, NativeSelect, Marker, Message, Bubble, Attachment, Trace, CodeBlock, MessageScroller) | shadcn-ui/ui `apps/v4/registry/styles/style-vega.css` + `bases/base/ui` | `c0d63c3` (2026-10-31) | fetch the CSS at the old and new ref and `diff`; check the `.cn-<component>` rules of the ported components |
+| `clsx/` | [lukeed/clsx](https://github.com/lukeed/clsx) | v2.1.1 (`e2dc836`), still the latest on 2026-11-14 | `gh api repos/lukeed/clsx/releases` (unchanged since 2024) |
+| `twmerge/` | [dcastil/tailwind-merge](https://github.com/dcastil/tailwind-merge) | tailwind-merge@3.7.0 (`511d68a`) plus the unreleased fix #721 (merged 2026-10-11); no `src` change on main through `7b5d20c`, checked 2026-11-14 | `git diff tailwind-merge@3.7.0 <new> -- packages/tailwind-merge/src/lib packages/tailwind-merge/tests` |
+| `cva/` `New` | [joe-bell/cva](https://github.com/joe-bell/cva) class-variance-authority | v0.7.1 (`45462dd`) | npm `class-variance-authority`; v0.7.1 is still the latest (2026-11-14) |
+| `cva/` `Config.Composes` | joe-bell/cva `cva` beta | v1.0.0-beta.12 (`1d93698`), still the latest on 2026-11-14 | `packages/cva/src/config.ts` and the "cva — composes" tests in `index.test.ts` |
+| components from `new-york-v4` | shadcn-ui/ui `apps/v4/registry/new-york-v4/ui` | frozen; checked at `e62c943` (2026-11-13) | `gh api "repos/shadcn-ui/ui/commits?path=apps/v4/registry/new-york-v4/ui&since=<date>"` |
+| components reconstructed from `style-vega.css` (Field, Kbd, Spinner, Empty, Item, ButtonGroup, InputGroup, NativeSelect, Marker, Message, Bubble, Attachment, Trace, CodeBlock, MessageScroller) | shadcn-ui/ui `apps/v4/registry/styles/style-vega.css` + `bases/base/ui` | `c0d63c3` (2026-10-31); unchanged through `e62c943` (2026-11-13) | fetch the CSS at the old and new ref and `diff`; check the `.cn-<component>` rules of the ported components |
 
 Policy for a sync:
 
@@ -125,6 +125,11 @@ Policy for a sync:
     inline `FieldLabel`);
   - the `FieldLabel` card hover, where the port adds `not-has-checked:`
     (upstream's hover tint hides a checked card's `has-checked:` tint).
+- Fixes to upstream's `@shadcn/react` primitives (`packages/react`) are
+  ported only where the port reproduces the behavior. The 2026-11-02 fix
+  `4aaea19` (shadcn-ui/ui#11465, draining the tail spacer of an anchored
+  stream) is not: `MessageScrollerViewport` follows the stream with
+  `StickToBottom` and has no anchored turns or tail spacer.
 - The `*-aria` rules belong to upstream's third primitive base, React Aria
   (shadcn-ui/ui#11208, July 2026). This port uses no primitive library, so
   they are ignored.

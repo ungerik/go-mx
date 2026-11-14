@@ -6,7 +6,108 @@ build order lives in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
-## mx reflected forms
+## mx writer
+
+### `CheckedWriter.Comment` writes text that closes the comment early
+
+**What:** Reject, or defer as an error like `xml.Comment` does, comment text
+holding `-->` or `--!>`, and decide whether to also enforce the rest of the
+HTML comment-text rules (not starting with `>` or `->`, no `<!--`, not ending
+in `<!-`).
+
+**Why:** `Comment` writes its text verbatim between `<!-- ` and ` -->`, so a
+caller passing text that contains `-->` ends the comment there and the rest
+is emitted as markup. `xml.Comment` checks for `--` before calling it; a
+caller using the `Writer` directly gets no check.
+
+**Context:** `CheckedWriter.Comment` in `checkedwriter.go`. The padding
+spaces it adds already make the start-with-`>` and end-with-`-` rules
+harmless, so only the closing sequences can break the document. Found as a
+`TODO` comment listing the XML rules, which are stricter (no `--` at all).
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### Element and attribute names are not checked
+
+**What:** Check element and attribute names against the HTML/XML name rules
+in `CheckedWriter.BeginElement`, `CheckedWriter.Attribute` and
+`Attribute.Validate`, which today reject only an empty name.
+
+**Why:** A name holding a space, `>`, `=` or a quote is written as-is and
+breaks the markup. Names come from Go code almost always, but
+`html.Attrib(name, value)`, `xml.Element` and struct `attr` tags can carry a
+computed one.
+
+**Context:** The `TODO regex for valid element name` / `attribute name`
+comments at the three places. Check a byte loop's cost on the render hot
+path; an allow-list writer (`allowedElems`) already skips the check for
+elements.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## mx handlers
+
+### `ComponentFuncHandler` fills only string fields
+
+**What:** Convert path and form values into the non-string fields of the
+handler's argument struct (ints, bools, `encoding.TextUnmarshaler`s), and
+answer 400 for a value that does not convert; decide what a non-struct `T`
+should mean.
+
+**Why:** A field such as `ID int` is silently left zero today, so a
+`/items/{ID}` route renders item 0 instead of failing.
+
+**Context:** `ComponentFuncHandler.ServeHTTP` in `route.go`, at the two
+`TODO` comments. The reflected-form binders in the root package already
+convert strings to every kind; reuse them rather than writing a third set.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+## web
+
+### HTML pages of a `GlobPageSource` have no title
+
+**What:** Read the `<title>` (or the first `<h1>`) of an `.html` page found
+by a `GlobPageSource` into `Page.Title`.
+
+**Why:** A Markdown page takes its title from front matter and a `.txt` page
+from its file name, but an HTML page gets none, so its sitemap entry,
+llms.txt line and MCP `list_pages` result show an empty title.
+
+**Context:** The `TODO parse HTML title` in `web/globpagesource.go`. The
+content is read only `withContent`, so the title needs a bounded read of the
+head, or the file-name fallback the `.txt` case uses.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+## doc
+
+### The `doc` package is unfinished
+
+**What:** Finish or remove `doc/` and `doc/dbdoc`: `DefaultRenderer` is nil,
+so `RendererFromContext` returns nil for a context without a renderer and
+the caller panics; `dbdoc.Color` is a placeholder; the `Font.LineHeight`
+column is tagged `line_hight`.
+
+**Why:** Untested, partial API reads as supported to a newcomer, like the
+dead route code removed on 2026-11-01.
+
+**Context:** The `TODO`s on `DefaultRenderer` in `doc/config.go` and on
+`Color` in `doc/dbdoc/font.go`. Nothing in the repo imports `doc`.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
+## Completed
 
 ### Core repeatable texts are English only
 
@@ -25,8 +126,7 @@ time (as shadcn's `ContextWithLabels`) would let a renderer install them.
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-
-## Completed
+**Completed:** 2026-11-14 — the new `mx.FormTexts` (`ContextWithFormTexts`, `FormTextsFromContext`, `DefaultFormTexts`) holds every text the handler renders on its own: the row buttons and "None", and also the submit caption, the generic form error and the retype notice, which were English-only package variables too. It replaces `FormSubmitLabel`, `FormErrorMessage`, `FormRetypeSensitiveMessage` and `RepeatableNoRowsText`.
 
 ### The date picker trigger is not described by its errors and help
 
