@@ -158,3 +158,14 @@ func TestCheckedWriterAttribWhitespace(t *testing.T) {
 	got = renderTo(t, NewCheckedWriter(&s).WithSingleQuoteAttribs(), NewElement("p", NewAttrib("data-v", "a\n'b'")))
 	require.Equal(t, `<p data-v='a&#10;&apos;b&apos;'></p>`, got)
 }
+
+// TestCheckedWriterAttribName guards that the writer refuses a name that
+// would break out of the start tag, since names are written unescaped.
+func TestCheckedWriterAttribName(t *testing.T) {
+	for _, name := range []string{"x onload=alert(1)", "x><script>", `x"`} {
+		var b strings.Builder
+		err := NewElement("p", NewAttrib(name, "")).Render(context.Background(), NewCheckedWriter(&b))
+		require.Error(t, err, "name %q", name)
+		require.NotContains(t, b.String(), name)
+	}
+}

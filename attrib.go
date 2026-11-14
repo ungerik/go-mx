@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync/atomic"
+	"unicode"
 )
 
 // The attribute escapers write line breaks and tabs as character references,
@@ -116,13 +117,35 @@ func (a Attribute) String() string {
 	return AttribString(a)
 }
 
-// Validate returns an error if the attribute Name is empty.
+// Validate returns an error if the attribute Name is empty or not a valid
+// attribute name (see [ValidAttribName]).
 func (a Attribute) Validate() error {
-	// TODO regex for valid attribute name
 	if a.Name == "" {
 		return errors.New("Attrib.Name is empty")
 	}
+	if !ValidAttribName(a.Name) {
+		return fmt.Errorf("Attrib.Name %q is not a valid attribute name", a.Name)
+	}
 	return nil
+}
+
+// ValidAttribName reports whether name can be written as an attribute name:
+// it is not empty and holds no control character, no whitespace and none of
+// the characters " ' > / = that the HTML syntax forbids in a name because they
+// would end the name or the start tag, nor <, which the syntax allows but no
+// real attribute uses. XML names forbid all of these too, so the check holds
+// for every markup target. A name passing it cannot break out of the start tag
+// it is written into; [CheckedWriter.Attribute] refuses every other name.
+func ValidAttribName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) || unicode.IsSpace(r) || strings.ContainsRune(`"'>/=<`, r) {
+			return false
+		}
+	}
+	return true
 }
 
 // Valid reports whether Validate returns no error.

@@ -3,6 +3,8 @@ package mx
 import (
 	"context"
 	"strings"
+
+	"github.com/domonda/go-errs"
 )
 
 // Element is a [Component] for a single markup element with a name, attributes
@@ -58,7 +60,7 @@ func NewErrElement(err error) *Element {
 // Render writes the element and its children to w. It first returns Err if set
 // (the deferred-error pattern) and then the context error if the context is
 // done. Each attribute's value is resolved via [Attrib.AttribValue] with ctx,
-// aborting on the first error. A void element (nil Children) is closed without
+// aborting on the first error; a nil Attrib is an error too. A void element (nil Children) is closed without
 // content; otherwise the children are rendered between the start and end tags.
 func (e *Element) Render(ctx context.Context, w Writer) error {
 	if e.Err != nil {
@@ -72,7 +74,10 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 		return err
 	}
 
-	for _, a := range e.Attribs {
+	for i, a := range e.Attribs {
+		if a == nil {
+			return errs.Errorf("nil Attrib at index %d of element %s", i, e.Name)
+		}
 		value, valErr := a.AttribValue(ctx)
 		if valErr != nil {
 			return valErr
@@ -113,10 +118,11 @@ func (e *Element) String() string {
 }
 
 // AttribIndex returns the index of the first attribute with the given name in
-// Attribs, or -1 if none has that name.
+// Attribs, or -1 if none has that name. A nil entry has no name and is
+// skipped; Render reports it as an error.
 func (e *Element) AttribIndex(name string) int {
 	for i, a := range e.Attribs {
-		if a.AttribName() == name {
+		if a != nil && a.AttribName() == name {
 			return i
 		}
 	}

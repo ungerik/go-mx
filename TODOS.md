@@ -53,21 +53,21 @@ harmless, so only the closing sequences can break the document. Found as a
 **Priority:** P3
 **Depends on:** None
 
-### Element and attribute names are not checked
+### Element names are not checked
 
-**What:** Check element and attribute names against the HTML/XML name rules
-in `CheckedWriter.BeginElement`, `CheckedWriter.Attribute` and
-`Attribute.Validate`, which today reject only an empty name.
+**What:** Check element names against the HTML/XML name rules in
+`CheckedWriter.BeginElement`, which today rejects only an empty name.
 
 **Why:** A name holding a space, `>`, `=` or a quote is written as-is and
-breaks the markup. Names come from Go code almost always, but
-`html.Attrib(name, value)`, `xml.Element` and struct `attr` tags can carry a
-computed one.
+breaks the markup. Names come from Go code almost always, but `xml.Element`
+and a hand-built `mx.Element` can carry a computed one.
 
-**Context:** The `TODO regex for valid element name` / `attribute name`
-comments at the three places. Check a byte loop's cost on the render hot
-path; an allow-list writer (`allowedElems`) already skips the check for
-elements.
+**Context:** The `TODO regex for valid element name` comment in
+`checkedwriter.go`. Attribute names are already checked:
+`CheckedWriter.Attribute` and `Attribute.Validate` refuse every name
+`mx.ValidAttribName` rejects; an element-name check can follow the same
+byte loop. Check its cost on the render hot path; an allow-list writer
+(`allowedElems`) already skips the check for elements.
 
 **Effort:** S
 **Priority:** P4
