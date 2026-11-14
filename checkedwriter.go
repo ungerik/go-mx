@@ -249,18 +249,15 @@ func (w *CheckedWriter) BeginElement(elem string) error {
 // Attribute writes a name="value" (or name='value') pair into the currently
 // open start tag, with the value escaped for the active quote style. It returns
 // an error if no start tag is open, the name is not a valid attribute name (see
-// [ValidAttribName]; the name is written unescaped, so this is what keeps it
+// [ValidateAttribName]; the name is written unescaped, so this is what keeps it
 // from breaking out of the tag), or the name was already written for this
 // element (duplicate attribute).
 func (w *CheckedWriter) Attribute(name, value string) (err error) {
 	if !w.inStartTag {
 		return errs.Errorf("can't write attribute while writing children of element %s", w.currentElemName())
 	}
-	if name == "" {
-		return errs.Errorf("empty attribute name")
-	}
-	if !ValidAttribName(name) {
-		return errs.Errorf("invalid attribute name %q in element %s", name, w.currentElemName())
+	if err := ValidateAttribName(name); err != nil {
+		return errs.Errorf("%w in element %s", err, w.currentElemName())
 	}
 	if _, duplicate := w.writtenAttribs[name]; duplicate {
 		return errs.Errorf("duplicate attribute %s in element %s", name, w.currentElemName())

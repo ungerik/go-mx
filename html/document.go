@@ -233,7 +233,7 @@ func (d *Document) htmlStartTag(ctx context.Context, w mx.Writer) (Raw, error) {
 }
 
 // checkAttribNames returns an error naming the Document field if attribs
-// holds a nil Attrib, a name mx.ValidAttribName rejects, or two names that
+// holds a nil Attrib, a name mx.ValidateAttribName rejects, or two names that
 // differ only in letter case. The writer refuses invalid names and exact
 // duplicates too, but only once it writes the element, after the <head>;
 // checked here, they stop Render before anything is written. HTML attribute
@@ -244,8 +244,8 @@ func checkAttribNames(field string, attribs []mx.Attrib) error {
 		if a == nil {
 			return errs.Errorf("html.Document.%s[%d] is nil", field, i)
 		}
-		if !mx.ValidAttribName(a.AttribName()) {
-			return errs.Errorf("html.Document.%s[%d] has the invalid attribute name %q", field, i, a.AttribName())
+		if err := mx.ValidateAttribName(a.AttribName()); err != nil {
+			return errs.Errorf("html.Document.%s[%d]: %w", field, i, err)
 		}
 		for _, prev := range attribs[:i] {
 			if strings.EqualFold(prev.AttribName(), a.AttribName()) {
