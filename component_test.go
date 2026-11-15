@@ -158,10 +158,22 @@ func (componentAttrib) Render(ctx context.Context, w Writer) error {
 func (componentAttrib) AttribName() string                          { return "class" }
 func (componentAttrib) AttribValue(context.Context) (string, error) { return "stray", nil }
 
+// ctxAttribKey is the context key ctxAttrib reads its value from.
+type ctxAttribKey struct{}
+
+// ctxAttrib is an Attrib whose value comes from the render context.
+type ctxAttrib struct{}
+
+func (ctxAttrib) AttribName() string { return "data-user" }
+func (ctxAttrib) AttribValue(ctx context.Context) (string, error) {
+	value, _ := ctx.Value(ctxAttribKey{}).(string)
+	return value, nil
+}
+
 // TestDefaultAsComponentAttrib guards that every Attrib passed as a child
-// renders as the same escaped name='value' text, not depending on whether
-// its type has a String method or what that returns, and that a Component
-// which is also an Attrib stays a Component.
+// renders as the same name='value' text, escaped once by the writer, not
+// depending on whether its type has a String method or what that returns,
+// and that a Component which is also an Attrib stays a Component.
 func TestDefaultAsComponentAttrib(t *testing.T) {
 	for _, tt := range []struct {
 		name string
@@ -172,7 +184,7 @@ func TestDefaultAsComponentAttrib(t *testing.T) {
 		{"ConstAttrib", ConstAttrib("type=text"), "type=&apos;text&apos;"},
 		{"String returns only the value", enumLikeAttrib("rtl"), "dir=&apos;rtl&apos;"},
 		{"no String method", UniqueID(), "id=&apos;"},
-		{"ErrAttrib", ErrAttribf("class", "bad class"), "class=&apos;!ERROR: bad class&apos;"},
+		{"escaped once", ConstAttrib("title=it's <b>"), "title=&apos;it&apos;s &lt;b&gt;&apos;"},
 		{"Component and Attrib", componentAttrib{}, "content"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -182,4 +194,33 @@ func TestDefaultAsComponentAttrib(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDefaultAsComponentAttribRender guards that an Attrib passed as a child
+// is valued when it is rendered, as an attribute of an element is: with the
+// render context, and with a failing value aborting the render with its
+// error instead of being shown on the page.
+func TestDefaultAsComponentAttribRender(t *testing.T) {
+	t.Run("render context", func(t *testing.T) {
+		var b strings.Builder
+		ctx := context.WithValue(t.Context(), ctxAttribKey{}, "ann")
+		err := DefaultAsComponent(ctxAttrib{}).Render(ctx, NewCheckedWriter(&b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := b.String(), "data-user=&apos;ann&apos;"; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("failing value", func(t *testing.T) {
+		var b strings.Builder
+		err := AsComponents("a", ErrAttribf("class", "bad class")).Render(t.Context(), NewCheckedWriter(&b))
+		if err == nil || !strings.Contains(err.Error(), "bad class") {
+			t.Fatalf("Render error = %v, want the ErrAttrib error", err)
+		}
+		if strings.Contains(b.String(), "bad class") {
+			t.Errorf("error text reached the page: %q", b.String())
+		}
+	})
 }

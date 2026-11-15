@@ -633,8 +633,12 @@ API is still free to change.
   `fmt.Stringer`, so every attribute that reaches it through
   `mx.AsComponents` or `mx.ModifyOnRender` renders alike, as escaped
   `name='value'`: an enum attribute such as `html.AutoCapitalize` no longer
-  as its bare value, an `mx.ErrAttrib` or `mx.UniqueID()` no longer as a
-  pretty dump. A `Component` that is also an `Attrib` stays a `Component`.
+  as its bare value, an `mx.UniqueID()` no longer as a pretty dump, and a
+  value with a quote no longer escaped twice. The value is computed when the
+  child is rendered, with the render context, as for an attribute of an
+  element, so a failing value, as of an `mx.ErrAttrib`, makes `Render`
+  return its error instead of showing it on the page. A `Component` that is
+  also an `Attrib` stays a `Component`.
 - **`mx.ConstAttrib` and `html.BoolAttrib` implement `fmt.Stringer`** like
   `mx.Attribute`, formatting as `name='value'`. A `ConstAttrib` without `=`
   is now both name and value, as a boolean attribute

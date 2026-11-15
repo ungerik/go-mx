@@ -34,7 +34,7 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 //   - nil                        -> nil (renders nothing)
 //   - Component                  -> returned unchanged
-//   - Attrib                     -> Text of AttribString, name='value'
+//   - Attrib                     -> Text of name='value', valued on render
 //   - string                     -> Text (escaped on render)
 //   - the func(...) signatures
 //     in the switch below         -> wrapped as ComponentFunc
@@ -68,9 +68,11 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 // ModifyOnRender). Every Attrib renders as the same name='value' text,
 // whether or not it has a String method and whatever that returns (an enum
 // attribute type such as html.AutoCapitalize returns only its value), so the
-// mistake is visible on the page. AttribString computes the value without
-// the render context, and a failing value, as of an [ErrAttrib], is shown as
-// name='!ERROR: …'. A Component that is also an Attrib stays a Component.
+// mistake is visible on the page. The value is computed when the child is
+// rendered, with the render context, as for an attribute of an element, and
+// escaped once, as text; a failing value, as of an [ErrAttrib], aborts the
+// render with its error instead of being shown on the page. A Component that
+// is also an Attrib stays a Component.
 // See the [AsComponent] docs for dropping attributes instead.
 //
 // DefaultAsComponent is the default implementation of the package-level
@@ -87,7 +89,13 @@ func DefaultAsComponent(c any) Component {
 	case Attrib:
 		// An attribute passed as a child by mistake, see the function docs.
 		// Before error and fmt.Stringer, so every Attrib renders alike.
-		return Text(AttribString(c))
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			value, err := c.AttribValue(ctx)
+			if err != nil {
+				return err
+			}
+			return Text(c.AttribName()+"='"+value+"'").Render(ctx, w)
+		})
 	case string:
 		return Text(c)
 	case func(context.Context, Writer) error:
