@@ -212,7 +212,7 @@ func TestAsComponentsAttribNameNoInjection(t *testing.T) {
 // AsAttribs accepts, not only a single Attrib, renders as the same escaped
 // name='value' text when passed as a child: a slice is not pretty-printed and
 // an Attribs map, whose String method escapes already, is not escaped twice.
-// A nil Attrib among them is left out.
+// A nil Attrib among them, also a typed nil, is left out.
 func TestDefaultAsComponentAttribShapes(t *testing.T) {
 	for _, tt := range []struct {
 		name string
@@ -225,6 +225,9 @@ func TestDefaultAsComponentAttribShapes(t *testing.T) {
 		{"map[string]string", map[string]string{"title": "it's"}, "title='it&apos;s'"},
 		{"func() Attrib", func() Attrib { return NewAttrib("title", "it's") }, "title='it&apos;s'"},
 		{"empty slice", []Attrib{}, ""},
+		// A typed nil would panic in AttribName, so it is left out as nil is.
+		{"typed nil pointer", (*ptrAttrib)(nil), ""},
+		{"typed nils in a slice", []Attrib{(*ptrAttrib)(nil), NewAttrib("class", "x"), funcAttrib(nil)}, "class='x'"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := renderToString(t, DefaultAsComponent(tt.c)); got != tt.want {

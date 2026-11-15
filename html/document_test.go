@@ -324,6 +324,14 @@ func (ctxLangAttrib) AttribName() string { return "lang" }
 
 func (ctxLangAttrib) AttribValue(context.Context) (string, error) { return "de", nil }
 
+// ptrAttrib has pointer receivers that dereference, so calling a method of
+// a nil *ptrAttrib panics, as with most pointer Attrib types.
+type ptrAttrib struct{ name string }
+
+func (a *ptrAttrib) AttribName() string { return a.name }
+
+func (a *ptrAttrib) AttribValue(context.Context) (string, error) { return "", nil }
+
 // TestNewDocumentLang guards that a lang attribute among the body
 // arguments of NewDocument sets the language of the page on <html>, not
 // on <body>, and that one it cannot move fails Render instead of
@@ -441,9 +449,10 @@ func TestNewDocumentAttribErrorHint(t *testing.T) {
 
 // TestNewDocumentSkipsNilAttrib guards that a nil mx.Attrib among the
 // attributes of a body argument is left out, as a nil argument is, rather
-// than kept in BodyAttribs where Render would refuse it.
+// than kept in BodyAttribs where Render would refuse it. A typed nil, whose
+// AttribName would panic, is left out too.
 func TestNewDocumentSkipsNilAttrib(t *testing.T) {
-	d := NewDocument("T", []mx.Attrib{nil, Class("dark"), nil}, "text")
+	d := NewDocument("T", []mx.Attrib{nil, Class("dark"), (*ptrAttrib)(nil)}, (*ptrAttrib)(nil), "text")
 	if len(d.BodyAttribs) != 1 {
 		t.Fatalf("BodyAttribs = %#v, want only the class", d.BodyAttribs)
 	}
@@ -454,7 +463,8 @@ func TestNewDocumentSkipsNilAttrib(t *testing.T) {
 }
 
 // TestDocumentBodyAttribsRefused guards the BodyAttribs that Render
-// refuses. A nil entry, an invalid name and a name differing only in case
+// refuses. A nil entry (also a typed nil, whose AttribName would panic), an
+// invalid name and a name differing only in case
 // are caught before anything is written; a failing value only when <body>
 // is written, as on any element.
 func TestDocumentBodyAttribsRefused(t *testing.T) {
@@ -465,6 +475,7 @@ func TestDocumentBodyAttribsRefused(t *testing.T) {
 		early bool
 	}{
 		{"nil entry", []mx.Attrib{Class("a"), nil}, true},
+		{"typed nil entry", []mx.Attrib{Class("a"), (*ptrAttrib)(nil)}, true},
 		{"duplicate in other case", []mx.Attrib{Class("a"), mx.NewAttrib("CLASS", "b")}, true},
 		{"name breaking the tag", []mx.Attrib{mx.NewAttrib("x onload=alert(1)", "")}, true},
 		{"value error", []mx.Attrib{mx.ErrAttribf("class", "bad class")}, false},

@@ -62,7 +62,8 @@ func NewErrElement(err error) *Element {
 // Render writes the element and its children to w. It first returns Err if set
 // (the deferred-error pattern) and then the context error if the context is
 // done. Each attribute's value is resolved via [Attrib.AttribValue] with ctx,
-// aborting on the first error; a nil Attrib is an error too. A void element (nil Children) is closed without
+// aborting on the first error; a nil Attrib, also a typed nil ([IsNilAttrib]),
+// is an error too. A void element (nil Children) is closed without
 // content; otherwise the children are rendered between the start and end tags.
 func (e *Element) Render(ctx context.Context, w Writer) error {
 	if e.Err != nil {
@@ -77,7 +78,7 @@ func (e *Element) Render(ctx context.Context, w Writer) error {
 	}
 
 	for i, a := range e.Attribs {
-		if a == nil {
+		if IsNilAttrib(a) {
 			return errs.Errorf("nil Attrib at index %d of element %s", i, e.Name)
 		}
 		value, valErr := a.AttribValue(ctx)
@@ -120,11 +121,11 @@ func (e *Element) String() string {
 }
 
 // AttribIndex returns the index of the first attribute with the given name in
-// Attribs, or -1 if none has that name. A nil entry has no name and is
-// skipped; Render reports it as an error.
+// Attribs, or -1 if none has that name. A nil entry, also a typed nil
+// ([IsNilAttrib]), has no name and is skipped; Render reports it as an error.
 func (e *Element) AttribIndex(name string) int {
 	for i, a := range e.Attribs {
-		if a != nil && a.AttribName() == name {
+		if !IsNilAttrib(a) && a.AttribName() == name {
 			return i
 		}
 	}

@@ -136,3 +136,43 @@ func TestAttribStringEscapesName(t *testing.T) {
 		t.Errorf("AttribStringContext = %q, %v, want %q, nil", got, err, want)
 	}
 }
+
+// ptrAttrib has pointer receivers that dereference, so calling a method of
+// a nil *ptrAttrib panics, as with most pointer Attrib types.
+type ptrAttrib struct{ name, value string }
+
+func (a *ptrAttrib) AttribName() string { return a.name }
+
+func (a *ptrAttrib) AttribValue(context.Context) (string, error) { return a.value, nil }
+
+// funcAttrib is an Attrib whose value is computed by calling it, so calling
+// AttribValue on a nil funcAttrib panics.
+type funcAttrib func() string
+
+func (funcAttrib) AttribName() string { return "data-f" }
+
+func (f funcAttrib) AttribValue(context.Context) (string, error) { return f(), nil }
+
+// TestIsNilAttrib guards that IsNilAttrib catches a typed nil pointer or func
+// as well as a nil interface, and reports false for a usable Attrib.
+func TestIsNilAttrib(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		a    Attrib
+		want bool
+	}{
+		{"nil interface", nil, true},
+		{"nil pointer", (*ptrAttrib)(nil), true},
+		{"nil func", funcAttrib(nil), true},
+		{"pointer", &ptrAttrib{"title", "x"}, false},
+		{"func", funcAttrib(func() string { return "x" }), false},
+		{"value", NewAttrib("title", "x"), false},
+		{"empty ConstAttrib", ConstAttrib(""), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsNilAttrib(tt.a); got != tt.want {
+				t.Errorf("IsNilAttrib = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -74,9 +74,9 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 // rendered, with the render context, as for an attribute of an element, and
 // escapes name and value, so the text is written as is; a failing value, as
 // of an [ErrAttrib], aborts the render with its error instead of being shown
-// on the page. A nil Attrib among them is left out. A Component that also
-// converts to attributes stays a Component. See the [AsComponent] docs for
-// dropping attributes instead.
+// on the page. A nil Attrib among them, also a typed nil ([IsNilAttrib]), is
+// left out. A Component that also converts to attributes stays a Component.
+// See the [AsComponent] docs for dropping attributes instead.
 //
 // DefaultAsComponent is the default implementation of the package-level
 // [AsComponent] variable. Assign a different func to [AsComponent] to change
@@ -98,7 +98,7 @@ func DefaultAsComponent(c any) Component {
 		return ComponentFunc(func(ctx context.Context, w Writer) error {
 			sep := ""
 			for _, a := range attribs {
-				if a == nil {
+				if IsNilAttrib(a) {
 					continue
 				}
 				s, err := AttribStringContext(ctx, a)
@@ -106,7 +106,7 @@ func DefaultAsComponent(c any) Component {
 					return err
 				}
 				// Already escaped by AttribStringContext.
-				err = Raw(sep + s).Render(ctx, w)
+				err = Raw(sep+s).Render(ctx, w)
 				if err != nil {
 					return err
 				}

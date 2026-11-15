@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"unicode"
@@ -161,6 +162,21 @@ func ValidateAttribName(name string) error {
 // ValidAttribName reports whether [ValidateAttribName] returns no error.
 func ValidAttribName(name string) bool {
 	return ValidateAttribName(name) == nil
+}
+
+// IsNilAttrib reports whether a is nil or holds a nil pointer or func. Such a
+// typed nil is a non-nil interface, so a == nil misses it, but calling its
+// AttribName or AttribValue usually panics. Code that skips or refuses a nil
+// Attrib checks with IsNilAttrib to treat a typed nil the same way.
+func IsNilAttrib(a Attrib) bool {
+	if a == nil {
+		return true
+	}
+	switch v := reflect.ValueOf(a); v.Kind() {
+	case reflect.Pointer, reflect.Func:
+		return v.IsNil()
+	}
+	return false
 }
 
 // Valid reports whether Validate returns no error.

@@ -43,7 +43,7 @@ type Document struct {
 	// as on any element; an empty value renders as name="". An
 	// attribute named "lang" (in any letter case) is refused by Render with
 	// an error, because Lang is the one way to set it; so are a nil entry
-	// and a duplicate name, also one differing only in letter case.
+	// (also a typed nil, see mx.IsNilAttrib) and a duplicate name, also one differing only in letter case.
 	HTMLAttribs []mx.Attrib
 
 	// Title is the text of the <title> element, escaped as any text. The
@@ -76,7 +76,8 @@ type Document struct {
 	// BodyAttribs are the attributes of <body>, for example the classes,
 	// id and data- attributes a site theme's CSS selects on. They are
 	// rendered through the normal element path, exactly as the attributes
-	// of any other element. Render refuses a nil entry, an invalid name and
+	// of any other element. Render refuses a nil entry (also a typed nil,
+	// see mx.IsNilAttrib), an invalid name and
 	// a duplicate name, also one differing only in letter case, before
 	// writing anything.
 	BodyAttribs []mx.Attrib
@@ -118,7 +119,8 @@ func ValidLangTag(tag string) bool {
 //     treats BodyChildren. Every other value mx.AsAttribs accepts goes to
 //     BodyAttribs, the rest to BodyChildren via mx.AsComponent, dropping a
 //     value it converts to nil. A nil argument, and a nil mx.Attrib among
-//     the attributes of one, is left out.
+//     the attributes of one (also a typed nil, see mx.IsNilAttrib), is
+//     left out.
 //   - A lang attribute, such as Lang("de"), sets Document.Lang, the
 //     language of the whole page on the <html> root, instead of <body>.
 //     NewDocument has no render context, so only the static value of an
@@ -148,7 +150,7 @@ func NewDocument(title string, body ...any) *Document {
 		}
 		if attribs, ok := mx.AsAttribs(b); ok {
 			for _, a := range attribs {
-				if a == nil {
+				if mx.IsNilAttrib(a) {
 					continue
 				}
 				// Special handling of lang attributes
@@ -329,7 +331,7 @@ const newDocumentHint = " (NewDocument puts its attribute arguments there)"
 // attributes to a browser.
 func checkAttribNames(field, hint string, attribs []mx.Attrib) error {
 	for i, a := range attribs {
-		if a == nil {
+		if mx.IsNilAttrib(a) {
 			// No hint: NewDocument never puts a nil Attrib there.
 			return errs.Errorf("html.Document.%s[%d] is nil", field, i)
 		}
