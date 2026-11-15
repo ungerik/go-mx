@@ -157,6 +157,9 @@ time, not checked at compile time.
 
 **Attribute Conversion** (`DefaultAsAttribs` in `attribs.go`):
 - Single `Attrib`, slices, maps, structs with `attr` tags
+- `AsAttribsOrComponent` (`element.go`) sorts one `attribsChildren` argument
+  into attributes or a child; `NewElement` and `html.NewDocument` share it,
+  so a new constructor that sorts its arguments calls it too.
 
 **Conditional Rendering** (`conditional.go`):
 ```go

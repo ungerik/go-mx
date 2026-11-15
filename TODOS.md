@@ -166,25 +166,6 @@ adversarial review of the `NewDocument` attributes change.
 **Priority:** P3
 **Depends on:** None
 
-### `NewDocument` repeats `NewElement`'s argument sorting
-
-**What:** Share the sorting of `attribsChildren ...any` into attributes and
-children between `mx.NewElement` and `html.NewDocument`.
-
-**Why:** `NewDocument` re-implements the loop (nil skipped, `AsAttribs`,
-`AsComponent` with nil dropped) with two differences: a `Component` is
-checked before `AsAttribs`, and `lang` is moved to `<html>`. A later change
-to one loop can silently miss the other.
-
-**Context:** `element.go` `NewElement`, `html/document.go` `NewDocument`.
-A shared helper would need a hook for the `lang` handling and the
-`Component`-first order. Found by the review of the `NewDocument`
-attributes change.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
 ## web
 
 ### HTML pages of a `GlobPageSource` have no title
@@ -224,6 +205,26 @@ dead route code removed on 2026-11-01.
 **Depends on:** None
 
 ## Completed
+
+### `NewDocument` repeats `NewElement`'s argument sorting
+
+**What:** Share the sorting of `attribsChildren ...any` into attributes and
+children between `mx.NewElement` and `html.NewDocument`.
+
+**Why:** `NewDocument` re-implements the loop (nil skipped, `AsAttribs`,
+`AsComponent` with nil dropped) with two differences: a `Component` is
+checked before `AsAttribs`, and `lang` is moved to `<html>`. A later change
+to one loop can silently miss the other.
+
+**Context:** `element.go` `NewElement`, `html/document.go` `NewDocument`.
+A shared helper would need a hook for the `lang` handling and the
+`Component`-first order. Found by the review of the `NewDocument`
+attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — the new exported `mx.AsAttribsOrComponent` sorts one argument; `NewElement` is its loop, and `NewDocument` checks for a `Component` first and post-processes the attributes (nil skip, `lang`).
 
 ### Edge values of a `lang` argument to `NewDocument`
 

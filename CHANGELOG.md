@@ -16,6 +16,12 @@ API is still free to change.
 
 ### Added
 
+- **`mx.AsAttribsOrComponent(arg)`** sorts one argument of an
+  `attribsChildren ...any` constructor into attributes (what `mx.AsAttribs`
+  accepts) or a child (`mx.AsComponent`), returning neither for nil. It is
+  the sorting `mx.NewElement` and `html.NewDocument` share, so a custom
+  constructor sorts its arguments alike and follows a reassigned
+  `AsAttribs` or `AsComponent`.
 - **`mx.IsNilAttrib(a)`** reports whether an attribute is nil or a typed
   nil (a nil pointer or func in a non-nil `Attrib` interface), which
   `a == nil` misses and whose methods usually panic. `Element.Render`
