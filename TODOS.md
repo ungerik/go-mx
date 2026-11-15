@@ -163,6 +163,26 @@ attributes change; `Element.Render` predates it.
 **Priority:** P4
 **Depends on:** None
 
+### Attribute text bypasses the writer's text escaping
+
+**What:** Let the attributes `DefaultAsComponent` renders as children go
+through the `Writer`'s text escaping instead of `mx.Raw`.
+
+**Why:** `AttribStringContext` escapes name and value with the
+single-quote attribute escaper, and the result is written raw, so a writer
+with a different `TextEscaper` (or a text context with other rules) does not
+get its own escaping for this text. Escaping is meant to be the writer's job.
+
+**Context:** `component.go`, the attribute case of `DefaultAsComponent`;
+`attrib.go`, `formatEscapedAttrib`. Writing the unescaped `name='value'` as
+`Text` would escape once through the writer, but `AttribStringContext` would
+then need an unescaped variant. Found by the review of the
+attributes-as-children change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## html
 
 ### A misplaced `lang` in `NewDocument` fails after `<head>` is written
@@ -202,17 +222,20 @@ adversarial review of the `NewDocument` attributes change.
 **Priority:** P4
 **Depends on:** None
 
-### The `NewDocument` hint also appears for `Document` literals
+### `NewDocument` repeats `NewElement`'s argument sorting
 
-**What:** Add the "(NewDocument puts its attribute arguments there)" hint
-only to errors about a document `NewDocument` built.
+**What:** Share the sorting of `attribsChildren ...any` into attributes and
+children between `mx.NewElement` and `html.NewDocument`.
 
-**Why:** A caller who filled `BodyAttribs` in a `Document` literal gets a
-hint about a constructor they never called.
+**Why:** `NewDocument` re-implements the loop (nil skipped, `AsAttribs`,
+`AsComponent` with nil dropped) with two differences: a `Component` is
+checked before `AsAttribs`, and `lang` is moved to `<html>`. A later change
+to one loop can silently miss the other.
 
-**Context:** `html/document.go`, `newDocumentHint` in `Render`; needs a flag
-on the `Document` that `NewDocument` sets. Found by the adversarial review
-of the `NewDocument` attributes change.
+**Context:** `element.go` `NewElement`, `html/document.go` `NewDocument`.
+A shared helper would need a hook for the `lang` handling and the
+`Component`-first order. Found by the review of the `NewDocument`
+attributes change.
 
 **Effort:** S
 **Priority:** P4
@@ -257,6 +280,23 @@ dead route code removed on 2026-11-01.
 **Depends on:** None
 
 ## Completed
+
+### The `NewDocument` hint also appears for `Document` literals
+
+**What:** Add the "(NewDocument puts its attribute arguments there)" hint
+only to errors about a document `NewDocument` built.
+
+**Why:** A caller who filled `BodyAttribs` in a `Document` literal gets a
+hint about a constructor they never called.
+
+**Context:** `html/document.go`, `newDocumentHint` in `Render`; needs a flag
+on the `Document` that `NewDocument` sets. Found by the adversarial review
+of the `NewDocument` attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — `Document` remembers in an unexported field that `NewDocument` filled `BodyAttribs`, and `Render` adds the hint only then, and never to a nil entry, which `NewDocument` leaves out.
 
 ### A `ConstAttrib` without `=` panics
 

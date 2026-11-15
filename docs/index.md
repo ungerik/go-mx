@@ -98,9 +98,9 @@ html.Img(html.Src("/logo.png"), html.Alt("Logo"))    // void: no children
 
 **Children conversion.** Children are converted at render-build time: a `string`
 becomes escaped text, a `Component` passes through, a `func` is wrapped, `nil`
-renders nothing, an `error` or `fmt.Stringer` renders its text, an attribute
-that reaches the conversion (element constructors sort attributes out first)
-renders as the escaped text `name='value'`, and anything
+renders nothing, an `error` or `fmt.Stringer` renders its text, attributes
+that reach the conversion (element constructors sort attributes out first)
+render as the escaped text `name='value'`, and anything
 else is rendered with [go-pretty](https://github.com/domonda/go-pretty) as a
 compact, single-line representation (structs and pointers tagged with their
 type name, slices and maps kept literal), escaped as text. So you can

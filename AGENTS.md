@@ -75,7 +75,7 @@ go-mx is a Go library for generating HTML markup programmatically using a compon
 
 - **Component** (`component.go`): The fundamental interface - everything that can render HTML implements `Render(context.Context, Writer) error`
 - **Element** (`element.go`): Represents an HTML element with name, attributes, and children. Void elements have `nil` Children, regular elements have empty slice for no children. An `Err` field carries a deferred construction error: if non-nil, `Render` returns it; `NewErrElement(err)` builds such an element.
-- **Attrib** (`attrib.go`): Interface for HTML attributes; `AttribValue(context.Context) (string, error)` so a value can be computed from the context and fail. Implementations: `Attribute` (name/value pair), `ConstAttrib` (format "name=value"), `BoolAttrib` (boolean HTML attributes), and `ErrAttrib` (defers an invalid-value error to render time). See `doc.go` for the deferred-error pattern.
+- **Attrib** (`attrib.go`): Interface for HTML attributes; `AttribValue(context.Context) (string, error)` so a value can be computed from the context and fail. Implementations: `Attribute` (name/value pair), `ConstAttrib` (format "name=value", or a bare "name" for a boolean attribute), `BoolAttrib` (boolean HTML attributes), and `ErrAttrib` (defers an invalid-value error to render time). See `doc.go` for the deferred-error pattern. `AttribString` formats any `Attrib` as escaped `name='value'` for `String` methods and debugging (a failing value as `!ERROR: …`); `AttribStringContext` does the same with a render context and returns the value's error.
 - **Writer** (`writer.go`): Interface for HTML output with element lifecycle methods
 - **CheckedWriter** (`checkedwriter.go`): Writer implementation with validation, escaping, and optional indentation (never inside `pre`, `textarea`, `script` or `style`, whose whitespace is content)
 - **Error policy** (`errors.go`): where go-mx hides an error behind a generic text, it reports it with `ReportHiddenError` (to the application's `ReportError` hook; context errors skipped), and where it decides whether the user may read an error, it asks `UserMessage` (any `UserMessage() string` method in the chain, `FormMessage` included). New code that hides an error does both, and the substitute text it shows is a `FormMessage`, so a later stage neither hides nor reports it again. `FormErrorText` and the sensitive-field mask `MaskSensitiveError` apply both, a field renders its errors with `FieldErrorTexts`; `RespondNonContextError(w, r, err)` and `SSEResponse.SendError` show no user message and report every error they hide.
@@ -123,12 +123,15 @@ time, not checked at compile time.
 - `nil` → nil (renders nothing)
 - `string` → `Text` (escaped)
 - `Component` → passes through
-- `Attrib` → `name='value'` from `AttribStringContext` (already escaped),
-  valued on render with the render context, so a failing value makes
-  `Render` return its error. Element
-  constructors sort attributes out first, so this case catches an attribute
+- attributes (anything `AsAttribs` accepts: an `Attrib`, `[]Attrib`,
+  `Attribs` map, `AttribProvider`, struct with `attr` tags) → space-separated
+  `name='value'` texts from `AttribStringContext` (name and value already
+  escaped, a nil `Attrib` left out), valued on render with the render
+  context, so a failing value makes `Render` return its error. Element
+  constructors sort attributes out first, so this case catches attributes
   passed where children are converted directly (`AsComponents`,
-  `ModifyOnRender`). A `Component` that is also an `Attrib` stays a `Component`.
+  `ModifyOnRender`). A `Component` that also converts to attributes stays a
+  `Component`.
 - Functions → wrapped as `ComponentFunc`
 - `error` / `fmt.Stringer` → `Text` of `Error()` / `String()`
 - anything else → `Text(pretty.Sprint(value))` using

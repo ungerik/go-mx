@@ -19,7 +19,7 @@ API is still free to change.
 - **`mx.AttribStringContext(ctx, a)`** formats an attribute as
   `name='value'` like `mx.AttribString`, but values it with the given
   context and returns a failing value's error instead of formatting it into
-  the text.
+  the text. Both escape the name as well as the value.
 - **`html.Document` puts attributes on `<html>` and `<body>`.** The new
   `HTMLAttribs` render after `lang` on the root (a `class="no-js"`, a data-
   attribute), the new `BodyAttribs` on `<body>` (the classes a vendored theme
@@ -623,27 +623,31 @@ API is still free to change.
   attribute such as `html.Lang("de")` sets `Document.Lang` on the `<html>`
   root, where the language of the page belongs. Only a static `lang`
   (`mx.Attribute`, `mx.ConstAttrib`) can be moved; another one, or a second
-  one, makes `Render` return an error instead of landing on `<body>`.
+  one, makes `Render` return an error instead of landing on `<body>`; of
+  several such `lang` attributes only the first error is reported.
   Without children `BodyChildren` is now nil, so `web.PageTypeRenderer`
   still renders `Page.Content` into a document from `NewDocument(title)` or
-  one given only body attributes. Errors about `BodyAttribs` mention that
-  `NewDocument` fills it.
+  one given only body attributes. Errors about a name in `BodyAttribs` that
+  `NewDocument` filled mention that it put its arguments there.
 - **`mx.NewElement` drops children `AsComponent` converts to nil**, as
   `mx.AsComponents` already did, so an `AsComponent` replacement can filter
   values out by returning nil; the `AsComponent` docs show it for an
   attribute passed as a child.
-- **An attribute passed as a child renders as `name='value'` text.**
-  `mx.DefaultAsComponent` has an `Attrib` case before `error` and
-  `fmt.Stringer`, so every attribute that reaches it through
-  `mx.AsComponents` or `mx.ModifyOnRender` renders alike, as the text of
-  its `String` method, `name='value'`: an enum attribute such as
-  `html.AutoCapitalize` no longer as its bare value, an `mx.UniqueID()` no
-  longer as a pretty dump, and a value with a quote no longer escaped twice.
-  The new `mx.AttribStringContext` formats it when the child is rendered,
-  with the render context, as for an attribute of an element, so a failing
-  value, as of an `mx.ErrAttrib`, makes `Render` return its error instead of
-  showing it on the page. A `Component` that is also an `Attrib` stays a
-  `Component`.
+- **Attributes passed as a child render as `name='value'` text.**
+  `mx.DefaultAsComponent` asks `mx.AsAttribs` before the `error` and
+  `fmt.Stringer` cases, so every attribute shape that reaches it through
+  `mx.AsComponents` or `mx.ModifyOnRender` (an `Attrib`, a `[]Attrib`, an
+  `Attribs` map, an `AttribProvider`, a struct with `attr` tags) renders
+  alike, as space-separated `name='value'` texts formatted by the new
+  `mx.AttribStringContext`, whatever the type's `String` method returns: an
+  enum attribute such as `html.AutoCapitalize` no longer as its bare value,
+  an `mx.UniqueID()` or a `[]Attrib` no longer as a pretty dump, and an
+  `Attribs` map no longer escaped twice. Each value is computed when the
+  child is rendered, with the render context, as for an attribute of an
+  element, so a failing value, as of an `mx.ErrAttrib`, makes `Render`
+  return its error instead of showing it on the page. Name and value are
+  escaped, a nil `Attrib` is left out, and a `Component` that also converts
+  to attributes stays a `Component`.
 - **`mx.ConstAttrib` and `html.BoolAttrib` implement `fmt.Stringer`** like
   `mx.Attribute`, formatting as `name='value'`. A `ConstAttrib` without `=`
   is now both name and value, as a boolean attribute
