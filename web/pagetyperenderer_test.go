@@ -102,12 +102,26 @@ func TestPageTypeRendererContent(t *testing.T) {
 		require.Contains(t, render(t, doc), `<body class="article">text</body>`)
 	})
 
+	// An empty but non-nil BodyChildren is no body either, so the content
+	// goes in rather than leaving the page blank.
+	t.Run("Content after an empty BodyChildren", func(t *testing.T) {
+		r := &web.PageTypeRenderer{
+			DefaultRenderer: web.PageRendererFunc(func(context.Context, *web.Page) (html.Document, error) {
+				return html.Document{BodyChildren: mx.Components{}}, nil
+			}),
+			ContentTypeRenderers: map[string]web.ContentRenderer{"text/plain": textContentRenderer},
+		}
+		doc, err := r.RenderPage(ctx, &web.Page{ContentType: "text/plain", Content: "text"})
+		require.NoError(t, err)
+		require.Contains(t, render(t, doc), "<body>text</body>")
+	})
+
 	// A page renderer that already filled the body wins: the content
 	// renderer is not consulted, not even to report that none is registered.
 	t.Run("BodyChildren set by the page renderer kept", func(t *testing.T) {
 		r := &web.PageTypeRenderer{
 			DefaultRenderer: web.PageRendererFunc(func(context.Context, *web.Page) (html.Document, error) {
-				return html.Document{BodyChildren: mx.Text("own body")}, nil
+				return html.Document{BodyChildren: mx.Components{mx.Text("own body")}}, nil
 			}),
 		}
 		doc, err := r.RenderPage(ctx, &web.Page{ContentType: "text/unknown", Content: "ignored"})

@@ -84,11 +84,11 @@ type Document struct {
 	// BodyChildren are the children of <body>, the content of the page,
 	// as BodyAttribs are its attributes: Render builds the <body> element
 	// from the two, so BodyChildren must not be a Body element, which would
-	// render a second <body> nested in the first. Several children are
-	// passed as mx.Components, or as the body arguments of NewDocument,
-	// which sorts attributes among them into BodyAttribs (a lang attribute
-	// into Lang). A nil BodyChildren renders an empty <body>.
-	BodyChildren mx.Component
+	// render a second <body> nested in the first. NewDocument fills it from
+	// its body arguments, sorting attributes among them into BodyAttribs (a
+	// lang attribute into Lang); a single child is mx.Components{child}. A
+	// nil or empty BodyChildren renders an empty <body>.
+	BodyChildren mx.Components
 
 	// bodyAttribsFromArgs is set by NewDocument when it put attribute
 	// arguments into BodyAttribs, so Render's errors about them can say so
@@ -200,6 +200,11 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 	if err != nil {
 		return err
 	}
+	bodyChildren := d.BodyChildren
+	if bodyChildren == nil {
+		// Nil Children would make <body> a void element without </body>.
+		bodyChildren = mx.Components{}
+	}
 	htmlOpen, err := d.htmlStartTag(ctx, w)
 	if err != nil {
 		return err
@@ -235,7 +240,7 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 		&mx.Element{
 			Name:     "body",
 			Attribs:  d.BodyAttribs,
-			Children: mx.Components{d.BodyChildren},
+			Children: bodyChildren,
 		},
 		Raw("\n</html>"),
 	}.Render(ctx, w)

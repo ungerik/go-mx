@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/domonda/go-errs"
+
+	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
 
@@ -21,7 +23,7 @@ type PageTypeRenderer struct {
 
 // RenderPage selects a PageRenderer by Page.Type (falling back to
 // DefaultRenderer or DefaultPageRenderer), then, if the resulting document has
-// no body and the page has content, renders Page.Content via the
+// no BodyChildren (nil or empty) and the page has content, renders Page.Content via the
 // ContentRenderer registered for Page.ContentType. It implements the
 // PageRenderer interface.
 func (t *PageTypeRenderer) RenderPage(ctx context.Context, page *Page) (html.Document, error) {
@@ -37,16 +39,17 @@ func (t *PageTypeRenderer) RenderPage(ctx context.Context, page *Page) (html.Doc
 	if err != nil {
 		return html.Document{}, err
 	}
-	if doc.BodyChildren != nil || page.Content == nil {
+	if len(doc.BodyChildren) > 0 || page.Content == nil {
 		return doc, nil
 	}
 	contentTempl := t.ContentTypeRenderers[page.ContentType]
 	if contentTempl == nil {
 		return html.Document{}, errs.Errorf("no ContentRenderer for Page.ContentType %q", page.ContentType)
 	}
-	doc.BodyChildren, err = contentTempl.RenderContent(ctx, page.ContentType, page.Content)
+	content, err := contentTempl.RenderContent(ctx, page.ContentType, page.Content)
 	if err != nil {
 		return html.Document{}, err
 	}
+	doc.BodyChildren = mx.Components{content}
 	return doc, nil
 }

@@ -164,7 +164,7 @@ func TestDocumentZeroAttribsUnchanged(t *testing.T) {
 				Stylesheets:  []string{"/site.css"},
 				Style:        "body{margin:0}",
 				HeadCustom:   Script(Src("/site.js")),
-				BodyChildren: P("Hello"),
+				BodyChildren: mx.Components{P("Hello")},
 			})
 			want := "<!DOCTYPE html>\n" + tt.root +
 				`<head><meta charset="UTF-8"/><title>T</title>` +
@@ -191,7 +191,7 @@ func TestDocumentBodyAttribs(t *testing.T) {
 				ID("top"),
 				DataAttr("theme", "dark"),
 			},
-			BodyChildren: P("Hello"),
+			BodyChildren: mx.Components{P("Hello")},
 		})
 		const want = `<body class="home page-template-page_front-page siteorigin-panels" id="top" data-theme="dark"><p>Hello</p></body>`
 		if !strings.Contains(got, want) {
@@ -227,7 +227,7 @@ func (contentWithAttribs) Attribs() []mx.Attrib { return []mx.Attrib{Class("stra
 // rendered as the children of <body>, even when they could convert to
 // attributes, as an mx.AttribProvider can.
 func TestDocumentBodyChildrenStayChildren(t *testing.T) {
-	got := renderDocument(t, &Document{BodyChildren: contentWithAttribs{}})
+	got := renderDocument(t, &Document{BodyChildren: mx.Components{contentWithAttribs{}}})
 	if !strings.Contains(got, "<body><p>content</p></body>") {
 		t.Errorf("BodyChildren not rendered as children\ngot: %s", got)
 	}
