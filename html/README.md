@@ -72,7 +72,7 @@ type (
     Text     = mx.Text     // escaped text node
     Raw      = mx.Raw      // pre-trusted, unescaped HTML
     RawBytes = mx.RawBytes // pre-trusted, unescaped bytes
-    Attribs  = mx.Attribs  // []Attrib helper
+    Attribs  = mx.Attribs  // map of attribute name to value
 )
 ```
 
