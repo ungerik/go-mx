@@ -16,6 +16,10 @@ API is still free to change.
 
 ### Added
 
+- **`mx.AttribStringContext(ctx, a)`** formats an attribute as
+  `name='value'` like `mx.AttribString`, but values it with the given
+  context and returns a failing value's error instead of formatting it into
+  the text.
 - **`html.Document` puts attributes on `<html>` and `<body>`.** The new
   `HTMLAttribs` render after `lang` on the root (a `class="no-js"`, a data-
   attribute), the new `BodyAttribs` on `<body>` (the classes a vendored theme
@@ -631,14 +635,15 @@ API is still free to change.
 - **An attribute passed as a child renders as `name='value'` text.**
   `mx.DefaultAsComponent` has an `Attrib` case before `error` and
   `fmt.Stringer`, so every attribute that reaches it through
-  `mx.AsComponents` or `mx.ModifyOnRender` renders alike, as escaped
-  `name='value'`: an enum attribute such as `html.AutoCapitalize` no longer
-  as its bare value, an `mx.UniqueID()` no longer as a pretty dump, and a
-  value with a quote no longer escaped twice. The value is computed when the
-  child is rendered, with the render context, as for an attribute of an
-  element, so a failing value, as of an `mx.ErrAttrib`, makes `Render`
-  return its error instead of showing it on the page. A `Component` that is
-  also an `Attrib` stays a `Component`.
+  `mx.AsComponents` or `mx.ModifyOnRender` renders alike, as the text of
+  its `String` method, `name='value'`: an enum attribute such as
+  `html.AutoCapitalize` no longer as its bare value, an `mx.UniqueID()` no
+  longer as a pretty dump, and a value with a quote no longer escaped twice.
+  The new `mx.AttribStringContext` formats it when the child is rendered,
+  with the render context, as for an attribute of an element, so a failing
+  value, as of an `mx.ErrAttrib`, makes `Render` return its error instead of
+  showing it on the page. A `Component` that is also an `Attrib` stays a
+  `Component`.
 - **`mx.ConstAttrib` and `html.BoolAttrib` implement `fmt.Stringer`** like
   `mx.Attribute`, formatting as `name='value'`. A `ConstAttrib` without `=`
   is now both name and value, as a boolean attribute

@@ -85,5 +85,5 @@ func TestBoolAttribString(t *testing.T) {
 	var b strings.Builder
 	err := mx.AsComponents(Class("x"), " ", Hidden).Render(t.Context(), mx.NewCheckedWriter(&b))
 	require.NoError(t, err)
-	require.Equal(t, "class=&apos;x&apos; hidden=&apos;hidden&apos;", b.String())
+	require.Equal(t, "class='x' hidden='hidden'", b.String())
 }

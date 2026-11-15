@@ -180,6 +180,19 @@ func AttribString(a Attrib) string {
 	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value))
 }
 
+// AttribStringContext formats an Attrib as name='value' like [AttribString],
+// but evaluates AttribValue with ctx and returns its error instead of
+// formatting it into the value. The value is escaped for a single-quoted
+// attribute (&, <, ' and line breaks become character references), so the
+// result is also safe as text content and must not be escaped again.
+func AttribStringContext(ctx context.Context, a Attrib) (string, error) {
+	value, err := a.AttribValue(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value)), nil
+}
+
 // ErrAttrib is an Attrib whose AttribValue always returns Err, deferring an
 // attribute-construction error to render time. A constructor that detects an
 // invalid value returns an ErrAttrib instead of panicking or emitting broken

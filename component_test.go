@@ -171,7 +171,8 @@ func (ctxAttrib) AttribValue(ctx context.Context) (string, error) {
 }
 
 // TestDefaultAsComponentAttrib guards that every Attrib passed as a child
-// renders as the same name='value' text, escaped once by the writer, not
+// renders as the same name='value' text as its String method, escaped once,
+// not
 // depending on whether its type has a String method or what that returns,
 // and that a Component which is also an Attrib stays a Component.
 func TestDefaultAsComponentAttrib(t *testing.T) {
@@ -180,11 +181,11 @@ func TestDefaultAsComponentAttrib(t *testing.T) {
 		c    any
 		want string
 	}{
-		{"Attribute", NewAttrib("class", "x"), "class=&apos;x&apos;"},
-		{"ConstAttrib", ConstAttrib("type=text"), "type=&apos;text&apos;"},
-		{"String returns only the value", enumLikeAttrib("rtl"), "dir=&apos;rtl&apos;"},
-		{"no String method", UniqueID(), "id=&apos;"},
-		{"escaped once", ConstAttrib("title=it's <b>"), "title=&apos;it&apos;s &lt;b&gt;&apos;"},
+		{"Attribute", NewAttrib("class", "x"), "class='x'"},
+		{"ConstAttrib", ConstAttrib("type=text"), "type='text'"},
+		{"String returns only the value", enumLikeAttrib("rtl"), "dir='rtl'"},
+		{"no String method", UniqueID(), "id='"},
+		{"escaped once", ConstAttrib("title=it's <b>\na"), "title='it&apos;s &lt;b>&#10;a'"},
 		{"Component and Attrib", componentAttrib{}, "content"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -208,7 +209,7 @@ func TestDefaultAsComponentAttribRender(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := b.String(), "data-user=&apos;ann&apos;"; got != want {
+		if got, want := b.String(), "data-user='ann'"; got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	})

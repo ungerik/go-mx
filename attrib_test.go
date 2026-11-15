@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -96,5 +97,26 @@ func TestConstAttribWithoutEquals(t *testing.T) {
 	}
 	if got, want := b.String(), `<div hidden="hidden"></div>`; got != want {
 		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+// TestAttribStringContext guards that AttribStringContext formats like
+// AttribString, values the attribute with the given context and returns a
+// failing value's error instead of formatting it into the text.
+func TestAttribStringContext(t *testing.T) {
+	got, err := AttribStringContext(t.Context(), ConstAttrib("title=it's"))
+	if err != nil || got != "title='it&apos;s'" {
+		t.Errorf("got %q, %v, want %q, nil", got, err, "title='it&apos;s'")
+	}
+
+	ctx := context.WithValue(t.Context(), ctxAttribKey{}, "ann")
+	got, err = AttribStringContext(ctx, ctxAttrib{})
+	if err != nil || got != "data-user='ann'" {
+		t.Errorf("got %q, %v, want %q, nil", got, err, "data-user='ann'")
+	}
+
+	got, err = AttribStringContext(t.Context(), ErrAttribf("class", "bad class"))
+	if err == nil || got != "" || !strings.Contains(err.Error(), "bad class") {
+		t.Errorf("got %q, %v, want \"\" and the ErrAttrib error", got, err)
 	}
 }

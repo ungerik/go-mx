@@ -123,8 +123,9 @@ time, not checked at compile time.
 - `nil` → nil (renders nothing)
 - `string` → `Text` (escaped)
 - `Component` → passes through
-- `Attrib` → `Text` of `name='value'`, valued on render with the render
-  context, so a failing value makes `Render` return its error. Element
+- `Attrib` → `name='value'` from `AttribStringContext` (already escaped),
+  valued on render with the render context, so a failing value makes
+  `Render` return its error. Element
   constructors sort attributes out first, so this case catches an attribute
   passed where children are converted directly (`AsComponents`,
   `ModifyOnRender`). A `Component` that is also an `Attrib` stays a `Component`.
