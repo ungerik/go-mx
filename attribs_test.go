@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"iter"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,9 +28,9 @@ func TestAttribs_Attribs(t *testing.T) {
 	}
 }
 
-// TestDefaultAsAttribsNilFunc guards that a nil attribute func is
-// recognized as attributes but yields none, instead of being called and
-// panicking, so NewElement, AsComponents and ModifyOnRender skip it like a
+// TestDefaultAsAttribsNilFunc guards that a nil attribute func or iterator,
+// or a typed-nil AttribProvider, is recognized as attributes but yields
+// none, instead of being called and panicking, so NewElement, AsComponents and ModifyOnRender skip it like a
 // nil Attrib.
 // Value: protects=a nil func() Attrib/Attribute/[]Attrib/[]Attribute yields no attribs; fails_when=DefaultAsAttribs calls the nil func; why_new=no test passes a nil attribute func; seam=none; no_claim=custom AsAttribs replacements
 func TestDefaultAsAttribsNilFunc(t *testing.T) {
@@ -41,6 +42,9 @@ func TestDefaultAsAttribsNilFunc(t *testing.T) {
 		{"func() Attribute", (func() Attribute)(nil)},
 		{"func() []Attrib", (func() []Attrib)(nil)},
 		{"func() []Attribute", (func() []Attribute)(nil)},
+		{"iter.Seq[Attrib]", iter.Seq[Attrib](nil)},
+		{"iter.Seq[Attribute]", iter.Seq[Attribute](nil)},
+		{"typed-nil AttribProvider", (*ptrAttribProvider)(nil)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			attribs, ok := DefaultAsAttribs(tt.arg)
@@ -54,3 +58,9 @@ func TestDefaultAsAttribsNilFunc(t *testing.T) {
 		})
 	}
 }
+
+// ptrAttribProvider is an AttribProvider whose pointer-receiver Attribs
+// dereferences the receiver, so a nil one panics when called.
+type ptrAttribProvider struct{ attribs []Attrib }
+
+func (p *ptrAttribProvider) Attribs() []Attrib { return p.attribs }

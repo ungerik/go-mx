@@ -39,6 +39,10 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 		return []Attrib{x()}, true
 
 	case AttribProvider:
+		if isNilPointerOrFunc(x) {
+			// Its Attribs method would usually dereference the nil.
+			return nil, true
+		}
 		return x.Attribs(), true
 
 	case []Attrib:
@@ -60,9 +64,15 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 		return toAttribSlice(x()), true
 
 	case iter.Seq[Attrib]:
+		if x == nil {
+			return nil, true
+		}
 		return slices.Collect(x), true
 
 	case iter.Seq[Attribute]:
+		if x == nil {
+			return nil, true
+		}
 		return toAttribSlice(slices.Collect(x)), true
 
 	case map[string]any:

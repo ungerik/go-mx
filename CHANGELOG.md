@@ -30,8 +30,9 @@ API is still free to change.
   leave it out, and `html.Document.Render` refuses one in `BodyAttribs` or
   `HTMLAttribs` as it refuses a nil entry. A nil attribute func
   (`func() Attrib`, `func() Attribute`, `func() []Attrib`,
-  `func() []Attribute`) likewise yields no attributes in `mx.AsAttribs`
-  instead of being called and panicking.
+  `func() []Attribute`) or iterator (`iter.Seq[Attrib]`,
+  `iter.Seq[Attribute]`), and a typed-nil `AttribProvider`, likewise yields
+  no attributes in `mx.AsAttribs` instead of being called and panicking.
 - **`mx.AttribStringContext(ctx, a)`** formats an attribute as
   `name='value'` like `mx.AttribString`, but values it with the given
   context and returns a failing value's error instead of formatting it into

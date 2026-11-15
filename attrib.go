@@ -173,12 +173,16 @@ func ValidAttribName(name string) bool {
 // (len, range and reads are defined), so it is a valid, possibly empty
 // attribute that must still render rather than be left out.
 func IsNilAttrib(a Attrib) bool {
-	if a == nil {
-		return true
-	}
-	switch v := reflect.ValueOf(a); v.Kind() {
+	return a == nil || isNilPointerOrFunc(a)
+}
+
+// isNilPointerOrFunc reports whether v holds a nil pointer or func, the
+// typed nils whose methods usually panic; see [IsNilAttrib] for why a nil
+// map or slice does not count.
+func isNilPointerOrFunc(v any) bool {
+	switch rv := reflect.ValueOf(v); rv.Kind() {
 	case reflect.Pointer, reflect.Func:
-		return v.IsNil()
+		return rv.IsNil()
 	}
 	return false
 }
