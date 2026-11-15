@@ -88,6 +88,20 @@ func TestPageTypeRendererContent(t *testing.T) {
 		require.Contains(t, render(t, doc), "<body>a &lt; b</body>")
 	})
 
+	// A page renderer that sets only body attributes through
+	// html.NewDocument leaves BodyChildren nil, so the content still goes in.
+	t.Run("Content after NewDocument with body attribs only", func(t *testing.T) {
+		r := &web.PageTypeRenderer{
+			DefaultRenderer: web.PageRendererFunc(func(_ context.Context, page *web.Page) (html.Document, error) {
+				return *html.NewDocument(page.Title, html.Class("article")), nil
+			}),
+			ContentTypeRenderers: map[string]web.ContentRenderer{"text/plain": textContentRenderer},
+		}
+		doc, err := r.RenderPage(ctx, &web.Page{Title: "T", ContentType: "text/plain", Content: "text"})
+		require.NoError(t, err)
+		require.Contains(t, render(t, doc), `<body class="article">text</body>`)
+	})
+
 	// A page renderer that already filled the body wins: the content
 	// renderer is not consulted, not even to report that none is registered.
 	t.Run("BodyChildren set by the page renderer kept", func(t *testing.T) {

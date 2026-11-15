@@ -607,6 +607,38 @@ API is still free to change.
 
 ### Changed
 
+- **`html.NewDocument` sorts attributes onto `<body>`.** Its body arguments
+  are sorted as `mx.NewElement` sorts those of any element: what
+  `mx.AsAttribs` accepts (an `Attrib`, an `Attribs` map, a struct with
+  `attr` tags) goes to `BodyAttribs`, the rest to `BodyChildren`. So
+  `NewDocument("T", html.Class("dark"), content)` renders
+  `<body class="dark">` instead of the escaped text `class='dark'` inside
+  the body. Two exceptions: a `Component` is always a child, even one that
+  also provides attributes, as `Render` treats `BodyChildren`; and a `lang`
+  attribute such as `html.Lang("de")` sets `Document.Lang` on the `<html>`
+  root, where the language of the page belongs. Only a static `lang`
+  (`mx.Attribute`, `mx.ConstAttrib`) can be moved; another one, or a second
+  one, makes `Render` return an error instead of landing on `<body>`.
+  Without children `BodyChildren` is now nil, so `web.PageTypeRenderer`
+  still renders `Page.Content` into a document from `NewDocument(title)` or
+  one given only body attributes. Errors about `BodyAttribs` mention that
+  `NewDocument` fills it.
+- **`mx.NewElement` drops children `AsComponent` converts to nil**, as
+  `mx.AsComponents` already did, so an `AsComponent` replacement can filter
+  values out by returning nil; the `AsComponent` docs show it for an
+  attribute passed as a child.
+- **An attribute passed as a child renders as `name='value'` text.**
+  `mx.DefaultAsComponent` has an `Attrib` case before `error` and
+  `fmt.Stringer`, so every attribute that reaches it through
+  `mx.AsComponents` or `mx.ModifyOnRender` renders alike, as escaped
+  `name='value'`: an enum attribute such as `html.AutoCapitalize` no longer
+  as its bare value, an `mx.ErrAttrib` or `mx.UniqueID()` no longer as a
+  pretty dump. A `Component` that is also an `Attrib` stays a `Component`.
+- **`mx.ConstAttrib` and `html.BoolAttrib` implement `fmt.Stringer`** like
+  `mx.Attribute`, formatting as `name='value'`. A `ConstAttrib` without `=`
+  is now both name and value, as a boolean attribute
+  (`ConstAttrib("hidden")` renders `hidden="hidden"`), instead of
+  panicking.
 - **`html.Document.Body` is renamed `BodyChildren`**, since it holds the
   children of `<body>`, not a `Body` element, and pairs with the new
   `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`. It is now

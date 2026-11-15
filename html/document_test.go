@@ -233,6 +233,144 @@ func TestDocumentBodyChildrenStayChildren(t *testing.T) {
 	}
 }
 
+// TestNewDocumentSortsAttribs guards that NewDocument sorts its body
+// arguments as mx.NewElement does: attributes onto <body> rather than
+// rendered as escaped text inside it, everything else as children.
+func TestNewDocumentSortsAttribs(t *testing.T) {
+	t.Run("attribs and children", func(t *testing.T) {
+		got := renderDocument(t, NewDocument("T", Class("dark"), Hidden, nil, P("Hello"), "text"))
+		const want = `<body class="dark" hidden="hidden"><p>Hello</p>text</body>`
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s\ngot: %s", want, got)
+		}
+	})
+
+	t.Run("component providing attribs stays content", func(t *testing.T) {
+		// A Component is a child even when it also converts to attributes,
+		// as Render treats BodyChildren.
+		got := renderDocument(t, NewDocument("T", contentWithAttribs{}))
+		const want = `<body><p>content</p></body>`
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s\ngot: %s", want, got)
+		}
+	})
+
+	t.Run("non-component attrib provider", func(t *testing.T) {
+		got := renderDocument(t, NewDocument("T", mx.Attribs{"id": "main"}, "text"))
+		const want = `<body id="main">text</body>`
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s\ngot: %s", want, got)
+		}
+	})
+
+	// BodyChildren stays nil without children, as for a Document literal,
+	// so a renderer that fills in a missing body (web.PageTypeRenderer)
+	// still does.
+	t.Run("no body arguments", func(t *testing.T) {
+		d := NewDocument("T")
+		if d.BodyAttribs != nil {
+			t.Errorf("BodyAttribs = %v, want nil", d.BodyAttribs)
+		}
+		if d.BodyChildren != nil {
+			t.Errorf("BodyChildren = %#v, want nil", d.BodyChildren)
+		}
+		got := renderDocument(t, d)
+		if !strings.Contains(got, "<body></body>") {
+			t.Errorf("want an empty <body>\ngot: %s", got)
+		}
+	})
+
+	t.Run("attribs only", func(t *testing.T) {
+		d := NewDocument("T", Class("dark"), nil)
+		if d.BodyChildren != nil {
+			t.Errorf("BodyChildren = %#v, want nil", d.BodyChildren)
+		}
+		got := renderDocument(t, d)
+		if !strings.Contains(got, `<body class="dark"></body>`) {
+			t.Errorf("want an empty <body class=\"dark\">\ngot: %s", got)
+		}
+	})
+}
+
+// ctxLangAttrib is a lang attribute whose value depends on the render
+// context, so NewDocument cannot read it.
+type ctxLangAttrib struct{}
+
+func (ctxLangAttrib) AttribName() string { return "lang" }
+
+func (ctxLangAttrib) AttribValue(context.Context) (string, error) { return "de", nil }
+
+// TestNewDocumentLang guards that a lang attribute among the body
+// arguments of NewDocument sets the language of the page on <html>, not
+// on <body>, and that one it cannot move fails Render instead of
+// landing on <body> unnoticed.
+func TestNewDocumentLang(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		arg  any
+	}{
+		{"Lang", Lang("de")},
+		{"upper case name", mx.NewAttrib("LANG", "de")},
+		{"ConstAttrib", mx.ConstAttrib("lang=de")},
+		{"inside a slice", []mx.Attrib{Class("dark"), Lang("de")}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			d := NewDocument("T", tt.arg, P("Hallo"))
+			if d.Lang != "de" {
+				t.Errorf("Lang = %q, want %q", d.Lang, "de")
+			}
+			got := renderDocument(t, d)
+			if !strings.Contains(got, `<html lang="de">`) {
+				t.Errorf("missing <html lang=\"de\">\ngot: %s", got)
+			}
+			body := got[strings.Index(got, "<body"):]
+			if strings.Contains(strings.ToLower(body), "lang=") {
+				t.Errorf("lang also on <body>\ngot: %s", got)
+			}
+		})
+	}
+
+	t.Run("invalid tag", func(t *testing.T) {
+		var b strings.Builder
+		err := NewDocument("T", Lang(`de"><x`)).Render(context.Background(), mx.NewCheckedWriter(&b))
+		if err == nil || b.Len() != 0 {
+			t.Errorf("want an error before any markup, got %v and %q", err, b.String())
+		}
+	})
+
+	for _, tt := range []struct {
+		name    string
+		args    []any
+		wantErr string
+	}{
+		{"second lang", []any{Lang("de"), Lang("en")}, "more than one lang"},
+		{"context-dependent value", []any{ctxLangAttrib{}}, "set Document.Lang instead"},
+		{"ErrAttrib kept", []any{mx.ErrAttribf("lang", "bad lang")}, "bad lang"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			err := NewDocument("T", tt.args...).Render(context.Background(), mx.NewCheckedWriter(&b))
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Render error = %v, want one containing %q", err, tt.wantErr)
+			}
+			if strings.Contains(b.String(), "<body lang") {
+				t.Errorf("lang reached <body>: %s", b.String())
+			}
+		})
+	}
+}
+
+// TestNewDocumentAttribErrorHint guards that an error about BodyAttribs
+// tells a caller who only passed NewDocument arguments where the field
+// got its value.
+func TestNewDocumentAttribErrorHint(t *testing.T) {
+	var b strings.Builder
+	err := NewDocument("T", []mx.Attrib{nil}).Render(context.Background(), mx.NewCheckedWriter(&b))
+	if err == nil || !strings.Contains(err.Error(), "NewDocument puts its attribute arguments there") {
+		t.Errorf("Render error = %v, want the NewDocument hint", err)
+	}
+}
+
 // TestDocumentBodyAttribsRefused guards the BodyAttribs that Render
 // refuses. A nil entry, an invalid name and a name differing only in case
 // are caught before anything is written; a failing value only when <body>

@@ -32,7 +32,8 @@ type Document struct {
 	// BCP 47 tag charset ([A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*, e.g. "de" or
 	// "de-AT"); an invalid value is rejected by Render rather than escaped
 	// into markup, so a caller mistake surfaces instead of silently
-	// mangling the tag.
+	// mangling the tag. NewDocument sets it from a lang attribute among its
+	// body arguments rather than putting that on <body>.
 	Lang string
 	// HTMLAttribs are extra attributes of the <html> root, rendered after
 	// lang in the order given, for example Class("no-js") or a data-
@@ -83,8 +84,9 @@ type Document struct {
 	// as BodyAttribs are its attributes: Render builds the <body> element
 	// from the two, so BodyChildren must not be a Body element, which would
 	// render a second <body> nested in the first. Several children are
-	// passed as mx.Components, or as the body arguments of NewDocument. A
-	// nil BodyChildren renders an empty <body>.
+	// passed as mx.Components, or as the body arguments of NewDocument,
+	// which sorts attributes among them into BodyAttribs (a lang attribute
+	// into Lang). A nil BodyChildren renders an empty <body>.
 	BodyChildren mx.Component
 }
 
@@ -102,13 +104,68 @@ func ValidLangTag(tag string) bool {
 	return langTagRegexp.MatchString(tag)
 }
 
-// NewDocument returns a Document with the given <title> and the body
-// arguments converted to its BodyChildren via mx.AsComponents.
+// NewDocument returns a Document with the given <title> whose body
+// arguments are sorted into BodyAttribs and BodyChildren as an element
+// constructor sorts its arguments, with two exceptions:
+//
+//   - An mx.Component is always a child, even one that also converts to
+//     attributes (an mx.AttribProvider, a struct with attr tags), as Render
+//     treats BodyChildren. Every other value mx.AsAttribs accepts goes to
+//     BodyAttribs, the rest to BodyChildren via mx.AsComponent, dropping a
+//     value it converts to nil.
+//   - A lang attribute, such as Lang("de"), sets Document.Lang, the
+//     language of the whole page on the <html> root, instead of <body>.
+//     NewDocument has no render context, so only the static value of an
+//     mx.Attribute or mx.ConstAttrib can be moved there. Any other lang
+//     attribute, and every one after the first, is replaced in BodyAttribs
+//     by an mx.ErrAttrib (an mx.ErrAttrib is kept as is), so Render
+//     returns its error when it writes <body>.
+//
+// Pass the attributes first, then the children. Without children
+// BodyChildren is nil, as for a Document literal, so a renderer that
+// fills in a missing body (web.PageTypeRenderer) still does.
 func NewDocument(title string, body ...any) *Document {
-	return &Document{
-		Title:        title,
-		BodyChildren: mx.AsComponents(body...),
+	document := &Document{Title: title}
+	children := make(mx.Components, 0, len(body))
+	langSet := false
+	for _, b := range body {
+		if b == nil {
+			continue
+		}
+		if c, ok := b.(mx.Component); ok {
+			children = append(children, c)
+			continue
+		}
+		if attribs, ok := mx.AsAttribs(b); ok {
+			for _, a := range attribs {
+				if a != nil && strings.EqualFold(a.AttribName(), "lang") {
+					switch a.(type) {
+					case mx.ErrAttrib:
+						// Keeps its own error.
+					case mx.Attribute, mx.ConstAttrib:
+						if !langSet {
+							// Their value ignores the context and never fails.
+							document.Lang, _ = a.AttribValue(context.Background())
+							langSet = true
+							continue
+						}
+						a = mx.ErrAttribf(a.AttribName(), "html.NewDocument got more than one lang attribute")
+					default:
+						a = mx.ErrAttribf(a.AttribName(), "html.NewDocument can move only an mx.Attribute or mx.ConstAttrib lang to Document.Lang, got %T: set Document.Lang instead", a)
+					}
+				}
+				document.BodyAttribs = append(document.BodyAttribs, a)
+			}
+			continue
+		}
+		if c := mx.AsComponent(b); c != nil {
+			children = append(children, c)
+		}
 	}
+	if len(children) > 0 {
+		document.BodyChildren = children
+	}
+	return document
 }
 
 // Render writes the complete HTML page to w, implementing the
@@ -118,7 +175,7 @@ func NewDocument(title string, body ...any) *Document {
 // when <body> is written, after the <head>, as on any element: values can
 // depend on ctx, so they are computed only once, while writing.
 func (d *Document) Render(ctx context.Context, w mx.Writer) error {
-	err := checkAttribNames("BodyAttribs", d.BodyAttribs)
+	err := checkAttribNames("BodyAttribs", newDocumentHint, d.BodyAttribs)
 	if err != nil {
 		return err
 	}
@@ -185,7 +242,7 @@ func (d *Document) htmlStartTag(ctx context.Context, w mx.Writer) (Raw, error) {
 		return Raw("\n<html lang=\"" + d.Lang + "\">"), nil
 	}
 
-	err := checkAttribNames("HTMLAttribs", d.HTMLAttribs)
+	err := checkAttribNames("HTMLAttribs", "", d.HTMLAttribs)
 	if err != nil {
 		return "", err
 	}
@@ -232,24 +289,28 @@ func (d *Document) htmlStartTag(ctx context.Context, w mx.Writer) (Raw, error) {
 	return Raw(b.String()), nil
 }
 
-// checkAttribNames returns an error naming the Document field if attribs
-// holds a nil Attrib, a name mx.ValidateAttribName rejects, or two names that
-// differ only in letter case. The writer refuses invalid names and exact
+// newDocumentHint is appended to the errors about BodyAttribs, which a
+// caller of NewDocument fills without ever naming the field.
+const newDocumentHint = " (NewDocument puts its attribute arguments there)"
+
+// checkAttribNames returns an error naming the Document field, followed by
+// hint, if attribs holds a nil Attrib, a name mx.ValidateAttribName
+// rejects, or two names that differ only in letter case. The writer refuses invalid names and exact
 // duplicates too, but only once it writes the element, after the <head>;
 // checked here, they stop Render before anything is written. HTML attribute
 // names are case-insensitive, so "class" and "CLASS" are two class
 // attributes to a browser.
-func checkAttribNames(field string, attribs []mx.Attrib) error {
+func checkAttribNames(field, hint string, attribs []mx.Attrib) error {
 	for i, a := range attribs {
 		if a == nil {
-			return errs.Errorf("html.Document.%s[%d] is nil", field, i)
+			return errs.Errorf("html.Document.%s[%d] is nil%s", field, i, hint)
 		}
 		if err := mx.ValidateAttribName(a.AttribName()); err != nil {
-			return errs.Errorf("html.Document.%s[%d]: %w", field, i, err)
+			return errs.Errorf("html.Document.%s[%d]%s: %w", field, i, hint, err)
 		}
 		for _, prev := range attribs[:i] {
 			if strings.EqualFold(prev.AttribName(), a.AttribName()) {
-				return errs.Errorf("duplicate attribute %s in html.Document.%s", a.AttribName(), field)
+				return errs.Errorf("duplicate attribute %s in html.Document.%s%s", a.AttribName(), field, hint)
 			}
 		}
 	}

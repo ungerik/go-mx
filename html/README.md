@@ -433,8 +433,17 @@ type Document struct {
 }
 ```
 
-`NewDocument(title, body...)` is the quick constructor; it converts the body
-args with `mx.AsComponents`. It writes a `<head>` with a UTF-8 `<meta>`, the
+`NewDocument(title, body...)` is the quick constructor. It sorts the body
+args like an element constructor does: attributes go to `BodyAttribs`
+(`NewDocument("T", html.Class("dark"), content)` → `<body class="dark">`),
+everything else to `BodyChildren`, which stays nil without children. There
+are two exceptions. A `Component` is always a child, even one that also
+provides attributes. A `lang` attribute sets `Lang`, the language of the page
+on `<html>`, instead of going to `<body>`:
+`NewDocument("Seite", html.Lang("de"), content)` → `<html lang="de">`. Only a
+static value (`mx.Attribute`, `mx.ConstAttrib`, what `html.Lang` returns) can
+be moved; any other `lang`, and a second one, makes `Render` return an error.
+The document writes a `<head>` with a UTF-8 `<meta>`, the
 title, sorted meta tags, your stylesheets, and any inline style, then your body.
 
 Set `Lang` to put a `lang` attribute on the `<html>` root
