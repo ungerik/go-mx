@@ -200,11 +200,6 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 	if err != nil {
 		return err
 	}
-	bodyChildren := d.BodyChildren
-	if bodyChildren == nil {
-		// Nil Children would make <body> a void element without </body>.
-		bodyChildren = mx.Components{}
-	}
 	htmlOpen, err := d.htmlStartTag(ctx, w)
 	if err != nil {
 		return err
@@ -236,11 +231,12 @@ func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 		// Built directly rather than with Body(…), which would sort its
 		// arguments into attributes and children and so turn a BodyChildren
 		// that also converts to attributes (an mx.AttribProvider, a struct
-		// with attr tags) into attributes of <body>.
+		// with attr tags) into attributes of <body>. Children is never nil,
+		// which would make <body> a void element without </body>.
 		&mx.Element{
 			Name:     "body",
 			Attribs:  d.BodyAttribs,
-			Children: bodyChildren,
+			Children: append(mx.Components{}, d.BodyChildren...),
 		},
 		Raw("\n</html>"),
 	}.Render(ctx, w)
