@@ -111,16 +111,16 @@ func ValidLangTag(tag string) bool {
 }
 
 // NewDocument returns a Document with the given <title> whose body
-// arguments are sorted into BodyAttribs and BodyChildren as an element
-// constructor sorts its arguments, with two exceptions:
+// arguments are sorted into BodyAttribs and BodyChildren by
+// mx.AsAttribsOrComponent, as mx.NewElement sorts its arguments, with three
+// exceptions:
 //
 //   - An mx.Component is always a child, even one that also converts to
 //     attributes (an mx.AttribProvider, a struct with attr tags), as Render
-//     treats BodyChildren. Every other value mx.AsAttribs accepts goes to
-//     BodyAttribs, the rest to BodyChildren via mx.AsComponent, dropping a
-//     value it converts to nil. A nil argument, and a nil mx.Attrib among
-//     the attributes of one (also a typed nil, see mx.IsNilAttrib), is
-//     left out.
+//     treats BodyChildren.
+//   - A nil mx.Attrib among the attributes of an argument (also a typed
+//     nil, see mx.IsNilAttrib) is left out, as a nil argument is, rather
+//     than kept for Render to refuse.
 //   - A lang attribute, such as Lang("de"), sets Document.Lang, the
 //     language of the whole page on the <html> root, instead of <body>.
 //     NewDocument has no render context, so only the static value of an
@@ -141,47 +141,42 @@ func NewDocument(title string, body ...any) *Document {
 	langSet := false   // Document.Lang is set
 	langError := false // BodyAttribs holds a lang error
 	for _, b := range body {
-		if b == nil {
-			continue
-		}
 		if c, ok := b.(mx.Component); ok {
 			children = append(children, c)
 			continue
 		}
-		if attribs, ok := mx.AsAttribs(b); ok {
-			for _, a := range attribs {
-				if mx.IsNilAttrib(a) {
-					continue
-				}
-				// Special handling of lang attributes
-				if strings.EqualFold(a.AttribName(), "lang") {
-					switch a.(type) {
-					case mx.ErrAttrib:
-						// Keeps its own error.
-					case mx.Attribute, mx.ConstAttrib:
-						if !langSet {
-							// Their value ignores the context and never fails.
-							document.Lang, _ = a.AttribValue(context.Background())
-							langSet = true
-							continue
-						}
-						a = mx.ErrAttribf(a.AttribName(), "html.NewDocument got more than one lang attribute")
-					default:
-						a = mx.ErrAttribf(a.AttribName(), "html.NewDocument can move only an mx.Attribute or mx.ConstAttrib lang to Document.Lang, got %T: set Document.Lang instead", a)
-					}
-					if langError {
-						// Render reports the first lang error, not a duplicate.
+		attribs, child := mx.AsAttribsOrComponent(b)
+		if child != nil {
+			children = append(children, child)
+		}
+		for _, a := range attribs {
+			if mx.IsNilAttrib(a) {
+				continue
+			}
+			// Special handling of lang attributes
+			if strings.EqualFold(a.AttribName(), "lang") {
+				switch a.(type) {
+				case mx.ErrAttrib:
+					// Keeps its own error.
+				case mx.Attribute, mx.ConstAttrib:
+					if !langSet {
+						// Their value ignores the context and never fails.
+						document.Lang, _ = a.AttribValue(context.Background())
+						langSet = true
 						continue
 					}
-					langError = true
+					a = mx.ErrAttribf(a.AttribName(), "html.NewDocument got more than one lang attribute")
+				default:
+					a = mx.ErrAttribf(a.AttribName(), "html.NewDocument can move only an mx.Attribute or mx.ConstAttrib lang to Document.Lang, got %T: set Document.Lang instead", a)
 				}
-				document.BodyAttribs = append(document.BodyAttribs, a)
-				document.bodyAttribsFromArgs = true
+				if langError {
+					// Render reports the first lang error, not a duplicate.
+					continue
+				}
+				langError = true
 			}
-			continue
-		}
-		if c := mx.AsComponent(b); c != nil {
-			children = append(children, c)
+			document.BodyAttribs = append(document.BodyAttribs, a)
+			document.bodyAttribsFromArgs = true
 		}
 	}
 	if len(children) > 0 {

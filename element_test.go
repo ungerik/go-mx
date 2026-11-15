@@ -61,3 +61,41 @@ func TestNewElementDropsNilComponents(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+// TestAsAttribsOrComponent guards the per-argument sorting that NewElement
+// and html.NewDocument share: attributes when AsAttribs accepts the
+// argument (asked first, so a Component that is also an Attrib counts as
+// attributes), otherwise the AsComponent child, and neither for nil.
+func TestAsAttribsOrComponent(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		arg         any
+		wantAttribs int
+		wantChild   bool
+	}{
+		{"nil", nil, 0, false},
+		{"Attrib", NewAttrib("class", "a"), 1, false},
+		{"[]Attrib", []Attrib{NewAttrib("class", "a"), NewAttrib("id", "b")}, 2, false},
+		{"empty []Attrib", []Attrib{}, 0, false},
+		{"string", "text", 0, true},
+		{"Component", Text("text"), 0, true},
+		{"Component and Attrib", componentAttrib{}, 1, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			attribs, child := AsAttribsOrComponent(tt.arg)
+			if len(attribs) != tt.wantAttribs || (child != nil) != tt.wantChild {
+				t.Errorf("got %d attribs and child %v, want %d attribs and a child: %v", len(attribs), child, tt.wantAttribs, tt.wantChild)
+			}
+		})
+	}
+
+	t.Run("AsComponent converts to nil", func(t *testing.T) {
+		base := AsComponent
+		t.Cleanup(func() { AsComponent = base })
+		AsComponent = func(any) Component { return nil }
+		attribs, child := AsAttribsOrComponent("text")
+		if attribs != nil || child != nil {
+			t.Errorf("got %v and %v, want neither", attribs, child)
+		}
+	})
+}

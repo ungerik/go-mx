@@ -20,27 +20,44 @@ type Element struct {
 }
 
 // NewElement builds a regular (non-void) Element with the given name, sorting
-// the variadic attribsChildren into attributes and children: each argument that
-// [AsAttribs] recognizes as attributes is appended to Attribs, every other
-// non-nil argument is converted with [AsComponent] and appended to Children. Nil
-// arguments, and arguments AsComponent converts to nil, are ignored. The
-// returned element always has a non-nil (possibly empty) Children slice, so it
-// renders with a separate closing tag rather than as a void element.
+// the variadic attribsChildren into attributes and children with
+// [AsAttribsOrComponent]: each argument that [AsAttribs] recognizes as
+// attributes is appended to Attribs, every other non-nil argument is converted
+// with [AsComponent] and appended to Children. Nil arguments, and arguments
+// AsComponent converts to nil, are ignored. The returned element always has a
+// non-nil (possibly empty) Children slice, so it renders with a separate
+// closing tag rather than as a void element.
 func NewElement(name string, attribsChildren ...any) *Element {
 	e := &Element{Name: name, Children: []Component{}}
 	for _, ac := range attribsChildren {
-		if ac == nil {
-			continue
-		}
-		if attribs, ok := AsAttribs(ac); ok {
-			e.Attribs = append(e.Attribs, attribs...)
-			continue
-		}
-		if c := AsComponent(ac); c != nil {
-			e.Children = append(e.Children, c)
+		attribs, child := AsAttribsOrComponent(ac)
+		e.Attribs = append(e.Attribs, attribs...)
+		if child != nil {
+			e.Children = append(e.Children, child)
 		}
 	}
 	return e
+}
+
+// AsAttribsOrComponent sorts one argument of an attribsChildren constructor
+// such as [NewElement]: if [AsAttribs] recognizes arg as attributes, it
+// returns them and a nil child, otherwise it returns no attributes and arg
+// converted with [AsComponent]. A nil arg, and one AsComponent converts to
+// nil, returns neither, so the caller skips it. AsAttribs is asked first, so
+// a Component that also converts to attributes counts as attributes; a
+// constructor that wants it as a child checks for a Component before calling
+// AsAttribsOrComponent, as html.NewDocument does.
+//
+// Constructors that sort their arguments call it, so they all sort alike and
+// follow a reassigned AsAttribs or AsComponent.
+func AsAttribsOrComponent(arg any) (attribs []Attrib, child Component) {
+	if arg == nil {
+		return nil, nil
+	}
+	if attribs, ok := AsAttribs(arg); ok {
+		return attribs, nil
+	}
+	return nil, AsComponent(arg)
 }
 
 // NewVoidElement builds a void (self-closing) Element with the given name and
