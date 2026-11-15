@@ -144,26 +144,6 @@ review of the attributes-as-children change.
 **Priority:** P4
 **Depends on:** None
 
-### Attribute text bypasses the writer's text escaping
-
-**What:** Let the attributes `DefaultAsComponent` renders as children go
-through the `Writer`'s text escaping instead of `mx.Raw`.
-
-**Why:** `AttribStringContext` escapes name and value with the
-single-quote attribute escaper, and the result is written raw, so a writer
-with a different `TextEscaper` (or a text context with other rules) does not
-get its own escaping for this text. Escaping is meant to be the writer's job.
-
-**Context:** `component.go`, the attribute case of `DefaultAsComponent`;
-`attrib.go`, `formatEscapedAttrib`. Writing the unescaped `name='value'` as
-`Text` would escape once through the writer, but `AttribStringContext` would
-then need an unescaped variant. Found by the review of the
-attributes-as-children change.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
 ## html
 
 ### A misplaced `lang` in `NewDocument` fails after `<head>` is written
@@ -184,23 +164,6 @@ adversarial review of the `NewDocument` attributes change.
 
 **Effort:** S
 **Priority:** P3
-**Depends on:** None
-
-### Edge values of a `lang` argument to `NewDocument`
-
-**What:** Decide how `NewDocument` handles `Lang("")` (consumed silently
-and counted as the one allowed `lang`, so a later `Lang("de")` is an error),
-`ConstAttrib("lang")` (renders `<html lang="lang">`) and a `*mx.Attribute`
-lang (refused although its value is static).
-
-**Why:** Each is a plausible caller mistake that now renders something
-unexpected or refuses a valid value, without a clear error.
-
-**Context:** `html/document.go`, `NewDocument`'s lang branch. Found by the
-adversarial review of the `NewDocument` attributes change.
-
-**Effort:** S
-**Priority:** P4
 **Depends on:** None
 
 ### `NewDocument` repeats `NewElement`'s argument sorting
@@ -261,6 +224,45 @@ dead route code removed on 2026-11-01.
 **Depends on:** None
 
 ## Completed
+
+### Edge values of a `lang` argument to `NewDocument`
+
+**What:** Decide how `NewDocument` handles `Lang("")` (consumed silently
+and counted as the one allowed `lang`, so a later `Lang("de")` is an error),
+`ConstAttrib("lang")` (renders `<html lang="lang">`) and a `*mx.Attribute`
+lang (refused although its value is static).
+
+**Why:** Each is a plausible caller mistake that now renders something
+unexpected or refuses a valid value, without a clear error.
+
+**Context:** `html/document.go`, `NewDocument`'s lang branch. Found by the
+adversarial review of the `NewDocument` attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — decided won't fix: `ConstAttrib("lang")` keeps rendering `lang="lang"`, and `Lang("")` keeps being consumed as the one allowed `lang` (it also blocks a later one). A `*mx.Attribute` lang stays refused; `Document.Lang` is the way to set a computed language.
+
+### Attribute text bypasses the writer's text escaping
+
+**What:** Let the attributes `DefaultAsComponent` renders as children go
+through the `Writer`'s text escaping instead of `mx.Raw`.
+
+**Why:** `AttribStringContext` escapes name and value with the
+single-quote attribute escaper, and the result is written raw, so a writer
+with a different `TextEscaper` (or a text context with other rules) does not
+get its own escaping for this text. Escaping is meant to be the writer's job.
+
+**Context:** `component.go`, the attribute case of `DefaultAsComponent`;
+`attrib.go`, `formatEscapedAttrib`. Writing the unescaped `name='value'` as
+`Text` would escape once through the writer, but `AttribStringContext` would
+then need an unescaped variant. Found by the review of the
+attributes-as-children change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — decided won't fix: the `name='value'` text of attributes passed as a child stays escaped by `AttribStringContext` and written as `mx.Raw`, not through the writer's `TextEscaper`.
 
 ### A typed-nil pointer attribute panics
 
