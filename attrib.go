@@ -168,6 +168,10 @@ func ValidAttribName(name string) bool {
 // typed nil is a non-nil interface, so a == nil misses it, but calling its
 // AttribName or AttribValue usually panics. Code that skips or refuses a nil
 // Attrib checks with IsNilAttrib to treat a typed nil the same way.
+//
+// A nil map or slice does not count: an Attrib of such a type works when nil
+// (len, range and reads are defined), so it is a valid, possibly empty
+// attribute that must still render rather than be left out.
 func IsNilAttrib(a Attrib) bool {
 	if a == nil {
 		return true

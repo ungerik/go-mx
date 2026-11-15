@@ -27,9 +27,15 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 		return []Attrib{x}, true
 
 	case func() Attrib:
+		if x == nil {
+			return nil, true
+		}
 		return []Attrib{x()}, true
 
 	case func() Attribute:
+		if x == nil {
+			return nil, true
+		}
 		return []Attrib{x()}, true
 
 	case AttribProvider:
@@ -42,9 +48,15 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 		return toAttribSlice(x), true
 
 	case func() []Attrib:
+		if x == nil {
+			return nil, true
+		}
 		return x(), true
 
 	case func() []Attribute:
+		if x == nil {
+			return nil, true
+		}
 		return toAttribSlice(x()), true
 
 	case iter.Seq[Attrib]:
