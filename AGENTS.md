@@ -156,7 +156,11 @@ time, not checked at compile time.
   markup).
 
 **Attribute Conversion** (`DefaultAsAttribs` in `attribs.go`):
-- Single `Attrib`, slices, maps, structs with `attr` tags
+- Single `Attrib` or `Attribute`, slices, iterators and constructor funcs of
+  those, `AttribProvider`, maps, structs with `attr` tags. A nil func or
+  iterator, or a typed-nil `AttribProvider` (nil pointer or func), gives no
+  attributes instead of being called; a typed-nil `Attrib` is kept, for
+  `Element.Render` to refuse (`IsNilAttrib`).
 - `AsAttribsOrComponent` (`element.go`) sorts one `attribsChildren` argument
   into attributes or a child; `NewElement` and `html.NewDocument` share it,
   so a new constructor that sorts its arguments calls it too.
