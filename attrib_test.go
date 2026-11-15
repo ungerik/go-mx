@@ -57,9 +57,10 @@ func TestAttributeValidate(t *testing.T) {
 	}
 }
 
-// TestConstAttribString guards that a ConstAttrib formats like Attribute, so
-// one passed as a child by mistake renders as name='value' text through
-// DefaultAsComponent's fmt.Stringer case instead of its raw "name=value".
+// TestConstAttribString guards that a ConstAttrib formats like Attribute
+// wherever fmt prints it (%v, error messages), as name='value' instead of its
+// raw "name=value". Rendering one passed as a child is guarded by
+// TestDefaultAsComponentAttrib.
 func TestConstAttribString(t *testing.T) {
 	for _, tt := range []struct {
 		a    ConstAttrib

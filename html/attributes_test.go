@@ -75,9 +75,10 @@ func TestPopoverCommandAttribs(t *testing.T) {
 	)
 }
 
-// TestBoolAttribString guards that a BoolAttrib formats like mx.Attribute,
-// so one passed as a child by mistake renders as the same name='value' text
-// through mx.DefaultAsComponent's fmt.Stringer case instead of a pretty dump.
+// TestBoolAttribString guards that a BoolAttrib formats like mx.Attribute
+// wherever fmt prints it (%v, error messages), as name='value' instead of a
+// pretty dump, and that one passed as a child through mx.AsComponents
+// renders as the same escaped text as any other attribute.
 func TestBoolAttribString(t *testing.T) {
 	require.Equal(t, "hidden='hidden'", Hidden.String())
 
