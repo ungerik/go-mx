@@ -162,6 +162,25 @@ by the second /ship review of PR #48.
 **Priority:** P4
 **Depends on:** None
 
+### A reassigned `AsAttribs` is not asked about func children
+
+**What:** Document in the `AsAttribs` and `AsComponent` docs that
+`DefaultAsComponent` converts its six func signatures (`func(context.Context,
+Writer) error`, `func() Component`, …) before it asks `AsAttribs`, or ask
+`AsAttribs` first again.
+
+**Why:** A program-wide `AsAttribs` replacement that recognizes one of
+those func types is no longer consulted for it when the value is passed as
+a child. Nothing changes under the default `AsAttribs`, which accepts none
+of them, and nothing in the repo reassigns it.
+
+**Context:** `component.go`, the order of the func cases and the attribute
+case in `DefaultAsComponent`. Found by the pass-2 review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## html
 
 ### A misplaced `lang` in `NewDocument` fails after `<head>` is written
