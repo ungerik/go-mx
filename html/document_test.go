@@ -290,6 +290,30 @@ func TestNewDocumentSortsAttribs(t *testing.T) {
 			t.Errorf("want an empty <body class=\"dark\">\ngot: %s", got)
 		}
 	})
+
+	// A child the program-wide mx.AsComponent converts to nil is dropped,
+	// as NewElement drops it, so a body of only such children leaves
+	// BodyChildren nil and web.PageTypeRenderer still fills in the content.
+	// Value: protects=NewDocument dropping a nil AsComponent result; fails_when=the result is appended unconditionally and BodyChildren becomes a non-nil mx.Components{nil}; why_new=no test overrides AsComponent for NewDocument; seam=none; no_claim=AsComponents or NewElement filtering
+	t.Run("child AsComponent drops", func(t *testing.T) {
+		base := mx.AsComponent
+		t.Cleanup(func() { mx.AsComponent = base })
+		mx.AsComponent = func(c any) mx.Component {
+			if _, ok := c.(int); ok {
+				return nil
+			}
+			return base(c)
+		}
+
+		d := NewDocument("T", Class("dark"), 42)
+		if d.BodyChildren != nil {
+			t.Errorf("BodyChildren = %#v, want nil", d.BodyChildren)
+		}
+		got := renderDocument(t, d)
+		if !strings.Contains(got, `<body class="dark"></body>`) {
+			t.Errorf("want an empty <body class=\"dark\">\ngot: %s", got)
+		}
+	})
 }
 
 // ctxLangAttrib is a lang attribute whose value depends on the render
@@ -362,12 +386,48 @@ func TestNewDocumentLang(t *testing.T) {
 
 // TestNewDocumentAttribErrorHint guards that an error about BodyAttribs
 // tells a caller who only passed NewDocument arguments where the field
-// got its value.
+// got its value, and that an error about HTMLAttribs, which NewDocument
+// never fills, does not.
 func TestNewDocumentAttribErrorHint(t *testing.T) {
-	var b strings.Builder
-	err := NewDocument("T", []mx.Attrib{nil}).Render(context.Background(), mx.NewCheckedWriter(&b))
-	if err == nil || !strings.Contains(err.Error(), "NewDocument puts its attribute arguments there") {
-		t.Errorf("Render error = %v, want the NewDocument hint", err)
+	const hint = "NewDocument puts its attribute arguments there"
+	for _, tt := range []struct {
+		name string
+		args []any
+	}{
+		{"duplicate differing in case", []any{Class("a"), mx.NewAttrib("CLASS", "b")}},
+		{"invalid name", []any{mx.NewAttrib(`x"y`, "v")}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			err := NewDocument("T", tt.args...).Render(t.Context(), mx.NewCheckedWriter(&b))
+			if err == nil || !strings.Contains(err.Error(), hint) {
+				t.Errorf("Render error = %v, want the NewDocument hint", err)
+			}
+		})
+	}
+
+	t.Run("HTMLAttribs without hint", func(t *testing.T) {
+		d := NewDocument("T")
+		d.HTMLAttribs = []mx.Attrib{Class("a"), mx.NewAttrib("CLASS", "b")}
+		var b strings.Builder
+		err := d.Render(t.Context(), mx.NewCheckedWriter(&b))
+		if err == nil || strings.Contains(err.Error(), hint) {
+			t.Errorf("Render error = %v, want one without the NewDocument hint", err)
+		}
+	})
+}
+
+// TestNewDocumentSkipsNilAttrib guards that a nil mx.Attrib among the
+// attributes of a body argument is left out, as a nil argument is, rather
+// than kept in BodyAttribs where Render would refuse it.
+func TestNewDocumentSkipsNilAttrib(t *testing.T) {
+	d := NewDocument("T", []mx.Attrib{nil, Class("dark"), nil}, "text")
+	if len(d.BodyAttribs) != 1 {
+		t.Fatalf("BodyAttribs = %#v, want only the class", d.BodyAttribs)
+	}
+	got := renderDocument(t, d)
+	if !strings.Contains(got, `<body class="dark">text</body>`) {
+		t.Errorf("missing <body class=\"dark\">text</body>\ngot: %s", got)
 	}
 }
 

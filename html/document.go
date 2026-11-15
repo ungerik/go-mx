@@ -112,7 +112,8 @@ func ValidLangTag(tag string) bool {
 //     attributes (an mx.AttribProvider, a struct with attr tags), as Render
 //     treats BodyChildren. Every other value mx.AsAttribs accepts goes to
 //     BodyAttribs, the rest to BodyChildren via mx.AsComponent, dropping a
-//     value it converts to nil.
+//     value it converts to nil. A nil argument, and a nil mx.Attrib among
+//     the attributes of one, is left out.
 //   - A lang attribute, such as Lang("de"), sets Document.Lang, the
 //     language of the whole page on the <html> root, instead of <body>.
 //     NewDocument has no render context, so only the static value of an
@@ -138,7 +139,11 @@ func NewDocument(title string, body ...any) *Document {
 		}
 		if attribs, ok := mx.AsAttribs(b); ok {
 			for _, a := range attribs {
-				if a != nil && strings.EqualFold(a.AttribName(), "lang") {
+				if a == nil {
+					continue
+				}
+				// Special handling of lang attributes
+				if strings.EqualFold(a.AttribName(), "lang") {
 					switch a.(type) {
 					case mx.ErrAttrib:
 						// Keeps its own error.

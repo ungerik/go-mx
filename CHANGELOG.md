@@ -613,7 +613,8 @@ API is still free to change.
   `attr` tags) goes to `BodyAttribs`, the rest to `BodyChildren`. So
   `NewDocument("T", html.Class("dark"), content)` renders
   `<body class="dark">` instead of the escaped text `class='dark'` inside
-  the body. Two exceptions: a `Component` is always a child, even one that
+  the body. A nil `Attrib` among those attributes is left out, as a nil
+  argument is. Two exceptions: a `Component` is always a child, even one that
   also provides attributes, as `Render` treats `BodyChildren`; and a `lang`
   attribute such as `html.Lang("de")` sets `Document.Lang` on the `<html>`
   root, where the language of the page belongs. Only a static `lang`
