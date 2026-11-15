@@ -671,10 +671,13 @@ API is still free to change.
   panicking.
 - **`html.Document.Body` is renamed `BodyChildren`**, since it holds the
   children of `<body>`, not a `Body` element, and pairs with the new
-  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`. It is now
-  always rendered as those children, even when its value could also convert
-  to attributes (an `mx.AttribProvider`, a struct with `attr` tags), which
-  `Body(…)` used to turn into attributes of `<body>`.
+  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`, and its type
+  is `mx.Components` instead of `mx.Component` (wrap a single child as
+  `mx.Components{child}`). It is now always rendered as those children, even
+  when an element could also convert to attributes (an `mx.AttribProvider`,
+  a struct with `attr` tags), which `Body(…)` used to turn into attributes
+  of `<body>`. `web.PageTypeRenderer` renders `Page.Content` into a
+  document whose `BodyChildren` is nil or empty.
 - **The gallery's pages link to each other relatively**, naming the
   `index.html` files (`components/button/index.html`, `../../index.html`), so
   `cmd/shadcn-gallery -out` writes a site that works under any URL path and

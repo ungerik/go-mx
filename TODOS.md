@@ -338,7 +338,7 @@ the `html.Document` attributes change; predates it (the field was `Body`).
 **Effort:** S
 **Priority:** P4
 **Depends on:** None
-**Completed:** 2026-11-15 — fixed at the cause instead: `html.NewDocument` leaves `BodyChildren` nil when it gets no children (also when it gets only body attributes), so `PageTypeRenderer` fills in the content. An explicitly empty `mx.Components` (`NewDocument("T", mx.Components{})`, or a `Document` literal) is still non-nil and still hides the content.
+**Completed:** 2026-11-15 — fixed at the cause instead: `html.NewDocument` leaves `BodyChildren` nil when it gets no children (also when it gets only body attributes), so `PageTypeRenderer` fills in the content. `BodyChildren` is now an `mx.Components` slice, and `PageTypeRenderer` checks `len(doc.BodyChildren) > 0`, so an explicitly empty one no longer hides the content either.
 
 ### Core repeatable texts are English only
 

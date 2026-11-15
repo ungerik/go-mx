@@ -439,7 +439,7 @@ type Document struct {
     HeadCustom   mx.Component      // extra <head> content, last
 
     BodyAttribs  []mx.Attrib       // <body> attributes
-    BodyChildren mx.Component      // children of <body>, wrapped by Render
+    BodyChildren mx.Components     // children of <body>
 }
 ```
 
@@ -474,7 +474,7 @@ html.Document{
     Lang:         "en",
     HTMLAttribs:  []mx.Attrib{html.Class("no-js")},
     BodyAttribs:  []mx.Attrib{html.Class("home page-template"), html.ID("top")},
-    BodyChildren: content,
+    BodyChildren: mx.Components{content},
 }
 // <html lang="en" class="no-js"> … <body class="home page-template" id="top">
 ```
