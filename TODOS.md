@@ -144,6 +144,24 @@ review of the attributes-as-children change.
 **Priority:** P4
 **Depends on:** None
 
+### A typed-nil `AttribProvider` that handles a nil receiver is skipped
+
+**What:** Say in the `DefaultAsAttribs` docs that a typed-nil
+`AttribProvider` yields no attributes without its `Attribs` method being
+called, or call the method when it can handle a nil receiver.
+
+**Why:** A type whose `Attribs` returns defaults for a nil receiver used to
+get them; now it gets nothing, silently. No type in the repo does this.
+
+**Context:** `attribs.go`, the `AttribProvider` case (`isNilPointerOrFunc`).
+The `Value:` card of `TestDefaultAsAttribsNilFunc` in `attribs_test.go`
+still names only the nil funcs, not the iterator and provider rows. Found
+by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## html
 
 ### A misplaced `lang` in `NewDocument` fails after `<head>` is written
@@ -166,7 +184,56 @@ adversarial review of the `NewDocument` attributes change.
 **Priority:** P3
 **Depends on:** None
 
+### The `NewDocument` hint outlives a replaced `BodyAttribs`
+
+**What:** Add the "(NewDocument puts its attribute arguments there)" hint
+only for the entries `NewDocument` itself put into `BodyAttribs`.
+
+**Why:** `bodyAttribsFromArgs` stays set when a caller later replaces
+`BodyAttribs`, so an error about a name the caller added still blames
+`NewDocument`. This affects the error message only.
+
+**Context:** `html/document.go`, `Render` and `bodyAttribsFromArgs`; record
+the count `NewDocument` produced instead of a flag. Found by the second
+/ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### The custom `BoolAttrib` example in the how-to uses `hx-boost`
+
+**What:** Replace `html.BoolAttrib("hx-boost")` in `docs/html/how-to.md`
+with an attribute whose presence alone is its meaning, such as a `data-`
+flag.
+
+**Why:** htmx enables boosting only for `hx-boost="true"`, so markup copied
+from the example (`hx-boost="hx-boost"`) silently does nothing.
+
+**Context:** `docs/html/how-to.md`, the custom boolean attribute example.
+Found by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## web
+
+### A body of only nil entries hides the page content
+
+**What:** Let `PageTypeRenderer.RenderPage` treat a `BodyChildren` whose
+entries are all nil like an empty one.
+
+**Why:** A page renderer returning `mx.Components{x}` with a nil `x` (an
+unset optional part) counts as having a body, so `Page.Content` is skipped
+and the page renders an empty `<body>` without an error.
+
+**Context:** `web/pagetyperenderer.go`, the `len(doc.BodyChildren) > 0`
+check. Found by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
 
 ### HTML pages of a `GlobPageSource` have no title
 
