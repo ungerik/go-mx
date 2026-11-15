@@ -56,3 +56,44 @@ func TestAttributeValidate(t *testing.T) {
 		}
 	}
 }
+
+// TestConstAttribString guards that a ConstAttrib formats like Attribute, so
+// one passed as a child by mistake renders as name='value' text through
+// DefaultAsComponent's fmt.Stringer case instead of its raw "name=value".
+func TestConstAttribString(t *testing.T) {
+	for _, tt := range []struct {
+		a    ConstAttrib
+		want string
+	}{
+		{"type=text", "type='text'"},
+		{"title=it's", "title='it&apos;s'"},
+		{"data-x=a=b", "data-x='a=b'"},
+		{"hidden=", "hidden=''"},
+		{"hidden", "hidden='hidden'"},
+	} {
+		if got := tt.a.String(); got != tt.want {
+			t.Errorf("ConstAttrib(%q).String() = %q, want %q", string(tt.a), got, tt.want)
+		}
+	}
+}
+
+// TestConstAttribWithoutEquals guards that a ConstAttrib without '=' is both
+// name and value, as a BoolAttrib, instead of panicking, and renders so.
+func TestConstAttribWithoutEquals(t *testing.T) {
+	a := ConstAttrib("hidden")
+	if got := a.AttribName(); got != "hidden" {
+		t.Errorf("AttribName() = %q, want %q", got, "hidden")
+	}
+	value, err := a.AttribValue(t.Context())
+	if err != nil || value != "hidden" {
+		t.Errorf("AttribValue() = %q, %v, want %q, nil", value, err, "hidden")
+	}
+	var b strings.Builder
+	err = NewElement("div", a).Render(t.Context(), NewCheckedWriter(&b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := b.String(), `<div hidden="hidden"></div>`; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}

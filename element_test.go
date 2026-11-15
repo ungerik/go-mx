@@ -27,3 +27,25 @@ func TestElementAttribIndexNilAttrib(t *testing.T) {
 		t.Errorf("AttribIndex(id) = %d, want -1", i)
 	}
 }
+
+// TestNewElementDropsNilComponents guards that a child AsComponent converts
+// to nil is left out of Children, as AsComponents leaves it out, so an
+// AsComponent that filters unsupported types removes them entirely.
+func TestNewElementDropsNilComponents(t *testing.T) {
+	base := AsComponent
+	t.Cleanup(func() { AsComponent = base })
+	AsComponent = func(c any) Component {
+		if _, ok := c.(int); ok {
+			return nil
+		}
+		return base(c)
+	}
+
+	e := NewElement("p", "a", 42, "b")
+	if len(e.Children) != 2 {
+		t.Fatalf("Children = %#v, want the two strings only", e.Children)
+	}
+	if got, want := renderToString(t, e), "<p>ab</p>"; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}

@@ -23,9 +23,9 @@ type Element struct {
 // the variadic attribsChildren into attributes and children: each argument that
 // [AsAttribs] recognizes as attributes is appended to Attribs, every other
 // non-nil argument is converted with [AsComponent] and appended to Children. Nil
-// arguments are ignored. The returned element always has a non-nil (possibly
-// empty) Children slice, so it renders with a separate closing tag rather than
-// as a void element.
+// arguments, and arguments AsComponent converts to nil, are ignored. The
+// returned element always has a non-nil (possibly empty) Children slice, so it
+// renders with a separate closing tag rather than as a void element.
 func NewElement(name string, attribsChildren ...any) *Element {
 	e := &Element{Name: name, Children: []Component{}}
 	for _, ac := range attribsChildren {
@@ -36,7 +36,9 @@ func NewElement(name string, attribsChildren ...any) *Element {
 			e.Attribs = append(e.Attribs, attribs...)
 			continue
 		}
-		e.Children = append(e.Children, AsComponent(ac))
+		if c := AsComponent(ac); c != nil {
+			e.Children = append(e.Children, c)
+		}
 	}
 	return e
 }

@@ -77,19 +77,35 @@ func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 // ConstAttrib implements the Attrib interface
 // and holds the name and value
 // as a string with the format "name=value".
+// A string without '=' is both name and value,
+// as for a boolean attribute: ConstAttrib("hidden") is hidden="hidden".
 type ConstAttrib string
 
 var _ Attrib = ConstAttrib("")
 
-// AttribName returns the part of the "name=value" string before the first '='.
+// AttribName returns the part of the "name=value" string before the first '=',
+// or the whole string if it has no '='.
 func (a ConstAttrib) AttribName() string {
-	return string(a)[:strings.IndexByte(string(a), '=')]
+	name, _, _ := strings.Cut(string(a), "=")
+	return name
 }
 
-// AttribValue returns the part of the "name=value" string after the first '='
-// and a nil error; the value is static and does not depend on the context.
+// AttribValue returns the part of the "name=value" string after the first '=',
+// or the whole string if it has no '=', and a nil error;
+// the value is static and does not depend on the context.
 func (a ConstAttrib) AttribValue(context.Context) (string, error) {
-	return string(a)[strings.IndexByte(string(a), '=')+1:], nil
+	name, value, found := strings.Cut(string(a), "=")
+	if !found {
+		return name, nil
+	}
+	return value, nil
+}
+
+// String returns the attribute formatted as name='value' with the value
+// single-quote escaped, as produced by AttribString, like [Attribute.String]:
+// ConstAttrib("type=text").String() is "type='text'".
+func (a ConstAttrib) String() string {
+	return AttribString(a)
 }
 
 // Attribute is an Attrib holding a static name and value pair.

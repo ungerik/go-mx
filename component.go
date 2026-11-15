@@ -34,6 +34,7 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 //   - nil                        -> nil (renders nothing)
 //   - Component                  -> returned unchanged
+//   - Attrib                     -> Text of AttribString, name='value'
 //   - string                     -> Text (escaped on render)
 //   - the func(...) signatures
 //     in the switch below         -> wrapped as ComponentFunc
@@ -62,6 +63,16 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 // rendered as its escaped pretty representation rather than as markup, with no
 // compile-time error; convert such a child to a Component explicitly.
 //
+// The Attrib case catches an attribute passed as a child by mistake, where
+// children are converted without sorting attributes out first (AsComponents,
+// ModifyOnRender). Every Attrib renders as the same name='value' text,
+// whether or not it has a String method and whatever that returns (an enum
+// attribute type such as html.AutoCapitalize returns only its value), so the
+// mistake is visible on the page. AttribString computes the value without
+// the render context, and a failing value, as of an [ErrAttrib], is shown as
+// name='!ERROR: …'. A Component that is also an Attrib stays a Component.
+// See the [AsComponent] docs for dropping attributes instead.
+//
 // DefaultAsComponent is the default implementation of the package-level
 // [AsComponent] variable. Assign a different func to [AsComponent] to change
 // this behavior for the whole program — for example to panic on unexpected
@@ -73,6 +84,10 @@ func DefaultAsComponent(c any) Component {
 		return nil
 	case Component:
 		return c
+	case Attrib:
+		// An attribute passed as a child by mistake, see the function docs.
+		// Before error and fmt.Stringer, so every Attrib renders alike.
+		return Text(AttribString(c))
 	case string:
 		return Text(c)
 	case func(context.Context, Writer) error:

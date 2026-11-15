@@ -140,3 +140,46 @@ func checkReportedPanic(t *testing.T, rep *reports, value string) {
 		t.Errorf("reported %q, want the panic %q with its stack", texts, value)
 	}
 }
+
+// enumLikeAttrib is an Attrib whose String returns only its value, as the
+// go-enum generated attribute types do.
+type enumLikeAttrib string
+
+func (a enumLikeAttrib) AttribName() string                          { return "dir" }
+func (a enumLikeAttrib) AttribValue(context.Context) (string, error) { return string(a), nil }
+func (a enumLikeAttrib) String() string                              { return string(a) }
+
+// componentAttrib is both a Component and an Attrib.
+type componentAttrib struct{}
+
+func (componentAttrib) Render(ctx context.Context, w Writer) error {
+	return Text("content").Render(ctx, w)
+}
+func (componentAttrib) AttribName() string                          { return "class" }
+func (componentAttrib) AttribValue(context.Context) (string, error) { return "stray", nil }
+
+// TestDefaultAsComponentAttrib guards that every Attrib passed as a child
+// renders as the same escaped name='value' text, not depending on whether
+// its type has a String method or what that returns, and that a Component
+// which is also an Attrib stays a Component.
+func TestDefaultAsComponentAttrib(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		c    any
+		want string
+	}{
+		{"Attribute", NewAttrib("class", "x"), "class=&apos;x&apos;"},
+		{"ConstAttrib", ConstAttrib("type=text"), "type=&apos;text&apos;"},
+		{"String returns only the value", enumLikeAttrib("rtl"), "dir=&apos;rtl&apos;"},
+		{"no String method", UniqueID(), "id=&apos;"},
+		{"ErrAttrib", ErrAttribf("class", "bad class"), "class=&apos;!ERROR: bad class&apos;"},
+		{"Component and Attrib", componentAttrib{}, "content"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := renderToString(t, DefaultAsComponent(tt.c))
+			if !strings.HasPrefix(got, tt.want) {
+				t.Errorf("got %q, want prefix %q", got, tt.want)
+			}
+		})
+	}
+}
