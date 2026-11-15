@@ -265,3 +265,49 @@ func TestDefaultAsComponentAttribRender(t *testing.T) {
 		}
 	})
 }
+
+// TestDefaultAsComponentFuncs guards that every func signature
+// DefaultAsComponent documents renders as the component it produces, with
+// the render context, rather than as text. These cases come after the
+// attribute check, so a change to AsAttribs or to the order of the checks
+// that catches a func would turn the child into attribute text or a pretty
+// dump.
+// Value: protects=func children (six signatures) rendering through ComponentFunc after the AsAttribs check; fails_when=a case is lost or shadowed when the type switch is split around the attribute check; why_new=no test in the module renders five of the six func signatures; seam=none; no_claim=func() Attrib and the other attribute funcs, covered by TestDefaultAsComponentAttribShapes
+func TestDefaultAsComponentFuncs(t *testing.T) {
+	user := func(ctx context.Context) string {
+		value, _ := ctx.Value(ctxAttribKey{}).(string)
+		return value
+	}
+	for _, tt := range []struct {
+		name string
+		c    any
+		want string
+	}{
+		{"func(context.Context, Writer) error", func(ctx context.Context, w Writer) error {
+			return Text(user(ctx)).Render(ctx, w)
+		}, "ann"},
+		{"func(Writer) error", func(w Writer) error {
+			return Text("w").Render(t.Context(), w)
+		}, "w"},
+		{"func() Component", func() Component { return Text("c") }, "c"},
+		{"func() Components", func() Components { return Components{Text("a"), Text("b")} }, "ab"},
+		{"func(context.Context) Component", func(ctx context.Context) Component {
+			return Text(user(ctx))
+		}, "ann"},
+		{"func(context.Context) Components", func(ctx context.Context) Components {
+			return Components{Text(user(ctx)), Text("!")}
+		}, "ann!"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			ctx := context.WithValue(t.Context(), ctxAttribKey{}, "ann")
+			err := DefaultAsComponent(tt.c).Render(ctx, NewCheckedWriter(&b))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := b.String(); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
