@@ -368,6 +368,10 @@ func TestNewDocumentLang(t *testing.T) {
 		wantErr string
 	}{
 		{"second lang", []any{Lang("de"), Lang("en")}, "more than one lang"},
+		// Later lang attributes are left out, so Render reports the first
+		// lang error instead of a duplicate lang attribute.
+		{"third lang", []any{Lang("de"), Lang("en"), Lang("fr")}, "more than one lang"},
+		{"ErrAttrib before another lang", []any{Lang("de"), mx.ErrAttribf("lang", "bad lang"), Lang("en")}, "bad lang"},
 		{"context-dependent value", []any{ctxLangAttrib{}}, "set Document.Lang instead"},
 		{"ErrAttrib kept", []any{mx.ErrAttribf("lang", "bad lang")}, "bad lang"},
 	} {
@@ -402,6 +406,24 @@ func TestNewDocumentAttribErrorHint(t *testing.T) {
 			err := NewDocument("T", tt.args...).Render(t.Context(), mx.NewCheckedWriter(&b))
 			if err == nil || !strings.Contains(err.Error(), hint) {
 				t.Errorf("Render error = %v, want the NewDocument hint", err)
+			}
+		})
+	}
+
+	// A Document literal never went through NewDocument, and NewDocument
+	// leaves a nil Attrib out, so neither error may point at NewDocument.
+	for _, tt := range []struct {
+		name string
+		d    *Document
+	}{
+		{"literal", &Document{BodyAttribs: []mx.Attrib{Class("a"), mx.NewAttrib("CLASS", "b")}}},
+		{"nil entry", &Document{BodyAttribs: []mx.Attrib{nil}}},
+	} {
+		t.Run(tt.name+" without hint", func(t *testing.T) {
+			var b strings.Builder
+			err := tt.d.Render(t.Context(), mx.NewCheckedWriter(&b))
+			if err == nil || strings.Contains(err.Error(), hint) {
+				t.Errorf("Render error = %v, want one without the NewDocument hint", err)
 			}
 		})
 	}
