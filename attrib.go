@@ -168,29 +168,38 @@ func (a Attribute) Valid() bool {
 	return a.Validate() == nil
 }
 
-// AttribString formats an Attrib as name='value' with the value single-quote
-// escaped, evaluating AttribValue with a background context. If AttribValue
-// returns an error, the value is rendered as "!ERROR: " followed by the error
-// message. It is intended for debugging and String methods, not markup output.
+// AttribString formats an Attrib as name='value' with name and value
+// single-quote escaped, evaluating AttribValue with a background context. If
+// AttribValue returns an error, the value is rendered as "!ERROR: " followed
+// by the error message. It is intended for debugging and String methods, not
+// markup output.
 func AttribString(a Attrib) string {
 	value, err := a.AttribValue(context.Background())
 	if err != nil {
 		value = "!ERROR: " + err.Error()
 	}
-	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value))
+	return formatEscapedAttrib(a.AttribName(), value)
 }
 
 // AttribStringContext formats an Attrib as name='value' like [AttribString],
 // but evaluates AttribValue with ctx and returns its error instead of
-// formatting it into the value. The value is escaped for a single-quoted
-// attribute (&, <, ' and line breaks become character references), so the
-// result is also safe as text content and must not be escaped again.
+// formatting it into the value. Name and value are escaped for a
+// single-quoted attribute (&, <, ' and line breaks become character
+// references), so the result is also safe as text content, whatever the
+// name holds, and must not be escaped again.
 func AttribStringContext(ctx context.Context, a Attrib) (string, error) {
 	value, err := a.AttribValue(ctx)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value)), nil
+	return formatEscapedAttrib(a.AttribName(), value), nil
+}
+
+// formatEscapedAttrib returns name='value' with name and value escaped by
+// singleQuoteAttribEscaper. The name is escaped too because it is not
+// validated here: an invalid name must not inject markup either.
+func formatEscapedAttrib(name, value string) string {
+	return singleQuoteAttribEscaper.Replace(name) + "='" + singleQuoteAttribEscaper.Replace(value) + "'"
 }
 
 // ErrAttrib is an Attrib whose AttribValue always returns Err, deferring an

@@ -63,17 +63,20 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 // rendered as its escaped pretty representation rather than as markup, with no
 // compile-time error; convert such a child to a Component explicitly.
 //
-// The Attrib case catches an attribute passed as a child by mistake, where
+// The attribute case catches attributes passed as a child by mistake, where
 // children are converted without sorting attributes out first (AsComponents,
-// ModifyOnRender). Every Attrib renders as the same name='value' text,
-// whether or not it has a String method and whatever that returns (an enum
-// attribute type such as html.AutoCapitalize returns only its value), so the
-// mistake is visible on the page. [AttribStringContext] computes the value
-// when the child is rendered, with the render context, as for an attribute of
-// an element, and escapes it, so the text is written as is; a failing value,
-// as of an [ErrAttrib], aborts the render with its error instead of being
-// shown on the page. A Component that is also an Attrib stays a Component.
-// See the [AsComponent] docs for dropping attributes instead.
+// ModifyOnRender). Every value [AsAttribs] accepts (an Attrib, a []Attrib, an
+// [Attribs] map, an [AttribProvider], a struct with attr tags, …) renders as
+// its attributes' name='value' texts separated by spaces, whether or not it
+// has a String method and whatever that returns (an enum attribute type such
+// as html.AutoCapitalize returns only its value), so the mistake is visible on
+// the page. [AttribStringContext] computes each value when the child is
+// rendered, with the render context, as for an attribute of an element, and
+// escapes name and value, so the text is written as is; a failing value, as
+// of an [ErrAttrib], aborts the render with its error instead of being shown
+// on the page. A nil Attrib among them is left out. A Component that also
+// converts to attributes stays a Component. See the [AsComponent] docs for
+// dropping attributes instead.
 //
 // DefaultAsComponent is the default implementation of the package-level
 // [AsComponent] variable. Assign a different func to [AsComponent] to change
@@ -86,19 +89,33 @@ func DefaultAsComponent(c any) Component {
 		return nil
 	case Component:
 		return c
-	case Attrib:
-		// An attribute passed as a child by mistake, see the function docs.
-		// Before error and fmt.Stringer, so every Attrib renders alike.
-		return ComponentFunc(func(ctx context.Context, w Writer) error {
-			s, err := AttribStringContext(ctx, c)
-			if err != nil {
-				return err
-			}
-			// Already escaped by AttribStringContext.
-			return Raw(s).Render(ctx, w)
-		})
 	case string:
 		return Text(c)
+	}
+	// Attributes passed as a child by mistake, see the function docs.
+	// Before error and fmt.Stringer, so every attribute shape renders alike.
+	if attribs, ok := AsAttribs(c); ok {
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			sep := ""
+			for _, a := range attribs {
+				if a == nil {
+					continue
+				}
+				s, err := AttribStringContext(ctx, a)
+				if err != nil {
+					return err
+				}
+				// Already escaped by AttribStringContext.
+				err = Raw(sep + s).Render(ctx, w)
+				if err != nil {
+					return err
+				}
+				sep = " "
+			}
+			return nil
+		})
+	}
+	switch c := c.(type) {
 	case func(context.Context, Writer) error:
 		return ComponentFunc(c)
 	case func(Writer) error:

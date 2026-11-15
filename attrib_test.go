@@ -120,3 +120,19 @@ func TestAttribStringContext(t *testing.T) {
 		t.Errorf("got %q, %v, want \"\" and the ErrAttrib error", got, err)
 	}
 }
+
+// TestAttribStringEscapesName guards that AttribString and
+// AttribStringContext escape an invalid name as they escape the value, so
+// their result, documented as safe as text content, cannot inject markup
+// through the name.
+func TestAttribStringEscapesName(t *testing.T) {
+	a := NewAttrib("<img src=x onerror=alert(1)>", "v")
+	const want = "&lt;img src=x onerror=alert(1)>='v'"
+	if got := AttribString(a); got != want {
+		t.Errorf("AttribString = %q, want %q", got, want)
+	}
+	got, err := AttribStringContext(t.Context(), a)
+	if err != nil || got != want {
+		t.Errorf("AttribStringContext = %q, %v, want %q, nil", got, err, want)
+	}
+}

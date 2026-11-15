@@ -171,10 +171,10 @@ func (ctxAttrib) AttribValue(ctx context.Context) (string, error) {
 }
 
 // TestDefaultAsComponentAttrib guards that every Attrib passed as a child
-// renders as the same name='value' text as its String method, escaped once,
-// not
-// depending on whether its type has a String method or what that returns,
-// and that a Component which is also an Attrib stays a Component.
+// renders as name='value' text, escaped once, name included, not depending
+// on whether its type has a String method or what that returns (an enum
+// type's String returns only the value), and that a Component which is also
+// an Attrib stays a Component.
 func TestDefaultAsComponentAttrib(t *testing.T) {
 	for _, tt := range []struct {
 		name string
@@ -186,12 +186,49 @@ func TestDefaultAsComponentAttrib(t *testing.T) {
 		{"String returns only the value", enumLikeAttrib("rtl"), "dir='rtl'"},
 		{"no String method", UniqueID(), "id='"},
 		{"escaped once", ConstAttrib("title=it's <b>\na"), "title='it&apos;s &lt;b>&#10;a'"},
+		{"name escaped", NewAttrib("<img src=x onerror=alert(1)>", "v"), "&lt;img src=x onerror=alert(1)>='v'"},
 		{"Component and Attrib", componentAttrib{}, "content"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got := renderToString(t, DefaultAsComponent(tt.c))
 			if !strings.HasPrefix(got, tt.want) {
 				t.Errorf("got %q, want prefix %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestAsComponentsAttribNameNoInjection guards that an attribute whose name
+// holds markup, passed as a child through AsComponents, cannot inject that
+// markup: the name is escaped like the value.
+func TestAsComponentsAttribNameNoInjection(t *testing.T) {
+	got := renderToString(t, AsComponents(NewAttrib("<b>", "v")))
+	if want := "&lt;b>='v'"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestDefaultAsComponentAttribShapes guards that every attribute shape
+// AsAttribs accepts, not only a single Attrib, renders as the same escaped
+// name='value' text when passed as a child: a slice is not pretty-printed and
+// an Attribs map, whose String method escapes already, is not escaped twice.
+// A nil Attrib among them is left out.
+func TestDefaultAsComponentAttribShapes(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		c    any
+		want string
+	}{
+		{"[]Attrib", []Attrib{NewAttrib("title", "it's"), nil, NewAttrib("class", "x")}, "title='it&apos;s' class='x'"},
+		{"[]Attribute", []Attribute{{Name: "title", Value: "it's"}}, "title='it&apos;s'"},
+		{"Attribs map", Attribs{"title": "it's"}, "title='it&apos;s'"},
+		{"map[string]string", map[string]string{"title": "it's"}, "title='it&apos;s'"},
+		{"func() Attrib", func() Attrib { return NewAttrib("title", "it's") }, "title='it&apos;s'"},
+		{"empty slice", []Attrib{}, ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := renderToString(t, DefaultAsComponent(tt.c)); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
