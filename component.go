@@ -34,6 +34,7 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 //   - nil                        -> nil (renders nothing)
 //   - Component                  -> returned unchanged
+//   - Attrib                     -> AttribStringContext, name='value'
 //   - string                     -> Text (escaped on render)
 //   - the func(...) signatures
 //     in the switch below         -> wrapped as ComponentFunc
@@ -61,6 +62,16 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 // implement Component (a struct, a *T whose Component methods are on T, …) is
 // rendered as its escaped pretty representation rather than as markup, with no
 // compile-time error; convert such a child to a Component explicitly.
+//
+// The attribute case catches attributes passed as a child by mistake, where
+// children are converted without sorting attributes out first (AsComponents,
+// ModifyOnRender), and makes the mistake visible on the page: every value
+// [AsAttribs] accepts renders as its attributes' [AttribStringContext] texts
+// separated by spaces, whatever its String method returns, valued on render
+// with the render context. A failing value aborts the render with its error;
+// a nil Attrib ([IsNilAttrib]) is left out. A Component that also converts to
+// attributes stays a Component. See the [AsComponent] docs for dropping
+// attributes instead.
 //
 // DefaultAsComponent is the default implementation of the package-level
 // [AsComponent] variable. Assign a different func to [AsComponent] to change
@@ -97,6 +108,31 @@ func DefaultAsComponent(c any) Component {
 		return ComponentFunc(func(ctx context.Context, w Writer) error {
 			return c(ctx).Render(ctx, w)
 		})
+	}
+	// Attributes passed as a child by mistake, see the function docs.
+	// Before error and fmt.Stringer, so every attribute shape renders alike.
+	if attribs, ok := AsAttribs(c); ok {
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			sep := ""
+			for _, a := range attribs {
+				if IsNilAttrib(a) {
+					continue
+				}
+				s, err := AttribStringContext(ctx, a)
+				if err != nil {
+					return err
+				}
+				// Already escaped by AttribStringContext.
+				err = Raw(sep+s).Render(ctx, w)
+				if err != nil {
+					return err
+				}
+				sep = " "
+			}
+			return nil
+		})
+	}
+	switch c := c.(type) {
 	case error:
 		// Honor textual intent: error and fmt.Stringer render as their own
 		// text. fmt's verbs prefer error.Error over Stringer, so do the same.

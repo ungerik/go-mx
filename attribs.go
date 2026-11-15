@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // DefaultAsAttribs tries to convert an arbitrary value into a slice of
@@ -22,10 +23,21 @@ import (
 // DefaultAsAttribs is the default implementation of the package-level
 // [AsAttribs] variable, which may be reassigned to customize this.
 func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
-	switch x := maybeAttrib.(type) {
-	case Attrib:
+	if x, ok := maybeAttrib.(Attrib); ok {
+		// Kept even as a typed nil, for Element.Render to refuse.
 		return []Attrib{x}, true
+	}
+	switch maybeAttrib.(type) {
+	case func() Attrib, func() Attribute, func() []Attrib, func() []Attribute,
+		iter.Seq[Attrib], iter.Seq[Attribute], AttribProvider:
+		if isNilPointerOrFunc(maybeAttrib) {
+			// Calling it, or the Attribs method of a typed-nil
+			// AttribProvider, would usually panic.
+			return nil, true
+		}
+	}
 
+	switch x := maybeAttrib.(type) {
 	case func() Attrib:
 		return []Attrib{x()}, true
 
@@ -64,13 +76,40 @@ func DefaultAsAttribs(maybeAttrib any) (a []Attrib, ok bool) {
 	for v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
-	if v.Kind() == reflect.Struct {
+	if v.Kind() == reflect.Struct && hasAttrTags(v.Type()) {
 		if a := ReflectAttribs(v, "attr"); len(a) > 0 {
 			return a, true
 		}
 	}
 
 	return nil, false
+}
+
+// structTypeHasAttrTags caches hasAttrTags per struct type.
+var structTypeHasAttrTags sync.Map // reflect.Type -> bool
+
+// hasAttrTags reports whether ReflectAttribs can find an "attr" tagged field
+// in the struct type t, caching the answer per type, so that DefaultAsAttribs
+// skips ReflectAttribs, which allocates on every call, for the many structs
+// without such tags: errors, fmt.Stringers and other children that
+// DefaultAsComponent asks AsAttribs about first.
+func hasAttrTags(t reflect.Type) bool {
+	if has, ok := structTypeHasAttrTags.Load(t); ok {
+		return has.(bool)
+	}
+	has := false
+	for _, f := range reflect.VisibleFields(t) {
+		// The fields ReflectStructFields yields, see there.
+		if f.Anonymous || !f.IsExported() {
+			continue
+		}
+		if name := f.Tag.Get("attr"); name != "" && name != "-" {
+			has = true
+			break
+		}
+	}
+	structTypeHasAttrTags.Store(t, has)
+	return has
 }
 
 func toAttribSlice[T Attrib](attribs []T) []Attrib {

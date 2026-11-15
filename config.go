@@ -63,6 +63,24 @@ var (
 	//		}
 	//	}
 	//
+	// Or drop attributes passed where only children are expected:
+	// NewElement sorts attributes out before calling AsComponent, but
+	// AsComponents and ModifyOnRender do not, so the default renders them
+	// as text such as class='x'. Asking AsAttribs catches every attribute
+	// shape (an Attrib, a []Attrib, an Attribs map, an AttribProvider, …);
+	// a Component is kept even if it also provides attributes. AsComponents
+	// and NewElement drop a nil result:
+	//
+	//	base := mx.AsComponent
+	//	mx.AsComponent = func(c any) mx.Component {
+	//		if _, isComponent := c.(mx.Component); !isComponent {
+	//			if _, isAttribs := mx.AsAttribs(c); isAttribs {
+	//				return nil
+	//			}
+	//		}
+	//		return base(c)
+	//	}
+	//
 	// Other uses: wrap the default to log unexpected types, or replace the
 	// pretty representation with fmt.Sprint or a custom pretty.Printer.
 	AsComponent = DefaultAsComponent

@@ -16,6 +16,27 @@ API is still free to change.
 
 ### Added
 
+- **`mx.AsAttribsOrComponent(arg)`** sorts one argument of an
+  `attribsChildren ...any` constructor into attributes (what `mx.AsAttribs`
+  accepts) or a child (`mx.AsComponent`), returning neither for nil. It is
+  the sorting `mx.NewElement` and `html.NewDocument` share, so a custom
+  constructor sorts its arguments alike and follows a reassigned
+  `AsAttribs` or `AsComponent`.
+- **`mx.IsNilAttrib(a)`** reports whether an attribute is nil or a typed
+  nil (a nil pointer or func in a non-nil `Attrib` interface), which
+  `a == nil` misses and whose methods usually panic. `Element.Render`
+  refuses a typed nil with its "nil Attrib" error instead of panicking,
+  `Element.AttribIndex`, `html.NewDocument` and attributes passed as a child
+  leave it out, and `html.Document.Render` refuses one in `BodyAttribs` or
+  `HTMLAttribs` as it refuses a nil entry. A nil attribute func
+  (`func() Attrib`, `func() Attribute`, `func() []Attrib`,
+  `func() []Attribute`) or iterator (`iter.Seq[Attrib]`,
+  `iter.Seq[Attribute]`), and a typed-nil `AttribProvider`, likewise yields
+  no attributes in `mx.AsAttribs` instead of being called and panicking.
+- **`mx.AttribStringContext(ctx, a)`** formats an attribute as
+  `name='value'` like `mx.AttribString`, but values it with the given
+  context and returns a failing value's error instead of formatting it into
+  the text. Both escape the name as well as the value.
 - **`html.Document` puts attributes on `<html>` and `<body>`.** The new
   `HTMLAttribs` render after `lang` on the root (a `class="no-js"`, a data-
   attribute), the new `BodyAttribs` on `<body>` (the classes a vendored theme
@@ -607,12 +628,57 @@ API is still free to change.
 
 ### Changed
 
+- **`html.NewDocument` sorts attributes onto `<body>`.** Its body arguments
+  are sorted as `mx.NewElement` sorts those of any element: what
+  `mx.AsAttribs` accepts (an `Attrib`, an `Attribs` map, a struct with
+  `attr` tags) goes to `BodyAttribs`, the rest to `BodyChildren`. So
+  `NewDocument("T", html.Class("dark"), content)` renders
+  `<body class="dark">` instead of the escaped text `class='dark'` inside
+  the body. A nil `Attrib` among those attributes is left out, as a nil
+  argument is. Two exceptions: a `Component` is always a child, even one that
+  also provides attributes, as `Render` treats `BodyChildren`; and a `lang`
+  attribute such as `html.Lang("de")` sets `Document.Lang` on the `<html>`
+  root, where the language of the page belongs. Only a static `lang`
+  (`mx.Attribute`, `mx.ConstAttrib`) can be moved; another one, or a second
+  one, makes `Render` return an error instead of landing on `<body>`; of
+  several such `lang` attributes only the first error is reported.
+  Without children `BodyChildren` is now nil, so `web.PageTypeRenderer`
+  still renders `Page.Content` into a document from `NewDocument(title)` or
+  one given only body attributes. Errors about a name in `BodyAttribs` that
+  `NewDocument` filled mention that it put its arguments there.
+- **`mx.NewElement` drops children `AsComponent` converts to nil**, as
+  `mx.AsComponents` already did, so an `AsComponent` replacement can filter
+  values out by returning nil; the `AsComponent` docs show it for an
+  attribute passed as a child.
+- **Attributes passed as a child render as `name='value'` text.**
+  `mx.DefaultAsComponent` asks `mx.AsAttribs` before the `error` and
+  `fmt.Stringer` cases, so every attribute shape that reaches it through
+  `mx.AsComponents` or `mx.ModifyOnRender` (an `Attrib`, a `[]Attrib`, an
+  `Attribs` map, an `AttribProvider`, a struct with `attr` tags) renders
+  alike, as space-separated `name='value'` texts formatted by the new
+  `mx.AttribStringContext`, whatever the type's `String` method returns: an
+  enum attribute such as `html.AutoCapitalize` no longer as its bare value,
+  an `mx.UniqueID()` or a `[]Attrib` no longer as a pretty dump, and an
+  `Attribs` map no longer escaped twice. Each value is computed when the
+  child is rendered, with the render context, as for an attribute of an
+  element, so a failing value, as of an `mx.ErrAttrib`, makes `Render`
+  return its error instead of showing it on the page. Name and value are
+  escaped, a nil `Attrib` is left out, and a `Component` that also converts
+  to attributes stays a `Component`.
+- **`mx.ConstAttrib` and `html.BoolAttrib` implement `fmt.Stringer`** like
+  `mx.Attribute`, formatting as `name='value'`. A `ConstAttrib` without `=`
+  is now both name and value, as a boolean attribute
+  (`ConstAttrib("hidden")` renders `hidden="hidden"`), instead of
+  panicking.
 - **`html.Document.Body` is renamed `BodyChildren`**, since it holds the
   children of `<body>`, not a `Body` element, and pairs with the new
-  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`. It is now
-  always rendered as those children, even when its value could also convert
-  to attributes (an `mx.AttribProvider`, a struct with `attr` tags), which
-  `Body(…)` used to turn into attributes of `<body>`.
+  `BodyAttribs` as `Attribs` and `Children` do on `mx.Element`, and its type
+  is `mx.Components` instead of `mx.Component` (wrap a single child as
+  `mx.Components{child}`). It is now always rendered as those children, even
+  when an element could also convert to attributes (an `mx.AttribProvider`,
+  a struct with `attr` tags), which `Body(…)` used to turn into attributes
+  of `<body>`. `web.PageTypeRenderer` renders `Page.Content` into a
+  document whose `BodyChildren` is nil or empty.
 - **The gallery's pages link to each other relatively**, naming the
   `index.html` files (`components/button/index.html`, `../../index.html`), so
   `cmd/shadcn-gallery -out` writes a site that works under any URL path and

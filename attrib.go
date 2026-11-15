@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"unicode"
@@ -77,19 +78,35 @@ func PrependAttrib(name, value string, attribs []Attrib) []Attrib {
 // ConstAttrib implements the Attrib interface
 // and holds the name and value
 // as a string with the format "name=value".
+// A string without '=' is both name and value,
+// as for a boolean attribute: ConstAttrib("hidden") is hidden="hidden".
 type ConstAttrib string
 
 var _ Attrib = ConstAttrib("")
 
-// AttribName returns the part of the "name=value" string before the first '='.
+// AttribName returns the part of the "name=value" string before the first '=',
+// or the whole string if it has no '='.
 func (a ConstAttrib) AttribName() string {
-	return string(a)[:strings.IndexByte(string(a), '=')]
+	name, _, _ := strings.Cut(string(a), "=")
+	return name
 }
 
-// AttribValue returns the part of the "name=value" string after the first '='
-// and a nil error; the value is static and does not depend on the context.
+// AttribValue returns the part of the "name=value" string after the first '=',
+// or the whole string if it has no '=', and a nil error;
+// the value is static and does not depend on the context.
 func (a ConstAttrib) AttribValue(context.Context) (string, error) {
-	return string(a)[strings.IndexByte(string(a), '=')+1:], nil
+	name, value, found := strings.Cut(string(a), "=")
+	if !found {
+		return name, nil
+	}
+	return value, nil
+}
+
+// String returns the attribute formatted as name='value' with the value
+// single-quote escaped, as produced by AttribString, like [Attribute.String]:
+// ConstAttrib("type=text").String() is "type='text'".
+func (a ConstAttrib) String() string {
+	return AttribString(a)
 }
 
 // Attribute is an Attrib holding a static name and value pair.
@@ -147,21 +164,65 @@ func ValidAttribName(name string) bool {
 	return ValidateAttribName(name) == nil
 }
 
+// IsNilAttrib reports whether a is nil or holds a nil pointer or func. Such a
+// typed nil is a non-nil interface, so a == nil misses it, but calling its
+// AttribName or AttribValue usually panics. Code that skips or refuses a nil
+// Attrib checks with IsNilAttrib to treat a typed nil the same way.
+//
+// A nil map or slice does not count: an Attrib of such a type works when nil
+// (len, range and reads are defined), so it is a valid, possibly empty
+// attribute that must still render rather than be left out.
+func IsNilAttrib(a Attrib) bool {
+	return a == nil || isNilPointerOrFunc(a)
+}
+
+// isNilPointerOrFunc reports whether v holds a nil pointer or func,
+// see [IsNilAttrib].
+func isNilPointerOrFunc(v any) bool {
+	switch rv := reflect.ValueOf(v); rv.Kind() {
+	case reflect.Pointer, reflect.Func:
+		return rv.IsNil()
+	}
+	return false
+}
+
 // Valid reports whether Validate returns no error.
 func (a Attribute) Valid() bool {
 	return a.Validate() == nil
 }
 
-// AttribString formats an Attrib as name='value' with the value single-quote
-// escaped, evaluating AttribValue with a background context. If AttribValue
-// returns an error, the value is rendered as "!ERROR: " followed by the error
-// message. It is intended for debugging and String methods, not markup output.
+// AttribString formats an Attrib as name='value' with name and value
+// single-quote escaped, evaluating AttribValue with a background context. If
+// AttribValue returns an error, the value is rendered as "!ERROR: " followed
+// by the error message. It is intended for debugging and String methods, not
+// markup output.
 func AttribString(a Attrib) string {
 	value, err := a.AttribValue(context.Background())
 	if err != nil {
 		value = "!ERROR: " + err.Error()
 	}
-	return fmt.Sprintf("%s='%s'", a.AttribName(), singleQuoteAttribEscaper.Replace(value))
+	return formatEscapedAttrib(a.AttribName(), value)
+}
+
+// AttribStringContext formats an Attrib as name='value' like [AttribString],
+// but evaluates AttribValue with ctx and returns its error instead of
+// formatting it into the value. Name and value are escaped for a
+// single-quoted attribute (&, <, ' and line breaks become character
+// references), so the result is also safe as text content, whatever the
+// name holds, and must not be escaped again.
+func AttribStringContext(ctx context.Context, a Attrib) (string, error) {
+	value, err := a.AttribValue(ctx)
+	if err != nil {
+		return "", err
+	}
+	return formatEscapedAttrib(a.AttribName(), value), nil
+}
+
+// formatEscapedAttrib returns name='value' with name and value escaped by
+// singleQuoteAttribEscaper. The name is escaped too because it is not
+// validated here: an invalid name must not inject markup either.
+func formatEscapedAttrib(name, value string) string {
+	return singleQuoteAttribEscaper.Replace(name) + "='" + singleQuoteAttribEscaper.Replace(value) + "'"
 }
 
 // ErrAttrib is an Attrib whose AttribValue always returns Err, deferring an

@@ -74,6 +74,13 @@ func (a BoolAttrib) AttribValue(context.Context) (string, error) {
 	return string(a), nil
 }
 
+// String returns the attribute formatted as name='value', as produced by
+// mx.AttribString, like mx.Attribute.String: Hidden.String() is
+// "hidden='hidden'".
+func (a BoolAttrib) String() string {
+	return mx.AttribString(a)
+}
+
 // See https://github.com/jozo/all-html-elements-and-attributes
 // and https://html.spec.whatwg.org/multipage/indices.html#attributes-3
 

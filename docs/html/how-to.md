@@ -250,7 +250,7 @@ For a custom boolean attribute, declare a `BoolAttrib` constant:
 
 ```go
 const HxBoost = html.BoolAttrib("hx-boost")
-html.Div(HxBoost) // <div hx-boost></div>
+html.Div(HxBoost) // <div hx-boost="hx-boost"></div>
 ```
 
 (For htmx specifically, the [`hx`](https://pkg.go.dev/github.com/ungerik/go-mx/hx)

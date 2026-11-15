@@ -1,9 +1,12 @@
 package html
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ungerik/go-mx"
 )
 
 func TestGenericAttribs(t *testing.T) {
@@ -70,4 +73,17 @@ func TestPopoverCommandAttribs(t *testing.T) {
 		`<button command='--rotate' commandfor='img'>Rotate</button>`,
 		Button(Command("--rotate"), CommandFor("img"), "Rotate").String(),
 	)
+}
+
+// TestBoolAttribString guards that a BoolAttrib formats like mx.Attribute
+// wherever fmt prints it (%v, error messages), as name='value' instead of a
+// pretty dump, and that one passed as a child through mx.AsComponents
+// renders as the same escaped text as any other attribute.
+func TestBoolAttribString(t *testing.T) {
+	require.Equal(t, "hidden='hidden'", Hidden.String())
+
+	var b strings.Builder
+	err := mx.AsComponents(Class("x"), " ", Hidden).Render(t.Context(), mx.NewCheckedWriter(&b))
+	require.NoError(t, err)
+	require.Equal(t, "class='x' hidden='hidden'", b.String())
 }

@@ -73,26 +73,6 @@ byte loop. Check its cost on the render hot path; an allow-list writer
 **Priority:** P4
 **Depends on:** None
 
-### A `ConstAttrib` without `=` panics
-
-**What:** Make `ConstAttrib.AttribName` and `AttribValue` handle a string
-without `=` (for example `mx.ConstAttrib("hidden")`) instead of slicing at
-index -1.
-
-**Why:** `string(a)[:strings.IndexByte(string(a), '=')]` panics with
-`slice bounds out of range [:-1]`, so one malformed constant crashes the
-render of the whole page; `html.Document` reaches it before writing anything,
-through the `BodyAttribs`/`HTMLAttribs` name check.
-
-**Context:** `attrib.go`, `ConstAttrib`. Either treat the whole string as the
-name with an empty value (a boolean-style attribute) or return an empty name,
-which `mx.ValidateAttribName` then refuses with an error. Found by the
-adversarial review of the `html.Document` attributes change; predates it.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
 ### Attribute names: case, UTF-8 and the order of checks
 
 **What:** Four loose ends of the attribute-name check:
@@ -142,7 +122,137 @@ convert strings to every kind; reuse them rather than writing a third set.
 **Priority:** P3
 **Depends on:** None
 
+## mx components
+
+### A failing attribute passed as a child does not say where it was
+
+**What:** Wrap the error `DefaultAsComponent`'s `Attrib` case returns from
+`Render` with the attribute name and the fact that it was passed as a child,
+keeping the chain (`%w`) so `errors.Is` and `UserMessage` still work.
+
+**Why:** An `mx.ErrAttribf("autocapitalize", "invalid value %q", v)` passed
+to `ModifyOnRender` or `AsComponents` fails the whole page with only
+`invalid value "x"`, which reads like a bad attribute on a real element; the
+developer searches the element attributes instead of the misplaced child.
+
+**Context:** `component.go`, the `Attrib` case of `DefaultAsComponent`.
+`ErrAttribf` errors are plain stdlib errors on purpose (no call stack), so
+`fmt.Errorf` may fit better than `errs.Errorf`. Found by the adversarial
+review of the attributes-as-children change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A typed-nil `AttribProvider` that handles a nil receiver is skipped
+
+**What:** Say in the `DefaultAsAttribs` docs that a typed-nil
+`AttribProvider` yields no attributes without its `Attribs` method being
+called, or call the method when it can handle a nil receiver.
+
+**Why:** A type whose `Attribs` returns defaults for a nil receiver used to
+get them; now it gets nothing, silently. No type in the repo does this.
+
+**Context:** `attribs.go`, the `AttribProvider` case (`isNilPointerOrFunc`).
+The `Value:` card of `TestDefaultAsAttribsNilFunc` in `attribs_test.go`
+still names only the nil funcs, not the iterator and provider rows. Found
+by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### A reassigned `AsAttribs` is not asked about func children
+
+**What:** Document in the `AsAttribs` and `AsComponent` docs that
+`DefaultAsComponent` converts its six func signatures (`func(context.Context,
+Writer) error`, `func() Component`, …) before it asks `AsAttribs`, or ask
+`AsAttribs` first again.
+
+**Why:** A program-wide `AsAttribs` replacement that recognizes one of
+those func types is no longer consulted for it when the value is passed as
+a child. Nothing changes under the default `AsAttribs`, which accepts none
+of them, and nothing in the repo reassigns it.
+
+**Context:** `component.go`, the order of the func cases and the attribute
+case in `DefaultAsComponent`. Found by the pass-2 review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+## html
+
+### A misplaced `lang` in `NewDocument` fails after `<head>` is written
+
+**What:** Let `Document.Render` return the error of an `mx.ErrAttrib` in
+`BodyAttribs` (or `HTMLAttribs`) before it writes anything, as it does for a
+nil, invalid or duplicate name.
+
+**Why:** `NewDocument` turns a second or context-dependent `lang` into an
+`mx.ErrAttrib`, an error known when the document is built, but `Render`
+writes the doctype and the whole `<head>` before it fails at `<body>`. A
+caller rendering straight to a `ResponseWriter` sends a truncated 200 page;
+the go-mx handlers buffer and are not affected.
+
+**Context:** `html/document.go`, `checkAttribNames` and `NewDocument`.
+Documented today as the behavior of a failing value. Found by the
+adversarial review of the `NewDocument` attributes change.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### The `NewDocument` hint outlives a replaced `BodyAttribs`
+
+**What:** Add the "(NewDocument puts its attribute arguments there)" hint
+only for the entries `NewDocument` itself put into `BodyAttribs`.
+
+**Why:** `bodyAttribsFromArgs` stays set when a caller later replaces
+`BodyAttribs`, so an error about a name the caller added still blames
+`NewDocument`. This affects the error message only.
+
+**Context:** `html/document.go`, `Render` and `bodyAttribsFromArgs`; record
+the count `NewDocument` produced instead of a flag. Found by the second
+/ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### The custom `BoolAttrib` example in the how-to uses `hx-boost`
+
+**What:** Replace `html.BoolAttrib("hx-boost")` in `docs/html/how-to.md`
+with an attribute whose presence alone is its meaning, such as a `data-`
+flag.
+
+**Why:** htmx enables boosting only for `hx-boost="true"`, so markup copied
+from the example (`hx-boost="hx-boost"`) silently does nothing.
+
+**Context:** `docs/html/how-to.md`, the custom boolean attribute example.
+Found by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## web
+
+### A body of only nil entries hides the page content
+
+**What:** Let `PageTypeRenderer.RenderPage` treat a `BodyChildren` whose
+entries are all nil like an empty one.
+
+**Why:** A page renderer returning `mx.Components{x}` with a nil `x` (an
+unset optional part) counts as having a body, so `Page.Content` is skipped
+and the page renders an empty `<body>` without an error.
+
+**Context:** `web/pagetyperenderer.go`, the `len(doc.BodyChildren) > 0`
+check. Found by the second /ship review of PR #48.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
 
 ### HTML pages of a `GlobPageSource` have no title
 
@@ -159,22 +269,6 @@ head, or the file-name fallback the `.txt` case uses.
 
 **Effort:** S
 **Priority:** P3
-**Depends on:** None
-
-### An empty body from the page renderer hides the page's content
-
-**What:** Let `PageTypeRenderer.RenderPage` treat a `BodyChildren` that is an
-empty `mx.Components` like a nil one, so the content renderer still runs.
-
-**Why:** It checks `doc.BodyChildren != nil`; `html.NewDocument(title)` with no
-body arguments stores an empty `mx.Components`, a non-nil interface, so the
-page renders an empty `<body>` without an error and the `Page.Content` is lost.
-
-**Context:** `web/pagetyperenderer.go:40`. Found by the adversarial review of
-the `html.Document` attributes change; predates it (the field was `Body`).
-
-**Effort:** S
-**Priority:** P4
 **Depends on:** None
 
 ## doc
@@ -197,6 +291,140 @@ dead route code removed on 2026-11-01.
 **Depends on:** None
 
 ## Completed
+
+### `NewDocument` repeats `NewElement`'s argument sorting
+
+**What:** Share the sorting of `attribsChildren ...any` into attributes and
+children between `mx.NewElement` and `html.NewDocument`.
+
+**Why:** `NewDocument` re-implements the loop (nil skipped, `AsAttribs`,
+`AsComponent` with nil dropped) with two differences: a `Component` is
+checked before `AsAttribs`, and `lang` is moved to `<html>`. A later change
+to one loop can silently miss the other.
+
+**Context:** `element.go` `NewElement`, `html/document.go` `NewDocument`.
+A shared helper would need a hook for the `lang` handling and the
+`Component`-first order. Found by the review of the `NewDocument`
+attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — the new exported `mx.AsAttribsOrComponent` sorts one argument; `NewElement` is its loop, and `NewDocument` checks for a `Component` first and post-processes the attributes (nil skip, `lang`).
+
+### Edge values of a `lang` argument to `NewDocument`
+
+**What:** Decide how `NewDocument` handles `Lang("")` (consumed silently
+and counted as the one allowed `lang`, so a later `Lang("de")` is an error),
+`ConstAttrib("lang")` (renders `<html lang="lang">`) and a `*mx.Attribute`
+lang (refused although its value is static).
+
+**Why:** Each is a plausible caller mistake that now renders something
+unexpected or refuses a valid value, without a clear error.
+
+**Context:** `html/document.go`, `NewDocument`'s lang branch. Found by the
+adversarial review of the `NewDocument` attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — decided won't fix: `ConstAttrib("lang")` keeps rendering `lang="lang"`, and `Lang("")` keeps being consumed as the one allowed `lang` (it also blocks a later one). A `*mx.Attribute` lang stays refused; `Document.Lang` is the way to set a computed language.
+
+### Attribute text bypasses the writer's text escaping
+
+**What:** Let the attributes `DefaultAsComponent` renders as children go
+through the `Writer`'s text escaping instead of `mx.Raw`.
+
+**Why:** `AttribStringContext` escapes name and value with the
+single-quote attribute escaper, and the result is written raw, so a writer
+with a different `TextEscaper` (or a text context with other rules) does not
+get its own escaping for this text. Escaping is meant to be the writer's job.
+
+**Context:** `component.go`, the attribute case of `DefaultAsComponent`;
+`attrib.go`, `formatEscapedAttrib`. Writing the unescaped `name='value'` as
+`Text` would escape once through the writer, but `AttribStringContext` would
+then need an unescaped variant. Found by the review of the
+attributes-as-children change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — decided won't fix: the `name='value'` text of attributes passed as a child stays escaped by `AttribStringContext` and written as `mx.Raw`, not through the writer's `TextEscaper`.
+
+### A typed-nil pointer attribute panics
+
+**What:** Treat a typed-nil pointer `Attrib` (a `*T` with pointer receivers
+holding nil) like a nil `Attrib`, or report it as an error, in
+`html.NewDocument`, `DefaultAsComponent` and `Element.Render`.
+
+**Why:** `html.NewDocument(title, (*T)(nil))` calls `AttribName` while it
+builds the document and panics; `mx.AsComponents((*T)(nil))` and an element
+holding one panic when rendered. Handlers recover, direct callers do not.
+
+**Context:** `html/document.go` (`NewDocument`'s attribute loop),
+`component.go`, `element.go` (`Render`'s attribute loop). Needs a reflect
+nil-pointer check. Found by the adversarial review of the `NewDocument`
+attributes change; `Element.Render` predates it.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — the new `mx.IsNilAttrib` catches a nil interface and a typed nil pointer or func. `Element.Render` refuses one with its "nil Attrib" error, `Element.AttribIndex`, `NewDocument` and `DefaultAsComponent` leave it out, and `html.Document.Render` refuses one in `BodyAttribs`/`HTMLAttribs`.
+
+### The `NewDocument` hint also appears for `Document` literals
+
+**What:** Add the "(NewDocument puts its attribute arguments there)" hint
+only to errors about a document `NewDocument` built.
+
+**Why:** A caller who filled `BodyAttribs` in a `Document` literal gets a
+hint about a constructor they never called.
+
+**Context:** `html/document.go`, `newDocumentHint` in `Render`; needs a flag
+on the `Document` that `NewDocument` sets. Found by the adversarial review
+of the `NewDocument` attributes change.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — `Document` remembers in an unexported field that `NewDocument` filled `BodyAttribs`, and `Render` adds the hint only then, and never to a nil entry, which `NewDocument` leaves out.
+
+### A `ConstAttrib` without `=` panics
+
+**What:** Make `ConstAttrib.AttribName` and `AttribValue` handle a string
+without `=` (for example `mx.ConstAttrib("hidden")`) instead of slicing at
+index -1.
+
+**Why:** `string(a)[:strings.IndexByte(string(a), '=')]` panics with
+`slice bounds out of range [:-1]`, so one malformed constant crashes the
+render of the whole page; `html.Document` reaches it before writing anything,
+through the `BodyAttribs`/`HTMLAttribs` name check.
+
+**Context:** `attrib.go`, `ConstAttrib`. Either treat the whole string as the
+name with an empty value (a boolean-style attribute) or return an empty name,
+which `mx.ValidateAttribName` then refuses with an error. Found by the
+adversarial review of the `html.Document` attributes change; predates it.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+**Completed:** 2026-11-15 — a `ConstAttrib` without `=` is both name and value, as a boolean attribute: `ConstAttrib("hidden")` renders `hidden="hidden"`. A non-boolean one missing its value (`ConstAttrib("data-id")`) therefore renders `data-id="data-id"` instead of failing; the adversarial review noted this, and it was kept deliberately.
+
+### An empty body from the page renderer hides the page's content
+
+**What:** Let `PageTypeRenderer.RenderPage` treat a `BodyChildren` that is an
+empty `mx.Components` like a nil one, so the content renderer still runs.
+
+**Why:** It checks `doc.BodyChildren != nil`; `html.NewDocument(title)` with no
+body arguments stores an empty `mx.Components`, a non-nil interface, so the
+page renders an empty `<body>` without an error and the `Page.Content` is lost.
+
+**Context:** `web/pagetyperenderer.go:40`. Found by the adversarial review of
+the `html.Document` attributes change; predates it (the field was `Body`).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — fixed at the cause instead: `html.NewDocument` leaves `BodyChildren` nil when it gets no children (also when it gets only body attributes), so `PageTypeRenderer` fills in the content. `BodyChildren` is now an `mx.Components` slice, and `PageTypeRenderer` checks `len(doc.BodyChildren) > 0`, so an explicitly empty one no longer hides the content either.
 
 ### Core repeatable texts are English only
 

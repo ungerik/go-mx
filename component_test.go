@@ -140,3 +140,145 @@ func checkReportedPanic(t *testing.T, rep *reports, value string) {
 		t.Errorf("reported %q, want the panic %q with its stack", texts, value)
 	}
 }
+
+// enumLikeAttrib is an Attrib whose String returns only its value, as the
+// go-enum generated attribute types do.
+type enumLikeAttrib string
+
+func (a enumLikeAttrib) AttribName() string                          { return "dir" }
+func (a enumLikeAttrib) AttribValue(context.Context) (string, error) { return string(a), nil }
+func (a enumLikeAttrib) String() string                              { return string(a) }
+
+// componentAttrib is both a Component and an Attrib.
+type componentAttrib struct{}
+
+func (componentAttrib) Render(ctx context.Context, w Writer) error {
+	return Text("content").Render(ctx, w)
+}
+func (componentAttrib) AttribName() string                          { return "class" }
+func (componentAttrib) AttribValue(context.Context) (string, error) { return "stray", nil }
+
+// ctxAttribKey is the context key ctxAttrib reads its value from.
+type ctxAttribKey struct{}
+
+// ctxAttrib is an Attrib whose value comes from the render context.
+type ctxAttrib struct{}
+
+func (ctxAttrib) AttribName() string { return "data-user" }
+func (ctxAttrib) AttribValue(ctx context.Context) (string, error) {
+	value, _ := ctx.Value(ctxAttribKey{}).(string)
+	return value, nil
+}
+
+// TestDefaultAsComponentAttrib guards that every attribute shape AsAttribs
+// accepts renders as name='value' text when passed as a child, escaped once,
+// name included, not depending on whether its type has a String method or
+// what that returns (an enum type's String returns only the value): a slice
+// is not pretty-printed and an Attribs map, whose String method escapes
+// already, is not escaped twice. A nil Attrib among them, also a typed nil,
+// is left out, and a Component which is also an Attrib stays a Component.
+func TestDefaultAsComponentAttrib(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		c    any
+		want string
+	}{
+		{"Attribute", NewAttrib("class", "x"), "class='x'"},
+		{"ConstAttrib", ConstAttrib("type=text"), "type='text'"},
+		{"String returns only the value", enumLikeAttrib("rtl"), "dir='rtl'"},
+		{"no String method", &ptrAttrib{"title", "x"}, "title='x'"},
+		{"escaped once", ConstAttrib("title=it's <b>\na"), "title='it&apos;s &lt;b>&#10;a'"},
+		{"name escaped", NewAttrib("<img src=x onerror=alert(1)>", "v"), "&lt;img src=x onerror=alert(1)>='v'"},
+		{"Component and Attrib", componentAttrib{}, "content"},
+		{"[]Attrib", []Attrib{NewAttrib("title", "it's"), nil, NewAttrib("class", "x")}, "title='it&apos;s' class='x'"},
+		{"[]Attribute", []Attribute{{Name: "title", Value: "it's"}}, "title='it&apos;s'"},
+		{"Attribs map", Attribs{"title": "it's"}, "title='it&apos;s'"},
+		{"map[string]string", map[string]string{"title": "it's"}, "title='it&apos;s'"},
+		{"func() Attrib", func() Attrib { return NewAttrib("title", "it's") }, "title='it&apos;s'"},
+		{"empty slice", []Attrib{}, ""},
+		// A typed nil would panic in AttribName, so it is left out as nil is.
+		{"typed nil pointer", (*ptrAttrib)(nil), ""},
+		{"typed nils in a slice", []Attrib{(*ptrAttrib)(nil), NewAttrib("class", "x"), funcAttrib(nil)}, "class='x'"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := renderToString(t, DefaultAsComponent(tt.c)); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDefaultAsComponentAttribRender guards that an Attrib passed as a child
+// is valued when it is rendered, as an attribute of an element is: with the
+// render context, and with a failing value aborting the render with its
+// error instead of being shown on the page.
+func TestDefaultAsComponentAttribRender(t *testing.T) {
+	t.Run("render context", func(t *testing.T) {
+		var b strings.Builder
+		ctx := context.WithValue(t.Context(), ctxAttribKey{}, "ann")
+		err := DefaultAsComponent(ctxAttrib{}).Render(ctx, NewCheckedWriter(&b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := b.String(), "data-user='ann'"; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("failing value", func(t *testing.T) {
+		var b strings.Builder
+		err := AsComponents("a", ErrAttribf("class", "bad class")).Render(t.Context(), NewCheckedWriter(&b))
+		if err == nil || !strings.Contains(err.Error(), "bad class") {
+			t.Fatalf("Render error = %v, want the ErrAttrib error", err)
+		}
+		if strings.Contains(b.String(), "bad class") {
+			t.Errorf("error text reached the page: %q", b.String())
+		}
+	})
+}
+
+// TestDefaultAsComponentFuncs guards that every func signature
+// DefaultAsComponent documents renders as the component it produces, with
+// the render context, rather than as text. These cases come after the
+// attribute check, so a change to AsAttribs or to the order of the checks
+// that catches a func would turn the child into attribute text or a pretty
+// dump.
+// Value: protects=func children (six signatures) rendering through ComponentFunc after the AsAttribs check; fails_when=a case is lost or shadowed when the type switch is split around the attribute check; why_new=no test in the module renders five of the six func signatures; seam=none; no_claim=func() Attrib and the other attribute funcs, covered by TestDefaultAsComponentAttribShapes
+func TestDefaultAsComponentFuncs(t *testing.T) {
+	user := func(ctx context.Context) string {
+		value, _ := ctx.Value(ctxAttribKey{}).(string)
+		return value
+	}
+	for _, tt := range []struct {
+		name string
+		c    any
+		want string
+	}{
+		{"func(context.Context, Writer) error", func(ctx context.Context, w Writer) error {
+			return Text(user(ctx)).Render(ctx, w)
+		}, "ann"},
+		{"func(Writer) error", func(w Writer) error {
+			return Text("w").Render(t.Context(), w)
+		}, "w"},
+		{"func() Component", func() Component { return Text("c") }, "c"},
+		{"func() Components", func() Components { return Components{Text("a"), Text("b")} }, "ab"},
+		{"func(context.Context) Component", func(ctx context.Context) Component {
+			return Text(user(ctx))
+		}, "ann"},
+		{"func(context.Context) Components", func(ctx context.Context) Components {
+			return Components{Text(user(ctx)), Text("!")}
+		}, "ann!"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			ctx := context.WithValue(t.Context(), ctxAttribKey{}, "ann")
+			err := DefaultAsComponent(tt.c).Render(ctx, NewCheckedWriter(&b))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := b.String(); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

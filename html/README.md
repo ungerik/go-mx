@@ -72,7 +72,7 @@ type (
     Text     = mx.Text     // escaped text node
     Raw      = mx.Raw      // pre-trusted, unescaped HTML
     RawBytes = mx.RawBytes // pre-trusted, unescaped bytes
-    Attribs  = mx.Attribs  // []Attrib helper
+    Attribs  = mx.Attribs  // map of attribute name to value
 )
 ```
 
@@ -176,9 +176,19 @@ Children are passed as `...any` and converted at render-build time by `mx`'s
 | `nil`                    | nothing                                   |
 | `string`                 | escaped `Text`                            |
 | `mx.Component`           | itself (passes through)                   |
+| attributes (`mx.Attrib`, `[]mx.Attrib`, `mx.Attribs`, …) | escaped text `name='value'`, space-separated |
 | a function               | wrapped as a `ComponentFunc`              |
 | `error` / `fmt.Stringer` | escaped text of `Error()` / `String()`    |
 | anything else            | go-pretty representation, escaped as text |
+
+Element constructors and `NewDocument` sort attributes out before converting
+children, so attributes reach this conversion only where children are
+converted directly, as by `mx.AsComponents` or `mx.ModifyOnRender`. Every shape
+`mx.AsAttribs` accepts renders this way, formatted by `mx.AttribStringContext`
+with name and value escaped and a nil `mx.Attrib` left out. Each value is
+computed on render with the render context, as for an attribute of an element,
+so a failing value makes `Render` return its error. A `Component` that also
+converts to attributes stays a `Component`.
 
 Non-`Component` values fall through to the last row: rendered with
 [go-pretty](https://github.com/domonda/go-pretty) as a compact, single-line form
@@ -429,12 +439,22 @@ type Document struct {
     HeadCustom   mx.Component      // extra <head> content, last
 
     BodyAttribs  []mx.Attrib       // <body> attributes
-    BodyChildren mx.Component      // children of <body>, wrapped by Render
+    BodyChildren mx.Components     // children of <body>
 }
 ```
 
-`NewDocument(title, body...)` is the quick constructor; it converts the body
-args with `mx.AsComponents`. It writes a `<head>` with a UTF-8 `<meta>`, the
+`NewDocument(title, body...)` is the quick constructor. It sorts the body
+args like an element constructor does: attributes go to `BodyAttribs`
+(`NewDocument("T", html.Class("dark"), content)` → `<body class="dark">`),
+everything else to `BodyChildren`, which stays nil without children. There
+are two exceptions. A `Component` is always a child, even one that also
+provides attributes. A `lang` attribute sets `Lang`, the language of the page
+on `<html>`, instead of going to `<body>`:
+`NewDocument("Seite", html.Lang("de"), content)` → `<html lang="de">`. Only a
+static value (`mx.Attribute`, `mx.ConstAttrib`, what `html.Lang` returns) can
+be moved; any other `lang`, and a second one, makes `Render` return an error.
+A nil argument, and a nil `mx.Attrib` inside an attribute slice (also a typed nil, see `mx.IsNilAttrib`), is skipped.
+The document writes a `<head>` with a UTF-8 `<meta>`, the
 title, sorted meta tags, your stylesheets, and any inline style, then your body.
 
 Set `Lang` to put a `lang` attribute on the `<html>` root
@@ -454,7 +474,7 @@ html.Document{
     Lang:         "en",
     HTMLAttribs:  []mx.Attrib{html.Class("no-js")},
     BodyAttribs:  []mx.Attrib{html.Class("home page-template"), html.ID("top")},
-    BodyChildren: content,
+    BodyChildren: mx.Components{content},
 }
 // <html lang="en" class="no-js"> … <body class="home page-template" id="top">
 ```
