@@ -123,6 +123,11 @@ time, not checked at compile time.
 - `nil` → nil (renders nothing)
 - `string` → `Text` (escaped)
 - `Component` → passes through
+- `Attrib` → `Text` of `name='value'`, valued on render with the render
+  context, so a failing value makes `Render` return its error. Element
+  constructors sort attributes out first, so this case catches an attribute
+  passed where children are converted directly (`AsComponents`,
+  `ModifyOnRender`). A `Component` that is also an `Attrib` stays a `Component`.
 - Functions → wrapped as `ComponentFunc`
 - `error` / `fmt.Stringer` → `Text` of `Error()` / `String()`
 - anything else → `Text(pretty.Sprint(value))` using
@@ -140,7 +145,8 @@ time, not checked at compile time.
   compile error; convert non-obvious children to a `Component` explicitly.
   The package-level `AsComponent` var (`config.go`) can be reassigned to
   change this behavior program-wide (e.g. panic/log on unexpected types, or
-  use `fmt.Sprint`). The `pdf` package mirrors all of this — same `error`/
+  use `fmt.Sprint`). The `pdf` package mirrors all of this except the
+  `Attrib` case — same `error`/
   `fmt.Stringer`/`pretty.Sprint` cases and a reassignable `pdf.AsComponent`
   var (`pdf/config.go`) — except there is no escaping step (a PDF is not
   markup).

@@ -176,9 +176,17 @@ Children are passed as `...any` and converted at render-build time by `mx`'s
 | `nil`                    | nothing                                   |
 | `string`                 | escaped `Text`                            |
 | `mx.Component`           | itself (passes through)                   |
+| an `mx.Attrib`           | escaped text `name='value'`               |
 | a function               | wrapped as a `ComponentFunc`              |
 | `error` / `fmt.Stringer` | escaped text of `Error()` / `String()`    |
 | anything else            | go-pretty representation, escaped as text |
+
+Element constructors and `NewDocument` sort attributes out before converting
+children, so an `mx.Attrib` reaches this conversion only where children are
+converted directly, as by `mx.AsComponents` or `mx.ModifyOnRender`. Its value is
+computed on render with the render context, as for an attribute of an element,
+so a failing value makes `Render` return its error. A `Component` that is also
+an `Attrib` stays a `Component`.
 
 Non-`Component` values fall through to the last row: rendered with
 [go-pretty](https://github.com/domonda/go-pretty) as a compact, single-line form
