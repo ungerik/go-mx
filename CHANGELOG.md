@@ -16,6 +16,13 @@ API is still free to change.
 
 ### Added
 
+- **`mx.IsNilAttrib(a)`** reports whether an attribute is nil or a typed
+  nil (a nil pointer or func in a non-nil `Attrib` interface), which
+  `a == nil` misses and whose methods usually panic. `Element.Render`
+  refuses a typed nil with its "nil Attrib" error instead of panicking,
+  `Element.AttribIndex`, `html.NewDocument` and attributes passed as a child
+  leave it out, and `html.Document.Render` refuses one in `BodyAttribs` or
+  `HTMLAttribs` as it refuses a nil entry.
 - **`mx.AttribStringContext(ctx, a)`** formats an attribute as
   `name='value'` like `mx.AttribString`, but values it with the given
   context and returns a failing value's error instead of formatting it into

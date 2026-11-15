@@ -144,25 +144,6 @@ review of the attributes-as-children change.
 **Priority:** P4
 **Depends on:** None
 
-### A typed-nil pointer attribute panics
-
-**What:** Treat a typed-nil pointer `Attrib` (a `*T` with pointer receivers
-holding nil) like a nil `Attrib`, or report it as an error, in
-`html.NewDocument`, `DefaultAsComponent` and `Element.Render`.
-
-**Why:** `html.NewDocument(title, (*T)(nil))` calls `AttribName` while it
-builds the document and panics; `mx.AsComponents((*T)(nil))` and an element
-holding one panic when rendered. Handlers recover, direct callers do not.
-
-**Context:** `html/document.go` (`NewDocument`'s attribute loop),
-`component.go`, `element.go` (`Render`'s attribute loop). Needs a reflect
-nil-pointer check. Found by the adversarial review of the `NewDocument`
-attributes change; `Element.Render` predates it.
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
 ### Attribute text bypasses the writer's text escaping
 
 **What:** Let the attributes `DefaultAsComponent` renders as children go
@@ -280,6 +261,26 @@ dead route code removed on 2026-11-01.
 **Depends on:** None
 
 ## Completed
+
+### A typed-nil pointer attribute panics
+
+**What:** Treat a typed-nil pointer `Attrib` (a `*T` with pointer receivers
+holding nil) like a nil `Attrib`, or report it as an error, in
+`html.NewDocument`, `DefaultAsComponent` and `Element.Render`.
+
+**Why:** `html.NewDocument(title, (*T)(nil))` calls `AttribName` while it
+builds the document and panics; `mx.AsComponents((*T)(nil))` and an element
+holding one panic when rendered. Handlers recover, direct callers do not.
+
+**Context:** `html/document.go` (`NewDocument`'s attribute loop),
+`component.go`, `element.go` (`Render`'s attribute loop). Needs a reflect
+nil-pointer check. Found by the adversarial review of the `NewDocument`
+attributes change; `Element.Render` predates it.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-15 — the new `mx.IsNilAttrib` catches a nil interface and a typed nil pointer or func. `Element.Render` refuses one with its "nil Attrib" error, `Element.AttribIndex`, `NewDocument` and `DefaultAsComponent` leave it out, and `html.Document.Render` refuses one in `BodyAttribs`/`HTMLAttribs`.
 
 ### The `NewDocument` hint also appears for `Document` literals
 

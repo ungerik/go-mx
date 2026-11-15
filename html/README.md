@@ -453,7 +453,7 @@ on `<html>`, instead of going to `<body>`:
 `NewDocument("Seite", html.Lang("de"), content)` → `<html lang="de">`. Only a
 static value (`mx.Attribute`, `mx.ConstAttrib`, what `html.Lang` returns) can
 be moved; any other `lang`, and a second one, makes `Render` return an error.
-A nil argument, and a nil `mx.Attrib` inside an attribute slice, is skipped.
+A nil argument, and a nil `mx.Attrib` inside an attribute slice (also a typed nil, see `mx.IsNilAttrib`), is skipped.
 The document writes a `<head>` with a UTF-8 `<meta>`, the
 title, sorted meta tags, your stylesheets, and any inline style, then your body.
 
