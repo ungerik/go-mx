@@ -176,9 +176,8 @@ func IsNilAttrib(a Attrib) bool {
 	return a == nil || isNilPointerOrFunc(a)
 }
 
-// isNilPointerOrFunc reports whether v holds a nil pointer or func, the
-// typed nils whose methods usually panic; see [IsNilAttrib] for why a nil
-// map or slice does not count.
+// isNilPointerOrFunc reports whether v holds a nil pointer or func,
+// see [IsNilAttrib].
 func isNilPointerOrFunc(v any) bool {
 	switch rv := reflect.ValueOf(v); rv.Kind() {
 	case reflect.Pointer, reflect.Func:

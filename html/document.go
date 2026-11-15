@@ -133,21 +133,19 @@ func ValidLangTag(tag string) bool {
 //     duplicate instead of their error.
 //
 // Pass the attributes first, then the children. Without children
-// BodyChildren is nil, as for a Document literal, so a renderer that
-// fills in a missing body (web.PageTypeRenderer) still does.
+// BodyChildren is nil, as for a Document literal.
 func NewDocument(title string, body ...any) *Document {
 	document := &Document{Title: title}
-	children := make(mx.Components, 0, len(body))
 	langSet := false   // Document.Lang is set
 	langError := false // BodyAttribs holds a lang error
 	for _, b := range body {
 		if c, ok := b.(mx.Component); ok {
-			children = append(children, c)
+			document.BodyChildren = append(document.BodyChildren, c)
 			continue
 		}
 		attribs, child := mx.AsAttribsOrComponent(b)
 		if child != nil {
-			children = append(children, child)
+			document.BodyChildren = append(document.BodyChildren, child)
 		}
 		for _, a := range attribs {
 			if mx.IsNilAttrib(a) {
@@ -179,9 +177,6 @@ func NewDocument(title string, body ...any) *Document {
 			document.bodyAttribsFromArgs = true
 		}
 	}
-	if len(children) > 0 {
-		document.BodyChildren = children
-	}
 	return document
 }
 
@@ -194,7 +189,9 @@ func NewDocument(title string, body ...any) *Document {
 func (d *Document) Render(ctx context.Context, w mx.Writer) error {
 	hint := ""
 	if d.bodyAttribsFromArgs {
-		hint = newDocumentHint
+		// The caller may never have named the field, so say where its
+		// value came from. A nil entry gets no hint: NewDocument leaves nil out.
+		hint = " (NewDocument puts its attribute arguments there)"
 	}
 	err := checkAttribNames("BodyAttribs", hint, d.BodyAttribs)
 	if err != nil {
@@ -310,12 +307,6 @@ func (d *Document) htmlStartTag(ctx context.Context, w mx.Writer) (Raw, error) {
 	}
 	return Raw(b.String()), nil
 }
-
-// newDocumentHint is appended to the errors about an invalid or duplicate
-// name in BodyAttribs when NewDocument filled the field from its
-// arguments, so a caller who never named the field learns where it got its
-// value. A nil entry gets no hint: NewDocument leaves nil out.
-const newDocumentHint = " (NewDocument puts its attribute arguments there)"
 
 // checkAttribNames returns an error naming the Document field if attribs
 // holds a nil Attrib, or one also followed by hint for a name

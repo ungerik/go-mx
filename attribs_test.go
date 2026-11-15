@@ -2,6 +2,7 @@ package mx
 
 import (
 	"iter"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -64,3 +65,39 @@ func TestDefaultAsAttribsNilFunc(t *testing.T) {
 type ptrAttribProvider struct{ attribs []Attrib }
 
 func (p *ptrAttribProvider) Attribs() []Attrib { return p.attribs }
+
+// TestHasAttrTags guards that hasAttrTags finds a tagged field exactly where
+// ReflectAttribs would read one, so skipping ReflectAttribs for the struct
+// types it rejects never drops an attribute.
+func TestHasAttrTags(t *testing.T) {
+	type tagged struct {
+		Class string `attr:"class"`
+	}
+	type embedsTagged struct{ tagged }
+	type unexportedTagged struct {
+		class string `attr:"class"`
+	}
+	for _, tt := range []struct {
+		name string
+		v    any
+		want bool
+	}{
+		{"tagged", tagged{}, true},
+		{"promoted from embedded", embedsTagged{}, true},
+		{"untagged", struct{ Class string }{}, false},
+		{"skipped tag", struct {
+			Class string `attr:"-"`
+		}{}, false},
+		{"unexported", unexportedTagged{}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			typ := reflect.TypeOf(tt.v)
+			// Twice: the first call fills the cache, the second reads it.
+			for range 2 {
+				if got := hasAttrTags(typ); got != tt.want {
+					t.Errorf("hasAttrTags = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}

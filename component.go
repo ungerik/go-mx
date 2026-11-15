@@ -65,18 +65,13 @@ func (f ComponentFunc) Render(ctx context.Context, w Writer) error {
 //
 // The attribute case catches attributes passed as a child by mistake, where
 // children are converted without sorting attributes out first (AsComponents,
-// ModifyOnRender). Every value [AsAttribs] accepts (an Attrib, a []Attrib, an
-// [Attribs] map, an [AttribProvider], a struct with attr tags, …) renders as
-// its attributes' name='value' texts separated by spaces, whether or not it
-// has a String method and whatever that returns (an enum attribute type such
-// as html.AutoCapitalize returns only its value), so the mistake is visible on
-// the page. [AttribStringContext] computes each value when the child is
-// rendered, with the render context, as for an attribute of an element, and
-// escapes name and value, so the text is written as is; a failing value, as
-// of an [ErrAttrib], aborts the render with its error instead of being shown
-// on the page. A nil Attrib among them, also a typed nil ([IsNilAttrib]), is
-// left out. A Component that also converts to attributes stays a Component.
-// See the [AsComponent] docs for dropping attributes instead.
+// ModifyOnRender), and makes the mistake visible on the page: every value
+// [AsAttribs] accepts renders as its attributes' [AttribStringContext] texts
+// separated by spaces, whatever its String method returns, valued on render
+// with the render context. A failing value aborts the render with its error;
+// a nil Attrib ([IsNilAttrib]) is left out. A Component that also converts to
+// attributes stays a Component. See the [AsComponent] docs for dropping
+// attributes instead.
 //
 // DefaultAsComponent is the default implementation of the package-level
 // [AsComponent] variable. Assign a different func to [AsComponent] to change
@@ -91,6 +86,28 @@ func DefaultAsComponent(c any) Component {
 		return c
 	case string:
 		return Text(c)
+	case func(context.Context, Writer) error:
+		return ComponentFunc(c)
+	case func(Writer) error:
+		return ComponentFunc(func(_ context.Context, w Writer) error {
+			return c(w)
+		})
+	case func() Component:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c().Render(ctx, w)
+		})
+	case func() Components:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c().Render(ctx, w)
+		})
+	case func(context.Context) Component:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c(ctx).Render(ctx, w)
+		})
+	case func(context.Context) Components:
+		return ComponentFunc(func(ctx context.Context, w Writer) error {
+			return c(ctx).Render(ctx, w)
+		})
 	}
 	// Attributes passed as a child by mistake, see the function docs.
 	// Before error and fmt.Stringer, so every attribute shape renders alike.
@@ -116,28 +133,6 @@ func DefaultAsComponent(c any) Component {
 		})
 	}
 	switch c := c.(type) {
-	case func(context.Context, Writer) error:
-		return ComponentFunc(c)
-	case func(Writer) error:
-		return ComponentFunc(func(_ context.Context, w Writer) error {
-			return c(w)
-		})
-	case func() Component:
-		return ComponentFunc(func(ctx context.Context, w Writer) error {
-			return c().Render(ctx, w)
-		})
-	case func() Components:
-		return ComponentFunc(func(ctx context.Context, w Writer) error {
-			return c().Render(ctx, w)
-		})
-	case func(context.Context) Component:
-		return ComponentFunc(func(ctx context.Context, w Writer) error {
-			return c(ctx).Render(ctx, w)
-		})
-	case func(context.Context) Components:
-		return ComponentFunc(func(ctx context.Context, w Writer) error {
-			return c(ctx).Render(ctx, w)
-		})
 	case error:
 		// Honor textual intent: error and fmt.Stringer render as their own
 		// text. fmt's verbs prefer error.Error over Stringer, so do the same.
