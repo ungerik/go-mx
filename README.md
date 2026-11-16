@@ -33,6 +33,8 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
   everything is still under `Unreleased` and the API is free to change.
 - **[TODOS.md](TODOS.md)** — deferred work by area and priority (the
   shadcn/ui port build order is in [shadcn/TODOS.md](shadcn/TODOS.md)).
+- **[V1-AUDIT.md](V1-AUDIT.md)** — what changes before go-mx tags v1.0.0
+  and freezes its API.
 
 ## Install
 
