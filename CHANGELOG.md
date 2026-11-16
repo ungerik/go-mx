@@ -855,6 +855,14 @@ API is still free to change.
   that is absolute while `Dir` is set is an error, and a directory matching the
   pattern is skipped instead of being read as a page.
 
+- **`hx.ScriptFromCDN` and `hx.ScriptDebugFromCDN` load htmx 2.0.11**
+  instead of 2.0.10, with new Subresource Integrity hashes verified against
+  both the npm tarball and the jsDelivr bytes. 2.0.11 is a patch release: it
+  fixes `hx-push-url="false"` on an ancestor of a boosted element and
+  out-of-band targets of a detached context element, and adds the
+  `<hx-partial>` response tag backported from htmx 4. The package stays on
+  htmx 2, which npm still publishes as `latest` (htmx 4 is `next`).
+
 - **htmx is served from jsDelivr, not unpkg.** `hx.ScriptFromCDN`,
   `hx.ScriptDebugFromCDN` and `hx.ScriptSSEFromCDN` now point at
   `cdn.jsdelivr.net`. The Subresource Integrity hashes are unchanged and were

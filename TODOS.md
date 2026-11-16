@@ -236,6 +236,40 @@ Found by the second /ship review of PR #48.
 **Priority:** P4
 **Depends on:** None
 
+## hx
+
+### Decide whether `hx` targets htmx 2 or htmx 4 before v1.0
+
+**What:** Decide which htmx major `hx` binds when v1.0 freezes its API:
+either keep it as the htmx 2 binding, say so in the package doc, and add
+htmx 4 later as a separate package, or port `hx` to htmx 4 before the tag.
+
+**Why:** htmx 4.0.0 shipped on 2026-08-28 and changes about half of what
+`hx` exports. `hx-disable` now means what `hx-disabled-elt` meant, so
+`hx.Disable` would silently change meaning. `hx-params`, `hx-request`,
+`hx-history`, `hx-inherit`, `hx-disinherit` and `hx-ext` are gone, and
+`hx-prompt` became an extension. The request header `HX-Trigger` became
+`HX-Source`, and `HX-Trigger-Name` and both `HX-Trigger-After-*` response
+headers are gone. Every event is renamed (`htmx:after:swap`). After the v1
+tag, a port is a breaking change; a separate htmx 4 package is not. npm
+still publishes 2.x as `latest` (2.0.11) and 4.x as `next` (4.0.1), so
+staying on htmx 2 for v1 is defensible.
+
+**Context:** the CDN pins are in `hx/htmx.go`. The affected API is in
+`hx/attributes.go`, `hx/headers.go` and `hx/events.go`. Consumers:
+`hx.FieldDecider`, which shadcn uses only for `hx-trigger="change"`;
+`logview`; and the SSE examples `cmd/example-sse` and
+`cmd/example-logstream`. Check whether htmx 4's streaming support replaces
+the `htmx-ext-sse` extension. htmx 2.0.11 already backports the
+`<hx-partial>` response tag, a candidate for an `hx.Partial` element either
+way. Upstream ships an upgrade checker:
+`npx htmx.org@4.0.0 upgrade-check`. Found by the v1.0 audit on 2026-11-16;
+no earlier evaluation of htmx 4 exists.
+
+**Effort:** S to decide and document; L to port.
+**Priority:** P2
+**Depends on:** None
+
 ## web
 
 ### A body of only nil entries hides the page content
