@@ -922,7 +922,11 @@ API is still free to change.
   Both keep the history of their directory and require go-mx like any other
   consumer. The parity test of `pdf` reads the legacy reference PDF from
   `pdf/testdata/legacy_reference.pdf`, a copy kept apart from the
-  `reference.pdf` that `TestGoldenPDF -update` rewrites.
+  `reference.pdf` that `TestGoldenPDF -update` rewrites, and the scenarios of
+  the legacy parity suite (text flow, cells, shapes, saved state, page breaks
+  and fonts, header and footer, images, conditionals) still run on every
+  change to `pdf` as `TestLegacyParity`, against reference PDFs the legacy
+  stack rendered into `pdf/testdata/parity/`.
 - **The commented-out `reflectroutes.go`, `writereflect.go` and nested-route
   code.** Explicit `mx.Route`/`TypedRoute` registration and the typed
   attribute constructors replace them.
