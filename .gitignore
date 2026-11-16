@@ -11,7 +11,6 @@
 # Binaries `go build ./cmd/...` writes into the repository root
 /shadcn-gallery
 /example-*
-/wordpress-import
 
 # Test binary, built with `go test -c`
 *.test

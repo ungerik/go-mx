@@ -4,22 +4,22 @@ import "github.com/ungerik/go-mx/html"
 
 var (
 	// ScriptFromCDN is a <script> element that loads the minified htmx
-	// 2.0.10 library from the jsDelivr CDN with a Subresource Integrity hash
+	// 2.0.11 library from the jsDelivr CDN with a Subresource Integrity hash
 	// and anonymous crossorigin. Place it in the document <head> to enable
 	// htmx on the page.
 	ScriptFromCDN = html.Script(
-		html.Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"),
-		html.Integrity("sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"),
+		html.Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js"),
+		html.Integrity("sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg"),
 		html.CrossOriginAnonymous,
 	)
 
 	// ScriptDebugFromCDN is a <script> element that loads the unminified
-	// htmx 2.0.10 library from the jsDelivr CDN with a Subresource Integrity
+	// htmx 2.0.11 library from the jsDelivr CDN with a Subresource Integrity
 	// hash and anonymous crossorigin. Use it instead of [ScriptFromCDN]
 	// during development to get readable stack traces and logging.
 	ScriptDebugFromCDN = html.Script(
-		html.Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.js"),
-		html.Integrity("sha384-Q+Dky3iHVJOr6wUjQ4ulh6uQ76an/t+ak1+PjMVaxRjbZamFLAG+u9InkfjbsEQf"),
+		html.Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.js"),
+		html.Integrity("sha384-gmJEF2eAKY4e+FDN+qtKIivWyb6ANwDB7JUdUybKgQspPKyEX/pIRZG/0uaRoW2C"),
 		html.CrossOriginAnonymous,
 	)
 

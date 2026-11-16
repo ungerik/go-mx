@@ -6,6 +6,412 @@ build order lives in `shadcn/TODOS.md`.
 Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important ·
 **P3** nice-to-have · **P4** someday.
 
+## v1.0 release
+
+Work found by [`V1-AUDIT.md`](V1-AUDIT.md) (2026-11-16) before go-mx tags
+v1.0.0 and freezes its API. A title phrased as a question is a decision not
+taken yet; answer it before the work under it starts. The audit section named in
+each Context has the evidence. The `hx` items are under `## hx` and the `doc`
+package question under `## doc`.
+
+### Which modules get their own version line?
+
+**What:** Decide between tagging every module in lockstep at v1.0.0, which
+freezes every package of every module, and an exception: the root module goes to
+v1.0.0 while new nested modules for `shadcn` (with `cva` and `twmerge`), `pdf`
+(with `pdftable`) and `web` (with `schemaorg` and a renamed `mcp`) keep their own
+v0.x line until they settle. The audit recommends the exception.
+
+**Why:** Nested modules isolate dependencies, not versions: under lockstep a
+breaking change in `shadcn`, such as a Tailwind v5 port, forces `/v2` on every
+module, the root included. Moving a package out of a module that already has a
+tagged version causes ambiguous-import errors, so the layout must be settled
+before the first tag.
+
+**Context:** V1-AUDIT.md §1 and D1. The split moves `cmd/shadcn-gallery`,
+`cmd/example-form` and `cmd/example-sse` into the shadcn module, adds
+replace + placeholder pairs, and changes the gallery CI job and the Tailwind
+`@source` path. `logview` stays in the root module only after it drops its
+`shadcn` import; `shadcn/clsx` can move to `shadcn/internal/clsx`.
+
+**Effort:** S to decide; L to split
+**Priority:** P1
+**Depends on:** None
+
+### Do the reflected forms freeze in v1, and as which package?
+
+**What:** Decide whether the forms machinery (132 of the 233 top-level exports
+of the root package) moves into a new `form` package that is frozen at v1, or
+gets its own v0 module for more time. If it freezes, the audit's shape: names
+without stutter (`form.Handler`, `form.Decider`, `form.Tag`, `form.Texts`, …),
+one generic `form.Handler[T]` struct with `ServeHTTP` instead of three
+constructors, deciders that get a `context.Context` and one struct argument,
+`load`/`onSubmit` that get the `*http.Request`, an explicit render-probe flag,
+parse helpers in `form/internal`, and the plain-HTML renderer inside `form`, so
+`html` never imports the forms code.
+
+**Why:** The callback signatures and the exported helpers are the parts that
+cannot change after v1. Today `load` cannot read `r.PathValue("id")`, and
+`IsRenderProbe` hides a marker in a slice's spare capacity.
+
+**Context:** V1-AUDIT.md §3.1 (F1-F14) and D3. The core package needs nothing
+from forms except three unexported helpers, so there is no import cycle.
+
+**Effort:** L
+**Priority:** P1
+**Depends on:** Which modules get their own version line?
+
+### Which configuration stays process-wide?
+
+**What:** Decide which package-level variables survive v1. The audit's rule: a
+limit becomes a constant; what varies per use becomes a field on the handler,
+config or writer; what is request-scoped goes into the context; at most a couple
+of deliberate defaults stay, behind `slog.SetDefault`-style setters
+(`ReportError`). Open sub-questions: remove the `AsComponent`/`AsAttribs` hooks
+(they run when the tree is built, so they cannot move into the writer or the
+context)? Move `TextEscaper` onto `CheckedWriter`? Turn the `FieldDecider`
+variables of `html`, `hx` and `shadcn` into `func` declarations and the CDN
+scripts and themes into functions that return fresh values?
+
+**Why:** Any imported package can flip these for the whole program, they cannot
+differ per handler, and tests that set them cannot run in parallel.
+`TextEscaper` lets one dependency weaken escaping everywhere.
+
+**Context:** V1-AUDIT.md §2 C2, with the full list of variables.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+### What is the final method set of `mx.Writer`?
+
+**What:** Decide the `Writer` methods before the freeze: add explicit methods for
+processing instructions and doctypes, or document a raw-write contract, and give
+`FieldBehavior` a way to add attributes so `hx` no longer wraps the writer to
+inject `hx-trigger`.
+
+**Why:** `Writer` is implemented three times in the repo, so users will
+implement or wrap it too, and a method added after v1 breaks them. Processing
+instructions are detected today by sniffing a trailing `?>` in `Write`.
+
+**Context:** V1-AUDIT.md §2 C3; `checkedwriter.go`, `logview/search.go`,
+`hx/formdecider.go`.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+### How do `shadcn` and `logview` support a strict Content-Security-Policy?
+
+**What:** Decide the script design. The audit proposes behavior wired through
+`data-*` attributes and one delegated script that a `Scripts()` component
+renders once per page with the nonce from the context, `commandfor`/`command`
+buttons for dialogs, and every browser function under one `window.mx`
+namespace.
+
+**Why:** `shadcn` emits 17 inline scripts per component instance, 52 inline
+`on*` handlers and 11 inline styles, so sites with a strict CSP cannot use it or
+`logview`. 23 of 31 `window` globals have no prefix (`toast`, `tabsSelect`, …),
+and `if(!window.toast)` silently yields to an app's own `toast`. Both are
+documented behavior once v1 is tagged.
+
+**Context:** V1-AUDIT.md §2 C8 and §3.4 S2-S3.
+
+**Effort:** L
+**Priority:** P1
+**Depends on:** Which modules get their own version line?
+
+### Fix the `If`/`ElseIf` chain
+
+**What:** Make `If(true, A).ElseIf(false, B).Else(C)` render `A`: carry a
+"matched" flag through the chain. Remove `Iff` and `ElseIff`, which evaluate
+their closure at once and so add nothing over `If(f(), …)`.
+
+**Why:** `ElseIf` discards its receiver (`conditional.go:50`), so a true first
+branch is lost: the chain renders `C`, or `B` for `ElseIf(true, B)`.
+
+**Context:** V1-AUDIT.md §2 C1.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
+### Serve every handler type through `ServeHTTP`
+
+**What:** Rename `HandleHTTP` to `ServeHTTP` on `html.Document`,
+`xml.Document`, `web.Robots`, `Sitemap`, `SitemapIndex` and `LLMsTxt`; delete
+`html.Serve`, `xml.Serve` and `Document.Serve`; make
+`ComponentHTTPHandler` use the default writer for a nil `WriterFactory`;
+give the handler constructors one header parameter shape; rename
+`RespondNonContextError` and `mx.Middleware` after their purpose.
+
+**Why:** Only `ServeHTTP` makes a type an `http.Handler`; the `Serve` helpers
+start a server without timeouts; `ComponentHTTPHandler(c, nil, nil)` answers
+every request with 500.
+
+**Context:** V1-AUDIT.md §2 C5 and §3.6 W7.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
+### Remove the unsafe and unused `html`/`xml` API
+
+**What:** Delete `html.Template` and rename `TemplateElem` to `Template`;
+delete the `TableView` interface and `WidthPx`/`WidthEm`/`HeightPx`/`HeightEm`;
+give `ScriptJS`, `ScriptModuleJS` and `StyleElem` (also in `svg`) an attribute
+parameter and refuse `</script`/`</style` at render time; stop escaping script
+content; make `xml.Decl` and `xml.Doctype` validate instead of building a `Raw`.
+
+**Why:** `html.Template` runs `text/template` without escaping;
+`StyleElem("</style><script>…")` renders a live script, `html.Script("a < b")`
+breaks the JavaScript, inline code cannot carry a CSP nonce, `xml.Decl` can be
+ended early by its argument, and `WidthPx` emits widths browsers misread.
+
+**Context:** V1-AUDIT.md §2 C8-C9 and §3.2 H1-H5.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+### Does routing ship in v1?
+
+**What:** Decide whether `Route`, `TypedRoute`, `ComponentFuncHandler`,
+`PathValueNames`, `JoinPath`, `JoinAbsPath` and `NameToPath` ship. The audit
+recommends leaving them out, or shrinking `Route` to `http.Handler` plus
+`Pattern()`.
+
+**Why:** Nothing outside tests uses them except `web` calling `Register`;
+`ComponentFuncHandler` binds only string fields and `PathValueNames` returns
+`"rest..."` for `{rest...}`. Finishing them after v1 changes behavior.
+
+**Context:** V1-AUDIT.md §2 C6; the `## mx handlers` entry about
+`ComponentFuncHandler`.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### How are void elements marked?
+
+**What:** Decide whether `Element` gets an explicit `Void bool` (or a separate
+type) instead of meaning "void" by `Children == nil`.
+
+**Why:** `br.Children = append(br.Children, x)` renders `<br>x</br>`; meaning
+carried by nil vs. empty slice is easy to lose, and changing it after v1 breaks
+callers.
+
+**Context:** V1-AUDIT.md §2 C4.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### Do library errors keep the go-errs call stack in their text?
+
+**What:** Decide whether go-mx returns plain errors with a package prefix
+(`"mx: …"`) plus exported sentinels or types for the conditions callers branch
+on, leaving the stack to the caller's own wrap, or keeps go-errs errors whose
+`Error()` includes the call stack.
+
+**Why:** The stack lands in users' logs and, with `RevealInternalServerErrors`,
+on the page. Apart from `mcp.ErrPageNotFound` callers cannot `errors.Is`/`As`
+anything. Error text is not semver API, so this can also wait.
+
+**Context:** V1-AUDIT.md §2 C7 and D5.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** None
+
+### Which length unit does `pdf` use?
+
+**What:** Decide between a typed `Length` (`pdf.Mm`, `pdf.In`, `pdf.Pt`) and one
+fixed unit for the component layer.
+
+**Why:** Every length is a bare `float64` in a unit chosen at runtime: the
+Letter constructor uses inches, the A4 ones and `Document` millimeters, font
+sizes are points, and an SVG's pixels become document units (a 24 px icon is
+24 mm). Components cannot be reused across documents.
+
+**Context:** V1-AUDIT.md §3.5 P5 and D4.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Which modules get their own version line?
+
+### How do `shadcn` components take variants and state?
+
+**What:** Decide whether variants stay positional parameters (40 functions,
+e.g. `Button(variant, size, …)`) or the variant types implement `mx.Attrib` and
+go in the variadic arguments, and settle the parameter conventions: the id first
+everywhere (not 5th in `Slider` and 4th in `ToggleGroup`), one way to pass state,
+hover-card delays once as `time.Duration`.
+
+**Why:** A new upstream variant axis breaks every positional signature after v1.
+
+**Context:** V1-AUDIT.md §3.4 S6-S7.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Which modules get their own version line?
+
+### Should the minimum Go version drop to 1.26?
+
+**What:** Decide whether `go.mod` says `go 1.26.0`, so both maintained Go
+releases can use go-mx, with the stdlib-`uuid` test cases behind
+`//go:build go1.27` and CI testing 1.26 and 1.27.
+
+**Why:** Only the unused `doc/dbdoc` package and three test files need Go 1.27
+(the `uuid` package); the library builds with Go 1.26.4.
+
+**Context:** V1-AUDIT.md §4 item 1.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Finish or delete the unfinished `doc` package before v1.0?
+
+### Which names does the core `mx` package keep?
+
+**What:** Decide the names of the core types and helpers before the freeze:
+`Attrib` (interface), `Attribute` (struct) and `Attribs` (map) differ only by
+suffix (the struct could become `StaticAttrib`, or be unexported behind
+`NewAttrib`); `If` takes `...Component` while element constructors take
+`...any`; `ForEach` and `ForEachIter` could be one `iter.Seq` function.
+
+**Why:** Each is a breaking rename after v1.
+
+**Context:** V1-AUDIT.md §2 C10.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
+
+### Clean up `html` and `svg` naming before the freeze
+
+**What:** One rule for element/attribute name collisions (the element wins, the
+attribute gets `Attr`, with `Title`/`Style` as documented exceptions), one
+spelling per casing question (`HR`/`Br`, `Readonly`/`AutoFocus`, `HRef`/`Href`,
+…), shortcuts named `<Element><Attribute>` (`ButtonSubmit`, `LinkStylesheet`,
+…), delete the 17 obsolete attributes and the 50 `…f` variants, add `U`, take
+`int` for integer attributes, an ordered slice for `Document.Meta`, and
+package doc comments for `html` and `hx`. Fix the float formatting of named
+float types and NaN/±Inf.
+
+**Why:** Each of these is a breaking rename or removal after v1.
+
+**Context:** V1-AUDIT.md §3.2 H6-H14.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** None
+
+### Fix the `pdf` blockers before it is frozen
+
+**What:** Move the fpdf engine to `pdf/internal/engine` behind a curated
+`Renderer` of about 45 methods; remove the broken compare helpers and other
+leftovers; replace the `SetDefault*` globals with `Document` fields; translate
+text per current font; give `StyleRegular` and `BorderNone` non-empty values;
+leave RC4 encryption out of v1.
+
+**Why:** The exported `Renderer` is upstream fpdf's 217-method API; text in a
+built-in font is garbled after a UTF-8 font is loaded; the globals are racy.
+
+**Context:** V1-AUDIT.md §3.5 P1-P4, P6-P7; the SHOULD items P8-P11 (panics on
+truncated images and fonts, FIPS mode, `Color`, Factur-X typing, Producer) are
+in the same section.
+
+**Effort:** L
+**Priority:** P2
+**Depends on:** Which modules get their own version line?, Which length unit does `pdf` use?
+
+### Drop the release-candidate and unmaintained dependencies of `web`
+
+**What:** Make `GlobPageSource.Dir` a `string` and delete the unused
+`Page.Resources` and `Page.PathValues`, which drops go-fs (and with it fsnotify,
+pkg/xattr and x/sys); split front matter in-house and decode it with
+`go.yaml.in/yaml/v3`, which drops adrg/frontmatter and yaml.v2. Open
+sub-question: keep TOML front matter (BurntSushi/toml) or drop it?
+
+**Why:** A v1.0.0 module cannot export a type from go-fs v1.0.0-rc.8, and
+yaml.v2 turns a key `n` into `"false"` and leaves dates as strings in
+`Page.FrontMatter`, whose value types become API.
+
+**Context:** V1-AUDIT.md §3.6 W1-W3.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** None
+
+### Fix the `web` API before the freeze
+
+**What:** `RegisterRoutes(ctx, mux)`; look up `PageTypeRenderer` by media type
+without parameters; fold `ServeMarkdown` into a `MarkdownDocument` with
+`ServeHTTP`; rename the field `Site.MarkdownAlternates`; read
+`Site.LLMsTxtOptions` instead of a duplicate parameter; drop `Site.Routes` and
+`DefaultRenderPage`; `schemaorg.Price(amount, decimals)`; rename the `mcp`
+package (the audit suggests `webmcp`), whose name collides with the SDK's; add
+Examples.
+
+**Why:** Each is a breaking change after v1; the `PageTypeRenderer` lookup is a
+bug today (a `"text/markdown"` key never matches).
+
+**Context:** V1-AUDIT.md §3.6 W4, W6, W8-W12.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Which modules get their own version line?
+
+### Fix the smaller `shadcn`, `highlight` and `logview` API issues
+
+**What:** Delete `PanicOnInvalidID` and always defer an invalid id with
+`NewErrElement`; prefix the `ButtonSize` constants; one `Orientation` type;
+delete `SectionCard` and unexport `StickToBottomDefaultThresholdPx`; move
+`StickToBottom` down to `hx` or `html` so `logview` drops its `shadcn` import;
+document the Tailwind `@source` line production builds need; rename
+`highlight.GoSource` to `GenerateGo`.
+
+**Why:** All are breaking after v1; the `@source` gap leaves production builds
+unstyled today.
+
+**Context:** V1-AUDIT.md §3.4 S4-S5, S8-S12.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Which modules get their own version line?
+
+### Release hygiene for v1.0.0
+
+**What:** CI runs `go vet`, staticcheck, `-race` and govulncheck for every
+module, and after the tag `apidiff`/`gorelease` against the latest tag; add
+`func Example`s for the main entry points; raise `svg`, `pdf` and `html` above
+60% coverage; replace the `[Unreleased]` changelog with a short `[1.0.0]`
+entry; write the compatibility statement; give every nested module a LICENSE;
+add `docs/go.mod` so the gallery stays out of the module zip; delete `cmd/mx.go`
+and the commented-out code.
+
+**Why:** These make the v1 promise checkable and the first release readable.
+
+**Context:** V1-AUDIT.md §0 and §4.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Which modules get their own version line?
+
+### Non-breaking items of the v1.0 audit
+
+**What:** Work through the LATER rows of V1-AUDIT.md (F14, H15, S13-S16, P12,
+W13, and the `hx` parameter naming): additive helpers, performance of `Cn`,
+browser tests for the untested scripts, docs drift.
+
+**Why:** None of them changes the API incompatibly, so they can follow v1.0.0.
+
+**Context:** V1-AUDIT.md §3.
+
+**Effort:** L
+**Priority:** P4
+**Depends on:** None
+
 ## mx reflected forms
 
 ### Core validation messages are English only
@@ -236,6 +642,58 @@ Found by the second /ship review of PR #48.
 **Priority:** P4
 **Depends on:** None
 
+## hx
+
+### Does `hx` target htmx 2 or htmx 4 at v1.0?
+
+**What:** Decide which htmx major `hx` binds when v1.0 freezes its API:
+either keep it as the htmx 2 binding, say so in the package doc, and add
+htmx 4 later as a separate package, or port `hx` to htmx 4 before the tag.
+
+**Why:** htmx 4.0.0 shipped on 2026-08-28 and changes about half of what
+`hx` exports. `hx-disable` now means what `hx-disabled-elt` meant, so
+`hx.Disable` would silently change meaning. `hx-params`, `hx-request`,
+`hx-history`, `hx-inherit`, `hx-disinherit` and `hx-ext` are gone, and
+`hx-prompt` became an extension. The request header `HX-Trigger` became
+`HX-Source`, and `HX-Trigger-Name` and both `HX-Trigger-After-*` response
+headers are gone. Every event is renamed (`htmx:after:swap`). After the v1
+tag, a port is a breaking change; a separate htmx 4 package is not. npm
+still publishes 2.x as `latest` (2.0.11) and 4.x as `next` (4.0.1), so
+staying on htmx 2 for v1 is defensible.
+
+**Context:** the CDN pins are in `hx/htmx.go`. The affected API is in
+`hx/attributes.go`, `hx/headers.go` and `hx/events.go`. Consumers:
+`hx.FieldDecider`, which shadcn uses only for `hx-trigger="change"`;
+`logview`; and the SSE examples `cmd/example-sse` and
+`cmd/example-logstream`. Check whether htmx 4's streaming support replaces
+the `htmx-ext-sse` extension. htmx 2.0.11 already backports the
+`<hx-partial>` response tag, a candidate for an `hx.Partial` element either
+way. Upstream ships an upgrade checker:
+`npx htmx.org@4.0.0 upgrade-check`. Found by the v1.0 audit on 2026-11-16
+(V1-AUDIT.md §3.3, D2, which recommends staying on htmx 2); no earlier
+evaluation of htmx 4 exists.
+
+**Effort:** S to decide and document; L to port.
+**Priority:** P2
+**Depends on:** None
+
+### The `hx` event constants do not work with `On`
+
+**What:** Make `On`/`OnHTMX` convert an `htmx:` event constant to the
+kebab-case name htmx listens for, or correct the doc of `hx/events.go`, which
+shows `On(hx.EventAfterSwap, …)`. Also stop routing `shadcn.FieldDecider`
+through `hx.FieldDecider` only to add `hx-trigger="change"`.
+
+**Why:** `On(hx.EventAfterSwap, …)` renders `hx-on:htmx:afterSwap`; browsers
+lowercase attribute names, so the handler never fires.
+
+**Context:** `hx/events.go:3-5`, `hx/on.go`, `shadcn/formdecider.go:33`;
+V1-AUDIT.md §3.3.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Does `hx` target htmx 2 or htmx 4 at v1.0?
+
 ## web
 
 ### A body of only nil entries hides the page content
@@ -273,9 +731,10 @@ head, or the file-name fallback the `.txt` case uses.
 
 ## doc
 
-### The `doc` package is unfinished
+### Finish or delete the unfinished `doc` package before v1.0?
 
-**What:** Finish or remove `doc/` and `doc/dbdoc`: `DefaultRenderer` is nil,
+**What:** Finish or remove `doc/` and `doc/dbdoc` before the v1.0 freeze (the
+v1.0 audit recommends deleting them): `DefaultRenderer` is nil,
 so `RendererFromContext` returns nil for a context without a renderer and
 the caller panics; `dbdoc.Color` is a placeholder; the `Font.LineHeight`
 column is tagged `line_hight`.
@@ -284,10 +743,11 @@ column is tagged `line_hight`.
 dead route code removed on 2026-11-01.
 
 **Context:** The `TODO`s on `DefaultRenderer` in `doc/config.go` and on
-`Color` in `doc/dbdoc/font.go`. Nothing in the repo imports `doc`.
+`Color` in `doc/dbdoc/font.go`. Nothing in the repo imports `doc`. A v1.0.0 tag
+would freeze it as it is; V1-AUDIT.md §1 and §3.6 W5.
 
-**Effort:** M
-**Priority:** P4
+**Effort:** S to delete; M to finish
+**Priority:** P2
 **Depends on:** None
 
 ## Completed

@@ -33,6 +33,8 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
   everything is still under `Unreleased` and the API is free to change.
 - **[TODOS.md](TODOS.md)** — deferred work by area and priority (the
   shadcn/ui port build order is in [shadcn/TODOS.md](shadcn/TODOS.md)).
+- **[V1-AUDIT.md](V1-AUDIT.md)** — what changes before go-mx tags v1.0.0
+  and freezes its API.
 
 ## Install
 
@@ -118,23 +120,11 @@ For streaming output or serving over HTTP, render a `Component` into an
   text/vector/image primitives, typed enums, a best-effort `pdf.SVG` that
   draws `svg`-package element trees as native vector graphics, and embedded
   files plus XMP metadata (PDF/A-3 associated files for ZUGFeRD/Factur-X
-  e-invoices). The previous
-  wrapper around the external fpdf module lives on as the **`fpdf`** legacy
-  module, whose parity test suite asserts byte-identical output from both
-  packages — apart from a few [documented intentional
-  divergences](pdf/README.md#divergences-from-the-legacy-engine) where the
-  inlined engine deliberately behaves better — until the legacy module is
-  deleted. See
-  [pdf/README.md](pdf/README.md) (and [fpdf/README.md](fpdf/README.md) for the
-  legacy module).
+  e-invoices). See [pdf/README.md](pdf/README.md).
 - **`pdf/pdftable`** — data tables for `pdf`: measured fixed/weighted/auto
   columns, wrapped and aligned cell text with a style cascade, header rows
   repeated across automatic page breaks, grid rules, and custom-drawn cells
   (e.g. SVG icons). See [pdf/pdftable/README.md](pdf/pdftable/README.md).
-- **`wordpress`** — imports a WordPress WXR export into a typed Go model and
-  renders it as a static shadcn site plus an import-diagnostics report. Its own
-  nested module, so its `golang.org/x/net/html` dependency stays out of core. See
-  [wordpress/README.md](wordpress/README.md).
 - **`web`** — a site above `html`: pages from a `PageSource`, rendered by a
   `PageRenderer`, and a `Site` that derives what crawlers and agents read from
   its public pages: sitemap and robots.txt, canonical and hreflang links (in
@@ -153,6 +143,16 @@ For streaming output or serving over HTTP, render a `Component` into an
   German names generated from Unicode CLDR. See
   [stdoptions/README.md](stdoptions/README.md).
 - **`doc`** — higher-level abstractions, partially implemented.
+
+Two former nested modules live in their own repositories:
+
+- **[`go-mx-wordpress`](https://github.com/ungerik/go-mx-wordpress)** —
+  imports a WordPress WXR export into a typed Go model and renders it as a
+  static shadcn site plus an import-diagnostics report.
+- **[`go-mx-fpdf`](https://github.com/ungerik/go-mx-fpdf)** — the previous
+  wrapper around the external fpdf module, kept as the byte-for-byte parity
+  baseline of `pdf` apart from a few [documented intentional
+  divergences](pdf/README.md#divergences-from-the-legacy-engine).
 
 ## Streaming
 

@@ -27,10 +27,10 @@ doc := pdf.NewDocument("Invoice",
 err := doc.OutputFile(ctx, "hello.pdf")
 ```
 
-> The [`fpdf`](../fpdf) module is the previous wrapper around the *external*
-> fpdf dependency. It is kept only as the byte-for-byte parity baseline while
-> this native package is brought up, and will be deleted afterwards. New code
-> should import `github.com/ungerik/go-mx/pdf`.
+> The previous wrapper around the *external* fpdf dependency lives on in its
+> own repository, [`go-mx-fpdf`](https://github.com/ungerik/go-mx-fpdf), as the
+> byte-for-byte parity baseline of this package. New code should import
+> `github.com/ungerik/go-mx/pdf`.
 
 ## Relationship to the `html` package
 
@@ -402,9 +402,9 @@ or post-process the output with a more complete library.
 ## Divergences from the legacy engine
 
 The inlined engine deliberately behaves better than upstream
-`codeberg.org/go-pdf/fpdf` v0.12.0 (and the legacy [`fpdf`](../fpdf) module
-wrapping it) in a few places. These are the known intentional parity
-exceptions:
+`codeberg.org/go-pdf/fpdf` v0.12.0 (and the legacy
+[`go-mx-fpdf`](https://github.com/ungerik/go-mx-fpdf) module wrapping it) in a
+few places. These are the known intentional parity exceptions:
 
 - **Non-BMP text is correct.** `utf8toutf16` emits proper surrogate pairs, so
   emoji and other characters above U+FFFF work in metadata, bookmarks and

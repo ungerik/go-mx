@@ -5,8 +5,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Versions use the Go module scheme, `vMAJOR.MINOR.PATCH`, and a release tags
 every module of the repo in lockstep: the root module as `vX.Y.Z` and each
-submodule with its path as prefix (`fpdf/vX.Y.Z`, `wordpress/vX.Y.Z`,
-`mcp/vX.Y.Z`).
+submodule with its path as prefix (`mcp/vX.Y.Z`).
 
 This file starts with the entry below; the changes made before it are in the
 commit history. Nothing is tagged yet, so everything here is unreleased and the
@@ -855,6 +854,14 @@ API is still free to change.
   that is absolute while `Dir` is set is an error, and a directory matching the
   pattern is skipped instead of being read as a page.
 
+- **`hx.ScriptFromCDN` and `hx.ScriptDebugFromCDN` load htmx 2.0.11**
+  instead of 2.0.10, with new Subresource Integrity hashes verified against
+  both the npm tarball and the jsDelivr bytes. 2.0.11 is a patch release: it
+  fixes `hx-push-url="false"` on an ancestor of a boosted element and
+  out-of-band targets of a detached context element, and adds the
+  `<hx-partial>` response tag backported from htmx 4. The package stays on
+  htmx 2, which npm still publishes as `latest` (htmx 4 is `next`).
+
 - **htmx is served from jsDelivr, not unpkg.** `hx.ScriptFromCDN`,
   `hx.ScriptDebugFromCDN` and `hx.ScriptSSEFromCDN` now point at
   `cdn.jsdelivr.net`. The Subresource Integrity hashes are unchanged and were
@@ -905,6 +912,21 @@ API is still free to change.
 
 ### Removed
 
+- **The `fpdf` and `wordpress` nested modules moved to their own
+  repositories.** `github.com/ungerik/go-mx/fpdf` is now
+  [`github.com/ungerik/go-mx-fpdf`](https://github.com/ungerik/go-mx-fpdf) and
+  `github.com/ungerik/go-mx/wordpress` is now
+  [`github.com/ungerik/go-mx-wordpress`](https://github.com/ungerik/go-mx-wordpress)
+  (the CLI installs with
+  `go install github.com/ungerik/go-mx-wordpress/cmd/wordpress-import@latest`).
+  Both keep the history of their directory and require go-mx like any other
+  consumer. The parity test of `pdf` reads the legacy reference PDF from
+  `pdf/testdata/legacy_reference.pdf`, a copy kept apart from the
+  `reference.pdf` that `TestGoldenPDF -update` rewrites, and the scenarios of
+  the legacy parity suite (text flow, cells, shapes, saved state, page breaks
+  and fonts, header and footer, images, conditionals) still run on every
+  change to `pdf` as `TestLegacyParity`, against reference PDFs the legacy
+  stack rendered into `pdf/testdata/parity/`.
 - **The commented-out `reflectroutes.go`, `writereflect.go` and nested-route
   code.** Explicit `mx.Route`/`TypedRoute` registration and the typed
   attribute constructors replace them.
