@@ -17,6 +17,10 @@ go test ./html/...
 # Run a single test
 go test -run TestFunctionName ./...
 
+# After changing an htmx version or hash in hx/htmx.go: check the SRI hashes
+# against the CDN (needs network, so it is skipped unless MX_CHECK_CDN is set)
+MX_CHECK_CDN=1 go test ./hx -run TestScriptFromCDNIntegrity
+
 # Build check
 go build ./...
 
