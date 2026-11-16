@@ -1,0 +1,3 @@
+# Reference PDFs are compared byte for byte (pdf/parity_test.go, golden tests):
+# no line-ending conversion, whatever core.autocrlf says.
+*.pdf binary
