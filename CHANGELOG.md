@@ -889,9 +889,6 @@ API is still free to change.
     `shadcn.SheetSide` and `shadcn.ResizeDirection` get the go-enum methods.
   - `logview.Class` gets the go-enum methods, and `Theme.CSS` ignores a
     `Styles` key that is none of the classes, as no markup carries it.
-  - `wordpress.PermalinkStyle` gets the go-enum methods. `WriteStatic`
-    rejects an unknown `Options.Permalinks` instead of writing slug URLs, and
-    `wordpress-import -permalinks` fails on one.
 - **A reflected form posts urlencoded unless it has a file field.** It was
   always `multipart/form-data`, whose limit is 1,000 parts, and every field
   takes two (its value and `__present` sentinel), so 100 rows of 5 cells
@@ -1127,8 +1124,8 @@ API is still free to change.
 - `mx.DetectField` no longer takes a type whose `Enums` or `EnumStrings`
   method has parameters for an enum: the options could not be collected, so
   it rendered an empty select.
-- The committed go-enum methods of `fpdf` were out of date. CI now runs
-  `go-enum -validate` on every module.
+- CI runs `go-enum -validate` on every module, so committed go-enum methods
+  can no longer fall out of date.
 
 - `web.DefaultRenderPage` no longer panics when a page is marked `NoIndex`, and
   now marks drafts and scheduled pages `noindex, nofollow` too — previously

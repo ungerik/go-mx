@@ -385,9 +385,9 @@ or post-process the output with a more complete library.
 
 ### Security
 
-- **Encryption is RC4 (40/128-bit) only** via `SetProtection` — the legacy
-  standard security handler. **No AES-128 or AES-256**, so protection is weak by
-  modern standards. It also cannot exempt individual streams (no PDF 1.5 crypt
+- **Encryption is 40-bit RC4 only** via `SetProtection` — the legacy
+  standard security handler, revision 2 (`/V 1 /R 2`). **No 128-bit RC4, no
+  AES-128 or AES-256**, so protection is weak by modern standards. It also cannot exempt individual streams (no PDF 1.5 crypt
   filters), which is why combining it with XMP metadata is an error.
 
 ### Other

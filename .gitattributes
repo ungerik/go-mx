@@ -1,3 +1,8 @@
 # Reference PDFs are compared byte for byte (pdf/parity_test.go, golden tests):
 # no line-ending conversion, whatever core.autocrlf says.
 *.pdf binary
+
+# Golden text files are compared byte for byte too (web/markdown_test.go,
+# web/schemaorg/thing_test.go): keep them LF on every checkout.
+web/testdata/** text eol=lf
+web/schemaorg/testdata/** text eol=lf

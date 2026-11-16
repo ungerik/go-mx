@@ -19,11 +19,13 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 ## Documentation
 
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
-  `html` and `shadcn` tutorials and how-to guides, the public knowledge layer
-  guide, and the rendered component gallery. (GitHub Pages, served from
+  `html`, `shadcn` and `hx` tutorials and how-to guides, the public knowledge
+  layer guide, and the rendered component gallery. (GitHub Pages, served from
   [`docs/`](docs/).)
 - **[Component gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)** — every
-  ported shadcn/ui component shown next to its Go source.
+  ported shadcn/ui component shown next to its Go source. Built by
+  [`cmd/shadcn-gallery`](cmd/shadcn-gallery/README.md), which also serves it
+  locally.
 - **[`html` package](html/README.md)** — the core HTML vocabulary: elements,
   attributes, typed keyword enums, and the `html/entity` character set.
 - **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
@@ -505,7 +507,9 @@ go-mx is licensed under the [MIT License](LICENSE), with one exception: the
 [class-variance-authority](https://github.com/joe-bell/cva) and is licensed
 under the Apache License, Version 2.0 (see [`shadcn/cva/LICENSE`](shadcn/cva/LICENSE)).
 
-Parts of the project port or adapt other open-source work (shadcn/ui, clsx,
-tailwind-merge, and GitHub's primer syntax palette); their license texts and
+Parts of the project port, adapt or inline other open-source work (shadcn/ui,
+clsx, tailwind-merge, GitHub's primer syntax palette, the
+[go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf) engine inlined into `pdf`, and
+the Unicode CLDR data generated into `stdoptions`); their license texts and
 copyright notices are reproduced in
 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
