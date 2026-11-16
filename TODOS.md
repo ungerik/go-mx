@@ -11,7 +11,8 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 Work found by [`V1-AUDIT.md`](V1-AUDIT.md) (2026-11-16) before go-mx tags
 v1.0.0 and freezes its API. A title phrased as a question is a decision not
 taken yet; answer it before the work under it starts. The audit section named in
-each Context has the evidence. The htmx question is under `## hx`.
+each Context has the evidence. The `hx` items are under `## hx` and the `doc`
+package question under `## doc`.
 
 ### Which modules get their own version line?
 
@@ -269,6 +270,22 @@ releases can use go-mx, with the stdlib-`uuid` test cases behind
 **Effort:** S
 **Priority:** P2
 **Depends on:** Finish or delete the unfinished `doc` package before v1.0?
+
+### Which names does the core `mx` package keep?
+
+**What:** Decide the names of the core types and helpers before the freeze:
+`Attrib` (interface), `Attribute` (struct) and `Attribs` (map) differ only by
+suffix (the struct could become `StaticAttrib`, or be unexported behind
+`NewAttrib`); `If` takes `...Component` while element constructors take
+`...any`; `ForEach` and `ForEachIter` could be one `iter.Seq` function.
+
+**Why:** Each is a breaking rename after v1.
+
+**Context:** V1-AUDIT.md §2 C10.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** None
 
 ### Clean up `html` and `svg` naming before the freeze
 

@@ -43,7 +43,8 @@ go -C tools tool go-enum ../...
   has its own list in [`shadcn/TODOS.md`](shadcn/TODOS.md).
 - [`V1-AUDIT.md`](V1-AUDIT.md) — the v1.0 readiness audit of 2026-11-16: what to
   change before the API is frozen, with evidence; its open decisions and work
-  items are tracked in `TODOS.md` under `## v1.0 release`.
+  items are tracked in `TODOS.md` under `## v1.0 release`, `## hx` (the htmx
+  major, the event constants) and `## doc` (the unfinished `doc` package).
 - Per-package READMEs carry the detail: `html/`, `svg/`, `xml/`, `hx/`,
   `shadcn/`, `highlight/`, `logview/`, `pdf/`, `pdf/pdftable/`, `mcp/`,
   `stdoptions/` (plus `highlight/DESIGN.md` and `shadcn/RESEARCH.md`).

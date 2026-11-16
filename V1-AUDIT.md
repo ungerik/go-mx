@@ -17,8 +17,9 @@ an opt-in test of the CDN integrity hashes, and the htmx 2 vs. htmx 4 decision
 is tracked in [`TODOS.md`](TODOS.md).
 
 The actionable items and the open decisions of this audit are tracked in
-[`TODOS.md`](TODOS.md) under `## v1.0 release`, as questions where no decision
-has been taken yet.
+[`TODOS.md`](TODOS.md) under `## v1.0 release` (the `hx` items under `## hx`,
+the `doc` package under `## doc`), as questions where no decision has been
+taken yet.
 
 Tags: **BLOCKER** = a breaking change that must land before the v1 freeze.
 **SHOULD** = better before v1 (often breaking, smaller). **LATER** = additive or
