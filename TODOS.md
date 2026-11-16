@@ -120,6 +120,59 @@ documented behavior once v1 is tagged.
 **Priority:** P1
 **Depends on:** Which modules get their own version line?
 
+### Fix the `If`/`ElseIf` chain
+
+**What:** Make `If(true, A).ElseIf(false, B).Else(C)` render `A`: carry a
+"matched" flag through the chain. Remove `Iff` and `ElseIff`, which evaluate
+their closure at once and so add nothing over `If(f(), …)`.
+
+**Why:** `ElseIf` discards its receiver (`conditional.go:50`), so a true first
+branch is lost: the chain renders `C`, or `B` for `ElseIf(true, B)`.
+
+**Context:** V1-AUDIT.md §2 C1.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
+### Serve every handler type through `ServeHTTP`
+
+**What:** Rename `HandleHTTP` to `ServeHTTP` on `html.Document`,
+`xml.Document`, `web.Robots`, `Sitemap`, `SitemapIndex` and `LLMsTxt`; delete
+`html.Serve`, `xml.Serve` and `Document.Serve`; make
+`ComponentHTTPHandler` use the default writer for a nil `WriterFactory`;
+give the handler constructors one header parameter shape; rename
+`RespondNonContextError` and `mx.Middleware` after their purpose.
+
+**Why:** Only `ServeHTTP` makes a type an `http.Handler`; the `Serve` helpers
+start a server without timeouts; `ComponentHTTPHandler(c, nil, nil)` answers
+every request with 500.
+
+**Context:** V1-AUDIT.md §2 C5 and §3.6 W7.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** None
+
+### Remove the unsafe and unused `html`/`xml` API
+
+**What:** Delete `html.Template` and rename `TemplateElem` to `Template`;
+delete the `TableView` interface and `WidthPx`/`WidthEm`/`HeightPx`/`HeightEm`;
+give `ScriptJS`, `ScriptModuleJS` and `StyleElem` (also in `svg`) an attribute
+parameter and refuse `</script`/`</style` at render time; stop escaping script
+content; make `xml.Decl` and `xml.Doctype` validate instead of building a `Raw`.
+
+**Why:** `html.Template` runs `text/template` without escaping;
+`StyleElem("</style><script>…")` renders a live script, `html.Script("a < b")`
+breaks the JavaScript, inline code cannot carry a CSP nonce, `xml.Decl` can be
+ended early by its argument, and `WidthPx` emits widths browsers misread.
+
+**Context:** V1-AUDIT.md §2 C8-C9 and §3.2 H1-H5.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
 ### Does routing ship in v1?
 
 **What:** Decide whether `Route`, `TypedRoute`, `ComponentFuncHandler`,
@@ -216,59 +269,6 @@ releases can use go-mx, with the stdlib-`uuid` test cases behind
 **Effort:** S
 **Priority:** P2
 **Depends on:** Finish or delete the unfinished `doc` package before v1.0?
-
-### Fix the `If`/`ElseIf` chain
-
-**What:** Make `If(true, A).ElseIf(false, B).Else(C)` render `A`: carry a
-"matched" flag through the chain. Remove `Iff` and `ElseIff`, which evaluate
-their closure at once and so add nothing over `If(f(), …)`.
-
-**Why:** `ElseIf` discards its receiver (`conditional.go:50`), so a true first
-branch is lost: the chain renders `C`, or `B` for `ElseIf(true, B)`.
-
-**Context:** V1-AUDIT.md §2 C1.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
-### Serve every handler type through `ServeHTTP`
-
-**What:** Rename `HandleHTTP` to `ServeHTTP` on `html.Document`,
-`xml.Document`, `web.Robots`, `Sitemap`, `SitemapIndex` and `LLMsTxt`; delete
-`html.Serve`, `xml.Serve` and `Document.Serve`; make
-`ComponentHTTPHandler` use the default writer for a nil `WriterFactory`;
-give the handler constructors one header parameter shape; rename
-`RespondNonContextError` and `mx.Middleware` after their purpose.
-
-**Why:** Only `ServeHTTP` makes a type an `http.Handler`; the `Serve` helpers
-start a server without timeouts; `ComponentHTTPHandler(c, nil, nil)` answers
-every request with 500.
-
-**Context:** V1-AUDIT.md §2 C5 and §3.6 W7.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
-### Remove the unsafe and unused `html`/`xml` API
-
-**What:** Delete `html.Template` and rename `TemplateElem` to `Template`;
-delete the `TableView` interface and `WidthPx`/`WidthEm`/`HeightPx`/`HeightEm`;
-give `ScriptJS`, `ScriptModuleJS` and `StyleElem` (also in `svg`) an attribute
-parameter and refuse `</script`/`</style` at render time; stop escaping script
-content; make `xml.Decl` and `xml.Doctype` validate instead of building a `Raw`.
-
-**Why:** `html.Template` runs `text/template` without escaping;
-`StyleElem("</style><script>…")` renders a live script, `html.Script("a < b")`
-breaks the JavaScript, inline code cannot carry a CSP nonce, `xml.Decl` can be
-ended early by its argument, and `WidthPx` emits widths browsers misread.
-
-**Context:** V1-AUDIT.md §2 C8-C9 and §3.2 H1-H5.
-
-**Effort:** M
-**Priority:** P1
-**Depends on:** None
 
 ### Clean up `html` and `svg` naming before the freeze
 
