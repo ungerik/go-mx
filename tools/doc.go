@@ -16,6 +16,6 @@
 //
 //	go -C tools tool go-enum -validate ../...
 //
-// plus one run per nested module (../fpdf/..., ../wordpress/..., ../mcp/...),
+// plus one run per nested module (../mcp/...),
 // because ../... stops at nested modules.
 package tools

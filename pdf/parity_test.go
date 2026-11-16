@@ -8,11 +8,16 @@ import (
 )
 
 // TestEngineGoldenParity replays, as raw engine calls, the exact call sequence
-// that the legacy fpdf wrapper's golden test (fpdf/golden_test.go) issues
-// through its component layer, and requires the output to be byte-identical to
-// the committed reference PDF rendered by the legacy stack. This proves the
-// inlined engine produces the same bytes as codeberg.org/go-pdf/fpdf v0.12.0
-// before the component layer is ported on top of it.
+// that the golden test of the legacy fpdf wrapper (golden_test.go in
+// github.com/ungerik/go-mx-fpdf) issues through its component layer, and
+// requires the output to be byte-identical to the reference PDF rendered by
+// the legacy stack. This proves the inlined engine produces the same bytes as
+// codeberg.org/go-pdf/fpdf v0.12.0 before the component layer is ported on top
+// of it.
+//
+// testdata/legacy_reference.pdf is a copy of that repository's
+// testdata/reference.pdf. It is kept apart from testdata/reference.pdf, which
+// TestGoldenPDF -update rewrites from this engine's own output.
 func TestEngineGoldenParity(t *testing.T) {
 	// Document.NewRenderer: New + default font.
 	f := New(OrientationPortrait, UnitMillimeter, PageSizeA4, "")
@@ -86,12 +91,12 @@ func TestEngineGoldenParity(t *testing.T) {
 		t.Fatalf("output: %v", err)
 	}
 
-	want, err := os.ReadFile("../fpdf/testdata/reference.pdf")
+	want, err := os.ReadFile("testdata/legacy_reference.pdf")
 	if err != nil {
 		t.Fatalf("read legacy reference: %v", err)
 	}
 	if !bytes.Equal(buf.Bytes(), want) {
-		t.Errorf("engine output differs from legacy reference.pdf (%d vs %d bytes)", buf.Len(), len(want))
+		t.Errorf("engine output differs from legacy_reference.pdf (%d vs %d bytes)", buf.Len(), len(want))
 		if err := CompareBytes(buf.Bytes(), want, true); err != nil {
 			t.Log(err)
 		}
