@@ -934,6 +934,16 @@ API is still free to change.
 
 ### Fixed
 
+- **A field error no longer shows the call stack of a go-errs error.**
+  `mx.FieldErrorTexts` showed the `Error()` text of a field error that has no
+  user message, and a `go-errs` error (`errs.New`, `errs.Errorf`) carries its
+  call stack and function parameters in that text, so a decider or validator
+  returning one put source paths and argument values on the page. It now
+  shows `errs.MessageWithoutCallStacks(err)`, which removes them at every
+  level, also from wrapped errors. `mx.BoundFieldError` measures the same
+  text against `MaxFieldErrorLen`, so a short message no longer reads as the
+  substitute because of its call stack. Requires `github.com/domonda/go-errs`
+  v1.3.0 or newer.
 - **An attribute name can no longer break out of its start tag.**
   `mx.CheckedWriter.Attribute` writes names unescaped and checked only that
   they were not empty, so `mx.NewAttrib("x onload=alert(1)", "")` rendered an
