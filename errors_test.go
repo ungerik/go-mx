@@ -437,6 +437,15 @@ func TestBoundFieldError(t *testing.T) {
 	if err := BoundFieldError(t.Context(), shortJoin, "x", notValid); err != shortJoin {
 		t.Errorf("a short join must stay as it is: %v", err)
 	}
+	// The bound measures the text the field shows, without the call stack
+	// and function parameters of go-errs, which here alone pass the bound.
+	stacked := func() (err error) {
+		defer errs.WrapWithFuncParams(&err, long)
+		return errs.New("invalid code")
+	}()
+	if err := BoundFieldError(t.Context(), stacked, "abc", notValid); err != stacked {
+		t.Errorf("a short message with a long call stack: %v, want it as it is", err)
+	}
 
 	// A bound too large to multiply means no bound in practice, not none at all.
 	prev := MaxFieldErrorLen
@@ -478,6 +487,10 @@ func TestFieldErrorTexts(t *testing.T) {
 		{"empty message", blankMessageError{}, []string{"crm: partner 7 has no display name"}},
 		{"plain join", errors.Join(errors.New("too short"), errors.New("no digits")), []string{"too short\nno digits"}},
 		{"plain multi-wrap", fmt.Errorf("must be between %w and %w", errors.New("10"), errors.New("20")), []string{"must be between 10 and 20"}},
+		// A field shows a go-errs error without its call stacks, also those
+		// of wrapped errors
+		{"call stack", errs.New("too short"), []string{"too short"}},
+		{"wrapped call stack", errs.Errorf("rule: %w", errs.New("too short")), []string{"rule: too short"}},
 	} {
 		if got := FieldErrorTexts(c.err); !slices.Equal(got, c.want) {
 			t.Errorf("%s: FieldErrorTexts = %q, want %q", c.name, got, c.want)

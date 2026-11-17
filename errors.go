@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/domonda/go-errs"
 )
 
 var (
@@ -162,9 +164,10 @@ func userMessages(err error) []error {
 // message is under it, a wrapper's own text is left out, and a joined error
 // gives the messages of each of its parts, also when it is wrapped, so two
 // joined user messages both show; an error with none under it shows its own
-// text whole, or "not a valid value" for an error without text, so a field
-// marked invalid always says something. A decider renders a field's errors
-// with it.
+// text whole without the call stacks of go-errs
+// ([errs.MessageWithoutCallStacks]), or "not a valid value" for an error
+// without text, so a field marked invalid always says something. A decider
+// renders a field's errors with it.
 func FieldErrorTexts(err error) []string {
 	if err == nil {
 		return nil
@@ -188,7 +191,7 @@ func FieldErrorTexts(err error) []string {
 			return FieldErrorTexts(wrapped.Unwrap())
 		}
 	}
-	if text := err.Error(); text != "" {
+	if text := errs.MessageWithoutCallStacks(err); text != "" {
 		return []string{text}
 	}
 	return []string{"not a valid value"}
@@ -258,7 +261,9 @@ func boundFieldError(ctx context.Context, err error, raw string, substitute Form
 		reportHiddenFieldError(ctx, err, -1, raw)
 		return substitute, true
 	}
-	text := err.Error()
+	// The text FieldErrorTexts shows, so a call stack it leaves out
+	// neither counts against the bound nor reaches the page.
+	text := errs.MessageWithoutCallStacks(err)
 	switch {
 	case len(text) > maxLen:
 		reportHiddenFieldError(ctx, err, len(text), raw)
