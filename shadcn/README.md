@@ -23,6 +23,10 @@ re-expressed with web-platform primitives.
 > [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/). This README is the
 > component reference and the design rationale.
 
+Every component of the registry is ported, but not every upstream feature:
+[What is not ported from upstream, and why](#what-is-not-ported-from-upstream-and-why)
+lists the gaps in one place.
+
 ## `Cn` — the class-merging helper
 
 shadcn's `cn` helper is `clsx` piped through `tailwind-merge`. `Cn` is the Go
@@ -108,6 +112,85 @@ shadcn.InputID("email", html.Type("email")),
 | `TextareaID(id, …)`    | `Textarea(html.ID(id), …)`    |
 | `CheckboxID(id, …)`    | `Checkbox(html.ID(id), …)`    |
 | `SwitchID(id, …)`      | `Switch(html.ID(id), …)`      |
+
+## What is not ported from upstream, and why
+
+Three reasons recur. **React plumbing** (props that pass behavior around a
+component tree, context providers, portals) has nothing to attach to in HTML
+rendered on the server. **Behavior that upstream gets from a JavaScript
+library** (Radix, cmdk, Vaul, Sonner, Embla) is re-expressed with web-platform
+primitives where the platform has one, and with a small inline script where
+it does not; behavior that would need substantially more script than that is
+left out. **Browser support** decides the rest: a few ports rely on CSS that
+not every browser ships yet and degrade where it is missing.
+
+### React and primitive-library API
+
+| Upstream | Here | Why |
+|----------|------|-----|
+| `asChild` / `render` (Radix Slot, Base UI render prop) | pass attributes and children to the element the function renders; for a button look on a link, `html.Class(ButtonClasses(…))` | Go functions render the element directly; there is no child component to merge props into |
+| controlled state and callbacks: `open`/`onOpenChange`, `value`/`onValueChange`, `checked`/`onCheckedChange`, `onSelect` | the initial state as a parameter or attribute; changes reach the page as native DOM events (`input`, `change`, `toggle`, `close`, `click`) and reach the server as form submissions or htmx requests (`hx.*`) | there is no client component tree to call back into |
+| `…Portal` parts (Dialog, AlertDialog, Sheet, Drawer, Popover, Tooltip, …) | none | a modal `<dialog>` and a popover render in the browser's top layer, above everything, without being moved in the DOM |
+| `…Overlay` parts (Dialog, AlertDialog, Sheet, Drawer) | none | the overlay is the `::backdrop` pseudo-element, styled through the content's `backdrop:` classes |
+| `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectScrollUpButton`, `SelectScrollDownButton` | `Select`, `SelectGroup`, `SelectOption` | `Select` is a real `<select>`; these parts are Radix's reconstruction of one |
+| `ScrollBar` | none | the scrollbar of `ScrollArea` is a pseudo-element, not an element |
+| `TooltipProvider`, the tooltip arrow | none | the provider shares delay settings through React context, which has no counterpart; the arrow is not ported |
+| `FormField`, `FormItem`, `FormControl`, `FormLabel`, `FormDescription`, `FormMessage` (react-hook-form with zod) | `Form` is a native `<form>`; fields use the [Field system](#post-restructure-components-july-2026); validation runs on the server, through `mx.ReflectFormHandler` and `shadcn.FieldDecider` for reflected forms | react-hook-form keeps form state in the browser; here the server renders it |
+| `Combobox`, `DatePicker`, `DataTable` as components | [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/) recipes | upstream ships them as copy-paste recipes too, not as components |
+
+### Behavior not reproduced
+
+| Component | Not reproduced | Why |
+|-----------|----------------|-----|
+| Command | cmdk's fuzzy ranking: the filter matches substrings and the matches keep their order | ranking means a scoring function and reordering the list in the DOM; substring matching covers a command palette's short labels |
+| Collapsible, Accordion | the open/close height animation | a native `<details>` snaps open and closed; CSS can animate it (`::details-content` with `interpolate-size`), but this package does not emit that yet |
+| Drawer | Vaul's snap points, momentum, background scaling, and drawers on the top, left or right edge | each is more drag physics in the drawer's script; `Sheet` covers the other edges |
+| Toast (Sonner) | swipe to dismiss, stacking offsets, expanding the stack on hover | gesture and layout handling that would multiply the toaster's script |
+| Carousel | Embla's autoplay, looping, vertical orientation and its `setApi` handle | CSS scroll snapping, which carries the carousel, has no looping; vertical orientation needs a new parameter, which waits for the decision on how components take variants (`TODOS.md`, "How do `shadcn` components take variants and state?") |
+| NavigationMenu | the shared `NavigationMenuViewport` and the `NavigationMenuIndicator` arrow | each item's content is its own popover; a shared viewport that morphs between items needs measuring and animating in script |
+| Sidebar | the `floating` and `inset` variants, and turning into a Sheet on mobile | not ported yet; the offcanvas and icon collapse and the full part set are |
+| MessageScroller | the autoscrolling and pending-scroll states and anchored turns of upstream's primitive | the viewport follows the stream with `StickToBottom` instead |
+| Dialog, AlertDialog, Sheet, Drawer | wiring `aria-labelledby` and `aria-describedby` to the title and description | Radix shares the ids through context; here the title does not know its dialog's id, so pass the attributes yourself |
+
+### Depends on the browser
+
+- **Popovers next to their trigger** (Tooltip, HoverCard, Popover, the menus,
+  NavigationMenu) use CSS anchor positioning. Where it is missing (Firefox as
+  of mid-2026) the popover still opens and dismisses, centered in the viewport;
+  see [Anchor positioning](#anchor-positioning).
+- **`Select`'s shadcn look** needs `appearance: base-select` (Chromium; see
+  the `Select` entry under [Tier 3](#tier-3-components)). Other browsers show
+  their native dropdown, which works the same.
+- **Closing animations of the modal overlays** need the CSS `overlay`
+  property, which keeps a closing `<dialog>` in the top layer until its
+  transition ends (Chromium). Elsewhere the overlays animate in and close at
+  once; see [Open and close animations](#open-and-close-animations).
+
+### Styles and tooling
+
+- **One look.** Components carry the classic `new-york-v4` classes, frozen
+  upstream since July 2026, and components added after that are reconstructed
+  from the `vega` style. The other named styles (`nova`, `maia`, `lyra`,
+  `mira`, `luma`, `rhea`, `sera`) are not offered: each would be another full
+  set of class strings per component. Caller classes still override anything
+  through `Cn`.
+- **No primitive library.** Upstream's Radix, Base UI and React Aria bases
+  are irrelevant here: the behavior is native HTML plus the inline scripts.
+- **No CLI or registry.** `shadcn add`, `components.json` and `eject` have no
+  counterpart: import the Go package. `tw-animate-css` is not needed either;
+  the animations use Tailwind's built-in transition utilities.
+- **`cn` stays `clsx` plus `tailwind-merge`.** Upstream moved to its own `cn`
+  package in September 2026; `Cn` keeps porting tailwind-merge (see
+  `TODOS.md` in this directory, "Upstream sync").
+
+### Port-wide limitation
+
+The interactive components emit inline `<script>` elements and `on…`
+handlers, so a page with a strict Content-Security-Policy (no
+`'unsafe-inline'`) cannot use them yet. Moving the behavior behind `data-*`
+attributes and one nonce-carrying script is an open v1.0 decision in the
+root `TODOS.md` ("How do `shadcn` and `logview` support a strict
+Content-Security-Policy?").
 
 ## Localization — built-in labels
 
@@ -267,7 +350,8 @@ What this means concretely:
   below), `z-50` (the top layer is above everything), and
   `data-[state=open|closed]:animate-*` (a native `<dialog>` has no
   `data-state`). These are dropped; the box, sizing and layout classes are
-  kept, plus `backdrop:bg-black/50`.
+  kept, the backdrop keeps its `backdrop:bg-black/50` color and fades through
+  its opacity, and the animations become CSS transitions (see below).
 - **Centering (`m-auto`).** A native modal `<dialog>` is centered in the top
   layer by the user agent's `margin: auto`. Tailwind v4 Preflight (which this
   package requires) resets every element's margin to `0`, defeating that and
@@ -313,12 +397,37 @@ string, not by DOM nesting. The `AlertDialog` wrapper is purely structural.
 unless the id is a non-empty string of letters, digits, `-` and `_`. Pass a
 constant, developer-chosen id — never user input.
 
+### Open and close animations
+
+Upstream animates its overlays with keyframes on Radix's
+`data-state="open"`/`"closed"`. A native `<dialog>` has no such attribute, so
+`AlertDialog`, `Dialog`, `Sheet` and `Drawer` animate with CSS transitions
+between the dialog's closed and `[open]` styles instead, with the same
+movements and durations as upstream: the centered dialogs fade and zoom
+(200ms), a `Sheet` slides in from its edge (500ms in, 300ms out), a `Drawer`
+slides up with Vaul's curve (500ms), and the backdrop fades.
+
+- **Opening** transitions from the `starting:open:` classes (CSS
+  `@starting-style`), which every current browser supports.
+- **Closing** needs `display` and `overlay` in the transition with
+  `transition-behavior: allow-discrete`, so the dialog stays visible and in the
+  top layer until it has faded or slid out. Only browsers with the `overlay`
+  property (Chromium) get that, through `supports-[overlay:auto]:transition-discrete`;
+  elsewhere the dialog would leave the top layer at once and drop onto the
+  page while fading, so it closes at once instead.
+- `prefers-reduced-motion: reduce` turns the transitions off.
+- **Overriding.** The transition is one unprefixed
+  `transition-[opacity,scale,translate,display,overlay]` class, so a caller's
+  `transition-none` or `transition-[…]` replaces it in every browser (and
+  `backdrop:transition-none` the backdrop's). The backdrop color is
+  `backdrop:bg-black/50` in every state, so a caller's `backdrop:bg-*` class
+  replaces it; the fade runs on the backdrop's opacity.
+- A `Drawer` drag moves the drawer with an inline `translate` and turns the
+  transitions off; on release both are cleared, so the classes slide the
+  drawer back into place or, past the threshold, out as it closes.
+
 ### Known limitations
 
-- Open/close is instant. A native `<dialog>` has no `data-state`, so the Radix
-  enter/exit animations are not reproduced. They can be added in plain CSS with
-  `@starting-style` and `transition-behavior: allow-discrete`; this package
-  does not emit that CSS.
 - The `<dialog>` does not get `aria-labelledby` / `aria-describedby`
   automatically (Radix wires these). Pass them yourself with `html.Attrib`.
 - `AlertDialogAction` only closes the dialog by default. For a server-side
@@ -654,7 +763,8 @@ Tier 4 covers the modal overlays. All of them reuse the native `<dialog>`
 approach established by [AlertDialog](#alertdialog-native-dialog-instead-of-radix)
 — top layer, `::backdrop`, focus trap, Escape-to-close, no framework — so the
 notes there (trigger/content linked by a `dialogID`, `m-auto` centering,
-`open:` display scoping, id validation) apply to all three.
+`open:` display scoping, id validation,
+[open and close animations](#open-and-close-animations)) apply to all three.
 
 - **Dialog** — `Dialog` / `DialogTrigger(dialogID, …)` /
   `DialogContent(dialogID, …)` / `DialogHeader` / `DialogFooter` /
@@ -697,7 +807,20 @@ examples, not functions in this package.
   `CommandSeparator` / `CommandShortcut`. A filterable command list: one
   shared `commandFilter` script substring-matches each item's text on input,
   hides non-matching items and empty groups, and toggles `CommandEmpty`.
-  cmdk's fuzzy ranking and arrow-key navigation are not reproduced.
+  As in cmdk, one item is selected at a time (`data-selected="true"`, which
+  upstream's item classes highlight): the first match after loading and after
+  every filter run, then the one moved to with ArrowDown/ArrowUp/Home/End
+  (without wrapping) or under the pointer; Enter clicks it, or the first
+  link or button inside it. Focus stays in the input, a `combobox` pointing at
+  the selected `option` of the `listbox` with `aria-activedescendant`. An item
+  with `data-disabled="true"` is dimmed and skipped. As in cmdk, keys are left
+  alone during IME composition (`isComposing`, or Safari's `keyCode` 229) and
+  after an earlier handler's `preventDefault`, `CommandEmpty` has
+  `role="presentation"` and `CommandSeparator` `role="separator"`. Items
+  swapped in later (server-side results an htmx swap puts into the
+  `CommandList`) are picked up by a `MutationObserver`: a removed selection
+  moves to the first item, and a replaced list is linked to the input again.
+  cmdk's fuzzy ranking is not reproduced: the matches keep their order.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
   server-side with Go's `time` package. A static calendar's days are text,
