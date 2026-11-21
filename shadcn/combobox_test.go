@@ -442,16 +442,31 @@ out.resetValue=new FormData(form).get('debit');
 item('tax','').click();
 out.nonePicked=new FormData(form).get('tax');
 out.noneValid=part('tax','combobox-input').checkValidity();
+
+// Value: protects=the trigger following a change the browser makes on the focused select; fails_when=the select's change listener is removed; why_new=Codex and three readers found keys the script leaves to the browser; seam=none; no_claim=which keys a platform maps to a select change (synthetic keys have no default action)
+var taxSel=part('tax','combobox-input');
+taxSel.selectedIndex=1;
+taxSel.dispatchEvent(new Event('change',{bubbles:true}));
+out.nativeChangeShown=part('tax','combobox-value').textContent+'|'+new FormData(form).get('tax');
+
+// Value: protects=a reset another listener cancelled keeping the comboboxes; fails_when=the reset listener stops checking defaultPrevented; why_new=Codex found it; seam=none; no_claim=none beyond protects
+item('debit','4930').click();
+form.addEventListener('reset',function(e){e.preventDefault();});
+form.reset();
+await wait(10);
+out.cancelledReset=new FormData(form).get('debit')+'|'+part('debit','combobox-value').textContent;
 `
 	got := runInChrome(t, body, script, nil)
 	checkRecorded(t, got, map[string]any{
-		"restoredValue":   "1200",
-		"restoredText":    "1200 Bank",
-		"restoredChecked": "1200",
-		"restoredOptions": float64(1),
-		"resetOptions":    float64(1),
-		"resetValue":      "1200",
-		"nonePicked":      "",
-		"noneValid":       false,
+		"restoredValue":     "1200",
+		"restoredText":      "1200 Bank",
+		"restoredChecked":   "1200",
+		"restoredOptions":   float64(1),
+		"resetOptions":      float64(1),
+		"resetValue":        "1200",
+		"nonePicked":        "",
+		"noneValid":         false,
+		"nativeChangeShown": "8400 Revenue 19%|8400",
+		"cancelledReset":    "4930|4930 Office supplies",
 	})
 }

@@ -738,6 +738,24 @@ field, or a separate `ComboboxOptions.Groups`, would also serve
 **Priority:** P3
 **Depends on:** None
 
+### A `Combobox`'s own `aria-invalid` outlives an htmx history restore
+
+**What:** Clear the `aria-invalid` a `shadcn.Combobox` script set after a
+failed required check also when the markup was restored from a snapshot.
+
+**Why:** The script remembers that it set the mark only in the `mxInvalid`
+property, which an htmx history snapshot drops. After a restore the mark
+reads as one the server set and stays after a valid pick: the trigger
+looks and is announced invalid. The submitted value is not affected.
+
+**Context:** Found by the /ship adversarial review (2026-11-21). A
+`data-mx-invalid` attribute in `comboboxScript`, set and cleared with the
+mark, would survive the snapshot.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### `Combobox` renders every option into the page
 
 **What:** Load a `Combobox`'s matches from the server as the user types,

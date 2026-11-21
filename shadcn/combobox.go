@@ -135,9 +135,16 @@ const comboboxScript = /*js*/ `if(!window.comboboxPick){(function(){` +
 	`var ids=Array.prototype.map.call(t.labels||[],function(l,i){if(!l.id)l.id=t.id+'-label'+(i||'');return l.id;}).join(' ');if(ids)s.setAttribute('aria-labelledby',ids);` +
 	`s.removeAttribute('aria-hidden');setTimeout(function(){if(document.activeElement!==s)s.setAttribute('aria-hidden','true');},0);});` +
 	`s.addEventListener('blur',function(){s.setAttribute('aria-hidden','true');});` +
+	// The trigger follows every change of the select, also one a key the
+	// script leaves to the browser makes on the focused select (Home,
+	// End, PageUp, PageDown, or a pick from the native list F4 opens), so
+	// it never shows another value than the form submits.
+	`s.addEventListener('change',function(){show(r);});` +
 	// One reset listener per form, not per combobox: it finds the
 	// comboboxes when it runs, so those swapped out are not kept alive.
-	`var f=s.form;if(f&&!f.mxComboboxReset){f.mxComboboxReset=true;f.addEventListener('reset',function(){setTimeout(function(){Array.prototype.forEach.call(f.elements,function(el){var r=el.getAttribute('data-slot')==='combobox-input'&&el.closest('[data-slot=combobox]');if(r&&r.mxCombobox)reset(r);});},0);});}};` +
+	// A reset another listener cancelled leaves the form, and so the
+	// comboboxes, as they are.
+	`var f=s.form;if(f&&!f.mxComboboxReset){f.mxComboboxReset=true;f.addEventListener('reset',function(e){setTimeout(function(){if(e.defaultPrevented)return;Array.prototype.forEach.call(f.elements,function(el){var r=el.getAttribute('data-slot')==='combobox-input'&&el.closest('[data-slot=combobox]');if(r&&r.mxCombobox)reset(r);});},0);});}};` +
 	`})();}` +
 	`window.comboboxPick.init(document.currentScript&&document.currentScript.closest('[data-slot=combobox]'));`
 

@@ -2169,3 +2169,17 @@ func TestShadcn_ComboboxNonIDPathFallsBackToSelect(t *testing.T) {
 		t.Errorf("a path that is no valid id renders the select: %s", out)
 	}
 }
+
+// A widget=datepicker field whose path is no valid id stays a date input
+// instead of failing the form, as widget=combobox falls back to a select.
+//
+// Value: protects=a non-ASCII widget=datepicker field still rendering; fails_when=the id check before the picker is removed (validateID panics); why_new=the Combobox review found it for the date picker too; seam=none; no_claim=none beyond protects
+func TestShadcn_DatePickerNonIDPathFallsBackToDateInput(t *testing.T) {
+	type form struct {
+		Gültig time.Time `form:"widget=datepicker"`
+	}
+	out := renderShadcn(t, &form{}, "Gültig", nil)
+	if !strings.Contains(out, `type="date"`) || strings.Contains(out, "popovertarget") {
+		t.Errorf("a path that is no valid id renders the date input: %s", out)
+	}
+}

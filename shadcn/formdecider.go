@@ -89,7 +89,9 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 		}
 		in := mx.DateTimeInput(value, tag)
 		invalid := len(errs) > 0 || (in.Invalid && !tag.Readonly)
-		if tag.Widget == "datepicker" && in.Type == "date" && !tag.Readonly {
+		// A path that is no valid id (a non-ASCII field name) cannot name
+		// the picker's popover, so that field stays a date input.
+		if tag.Widget == "datepicker" && in.Type == "date" && !tag.Readonly && isValidID(string(path)) {
 			if selected, ok := datePickerValue(in.Value); ok {
 				return shadcnFieldMarked(path, field, value, kind, tag, errs, invalid,
 					&datePickerField{path: path, selected: selected, tag: tag, errs: errs},
