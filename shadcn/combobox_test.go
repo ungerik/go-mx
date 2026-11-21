@@ -162,8 +162,10 @@ func TestComboboxIDs(t *testing.T) {
 	out := render(t, mx.Components{
 		Combobox(ComboboxOptions{Name: "rows[0].debit", ID: "row0-debit", Options: accounts}),
 		Combobox(ComboboxOptions{Name: "credit", Options: accounts}),
+		// A nil attribute, as a conditional one can be, is left out.
+		Combobox(ComboboxOptions{Name: "cost", Options: accounts}, nil),
 	})
-	for _, want := range []string{`name="rows[0].debit"`, `id="row0-debit"`, `id="row0-debit-popover"`, `id="credit"`, `id="credit-popover"`} {
+	for _, want := range []string{`name="rows[0].debit"`, `id="cost"`, `id="row0-debit"`, `id="row0-debit-popover"`, `id="credit"`, `id="credit-popover"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %s in %s", want, out)
 		}
@@ -200,6 +202,8 @@ func TestComboboxInChrome(t *testing.T) {
 		Combobox(ComboboxOptions{Name: "credit", Options: accounts, Selected: "1200"}),
 		unavailable,
 		Combobox(ComboboxOptions{Name: "tax", Options: none, Selected: "8400"}),
+		// An error the server reported, which no pick or reset clears.
+		Combobox(ComboboxOptions{Name: "cost", Options: accounts}, html.Attrib("aria-invalid", "true")),
 	)
 	const script = /*js*/ `
 var form=document.getElementById('booking');
@@ -286,10 +290,23 @@ await wait(0);
 out.keyboardValue=new FormData(form).get('debit');
 out.keyboardText=text('debit');
 
+// Value: protects=browser shortcuts on the trigger and ArrowDown opening the list at the pick; fails_when=the modifier check or the ArrowDown case is removed; why_new=only Enter and characters were driven; seam=none; no_claim=IME composition
+var ctrl=new KeyboardEvent('keydown',{key:'c',ctrlKey:true,bubbles:true,cancelable:true});
+trigger.dispatchEvent(ctrl);
+out.ctrlIgnored=!ctrl.defaultPrevented&&!open('debit');
+key(trigger,'ArrowDown');
+await wait(0);
+out.arrowOpensAtPick=open('debit')&&root('debit').querySelector('[data-selected=true]').getAttribute('data-value');
+part('debit','combobox-content').hidePopover();
+await wait(0);
+
 // A required pick cannot be unpicked; an optional one can, by picking it
 // again, as upstream's recipe does.
+// Value: protects=no change event, so no htmx request, when a pick keeps the value; fails_when=the v!==prev guard is dropped; why_new=changes was only counted after the first pick; seam=none; no_claim=htmx itself
+var changesBefore=changes;
 item('debit','8400').click();
 out.requiredKept=new FormData(form).get('debit');
+out.repickNoChange=changes===changesBefore;
 item('credit','1200').click();
 out.optionalCleared=new FormData(form).get('credit');
 out.optionalText=text('credit');
@@ -309,6 +326,10 @@ item('tax','4200').click();
 item('tax','4200').click();
 out.noneUnpicked=text('tax')+'|'+new FormData(form).get('tax');
 
+// Value: protects=an aria-invalid the server set surviving a pick and a reset; fails_when=the script clears aria-invalid it did not set; why_new=only the browser's own invalid marking was driven; seam=none; no_claim=what a screen reader announces
+item('cost','4200').click();
+out.serverInvalidAfterPick=part('cost','combobox-trigger').getAttribute('aria-invalid');
+
 form.requestSubmit();
 out.submitted=submitted;
 
@@ -323,55 +344,114 @@ out.resetCreditChecked=checked('credit');
 out.resetValidity=part('debit','combobox-input').checkValidity();
 out.resetUnavailable=text('partner')+'|'+new FormData(form).get('partner');
 out.resetTax=text('tax');
+out.serverInvalidAfterReset=part('cost','combobox-trigger').getAttribute('aria-invalid');
 `
 	got := runInChrome(t, body, script, nil)
 	checkRecorded(t, got, map[string]any{
-		"blocked":                float64(0),
-		"invalid":                "true",
-		"focusOnSelect":          true,
-		"hiddenBefore":           "true",
-		"hiddenWhileFocused":     false,
-		"selectLabel":            "Debit account",
-		"selectDescribedBy":      "debit-help",
-		"hiddenAfterBlur":        "true",
-		"searchEventsKept":       true,
-		"noMatchEnterPrevented":  true,
-		"noMatchStillOpen":       true,
-		"unavailableUnpicked":    "Choose…",
-		"nonePicked":             "(none)|true|",
-		"noneUnpicked":           "(none)|",
-		"resetUnavailable":       "(not available)|",
-		"resetTax":               "8400 Revenue 19%",
-		"openFromSelect":         true,
-		"expanded":               "true",
-		"searchFocused":          true,
-		"value":                  "4930",
-		"text":                   "4930 Office supplies",
-		"checked":                "4930",
-		"closed":                 true,
-		"collapsed":              "false",
-		"focusOnTrigger":         true,
-		"validAgain":             false,
-		"changes":                float64(1),
-		"reopenedSearch":         "",
-		"reopenedSelected":       "4930",
-		"seeded":                 "8",
-		"seededFocus":            true,
-		"seededKept":             "8",
-		"keyboardValue":          "8400",
-		"keyboardText":           "8400 Revenue 19%",
-		"requiredKept":           "8400",
-		"optionalCleared":        "",
-		"optionalText":           "Choose…",
-		"optionalPlaceholder":    "true",
-		"optionalUnchecked":      "",
-		"creditDidNotTouchDebit": "8400",
-		"submitted":              float64(1),
-		"resetDebit":             "",
-		"resetDebitText":         "Choose…",
-		"resetCredit":            "1200",
-		"resetCreditText":        "1200 Bank",
-		"resetCreditChecked":     "1200",
-		"resetValidity":          false,
+		"blocked":                 float64(0),
+		"invalid":                 "true",
+		"focusOnSelect":           true,
+		"hiddenBefore":            "true",
+		"hiddenWhileFocused":      false,
+		"selectLabel":             "Debit account",
+		"selectDescribedBy":       "debit-help",
+		"hiddenAfterBlur":         "true",
+		"searchEventsKept":        true,
+		"noMatchEnterPrevented":   true,
+		"noMatchStillOpen":        true,
+		"unavailableUnpicked":     "Choose…",
+		"nonePicked":              "(none)|true|",
+		"noneUnpicked":            "(none)|",
+		"resetUnavailable":        "(not available)|",
+		"resetTax":                "8400 Revenue 19%",
+		"openFromSelect":          true,
+		"expanded":                "true",
+		"searchFocused":           true,
+		"value":                   "4930",
+		"text":                    "4930 Office supplies",
+		"checked":                 "4930",
+		"closed":                  true,
+		"collapsed":               "false",
+		"focusOnTrigger":          true,
+		"validAgain":              false,
+		"changes":                 float64(1),
+		"reopenedSearch":          "",
+		"reopenedSelected":        "4930",
+		"seeded":                  "8",
+		"seededFocus":             true,
+		"seededKept":              "8",
+		"keyboardValue":           "8400",
+		"keyboardText":            "8400 Revenue 19%",
+		"requiredKept":            "8400",
+		"repickNoChange":          true,
+		"ctrlIgnored":             true,
+		"arrowOpensAtPick":        "8400",
+		"serverInvalidAfterPick":  "true",
+		"serverInvalidAfterReset": "true",
+		"optionalCleared":         "",
+		"optionalText":            "Choose…",
+		"optionalPlaceholder":     "true",
+		"optionalUnchecked":       "",
+		"creditDidNotTouchDebit":  "8400",
+		"submitted":               float64(1),
+		"resetDebit":              "",
+		"resetDebitText":          "Choose…",
+		"resetCredit":             "1200",
+		"resetCreditText":         "1200 Bank",
+		"resetCreditChecked":      "1200",
+		"resetValidity":           false,
+	})
+}
+
+// TestComboboxStaysInSyncInChrome checks that the select never holds a
+// pick the trigger does not show: a copy of picked markup inserted again,
+// as an htmx history restore does, shows the value the select submits, a
+// reset leaves no stale option behind, and an empty "(none)" pick in a
+// required combobox is the placeholder the browser rejects.
+//
+// Value: protects=the submitted value matching the trigger after re-inserted markup and a reset, and required rejecting a "(none)" pick; fails_when=init stops showing the select's option, reset keeps picked options, or an empty pick is appended after the server option; why_new=review found all three; seam=none; no_claim=htmx's own history cache
+func TestComboboxStaysInSyncInChrome(t *testing.T) {
+	none := append([]mx.NamedOption{{Name: "(none)"}}, accounts...)
+	body := html.Form(html.ID("f"),
+		html.Div(html.ID("host"), Combobox(ComboboxOptions{Name: "debit", Options: accounts, Selected: "1200"})),
+		Combobox(ComboboxOptions{Name: "tax", Options: none, Selected: "8400", Required: true}),
+	)
+	const script = /*js*/ `
+var form=document.getElementById('f');
+var root=function(n){return document.querySelector('[data-slot=combobox]:has([name='+n+'])');};
+var part=function(n,s){return root(n).querySelector('[data-slot='+s+']');};
+var item=function(n,v){return root(n).querySelector('[data-slot=command-item][data-value="'+v+'"]');};
+item('debit','4200').click();
+// Re-insert the picked markup and run its scripts, as htmx restores a
+// history snapshot: only the server option keeps its selected attribute.
+var host=document.getElementById('host');
+host.innerHTML=host.innerHTML;
+host.querySelectorAll('script').forEach(function(old){var s=document.createElement('script');s.textContent=old.textContent;old.replaceWith(s);});
+await wait(0);
+out.restoredValue=new FormData(form).get('debit');
+out.restoredText=part('debit','combobox-value').textContent;
+out.restoredChecked=root('debit').querySelector('[data-checked=true]').getAttribute('data-value');
+out.restoredOptions=part('debit','combobox-input').options.length;
+
+item('debit','4930').click();
+form.reset();
+await wait(10);
+out.resetOptions=part('debit','combobox-input').options.length;
+out.resetValue=new FormData(form).get('debit');
+
+item('tax','').click();
+out.nonePicked=new FormData(form).get('tax');
+out.noneValid=part('tax','combobox-input').checkValidity();
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"restoredValue":   "1200",
+		"restoredText":    "1200 Bank",
+		"restoredChecked": "1200",
+		"restoredOptions": float64(1),
+		"resetOptions":    float64(1),
+		"resetValue":      "1200",
+		"nonePicked":      "",
+		"noneValid":       false,
 	})
 }

@@ -2120,3 +2120,52 @@ func TestShadcn_ComboboxRoundTrip(t *testing.T) {
 		t.Errorf("a required combobox submitted blank must be rejected: status %d, saved %+v", rec.Code, saved)
 	}
 }
+
+// Value: protects=the "(none)" choice keeping an offered stored value picked, the removed-on-save note only on optional fields, and a provider error failing the render; fails_when=Clear resets the selection, the note ignores required, or the CollectOptions error is swallowed; why_new=Clear was hit only with a value the list lacks, Unavailable only optional, no error path; seam=none; no_claim=browser behavior
+func TestShadcn_ComboboxPrefaces(t *testing.T) {
+	kept := renderShadcn(t, &comboboxForm{Credit: "b"}, "Credit", nil)
+	for _, want := range []string{
+		`data-value="b" data-checked="true"`,
+		`>Tag B</span>`,
+		/*html*/ `<option value="b" selected="selected">`,
+	} {
+		if !strings.Contains(kept, want) {
+			t.Errorf("an offered value stays picked: missing %s in %s", want, kept)
+		}
+	}
+	if !strings.Contains(kept, `data-value=""`) || strings.Contains(kept, `data-value="" data-checked`) {
+		t.Errorf("an optional field offers an unchecked (none): %s", kept)
+	}
+
+	// A required field rejects the blank instead, so nothing says saving
+	// removes the value.
+	required := renderShadcn(t, &comboboxForm{Color: "purple"}, "Color", nil)
+	if !strings.Contains(required, `>(current value not available)</span>`) || strings.Contains(required, "Color-note") || strings.Contains(required, "purple") {
+		t.Errorf("a required unavailable value: caption, no note, not echoed: %s", required)
+	}
+
+	type broken struct {
+		Partner string `form:"widget=combobox,options=test-shadcn-unregistered"`
+	}
+	v := reflect.ValueOf(&broken{}).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider("Partner", f, v.Field(0)).Render("Partner", f, v.Field(0), nil)
+	if err := comp.Render(t.Context(), mx.NewCheckedWriter(&strings.Builder{})); err == nil {
+		t.Error("an option list that cannot be collected must fail the render")
+	}
+}
+
+// A field whose path is no valid id, as a non-ASCII Go field name gives,
+// cannot name a combobox's trigger and popover, so it renders the select
+// instead of failing the form.
+//
+// Value: protects=a widget=combobox field with a non-ASCII name still rendering; fails_when=the id check before the combobox is removed (validateID panics); why_new=review found it; seam=none; no_claim=the label of such a field
+func TestShadcn_ComboboxNonIDPathFallsBackToSelect(t *testing.T) {
+	type form struct {
+		Größe colorEnum `form:"widget=combobox"`
+	}
+	out := renderShadcn(t, &form{Größe: "red"}, "Größe", nil)
+	if !strings.Contains(out, `data-slot="select"`) || strings.Contains(out, "combobox") {
+		t.Errorf("a path that is no valid id renders the select: %s", out)
+	}
+}

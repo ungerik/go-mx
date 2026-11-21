@@ -282,11 +282,21 @@ type internalNote string
 
 func (internalNote) FormWidget() string { return "skip" }
 
+// hintedAccount is an enum that asks to be shown as a combobox.
+type hintedAccount string
+
+func (hintedAccount) FormWidget() string    { return "combobox" }
+func (hintedAccount) EnumStrings() []string { return []string{"1200", "4200"} }
+
 // A FormWidgetHint that decides a field's kind is returned as the tag's
 // Widget, so renderers and parsers read one widget. An explicit widget or
 // options tag still takes precedence, and the hint does not overwrite it.
+//
+// Value: protects=widget=combobox, by tag or FormWidgetHint, being an enum field for every renderer; fails_when="combobox" is dropped from either widget switch; why_new=only the shadcn tests reached the tag case, and nothing the hint case; seam=none; no_claim=how a renderer draws it
 func TestDetectField_HintBecomesTagWidget(t *testing.T) {
 	type form struct {
+		Account   hintedAccount
+		Tagged    string `form:"widget=combobox,options=partners"`
 		Date      hintedDate
 		DatePtr   *hintedDate
 		Email     hintedField
@@ -299,6 +309,8 @@ func TestDetectField_HintBecomesTagWidget(t *testing.T) {
 		wantKind   FieldKind
 		wantWidget string
 	}{
+		{"Account", FieldKindEnum, "combobox"},
+		{"Tagged", FieldKindEnum, "combobox"},
 		{"Date", FieldKindDateTime, "date"},
 		{"DatePtr", FieldKindDateTime, "date"},
 		{"Email", FieldKindString, "email"},

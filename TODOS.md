@@ -440,6 +440,27 @@ them; the messages with a number need a format string, like shadcn's
 **Priority:** P3
 **Depends on:** None
 
+### Two reflected forms of one struct on a page share element ids
+
+**What:** Let a reflected form prefix the element ids it derives from field
+paths, separately from the input names.
+
+**Why:** Every field's id is its path (`Debit`), so two forms of the same
+struct on one page (an inline edit form per table row) repeat ids. A
+`<label for>` then names the first form's control, and a
+`form:"widget=combobox"` or `widget=datepicker` trigger opens the first
+form's popover, so a pick changes the other form's value.
+
+**Context:** Found by the /ship review of the Combobox branch
+(2026-11-21). `shadcnField`/`FieldLabelFor(string(path))`, `comboboxField`
+(`Name: string(c.path)`, the id defaults to it) and `datePickerField` all
+take the path as id; a prefix would go into `mx.ReflectFormConfig` or the
+render context and be applied where ids are written, not to names.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## mx writer
 
 ### `CheckedWriter.Comment` writes text that closes the comment early

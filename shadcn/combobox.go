@@ -77,7 +77,12 @@ const comboboxScript = /*js*/ `if(!window.comboboxPick){(function(){` +
 	`var show=function(r){var s=part(r,'combobox-input'),t=part(r,'combobox-value'),o=s.options[s.selectedIndex],v=o?o.value:'';` +
 	`t.textContent=(o&&o.text)||t.getAttribute('data-placeholder');if(v)t.removeAttribute('data-empty');else t.setAttribute('data-empty','true');` +
 	`r.querySelectorAll('[data-slot=command-item]').forEach(function(it){if(o&&it.getAttribute('data-value')===v){it.setAttribute('data-checked','true');it.setAttribute('aria-checked','true');}else{it.removeAttribute('data-checked');it.removeAttribute('aria-checked');}});};` +
-	`var reset=function(r){var t=part(r,'combobox-trigger');show(r);if(r.mxInvalid){t.removeAttribute('aria-invalid');r.mxInvalid=false;}};` +
+	// prune removes every option but the server-rendered one, which it
+	// returns: the select then holds no stale pick that a key on the
+	// focused select, a reset or a re-inserted copy of the markup (an
+	// htmx history restore) could select behind the trigger's back.
+	`var prune=function(s){var keep=null;Array.prototype.slice.call(s.options).forEach(function(o){if(o.defaultSelected&&!keep)keep=o;else o.remove();});return keep;};` +
+	`var reset=function(r){var t=part(r,'combobox-trigger'),k=prune(part(r,'combobox-input'));if(k)k.selected=true;show(r);if(r.mxInvalid){t.removeAttribute('aria-invalid');r.mxInvalid=false;}};` +
 	`window.comboboxPick=function(it){var r=it.closest('[data-slot=combobox]');if(!r||it.getAttribute('data-disabled')==='true')return;` +
 	`var s=part(r,'combobox-input'),c=part(r,'combobox-content'),t=part(r,'combobox-trigger'),v=it.getAttribute('data-value')||'',l=it.textContent.trim(),cur=s.options[s.selectedIndex],prev=cur?cur.value:'';` +
 	// Like upstream's recipe, picking the picked option again unpicks it,
@@ -87,13 +92,18 @@ const comboboxScript = /*js*/ `if(!window.comboboxPick){(function(){` +
 	// The server-rendered option is kept for a form reset, and reused
 	// only for the same value and text: its text can be a caption, such
 	// as the one for a stored value the list no longer offers.
-	`var keep=null;Array.prototype.slice.call(s.options).forEach(function(o){if(o.defaultSelected&&!keep)keep=o;else o.remove();});` +
-	`var o=keep&&keep.value===v&&keep.text===l?keep:null;if(!o){o=new Option(l,v);s.add(o);}o.selected=true;show(r);` +
+	// An empty value goes first, where the browser takes it for the
+	// placeholder that a required check rejects.
+	`var keep=prune(s);` +
+	`var o=keep&&keep.value===v&&keep.text===l?keep:null;if(!o){o=new Option(l,v);s.add(o,v===''?0:null);}o.selected=true;show(r);` +
 	`if(v!==prev){s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));}` +
 	`if(r.mxInvalid&&s.checkValidity()){t.removeAttribute('aria-invalid');r.mxInvalid=false;}` +
 	`if(c.matches(':popover-open'))c.hidePopover();t.focus();};` +
+	// Init starts from the server-rendered option, so a re-inserted copy
+	// of picked markup shows what the select submits.
 	`window.comboboxPick.init=function(r){if(!r||r.mxCombobox)return;r.mxCombobox=true;` +
 	`var s=part(r,'combobox-input'),c=part(r,'combobox-content'),t=part(r,'combobox-trigger'),q=part(r,'command-input');` +
+	`reset(r);` +
 	`r.addEventListener('click',function(e){var it=e.target.closest&&e.target.closest('[data-slot=command-item]');if(it&&r.contains(it))window.comboboxPick(it);});` +
 	// The search box is no field of the form: its input and change events
 	// stay inside, so a change trigger on an enclosing element only sees

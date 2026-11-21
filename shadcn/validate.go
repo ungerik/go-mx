@@ -37,14 +37,26 @@ func validateID(id string) error {
 		}
 		return err
 	}
-	for _, r := range id {
-		if !mx.ValidIDRune(r) {
-			err := errs.Errorf("shadcn: id must contain only letters, digits, '-' and '_', got: %q", id)
-			if PanicOnInvalidID {
-				panic(err)
-			}
-			return err
+	if !isValidID(id) {
+		err := errs.Errorf("shadcn: id must contain only letters, digits, '-' and '_', got: %q", id)
+		if PanicOnInvalidID {
+			panic(err)
 		}
+		return err
 	}
 	return nil
+}
+
+// isValidID reports whether id is a non-empty string of the characters
+// [mx.ValidIDRune] allows, the check of [validateID] without its error.
+func isValidID(id string) bool {
+	if id == "" {
+		return false
+	}
+	for _, r := range id {
+		if !mx.ValidIDRune(r) {
+			return false
+		}
+	}
+	return true
 }

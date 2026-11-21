@@ -104,8 +104,10 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 			Textarea(textareaAttribs(path, value, inputTag, errs)...),
 		)
 	case mx.FieldKindEnum:
-		// A readonly combobox cannot be picked and stays a disabled select.
-		if tag.Widget == "combobox" && !tag.Readonly {
+		// A readonly combobox cannot be picked and stays a disabled select,
+		// as does one whose path is no valid id (a non-ASCII field name),
+		// which the trigger and its popover are named by.
+		if tag.Widget == "combobox" && !tag.Readonly && isValidID(string(path)) {
 			return shadcnField(path, field, value, kind, tag, errs,
 				&comboboxField{path: path, field: field, value: value, tag: tag, errs: errs},
 			)
