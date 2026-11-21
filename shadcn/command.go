@@ -19,7 +19,8 @@ import (
 // page loads and after every filter run, then the one moved to with
 // ArrowDown/ArrowUp/Home/End (without wrapping, as cmdk's default) or under
 // the pointer. Enter clicks the selected item, or the first link or button
-// inside it. Focus stays in the input, which points at the selected item
+// inside it. Enter in the input never submits an enclosing form, also when
+// the search matches nothing, as cmdk prevents its default. Focus stays in the input, which points at the selected item
 // with aria-activedescendant, so the script gives items and the list an id
 // when they have none. An item with data-disabled="true" is never selected.
 // Like cmdk, the keys are left alone while an IME composes text (isComposing,
@@ -36,6 +37,10 @@ import (
 // cmdk's fuzzy ranking (sorting the matches by score) is not reproduced: the
 // matches keep their order.
 //
+// window.commandFilter.select(item) selects a visible, enabled item and
+// scrolls it into view, as cmdk's value prop does; a [Combobox] selects its
+// picked option with it when the list opens.
+//
 // The script is rendered inside every Command. Its first run defines
 // window.commandFilter (the oninput handler of [CommandInput]); every run then
 // wires up the Command it is in through document.currentScript, so a Command
@@ -50,12 +55,16 @@ const commandScript = /*js*/ `if(!window.commandFilter){(function(){` +
 	`window.commandFilter=function(input){var root=input.closest('[data-slot=command]');if(!root)return;var q=input.value.trim().toLowerCase();var any=false;root.querySelectorAll('[data-slot=command-item]').forEach(function(it){var m=it.textContent.toLowerCase().indexOf(q)>=0;it.hidden=!m;if(m)any=true;});root.querySelectorAll('[data-slot=command-group]').forEach(function(g){g.hidden=g.querySelectorAll('[data-slot=command-item]:not([hidden])').length===0;});var e=root.querySelector('[data-slot=command-empty]');if(e)e.hidden=any;sel(root,items(root)[0]||null,true);};` +
 	`window.commandFilter.init=function(root){if(!root||root.mxCommand)return;root.mxCommand=true;` +
 	`var link=function(){var input=root.querySelector('[data-slot=command-input]'),list=root.querySelector('[data-slot=command-list]');if(input&&list){if(!list.id)list.id='mx-command-list-'+(++n);input.setAttribute('aria-controls',list.id);}};link();` +
-	`root.addEventListener('keydown',function(e){if(e.defaultPrevented||e.isComposing||e.keyCode===229||(e.target.closest&&e.target.closest('[data-slot=command-item]')))return;var all=items(root);if(!all.length)return;var cur=root.querySelector('[data-slot=command-item][data-selected=true]');var i=all.indexOf(cur),next;` +
-	`switch(e.key){case 'ArrowDown':next=all[Math.min(i+1,all.length-1)];break;case 'ArrowUp':next=all[Math.max(i-1,0)];break;case 'Home':next=all[0];break;case 'End':next=all[all.length-1];break;` +
-	`case 'Enter':if(cur&&cur.getAttribute('data-disabled')!=='true'){e.preventDefault();(cur.querySelector('a[href],button')||cur).click();}return;default:return;}e.preventDefault();sel(root,next,true);});` +
+	`root.addEventListener('keydown',function(e){if(e.defaultPrevented||e.isComposing||e.keyCode===229||(e.target.closest&&e.target.closest('[data-slot=command-item]')))return;var cur=root.querySelector('[data-slot=command-item][data-selected=true]');` +
+	// Enter in the input is never the form's implicit submission, also
+	// when no item is selected because the search matches nothing.
+	`if(e.key==='Enter'){var ok=cur&&cur.getAttribute('data-disabled')!=='true';if(ok||(e.target.matches&&e.target.matches('[data-slot=command-input]')))e.preventDefault();if(ok)(cur.querySelector('a[href],button')||cur).click();return;}` +
+	`var all=items(root);if(!all.length)return;var i=all.indexOf(cur),next;` +
+	`switch(e.key){case 'ArrowDown':next=all[Math.min(i+1,all.length-1)];break;case 'ArrowUp':next=all[Math.max(i-1,0)];break;case 'Home':next=all[0];break;case 'End':next=all[all.length-1];break;default:return;}e.preventDefault();sel(root,next,true);});` +
 	`root.addEventListener('pointermove',function(e){var it=e.target.closest&&e.target.closest('[data-slot=command-item]');if(it&&root.contains(it)&&!it.hidden&&it.getAttribute('data-selected')!=='true'&&it.getAttribute('data-disabled')!=='true')sel(root,it,false);});` +
 	`if(window.MutationObserver)new MutationObserver(function(){link();var cur=root.querySelector('[data-slot=command-item][data-selected=true]');if(!cur||cur.hidden||cur.getAttribute('data-disabled')==='true')sel(root,items(root)[0]||null,false);}).observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['data-disabled']});` +
 	`sel(root,items(root)[0]||null,false);};` +
+	`window.commandFilter.select=function(it){var root=it&&it.closest('[data-slot=command]');if(root&&!it.hidden&&it.getAttribute('data-disabled')!=='true')sel(root,it,true);};` +
 	`})();}` +
 	`window.commandFilter.init(document.currentScript&&document.currentScript.closest('[data-slot=command]'));`
 

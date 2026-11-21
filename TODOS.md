@@ -698,6 +698,59 @@ V1-AUDIT.md §3.3.
 **Priority:** P2
 **Depends on:** Does `hx` target htmx 2 or htmx 4 at v1.0?
 
+## shadcn
+
+### `Combobox` options have no groups and cannot be disabled
+
+**What:** Let a `shadcn.Combobox` list its options under group headings
+(`CommandGroup`) and dim single options (`data-disabled="true"`).
+
+**Why:** A chart of accounts reads best grouped by account class, and some
+accounts may be closed for booking while they stay listed.
+
+**Context:** `mx.NamedOption` has only `Name` and `Value`, and
+`ComboboxOptions.Options` builds one untitled `CommandGroup`. A group
+field, or a separate `ComboboxOptions.Groups`, would also serve
+`<optgroup>` in the reflected select. Command already skips disabled items.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### `Combobox` renders every option into the page
+
+**What:** Load a `Combobox`'s matches from the server as the user types,
+for option lists of thousands of entries.
+
+**Why:** Each option is a `CommandItem` in the markup, so a long list
+makes the page large in every form that shows the field; a few hundred
+entries are fine.
+
+**Context:** `Command` already picks up items an htmx swap puts into its
+`CommandList` (its `MutationObserver`), so the search input could carry
+`hx-get` with a `keyup changed delay` trigger. The combobox script reads
+the label of a pick from the item, so swapped items work as they are; the
+selected option's label must still render server-side.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
+### A `Combobox` that picks several values
+
+**What:** A multi-select combobox, upstream Base UI's chips variant.
+
+**Why:** Tags and similar sets want search too; the reflected form renders
+an enum set as a checkbox grid.
+
+**Context:** The single-option `<select>` would become a `<select
+multiple>`, the trigger would show chips, and the popover would stay open
+after a pick, as a `CalendarMultiple` does.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
 ## web
 
 ### A body of only nil entries hides the page content

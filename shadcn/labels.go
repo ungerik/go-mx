@@ -59,6 +59,11 @@ type Labels struct {
 	CarouselPrevious string
 	CarouselNext     string
 
+	// ComboboxSearch is the placeholder of a [Combobox]'s search box, and
+	// ComboboxEmpty the text shown when the search matches no option.
+	ComboboxSearch string
+	ComboboxEmpty  string
+
 	// CodeBlockCopy is the aria-label of the icon-only
 	// [CodeBlockCopyButton], and CodeBlockCopied replaces it, and is
 	// announced, for two seconds after a copy.
@@ -128,7 +133,8 @@ type Labels struct {
 	FormValueRemovedOnSave string
 	// FormChooseOption is the caption of the disabled placeholder a required
 	// reflected select renders when the field has no current value, so the
-	// browser does not submit the first real option.
+	// browser does not submit the first real option. It is also the
+	// trigger text of a [Combobox] with nothing picked and no Placeholder.
 	FormChooseOption string
 	// FormNoSelection is the caption of the empty option an optional
 	// reflected select renders so a blank field stays blank and a chosen
@@ -223,6 +229,8 @@ var englishLabels = Labels{
 	CalendarSelected:               "%s, selected",
 	CarouselPrevious:               "Previous slide",
 	CarouselNext:                   "Next slide",
+	ComboboxSearch:                 "Search…",
+	ComboboxEmpty:                  "No results found.",
 	CodeBlockCopy:                  "Copy",
 	CodeBlockCopied:                "Copied",
 	DialogClose:                    "Close",
@@ -313,6 +321,8 @@ func (l Labels) orDefaults() Labels {
 		CalendarSelected:               cmp.Or(l.CalendarSelected, DefaultLabels.CalendarSelected, englishLabels.CalendarSelected),
 		CarouselPrevious:               cmp.Or(l.CarouselPrevious, DefaultLabels.CarouselPrevious, englishLabels.CarouselPrevious),
 		CarouselNext:                   cmp.Or(l.CarouselNext, DefaultLabels.CarouselNext, englishLabels.CarouselNext),
+		ComboboxSearch:                 cmp.Or(l.ComboboxSearch, DefaultLabels.ComboboxSearch, englishLabels.ComboboxSearch),
+		ComboboxEmpty:                  cmp.Or(l.ComboboxEmpty, DefaultLabels.ComboboxEmpty, englishLabels.ComboboxEmpty),
 		CodeBlockCopy:                  cmp.Or(l.CodeBlockCopy, DefaultLabels.CodeBlockCopy, englishLabels.CodeBlockCopy),
 		CodeBlockCopied:                cmp.Or(l.CodeBlockCopied, DefaultLabels.CodeBlockCopied, englishLabels.CodeBlockCopied),
 		DialogClose:                    cmp.Or(l.DialogClose, DefaultLabels.DialogClose, englishLabels.DialogClose),

@@ -134,7 +134,8 @@ func Popover(attribsChildren ...any) *mx.Element {
 //
 // Defaults (overridable via the AttribIndex < 0 idiom): type="button",
 // popovertarget={popoverID}, popovertargetaction="toggle",
-// aria-haspopup="dialog", aria-expanded="false", and the anchor-name style.
+// aria-haspopup="dialog", aria-expanded="false" (which [PopoverContent]
+// updates while the popover is open), and the anchor-name style.
 // Pass any html.* attributes (or html.Class for styling) the normal way; the
 // anchor-name fragment is merged into a caller-supplied style.
 func PopoverTrigger(popoverID string, attribsChildren ...any) *mx.Element {
@@ -161,9 +162,17 @@ func PopoverTrigger(popoverID string, attribsChildren ...any) *mx.Element {
 	return finish(e, "popover-trigger", "")
 }
 
+// popoverExpandedToggle is PopoverContent's default ontoggle: it sets
+// aria-expanded on the triggers of the popover that carry one, as
+// [PopoverTrigger] renders it, to whether the popover is open. A trigger
+// without aria-expanded, such as a tooltip's, is left alone.
+const popoverExpandedToggle = /*js*/ `var o=event.newState==='open'?'true':'false';document.querySelectorAll('[popovertarget='+CSS.escape(this.id)+'][aria-expanded]').forEach(function(t){t.setAttribute('aria-expanded',o);})`
+
 // PopoverContent renders the popover body with id={popoverID}, popover="auto"
 // (so the browser handles open / close / light-dismiss / Escape) and the
 // CSS anchor-position style. side may be "" for the default (bottom).
+// Its default ontoggle keeps the aria-expanded of its [PopoverTrigger] in
+// step with the popover; a caller's ontoggle replaces it.
 func PopoverContent(popoverID string, side PopoverSide, attribsChildren ...any) *mx.Element {
 	if err := validateID(popoverID); err != nil {
 		return mx.NewErrElement(err)
@@ -177,6 +186,9 @@ func PopoverContent(popoverID string, side PopoverSide, attribsChildren ...any) 
 	}
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("dialog"))
+	}
+	if e.AttribIndex("ontoggle") < 0 {
+		e.Attribs = append(e.Attribs, html.OnToggle(popoverExpandedToggle))
 	}
 	mergeStyle(e, popoverContentStyle(popoverID, side))
 	return finish(e, "popover-content", popoverContentClasses)

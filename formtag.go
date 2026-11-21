@@ -11,9 +11,11 @@ import (
 type FormTag struct {
 	// Widget overrides the type-based widget choice. Recognized
 	// values: text, email, url, tel, date, datepicker, datetime, time,
-	// password, textarea, select, radio, switch, checkbox, file, hidden,
-	// skip. datepicker is a date that a renderer with a date picker, such
-	// as shadcn's, shows as one; to the others it is date.
+	// password, textarea, select, radio, combobox, switch, checkbox, file,
+	// hidden, skip. datepicker is a date that a renderer with a date
+	// picker, such as shadcn's, shows as one; to the others it is date.
+	// combobox is a select that a renderer with a searchable picker, such
+	// as shadcn's, shows as one; to the others it is select.
 	// "" means "use type-based default."
 	Widget string
 

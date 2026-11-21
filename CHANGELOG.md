@@ -15,6 +15,26 @@ API is still free to change.
 
 ### Added
 
+- **`shadcn.Combobox` is a form field.** `Combobox(ComboboxOptions{Name,
+  Options, Selected, Placeholder, SearchPlaceholder, Empty, Required,
+  Disabled, ID})` renders upstream's Combobox (a trigger button opening a
+  searchable `Command` in a `Popover`) over `mx.NamedOption`s and submits
+  the picked value under `Name`. A click or Enter picks: the trigger shows
+  the label, the check mark moves, the popover closes and the focus returns
+  to the trigger; ArrowDown, ArrowUp or a typed character open the list from
+  the trigger, the character starting the search. The value lives in a
+  transparent single-option `<select>` over the trigger, so `Required`
+  blocks the submit with the browser's own message, which a hidden input
+  cannot do. Several comboboxes on one page get distinct ids from their
+  names. `form:"widget=combobox"` renders an option field as one in
+  `shadcn.FieldDecider` (a select to the other renderers), parsed as the
+  select is, and shows a stored value the list does not offer as the select
+  does: never echoed nor submitted again. The search box's own `input` and
+  `change` events stay inside the combobox, so an `hx-trigger="change"` on
+  an enclosing element only sees picks. New labels `Labels.ComboboxSearch`
+  and `ComboboxEmpty`; the gallery's Combobox page shows the component and
+  a booking form.
+  `window.commandFilter.select(item)` selects a `Command` item from script.
 - **`shadcn` modal overlays animate open and closed.** `AlertDialog`,
   `Dialog`, `Sheet` and `Drawer` fade, zoom or slide like upstream's, and
   their backdrop fades, through CSS transitions between the `<dialog>`'s
@@ -969,6 +989,14 @@ API is still free to change.
   constant named an event that cannot occur.
 
 ### Fixed
+
+- **`shadcn.PopoverTrigger` reports whether its popover is open.** Its
+  `aria-expanded` stayed `"false"`; `PopoverContent` now has a default
+  `ontoggle` that keeps it in step (a caller's `ontoggle` replaces it), as
+  the menus' triggers already were.
+- **Enter in a `shadcn.Command` input no longer submits an enclosing
+  form** when the search matches nothing or the selected item is disabled;
+  cmdk prevents its default too.
 
 - **A field error no longer shows the call stack of a go-errs error.**
   `mx.FieldErrorTexts` showed the `Error()` text of a field error that has no

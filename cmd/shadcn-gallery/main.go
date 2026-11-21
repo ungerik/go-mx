@@ -219,9 +219,10 @@ func docs() []ComponentDoc {
 		{
 			Slug:        "combobox",
 			Title:       "Combobox",
-			Description: "Autocomplete input and command palette with a list of suggestions — a Popover composed with a Command.",
+			Description: "Autocomplete input and command palette with a list of suggestions — a Popover composed with a Command, submitting the picked value as a form field.",
 			Examples: []Example{
 				{Name: "Demo", Func: examples.ComboboxDemo},
+				{Name: "Form", Func: examples.ComboboxForm},
 			},
 		},
 		{

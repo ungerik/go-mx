@@ -453,8 +453,8 @@ Order within the phase is by dependency, then complexity.
   **Combobox**.
 - [x] **Combobox** · Cx 5 · deps: **Popover** + **Command** + Button
   Composition recipe (Popover trigger + filterable Command in PopoverContent) —
-  shipped as a gallery example, matching how shadcn ships Combobox (copy-paste,
-  not a primitive).
+  first shipped as a gallery example, matching how shadcn ships Combobox
+  (copy-paste, not a primitive); since 2026-11-21 the `Combobox` form field.
 - [x] **Calendar** · Cx 5 · deps: Button
   Single-month grid generated server-side with Go's `time` package; selected
   day marked with `data-selected` (plus `aria-pressed` on a static calendar,
@@ -546,7 +546,12 @@ on 2026-07-07 with the guide above; the four that remain unported moved to
   field:` stays (author-set). `responsive` orientation uses container
   queries (`@container/field-group`, `@md/field-group:`) — plain Tailwind
   v4, keep. Classes at `style-vega.css` `.cn-field*`.
-- [x] **Combobox** — **decided 2026-07-07: keep the Popover+Command gallery
+- [x] **Combobox** — **superseded 2026-11-21: `Combobox(ComboboxOptions{…})`
+  is a package component and the `form:"widget=combobox"` widget**, because
+  a form needs a submitted value, the trigger label, closing after a pick
+  and a required check, which a recipe cannot carry. It stays the
+  Popover+Command composition and does not port Base UI's part set.
+  Earlier decision, **2026-07-07: keep the Popover+Command gallery
   recipe, no primitive port.** Upstream's combobox.tsx (~15 parts:
   Value/Trigger/Clear/Input/Content/List/Item/Group/Label/Collection/Empty/
   Separator/…) is a pure styling wrapper over Base UI's Combobox JS — the

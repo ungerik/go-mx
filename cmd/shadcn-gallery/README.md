@@ -74,9 +74,10 @@ names that function as `Example.ShowSource`, and the Code tab shows it.
 
 The gallery covers the whole shadcn/ui registry: 65 pages, one per
 component, listed alphabetically like the shadcn/ui docs (see `docs()` in
-`main.go` for the catalog). Combobox, Date Picker and Data Table are
-compositions rather than package functions, so their pages show the recipes,
-as upstream ships them.
+`main.go` for the catalog). Date Picker and Data Table are compositions
+rather than package functions, so their pages show the recipes, as upstream
+ships them. Combobox is a recipe upstream too, but here it is the
+`shadcn.Combobox` form field, as a recipe cannot submit a value.
 
 ## Syntax highlighting
 
