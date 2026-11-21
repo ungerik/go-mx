@@ -1,8 +1,11 @@
 package shadcn
 
 import (
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ungerik/go-mx/html"
 )
 
 func TestDialogComposition(t *testing.T) {
@@ -98,4 +101,37 @@ func TestModalTransitions(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestModalTransitionsCallerOverride checks that a caller's class replaces
+// the modal defaults through Cn, the way a className overrides upstream's.
+//
+// Value: protects=a caller's transition-none or backdrop:bg-* replacing the modal transition and backdrop color in every browser; fails_when=the transition list moves into supports-prefixed classes a caller's unprefixed class no longer conflicts with, or the backdrop color stops being one backdrop:bg-* class; why_new=no test passed a caller class to a modal; seam=none; no_claim=the rendered animation itself (no Tailwind build in the test)
+func TestModalTransitionsCallerOverride(t *testing.T) {
+	out := render(t, DialogContent("d", html.Class("transition-none backdrop:bg-black/80")))
+	classes := strings.Fields(classAttr(t, out))
+	for _, want := range []string{"transition-none", "backdrop:bg-black/80"} {
+		if !slices.Contains(classes, want) {
+			t.Errorf("the caller's %q is missing: %v", want, classes)
+		}
+	}
+	// The default list must be gone under any variant prefix too: a
+	// supports-[…]: copy would not conflict with the caller's unprefixed
+	// class and would bring the transition back where the prefix matches.
+	for _, c := range classes {
+		if strings.HasSuffix(c, "transition-[opacity,scale,translate,display,overlay]") || c == "backdrop:bg-black/50" {
+			t.Errorf("the default %q should give way to the caller's class: %v", c, classes)
+		}
+	}
+}
+
+// classAttr returns the value of the first class attribute in out.
+func classAttr(t *testing.T, out string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(out, `class="`)
+	if !ok {
+		t.Fatalf("no class attribute in %s", out)
+	}
+	value, _, _ := strings.Cut(rest, `"`)
+	return value
 }

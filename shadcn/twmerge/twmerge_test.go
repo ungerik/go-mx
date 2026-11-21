@@ -307,6 +307,10 @@ func TestMerge(t *testing.T) {
 			if got := Merge(c.in); got != c.want {
 				t.Errorf("%s: Merge(%q) = %q, want %q", pass, c.in, got, c.want)
 			}
+			// Value: protects=Merge stores each result under its input, the cache twMerge has; fails_when=cache.set is dropped or stores the wrong string; why_new=the cached pass passes even when nothing was cached; seam=none; no_claim=no speed claim (BenchmarkButton in shadcn measures it)
+			if cached, ok := cache.get(c.in); !ok || cached != c.want {
+				t.Errorf("%s: cache holds %q, %v for %q, want %q", pass, cached, ok, c.in, c.want)
+			}
 		}
 	}
 }

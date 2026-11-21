@@ -81,6 +81,23 @@ func TestCommandGroupHeadingFirst(t *testing.T) {
 	}
 }
 
+// TestCommandUntitledGroupAndInputAttributes checks the cmdk details of the
+// markup the keyboard script relies on.
+//
+// Value: protects=an untitled group getting no empty accessible name or heading, and the input keeping the browser's autofill and spelling popups off the list; fails_when=the heading guard is dropped or the input attributes are removed; why_new=no test covered either; seam=none; no_claim=-
+func TestCommandUntitledGroupAndInputAttributes(t *testing.T) {
+	group := render(t, CommandGroup("", CommandItem("Apple")))
+	if strings.Contains(group, "aria-label") || strings.Contains(group, "aria-hidden") {
+		t.Errorf("an untitled group should have no label and no heading: %s", group)
+	}
+	input := render(t, CommandInput())
+	for _, want := range []string{`autocomplete="off"`, `autocorrect="off"`, `spellcheck="false"`} {
+		if !strings.Contains(input, want) {
+			t.Errorf("missing %q in %s", want, input)
+		}
+	}
+}
+
 func TestCommandCallerOverridesRole(t *testing.T) {
 	out := render(t, CommandItem(html.Role("menuitem"), "x"))
 	if !strings.Contains(out, `role="menuitem"`) || strings.Contains(out, `role="option"`) {
@@ -113,6 +130,13 @@ func TestCommandKeyboardInChrome(t *testing.T) {
 		),
 		// A second Command on the page is wired up by its own script run.
 		Command(html.ID("second"), CommandInput(), CommandList(CommandItem(html.ID("only"), "Only"))),
+		// Two Commands whose items have no id, the common markup; the
+		// second item of the first wraps a button.
+		Command(html.ID("plain"), CommandInput(), CommandList(
+			CommandItem("One"),
+			CommandItem(html.Button(html.OnClick("window.clicked='button'"), "Two")),
+		)),
+		Command(html.ID("plain2"), CommandInput(), CommandList(CommandItem("Three"))),
 	}
 	const script = /*js*/ `
 var input=document.querySelector('#cmd [data-slot=command-input]');
@@ -153,6 +177,15 @@ input.value='zzz';
 input.dispatchEvent(new Event('input',{bubbles:true}));
 out.noMatch=selected();
 out.noMatchActivedescendant=input.hasAttribute('aria-activedescendant');
+// Value: protects=cmdk's empty state and the hiding of groups without a match; fails_when=the group or CommandEmpty toggling breaks while the selection still works; why_new=noMatch checked only the selection; seam=none; no_claim=no fuzzy ranking
+var groups=function(){return Array.prototype.map.call(document.querySelectorAll('#cmd [data-slot=command-group]'),function(g){return g.hidden?'hidden':'shown';}).join(',');};
+var empty=function(){return document.querySelector('#cmd [data-slot=command-empty]').hidden?'hidden':'shown';};
+out.noMatchGroups=groups();
+out.noMatchEmpty=empty();
+input.value='app';
+input.dispatchEvent(new Event('input',{bubbles:true}));
+out.appGroups=groups();
+out.appEmpty=empty();
 input.value='';
 input.dispatchEvent(new Event('input',{bubbles:true}));
 // Keys are left alone while an IME composes (isComposing, or Safari's
@@ -184,6 +217,27 @@ list.replaceWith(fresh);
 await wait(0);
 out.listReplaced=selected();
 out.listRelinked=!!fresh.id&&input.getAttribute('aria-controls')===fresh.id;
+// Value: protects=aria-activedescendant on items without an id, with ids unique across Commands; fails_when=the id assignment is dropped or its counter restarts per Command; why_new=every other item has an id; seam=none; no_claim=-
+var plainInput=document.querySelector('#plain [data-slot=command-input]');
+var first=document.querySelector('#plain [data-selected=true]'),other=document.querySelector('#plain2 [data-selected=true]');
+out.plainID=/^mx-command-item-[0-9]+$/.test(first.id)&&plainInput.getAttribute('aria-activedescendant')===first.id;
+out.plainIDsDiffer=!!other&&other.id!==first.id;
+// Value: protects=typing in the input and Enter not submitting an enclosing form; fails_when=preventDefault moves above the key switch or leaves Enter; why_new=preventDefault ran but was never asserted; seam=none; no_claim=synthetic events trigger no implicit form submission
+var prevented=function(k){var e=new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true});plainInput.dispatchEvent(e);return e.defaultPrevented;};
+out.letterPrevented=prevented('a');
+out.arrowPreventedDefault=prevented('ArrowDown');
+// Value: protects=Enter on an item that wraps a button clicking that button; fails_when=the selector inside the item is narrowed to links; why_new=only the link and plain-item cases ran; seam=none; no_claim=-
+window.clicked='';
+out.enterPreventedDefault=prevented('Enter');
+out.enterClicksButton=window.clicked;
+// Value: protects=the keyboard position while htmx appends items (beforeend, infinite load); fails_when=the observer reselects the first item on every mutation; why_new=only a removed selection was tested; seam=none; no_claim=-
+var kept=document.querySelector('#plain [data-selected=true]');
+var more=document.createElement('div');
+more.setAttribute('data-slot','command-item');
+more.textContent='Four';
+document.querySelector('#plain [data-slot=command-list]').appendChild(more);
+await wait(0);
+out.appendKeepsSelection=document.querySelector('#plain [data-selected=true]')===kept;
 `
 	got := runInChrome(t, body, script, nil)
 	checkRecorded(t, got, map[string]any{
@@ -213,5 +267,16 @@ out.listRelinked=!!fresh.id&&input.getAttribute('aria-controls')===fresh.id;
 		"swappedActivedescendant": "kiwi",
 		"listReplaced":            "plum",
 		"listRelinked":            true,
+		"noMatchGroups":           "hidden,hidden",
+		"noMatchEmpty":            "shown",
+		"appGroups":               "shown,hidden",
+		"appEmpty":                "hidden",
+		"plainID":                 true,
+		"plainIDsDiffer":          true,
+		"letterPrevented":         false,
+		"arrowPreventedDefault":   true,
+		"enterPreventedDefault":   true,
+		"enterClicksButton":       "button",
+		"appendKeepsSelection":    true,
 	})
 }
