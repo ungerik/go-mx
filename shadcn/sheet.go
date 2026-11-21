@@ -84,8 +84,9 @@ func (s SheetSide) String() string {
 // an edge and fills it instead of being centered. Trigger and content are
 // linked by the sheet id, not by DOM nesting.
 //
-// shadcn's enter/exit slide animation is not reproduced: a native <dialog>
-// snaps open (the same tradeoff as the other ported overlays).
+// The sheet slides in from and out to its edge like upstream's, with CSS
+// transitions instead of Radix's data-state animations; see
+// [modalTransitionClasses].
 func Sheet(attribsChildren ...any) *mx.Element {
 	return finish(html.Div(attribsChildren...), "sheet", "")
 }
@@ -109,25 +110,31 @@ func SheetTrigger(sheetID string, attribsChildren ...any) *mx.Element {
 }
 
 // sheetContentBaseClasses are the side-independent SheetContent classes. As with
-// Dialog the Radix animation/z-index classes are dropped; `open:flex` keeps a
-// closed <dialog> display:none, `m-0` + `max-h-none max-w-none` clear the UA
-// modal centering/clamping so the per-side insets can pin the sheet to its edge.
-const sheetContentBaseClasses = "open:flex flex-col fixed m-0 max-h-none max-w-none gap-4 bg-background shadow-lg backdrop:bg-black/50"
+// Dialog the Radix z-index and data-state animation classes are dropped;
+// `open:flex` keeps a closed <dialog> display:none, `m-0` + `max-h-none
+// max-w-none` clear the UA modal centering/clamping so the per-side insets can
+// pin the sheet to its edge. Upstream's `transition ease-in-out` with
+// `duration-300` closing and `duration-500` opening carry over onto
+// [modalTransitionClasses]; the slide itself is per side, in sheetSideClasses.
+const sheetContentBaseClasses = "open:flex flex-col fixed m-0 max-h-none max-w-none gap-4 bg-background shadow-lg ease-in-out duration-300 open:duration-500 " +
+	modalTransitionClasses
 
 // sheetSideClasses pins the sheet to the requested edge. Each side sets the
 // opposite inset to auto because the user-agent stylesheet centers a modal
 // <dialog> with inset:0 on every side; without the override the sheet would be
-// stretched across the viewport instead of pinned.
+// stretched across the viewport instead of pinned. The translate classes are
+// upstream's slide-in-from-<side> / slide-out-to-<side>: the sheet starts and
+// ends off-screen beyond its edge.
 func sheetSideClasses(side SheetSide) string {
 	switch side.ValidOr(SheetRight) {
 	case SheetTop:
-		return "inset-x-0 top-0 bottom-auto h-auto w-full border-b"
+		return "inset-x-0 top-0 bottom-auto h-auto w-full border-b -translate-y-full open:translate-y-0 starting:open:-translate-y-full"
 	case SheetBottom:
-		return "inset-x-0 bottom-0 top-auto h-auto w-full border-t"
+		return "inset-x-0 bottom-0 top-auto h-auto w-full border-t translate-y-full open:translate-y-0 starting:open:translate-y-full"
 	case SheetLeft:
-		return "inset-y-0 left-0 right-auto h-full w-3/4 border-r sm:max-w-sm"
+		return "inset-y-0 left-0 right-auto h-full w-3/4 border-r sm:max-w-sm -translate-x-full open:translate-x-0 starting:open:-translate-x-full"
 	default: // right
-		return "inset-y-0 right-0 left-auto h-full w-3/4 border-l sm:max-w-sm"
+		return "inset-y-0 right-0 left-auto h-full w-3/4 border-l sm:max-w-sm translate-x-full open:translate-x-0 starting:open:translate-x-full"
 	}
 }
 

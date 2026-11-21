@@ -64,3 +64,44 @@ func TestDrawerValidateIDPanics(t *testing.T) {
 		}()
 	}
 }
+
+// TestDrawerDragInChrome drives the drag script in headless Chrome: a drag
+// past the threshold closes the drawer, a short one snaps it back, and both
+// clear the inline translate and transition the drag set as soon as the
+// pointer is released, so the CSS open/close transitions take over at once
+// and no timer is left to interfere with the next gesture.
+func TestDrawerDragInChrome(t *testing.T) {
+	body := DrawerContent("drw", DrawerTitle("Drawer"))
+	const script = /*js*/ `
+var d=document.getElementById('drw'),h=d.querySelector('[data-slot=drawer-handle]');
+var drag=async function(to,from){
+	d.showModal();
+	h.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientY:from||0}));
+	document.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientY:to}));
+	var during=d.style.translate+'|'+d.style.transition;
+	document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientY:to}));
+	return {during:during,open:d.open,inline:d.style.translate+'|'+d.style.transition};
+};
+var far=await drag(5000);
+out.farDuring=far.during;
+out.farOpen=far.open;
+out.farInline=far.inline;
+var near=await drag(5);
+out.nearOpen=near.open;
+out.nearInline=near.inline;
+// Value: protects=the drawer staying on its edge when dragged upward; fails_when=the clamp of a negative drag distance to 0 is lost; why_new=every other drag goes down; seam=none; no_claim=-
+var up=await drag(0,100);
+out.upDuring=up.during;
+out.upOpen=up.open;
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"farDuring":  "0px 5000px|none",
+		"farOpen":    false,
+		"farInline":  "|",
+		"nearOpen":   true,
+		"nearInline": "|",
+		"upDuring":   "0px|none",
+		"upOpen":     true,
+	})
+}

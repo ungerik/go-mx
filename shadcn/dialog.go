@@ -16,6 +16,9 @@ import (
 // AlertDialog: a modal <dialog> already renders in the top layer and its
 // backdrop is the ::backdrop pseudo-element (styled with `backdrop:bg-black/50`).
 // Trigger and content are linked by the dialog id, not by DOM nesting.
+//
+// The dialog fades and zooms in and out like upstream's, with CSS transitions
+// instead of Radix's data-state animations; see [modalTransitionClasses].
 func Dialog(attribsChildren ...any) *mx.Element {
 	return finish(html.Div(attribsChildren...), "dialog", "")
 }
@@ -40,12 +43,48 @@ func DialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 }
 
 // dialogContentClasses is shadcn's DialogContent class string with the
-// Radix-only positioning (fixed/translate/z-50) and animation (data-[state=*],
-// duration) classes removed, and `m-auto open:grid backdrop:bg-black/50` added —
-// the same native-<dialog> adaptation documented for AlertDialog: `open:grid`
-// so the closed dialog stays display:none, and `m-auto` so the browser centers
-// the open modal despite Tailwind Preflight's margin reset.
-const dialogContentClasses = "open:grid m-auto w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg backdrop:bg-black/50 sm:max-w-lg"
+// Radix-only positioning (fixed/translate/z-50) and animation (data-[state=*])
+// classes removed, and `m-auto open:grid` added — the same native-<dialog>
+// adaptation documented for AlertDialog: `open:grid` so the closed dialog
+// stays display:none, and `m-auto` so the browser centers the open modal
+// despite Tailwind Preflight's margin reset. Upstream's fade-in-0/zoom-in-95
+// (and their -out counterparts) become [dialogZoomClasses].
+const dialogContentClasses = "open:grid m-auto w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg sm:max-w-lg " +
+	dialogZoomClasses + " " + modalTransitionClasses
+
+// modalTransitionClasses animate a modal <dialog> and its ::backdrop in and
+// out with CSS alone. Upstream animates Radix's data-state="open"/"closed"
+// with tw-animate-css keyframes; a native <dialog> has no such attribute, so
+// the port transitions between its closed and [open] styles instead, the
+// platform's way to animate an element entering and leaving the top layer:
+//
+//   - `starting:open:` (@starting-style) is the style an opening dialog
+//     transitions from, the plain classes are the closed style it transitions
+//     to when it closes, and `open:` is the open style. Each component adds
+//     those three for its own movement (zoom, slide) and duration.
+//   - Closing needs `display` and `overlay` in the transition with
+//     transition-behavior: allow-discrete, which keep the dialog visible and in
+//     the top layer until its exit transition ends. A browser without the
+//     `overlay` property (Firefox, Safari as of 2026) would let the dialog
+//     leave the top layer at once and drop to the page while it fades, so
+//     allow-discrete is only set under @supports (overlay:auto): elsewhere
+//     display and overlay flip at once, and the dialog animates in and
+//     closes at once. Gating the behavior rather than the property list
+//     keeps one unprefixed transition-[…] class, which a caller's
+//     transition-none or transition-[…] replaces in every browser.
+//   - The backdrop keeps upstream's overlay color as `backdrop:bg-black/50`,
+//     so a caller's `backdrop:bg-*` class replaces it, and fades through its
+//     opacity, with the same gating.
+//   - prefers-reduced-motion turns every transition off.
+const modalTransitionClasses = "transition-[opacity,scale,translate,display,overlay] supports-[overlay:auto]:transition-discrete motion-reduce:transition-none " +
+	"backdrop:bg-black/50 backdrop:opacity-0 open:backdrop:opacity-100 starting:open:backdrop:opacity-0 " +
+	"backdrop:transition-[opacity,display,overlay] supports-[overlay:auto]:backdrop:transition-discrete backdrop:duration-200 motion-reduce:backdrop:transition-none"
+
+// dialogZoomClasses are upstream's centered-dialog animation (fade-in-0,
+// zoom-in-95, duration-200 and their -out counterparts) as the closed,
+// starting and open styles of [modalTransitionClasses]. Dialog and
+// AlertDialog share them.
+const dialogZoomClasses = "duration-200 opacity-0 scale-95 open:opacity-100 open:scale-100 starting:open:opacity-0 starting:open:scale-95"
 
 // dialogCloseClasses styles the built-in close button in the top-right corner.
 // It is shadcn's close-button class set with the Radix data-[state=open]

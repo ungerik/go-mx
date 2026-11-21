@@ -69,7 +69,14 @@ func buildState() *twState {
 
 // Merge merges a space-separated class list, removing earlier classes that a
 // later class overrides. It is the Go port of tailwind-merge's twMerge.
+//
+// Like twMerge, it caches its results by class list (about the 500 most
+// recent, see lruCache), so merging the same class list again is a map
+// lookup.
 func Merge(classList string) string {
+	if merged, ok := cache.get(classList); ok {
+		return merged
+	}
 	classNames := strings.Fields(classList)
 
 	// conflictKeys is a set of `{modifierId}{classGroupId}` strings already
@@ -141,5 +148,7 @@ func Merge(classList string) string {
 	for l, r := 0, len(kept)-1; l < r; l, r = l+1, r-1 {
 		kept[l], kept[r] = kept[r], kept[l]
 	}
-	return strings.Join(kept, " ")
+	merged := strings.Join(kept, " ")
+	cache.set(classList, merged)
+	return merged
 }

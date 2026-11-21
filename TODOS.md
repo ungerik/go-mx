@@ -406,7 +406,11 @@ browser tests for the untested scripts, docs drift.
 
 **Why:** None of them changes the API incompatibly, so they can follow v1.0.0.
 
-**Context:** V1-AUDIT.md §3.
+**Context:** V1-AUDIT.md §3. Progress on 2026-11-21: the `Cn` cost of S13
+is gone for repeated class lists (`twmerge.Merge` caches its results; a
+`Button` takes 1.6 µs instead of 20 µs), the `twmerge` table build at init
+is not; S15 now has headless-Chrome tests for Command's keyboard handling
+and the Drawer drag, the other scripts it lists still have none.
 
 **Effort:** L
 **Priority:** P4

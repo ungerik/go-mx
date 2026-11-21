@@ -70,6 +70,28 @@ Phase 9 added upstream's shimmer and scroll-fade utilities (opt-in), the
 scroll-to-start button and the hidden button leaving the tab order. Nothing
 is open; new gaps go here, most useful first.
 
+## Command follow-ups
+
+### The selection stays on an item hidden by app code
+
+**What:** Let `Command`'s MutationObserver also watch the `hidden`
+attribute (its `attributeFilter`), so an item that app code hides while it
+is selected gives up the selection, as one that gets `data-disabled` does.
+
+**Why:** The observer reselects when the selected item is removed or
+disabled, but `hidden` set by app code (not by `commandFilter`, which
+reselects on its own) leaves the selection on an item the user cannot see,
+and Enter clicks it.
+
+**Context:** `commandScript` in `shadcn/command.go`; the observer callback
+already checks `cur.hidden`, only the attribute is not watched. Raised as a
+low, non-blocking note by the adversarial review of the keyboard-navigation
+change (2026-11-21).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## Hard dependency edges (must respect)
 
 ```

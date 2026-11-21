@@ -15,6 +15,34 @@ API is still free to change.
 
 ### Added
 
+- **`shadcn` modal overlays animate open and closed.** `AlertDialog`,
+  `Dialog`, `Sheet` and `Drawer` fade, zoom or slide like upstream's, and
+  their backdrop fades, through CSS transitions between the `<dialog>`'s
+  closed and `[open]` styles (`starting:` for `@starting-style`), with no
+  script. Closing animates where the browser has the CSS `overlay` property
+  (Chromium) and is instant elsewhere; `prefers-reduced-motion` turns the
+  transitions off. The backdrop keeps `backdrop:bg-black/50` and fades
+  through its opacity, so a caller's `backdrop:bg-*` class still sets the
+  open overlay's color, and a caller's `transition-none` turns the
+  transitions off in every browser. A dragged `Drawer` hands back to them as
+  soon as the pointer is released.
+- **`shadcn.Command` is keyboard-driven like cmdk.** The first match is
+  selected (`data-selected="true"`), ArrowDown/ArrowUp/Home/End and the
+  pointer move the selection, Enter clicks the selected item or the link or
+  button inside it, and `data-disabled="true"` items are skipped. The input
+  is a `combobox` pointing at the selected `option` of a `listbox` with
+  `aria-activedescendant`, groups are named by their heading, and
+  `CommandEmpty` and `CommandSeparator` get cmdk's `presentation` and
+  `separator` roles. Keys are ignored during IME composition and when they
+  come from a link or button focused inside an item, which keeps its own
+  activation; an item an htmx swap puts into the list, or one that gets
+  `data-disabled="true"` after loading, moves the selection as cmdk's does,
+  and Enter never activates a disabled item. The Combobox recipe gets the
+  same keyboard support.
+- **`shadcn/README.md` lists what is not ported from upstream, and why**:
+  React-only API, behavior left out, what depends on the browser, styles and
+  tooling.
+
 - **`mx.AsAttribsOrComponent(arg)`** sorts one argument of an
   `attribsChildren ...any` constructor into attributes (what `mx.AsAttribs`
   accepts) or a child (`mx.AsComponent`), returning neither for nil. It is
@@ -627,6 +655,14 @@ API is still free to change.
 
 ### Changed
 
+- **`twmerge.Merge` caches its results** like tailwind-merge does (its
+  two-generation cache of 500 entries, read under a read lock so concurrent
+  renders do not wait on each other), so building a component no longer
+  re-merges its base classes: a `shadcn.Button` with a caller class takes
+  1.6 µs and 23 allocations instead of 20 µs and 294.
+- **`shadcn.CommandItem` carries upstream's item classes.** The selected item
+  is highlighted by `data-[selected=true]:` instead of `hover:`, disabled
+  items are dimmed, and icons without a color class are muted.
 - **`html.NewDocument` sorts attributes onto `<body>`.** Its body arguments
   are sorted as `mx.NewElement` sorts those of any element: what
   `mx.AsAttribs` accepts (an `Attrib`, an `Attribs` map, a struct with

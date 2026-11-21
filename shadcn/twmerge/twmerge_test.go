@@ -298,9 +298,19 @@ func TestMerge(t *testing.T) {
 		{"leading-4 leading-none", "leading-none"},
 	}
 
-	for _, c := range cases {
-		if got := Merge(c.in); got != c.want {
-			t.Errorf("Merge(%q) = %q, want %q", c.in, got, c.want)
+	// Start from an empty cache, so the first pass computes every result
+	// even if an earlier test merged the same class list; the second pass
+	// reads every result from the cache.
+	cache = newLRUCache(cacheSize)
+	for _, pass := range []string{"computed", "cached"} {
+		for _, c := range cases {
+			if got := Merge(c.in); got != c.want {
+				t.Errorf("%s: Merge(%q) = %q, want %q", pass, c.in, got, c.want)
+			}
+			// Value: protects=Merge stores each result under its input, the cache twMerge has; fails_when=cache.set is dropped or stores the wrong string; why_new=the cached pass passes even when nothing was cached; seam=none; no_claim=no speed claim (BenchmarkButton in shadcn measures it)
+			if cached, ok := cache.get(c.in); !ok || cached != c.want {
+				t.Errorf("%s: cache holds %q, %v for %q, want %q", pass, cached, ok, c.in, c.want)
+			}
 		}
 	}
 }

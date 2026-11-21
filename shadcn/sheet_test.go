@@ -81,3 +81,18 @@ func TestSheetValidateIDPanics(t *testing.T) {
 		}()
 	}
 }
+
+// TestSheetSlidesFromItsSide checks upstream's slide-in-from-<side>: each
+// side starts and ends translated beyond its own edge.
+func TestSheetSlidesFromItsSide(t *testing.T) {
+	for side, want := range map[SheetSide]string{
+		SheetTop:    "-translate-y-full open:translate-y-0 starting:open:-translate-y-full",
+		SheetBottom: "translate-y-full open:translate-y-0 starting:open:translate-y-full",
+		SheetLeft:   "-translate-x-full open:translate-x-0 starting:open:-translate-x-full",
+		SheetRight:  "translate-x-full open:translate-x-0 starting:open:translate-x-full",
+	} {
+		if out := render(t, SheetContent("s", side)); !strings.Contains(out, want) {
+			t.Errorf("%s: missing %q in %s", side, want, out)
+		}
+	}
+}
