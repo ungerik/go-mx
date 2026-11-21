@@ -222,12 +222,14 @@ captions, the breadcrumb and pagination ellipsis screen-reader text, the
 `NavigationMenu`, `Pagination`, the `Calendar` month buttons and caption
 dropdowns,
 `CarouselPrevious`, `CarouselNext`, `CodeBlockCopyButton` (with its "Copied"
-state), `SidebarTrigger` and `Spinner`. Reflected forms add the clear checkbox on a nullable or optional
+state), `SidebarTrigger` and `Spinner`. A `Combobox` adds its "Search…"
+placeholder, its "No results found." text and, with nothing picked, the
+"Choose…" of its trigger. Reflected forms add the clear checkbox on a nullable or optional
 sensitive field, the "Pick a date" placeholder of a `widget=datepicker` field,
 the upload progress bar of a file input, the note under stored text an input
 cannot show unchanged, the
 disabled placeholder a select shows when the current value is not in its option
-list and the note below it where saving removes that value, the "Choose…" and "(none)" options on a select with no empty choice, the
+list and the note below it where saving removes that value, the "Choose…" and "(none)" options on a select (or a `widget=combobox` field) with no empty choice, the
 note an enum-set shows when stored members are hidden by the current list, and
 the "Expected format:" hint under a date or time field whose stored text the
 picker cannot show ("Not in the expected format:" when that text is invalid).
@@ -247,6 +249,8 @@ so the language is chosen per request — not per call site.
        CalendarNext:                   "Zum nächsten Monat",
        CarouselPrevious:               "Vorheriges Bild",
        CarouselNext:                   "Nächstes Bild",
+       ComboboxSearch:                 "Suchen…",
+       ComboboxEmpty:                  "Keine Treffer.",
        CodeBlockCopy:                  "Kopieren",
        CodeBlockCopied:                "Kopiert",
        DialogClose:                    "Schließen",

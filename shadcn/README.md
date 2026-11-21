@@ -138,7 +138,8 @@ not every browser ships yet and degrade where it is missing.
 | `ScrollBar` | none | the scrollbar of `ScrollArea` is a pseudo-element, not an element |
 | `TooltipProvider`, the tooltip arrow | none | the provider shares delay settings through React context, which has no counterpart; the arrow is not ported |
 | `FormField`, `FormItem`, `FormControl`, `FormLabel`, `FormDescription`, `FormMessage` (react-hook-form with zod) | `Form` is a native `<form>`; fields use the [Field system](#post-restructure-components-july-2026); validation runs on the server, through `mx.ReflectFormHandler` and `shadcn.FieldDecider` for reflected forms | react-hook-form keeps form state in the browser; here the server renders it |
-| `Combobox`, `DatePicker`, `DataTable` as components | [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/) recipes | upstream ships them as copy-paste recipes too, not as components |
+| `DatePicker`, `DataTable` as components | [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/) recipes | upstream ships them as copy-paste recipes too, not as components |
+| Base UI's Combobox parts (`ComboboxInput`, `ComboboxChips`, `ComboboxClear`, …) | `Combobox(ComboboxOptions{…})`, one form field | upstream's parts style the Base UI Combobox runtime; here the Popover + Command recipe is the component, with the form value added |
 
 ### Behavior not reproduced
 
@@ -199,7 +200,8 @@ Content-Security-Policy?").
 A handful of components render a user-visible string the caller never passes:
 the screen-reader text of the built-in dialog/sheet close button, the
 pagination captions, the ellipsis "more" texts, the reflected-form clear
-checkbox, select placeholders, the notes on values a save removes and the
+checkbox, select placeholders, the search placeholder and no-match text of a
+`Combobox`, the notes on values a save removes and the
 date and time format hint, and the default `aria-label`s of the
 landmark `<nav>`s and the icon-only buttons. Those strings live in the
 `Labels` struct and are resolved **from the render context**, not baked into
@@ -258,12 +260,13 @@ package variable read by every render, like `mx.AsComponent`.
 | `Spinner`                                       | `Spinner` `aria-label`                 |
 | `FormClear`                                     | reflected-form clear checkbox caption  |
 | `FormPickDate`                                  | empty `widget=datepicker` placeholder  |
+| `ComboboxSearch` / `ComboboxEmpty`              | `Combobox` search placeholder, no match |
 | `FormUploadProgress`                            | reflected file upload progress bar     |
 | `FormTextNUL` / `FormTextInvalidUTF8` / `FormTextLineBreak` | note under unshowable stored text |
 | `FormClearField`                                | clear box aria-label, %s = field       |
 | `FormValueNotAvailable`                         | reflected select out-of-list option    |
 | `FormValueRemovedOnSave`                        | note where saving clears that value    |
-| `FormChooseOption`                              | required select with no current value  |
+| `FormChooseOption`                              | required select with no current value, `Combobox` placeholder |
 | `FormNoSelection`                               | optional select empty option           |
 | `FormValuesNotAvailable`                        | enum-set members hidden by the list    |
 | `FormValuesNotAvailableReadonly`                | that note on a readonly set            |
@@ -661,12 +664,13 @@ Radix `data-[state=*]` selectors are rewritten:
 | Native element           | Radix selector             | Native rewrite             |
 |--------------------------|----------------------------|----------------------------|
 | `[popover]`              | `data-[state=open]:`       | `[&:popover-open]:` or `:popover-open:` (Tailwind v4 variant) |
-| popover trigger button   | `data-[state=open]:`       | `aria-expanded:` (`menuOpen` script flips it on toggle) |
+| popover trigger button   | `data-[state=open]:`       | `aria-expanded:` (`PopoverContent`'s `ontoggle`, or the `menuOpen` script, flips it on toggle) |
 
 - **Popover** — `Popover` / `PopoverTrigger(id, …)` / `PopoverContent(id, side, …)`.
   The shared building block; everything else in Tier 3 reuses its anchor /
   position style helpers. Sides: `PopoverTop`, `PopoverRight`, `PopoverBottom`
-  (default), `PopoverLeft`. Empty `""` selects the default.
+  (default), `PopoverLeft`. Empty `""` selects the default. The content's
+  default `ontoggle` keeps the trigger's `aria-expanded` in step.
 - **Tooltip** — `Tooltip` / `TooltipTrigger(id, …)` / `TooltipContent(id, side, …)`.
   Default side is `PopoverTop`. The trigger is a `<span>` so any element can
   sit inside without nesting buttons; a shared `tooltipShow` / `tooltipHide`
@@ -793,11 +797,12 @@ notes there (trigger/content linked by a `dialogID`, `m-auto` centering,
 Tier 5 ports lean on React-only libraries upstream (cmdk, react-day-picker,
 embla, react-hook-form, sonner, tanstack-table); here the behavior is
 re-expressed server-side in Go, with a small inline script where the platform
-has no equivalent. Three of them — **Combobox**, **DatePicker** and
-**DataTable** — are compositions of other components rather than primitives,
-exactly how shadcn/ui ships them (copy-paste recipes, not package exports):
-they live as [gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)
-examples, not functions in this package.
+has no equivalent. Two of them — **DatePicker** and **DataTable** — are
+compositions of other components rather than primitives, exactly how
+shadcn/ui ships them (copy-paste recipes, not package exports): they live as
+[gallery](https://ungerik.github.io/go-mx/shadcn/gallery/) examples, not
+functions in this package. **Combobox** is a recipe upstream too, but a
+recipe cannot submit a value, so here it is a form field (below).
 
 - **Form** — `Form`, a native `<form>` tagged `data-slot="form"`. shadcn's
   `Form` is react-hook-form's FormProvider and `FormField`/`FormControl` are
@@ -819,15 +824,52 @@ examples, not functions in this package.
   with `data-disabled="true"` is dimmed and skipped. As in cmdk, keys are left
   alone during IME composition (`isComposing`, or Safari's `keyCode` 229),
   after an earlier handler's `preventDefault`, and when they come from a link
-  or button focused inside an item, which keeps its own activation.
+  or button focused inside an item, which keeps its own activation. Enter in
+  the input never submits an enclosing form, also when nothing matches.
   `CommandEmpty` has
   `role="presentation"` and `CommandSeparator` `role="separator"`. Items
   swapped in later (server-side results an htmx swap puts into the
   `CommandList`) are picked up by a `MutationObserver`: a removed selection,
   or one that gets `data-disabled="true"`, moves to the first item, and a
   replaced list is linked to the input again. Enter never activates a
-  disabled item.
+  disabled item. `window.commandFilter.select(item)` selects a visible,
+  enabled item from script and scrolls it into view, as cmdk's `value` prop
+  does; a `Combobox` selects its picked option with it when the list opens.
   cmdk's fuzzy ranking is not reproduced: the matches keep their order.
+- **Combobox** — `Combobox(ComboboxOptions{Name, Options, Selected, …}, …)`.
+  Upstream's recipe, a `Popover` whose outline-button trigger
+  (`role="combobox"`) shows the picked label and whose content is a
+  `Command` of the options with a check on the picked one, made a form
+  field. `Options` are `mx.NamedOption`s: the `Value` is submitted under
+  `Name`, the `Label()` is listed, searched and shown. A click or Enter
+  picks: the trigger label and check move, the popover closes, the focus
+  returns to the trigger, and `input`/`change` fire. Opening clears the
+  search and selects the picked option; ArrowDown, ArrowUp or a typed
+  character on the trigger open it, the character starting the search.
+  The value lives in a `<select>` with a single option, laid transparently
+  over the trigger, out of the Tab order and hidden from assistive
+  technology: unlike a hidden input it takes part in constraint
+  validation, so `Required` blocks the submit with the browser's message at
+  the trigger, which turns `aria-invalid`. Validation focuses that select,
+  which while focused is no longer hidden and takes the trigger's label and
+  description; Enter, Space, the arrows or a character open the list from
+  there, and Tab reaches the trigger. The search box is no form field: its
+  `input`/`change` events stay inside, and Enter in it never submits. A
+  form reset returns to `Selected`, a `Selected` the options lack is kept
+  as it is, and picking the picked option again unpicks it unless
+  `Required`, as in upstream's recipe. An option for `""` stands for no
+  selection, such as a "(none)" choice: the trigger shows its label, muted,
+  while it is picked, and unpicking picks it. `ID` (default
+  `Name`) names the trigger for a `<label for>`, the popover is
+  `ID-popover`, so comboboxes with distinct names do not collide. A caller
+  class sizes the root (the trigger is full width); a `disabled`, `required`
+  or `form` attribute applies to the select that submits the value, an `id`
+  attribute is an error (the id is `ID`), and other attributes go to the
+  trigger. The popover is as wide as the trigger through
+  `anchor-size(width)`. `Placeholder`, `SearchPlaceholder` and `Empty`
+  default to `Labels.FormChooseOption`, `ComboboxSearch` and
+  `ComboboxEmpty`. In a reflected form, `form:"widget=combobox"` on an
+  option field renders it (see `FieldDecider`).
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
   server-side with Go's `time` package. A static calendar's days are text,

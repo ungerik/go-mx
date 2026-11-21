@@ -18,7 +18,8 @@ import (
 // FieldDecider is the Tailwind/shadcn layer of the layered form
 // rendering chain. It implements [mx.FieldDecider] by emitting
 // shadcn-styled components ([Input], [Switch], [Select], [Textarea],
-// [Card]) laid out with the [Field] system ([Field], [FieldLabel],
+// [Card], and a [Combobox] for form:"widget=combobox", a date picker for
+// form:"widget=datepicker") laid out with the [Field] system ([Field], [FieldLabel],
 // [FieldDescription], [FieldError]) for every kind it recognizes, and
 // delegating to [hx.FieldDecider] (and through it [html.FieldDecider])
 // for anything it does not. Parsing is always delegated upward — shadcn
@@ -103,6 +104,12 @@ func renderShadcnField(path mx.FieldPath, field reflect.StructField, value refle
 			Textarea(textareaAttribs(path, value, inputTag, errs)...),
 		)
 	case mx.FieldKindEnum:
+		// A readonly combobox cannot be picked and stays a disabled select.
+		if tag.Widget == "combobox" && !tag.Readonly {
+			return shadcnField(path, field, value, kind, tag, errs,
+				&comboboxField{path: path, field: field, value: value, tag: tag, errs: errs},
+			)
+		}
 		return shadcnField(path, field, value, kind, tag, errs,
 			shadcnEnum(path, field, value, tag, errs),
 		)
@@ -143,7 +150,11 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 		// its group.
 		parts = append(parts, FieldLabel(html.ID(groupLabelID(path)), labelText))
 	} else if labelText != "" {
-		parts = append(parts, FieldLabelFor(string(path), labelText))
+		labelFor := string(path)
+		if control, ok := input.(renderTimeControl); ok {
+			labelFor = control.controlID()
+		}
+		parts = append(parts, FieldLabelFor(labelFor, labelText))
 	}
 	parts = append(parts, input)
 	// The control is described by its help and each error message, after
@@ -174,8 +185,8 @@ func shadcnFieldMarked(path mx.FieldPath, field reflect.StructField, value refle
 		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), tag.Sensitive && kind.KeepsStoredWhenBlank() && !mx.KeepsStoredValue(tag, kind, value)))
 	}
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
-	if picker, ok := input.(*datePickerField); ok {
-		picker.describedBy = describedBy
+	if control, ok := input.(renderTimeControl); ok {
+		control.describeBy(describedBy)
 	} else {
 		mx.AddDescribedBy(input, describedBy...)
 	}
@@ -272,8 +283,8 @@ func shadcnBoolField(path mx.FieldPath, field reflect.StructField, value reflect
 		parts = append(parts, clearControl(path, mx.FieldLabel(field, tag), false))
 	}
 	parts, describedBy = appendFieldErrors(parts, describedBy, path, errs)
-	if picker, ok := input.(*datePickerField); ok {
-		picker.describedBy = describedBy
+	if control, ok := input.(renderTimeControl); ok {
+		control.describeBy(describedBy)
 	} else {
 		mx.AddDescribedBy(input, describedBy...)
 	}
@@ -297,9 +308,8 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
 	}
 	// As in the html renderer, a select that can drop its value refers to
-	// the note saying so, which is empty and hidden when it drops nothing.
-	removable := !tag.Required && !tag.Readonly
-	if removable {
+	// the note saying so (optionNote).
+	if canDropOptionValue(tag) {
 		attribs = append(attribs, mx.NewAttrib("aria-describedby", optionNoteID(path)))
 	}
 	contextList := mx.OptionsNeedContext(tag, field.Type)
@@ -324,15 +334,33 @@ func shadcnEnum(path mx.FieldPath, field reflect.StructField, value reflect.Valu
 		// The options decide whether saving drops the value, also those a
 		// context list resolves while the select renders, before this.
 		mx.ComponentFunc(func(ctx context.Context, w mx.Writer) error {
-			if !removable {
-				return nil
-			}
-			if !removed {
-				return hiddenOptionNote(path).Render(ctx, w)
-			}
-			return FieldDescription(html.ID(optionNoteID(path)),
-				labelText(func(l Labels) string { return l.FormValueRemovedOnSave })).Render(ctx, w)
+			return mx.Components{optionNote(path, tag, removed)}.Render(ctx, w)
 		}),
+	}
+}
+
+// canDropOptionValue reports whether saving a select or combobox can drop
+// a stored value its option list does not offer: the control then refers
+// to its [optionNote] first in its aria-describedby, also before the
+// options resolved, as a context list does while the select renders.
+func canDropOptionValue(tag mx.FormTag) bool {
+	return !tag.Required && !tag.Readonly
+}
+
+// optionNote is the note under a select or combobox on a stored value the
+// option list does not offer: the one saying that saving removes it where
+// removed ([mx.OptionPreface.RemovesValue]), else an empty, hidden one that
+// keeps the aria-describedby valid, and nil where the field cannot drop
+// its value ([canDropOptionValue]).
+func optionNote(path mx.FieldPath, tag mx.FormTag, removed bool) mx.Component {
+	switch {
+	case !canDropOptionValue(tag):
+		return nil
+	case removed:
+		return FieldDescription(html.ID(optionNoteID(path)),
+			labelText(func(l Labels) string { return l.FormValueRemovedOnSave }))
+	default:
+		return hiddenOptionNote(path)
 	}
 }
 
@@ -354,19 +382,34 @@ func optionNoteID(path mx.FieldPath) string {
 // Captions come from [Labels] and stay generic: a filtered-out value is
 // not echoed.
 func selectPrefaceOption(preface mx.OptionPreface) mx.Component {
+	caption := prefaceCaption(preface)
+	if caption == nil {
+		return nil
+	}
+	attribs := []any{html.Value("")}
+	switch preface {
+	case mx.OptionPrefaceUnavailable, mx.OptionPrefaceChoose:
+		attribs = append(attribs, html.Disabled, html.Selected)
+	case mx.OptionPrefaceEmpty:
+		attribs = append(attribs, html.Selected)
+	}
+	return html.Option(append(attribs, labelText(caption))...)
+}
+
+// prefaceCaption returns the [Labels] caption of the leading option
+// [mx.SelectPreface] chose, nil for none. The select and the combobox
+// share it: the combobox shows the caption of
+// [mx.OptionPrefaceUnavailable] in its trigger, lists the one of
+// [mx.OptionPrefaceEmpty] and [mx.OptionPrefaceClear] as its first item,
+// and has the one of [mx.OptionPrefaceChoose] as its default placeholder.
+func prefaceCaption(preface mx.OptionPreface) func(Labels) string {
 	switch preface {
 	case mx.OptionPrefaceUnavailable:
-		return html.Option(html.Value(""), html.Disabled, html.Selected,
-			labelText(func(l Labels) string { return l.FormValueNotAvailable }))
+		return func(l Labels) string { return l.FormValueNotAvailable }
 	case mx.OptionPrefaceChoose:
-		return html.Option(html.Value(""), html.Disabled, html.Selected,
-			labelText(func(l Labels) string { return l.FormChooseOption }))
-	case mx.OptionPrefaceEmpty:
-		return html.Option(html.Value(""), html.Selected,
-			labelText(func(l Labels) string { return l.FormNoSelection }))
-	case mx.OptionPrefaceClear:
-		return html.Option(html.Value(""),
-			labelText(func(l Labels) string { return l.FormNoSelection }))
+		return func(l Labels) string { return l.FormChooseOption }
+	case mx.OptionPrefaceEmpty, mx.OptionPrefaceClear:
+		return func(l Labels) string { return l.FormNoSelection }
 	default:
 		return nil
 	}
@@ -630,6 +673,28 @@ func datePickerValue(value string) (time.Time, bool) {
 	return t, err == nil
 }
 
+// renderTimeControl is the control of a field that builds its markup while
+// rendering, as it reads the render context, where [mx.AddDescribedBy]
+// cannot reach it: shadcnFieldMarked hands it the ids of the help and error
+// messages to link itself to, and points the label at its controlID.
+type renderTimeControl interface {
+	mx.Component
+	describeBy(ids []string)
+	controlID() string
+}
+
+// widgetID is the id of a popover widget's trigger, from which the id of
+// its popover derives: the path where it is a valid id, else an id keyed
+// from it, as a non-ASCII field name is no valid id. The "field" key part
+// keeps the id from being empty, and the leading '_' of a keyed id keeps it
+// apart from every path, whose segments are exported Go field names.
+func widgetID(path mx.FieldPath) string {
+	if isValidID(string(path)) {
+		return string(path)
+	}
+	return mx.KeyedIDValue("field", path)
+}
+
 // datePickerField is a form:"widget=datepicker" field rendered as upstream's
 // DatePicker recipe: a [PopoverTrigger] labelled by the field's [FieldLabel]
 // that shows the picked day, and a select-mode [Calendar] in the popover,
@@ -646,6 +711,10 @@ type datePickerField struct {
 	errs        []error
 	describedBy []string
 }
+
+func (d *datePickerField) describeBy(ids []string) { d.describedBy = ids }
+
+func (d *datePickerField) controlID() string { return widgetID(d.path) }
 
 func (d *datePickerField) Render(ctx context.Context, w mx.Writer) error {
 	path, selected, tag, errs := d.path, d.selected, d.tag, d.errs
@@ -672,9 +741,9 @@ func (d *datePickerField) Render(ctx context.Context, w mx.Writer) error {
 		text.Attribs = append(text.Attribs, html.DataAttr("empty", "true"))
 		text.Children = mx.Components{labelText(func(l Labels) string { return l.FormPickDate })}
 	}
-	popoverID := string(path) + "-calendar"
+	popoverID := d.controlID() + "-calendar"
 	trigger := PopoverTrigger(popoverID,
-		html.ID(string(path)),
+		html.ID(d.controlID()),
 		html.Class(ButtonClasses(ButtonOutline, SizeDefault)+" w-full justify-start text-left font-normal"),
 		iconCalendar(),
 		text,
@@ -691,6 +760,76 @@ func (d *datePickerField) Render(ctx context.Context, w mx.Writer) error {
 			DatePickerCalendar(path, opts, month, selected),
 		),
 	).Render(ctx, w)
+}
+
+// comboboxField is a form:"widget=combobox" field rendered as a [Combobox]
+// of the field's options, which it collects while rendering, as an option
+// list can depend on the request context. It decides the leading choice as
+// the select does ([mx.SelectPreface], [prefaceCaption]): an optional
+// field offers its blank as a first "(none)" option, and a stored value
+// the list does not offer is never echoed and never submitted again. A
+// context list or a required field shows it as
+// [Labels].FormValueNotAvailable, with the note that saving removes it
+// unless the field is required; an optional static list picks "(none)",
+// as the select, which then has no selected option, submits its first.
+type comboboxField struct {
+	path        mx.FieldPath
+	field       reflect.StructField
+	value       reflect.Value
+	tag         mx.FormTag
+	errs        []error
+	describedBy []string
+}
+
+func (c *comboboxField) describeBy(ids []string) { c.describedBy = ids }
+
+func (c *comboboxField) controlID() string { return widgetID(c.path) }
+
+func (c *comboboxField) Render(ctx context.Context, w mx.Writer) error {
+	options, err := mx.CollectOptions(ctx, c.value, c.tag, c.field.Type)
+	if err != nil {
+		return err
+	}
+	labels := LabelsFromContext(ctx)
+	preface, selected := mx.SelectPreface(c.value, mx.FormValueText(c.value), c.tag, mx.OptionsNeedContext(c.tag, c.field.Type), options)
+	// A value the list does not offer is not passed on: Combobox would
+	// show and submit it as it is.
+	if !slices.ContainsFunc(options, func(o mx.NamedOption) bool { return o.Value == selected }) {
+		selected = ""
+	}
+	opts := ComboboxOptions{
+		Name:        string(c.path),
+		ID:          c.controlID(),
+		Options:     options,
+		Selected:    selected,
+		Placeholder: c.tag.Placeholder,
+		Required:    c.tag.Required,
+	}
+	switch preface {
+	case mx.OptionPrefaceUnavailable:
+		opts.caption = prefaceCaption(preface)(labels)
+	case mx.OptionPrefaceEmpty, mx.OptionPrefaceClear:
+		opts.Options = append([]mx.NamedOption{{Name: prefaceCaption(preface)(labels)}}, options...)
+	}
+	var attribs []mx.Attrib
+	if len(c.errs) > 0 {
+		attribs = append(attribs, mx.NewAttrib("aria-invalid", "true"))
+	}
+	// As on the select, the note on a removed value comes first.
+	describedBy := c.describedBy
+	if canDropOptionValue(c.tag) {
+		describedBy = append([]string{optionNoteID(c.path)}, describedBy...)
+	}
+	if len(describedBy) > 0 {
+		attribs = append(attribs, mx.NewAttrib("aria-describedby", strings.Join(describedBy, " ")))
+	}
+	root, input := comboboxParts(opts, attribs)
+	if input != nil {
+		// The script fires change on the select, as a picked day on the
+		// calendar's hidden input.
+		input.Attribs = append(input.Attribs, hx.Trigger("change"))
+	}
+	return mx.Components{root, optionNote(c.path, c.tag, preface.RemovesValue(c.tag))}.Render(ctx, w)
 }
 
 // readonlyInputClasses give a readonly text, number, date or textarea input

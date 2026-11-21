@@ -95,3 +95,35 @@ func TestPopoverValidateIDPanics(t *testing.T) {
 		}()
 	}
 }
+
+// PopoverContent's default ontoggle keeps aria-expanded of its trigger in
+// step, so every PopoverTrigger tells assistive technology whether its
+// popover is open; a trigger without aria-expanded is left alone.
+//
+// Value: protects=aria-expanded on PopoverTrigger following the popover; fails_when=PopoverContent loses its ontoggle or the handler matches the wrong triggers; why_new=only Combobox and the menus updated it before; seam=none; no_claim=screen reader output
+func TestPopoverExpandedInChrome(t *testing.T) {
+	if out := render(t, PopoverContent("p1", "", html.OnToggle("mine()"))); strings.Count(out, "ontoggle") != 1 || !strings.Contains(out, `ontoggle="mine()"`) {
+		t.Errorf("a caller's ontoggle replaces the default: %s", out)
+	}
+	body := html.Div(
+		PopoverTrigger("p-1", html.ID("trigger"), "Open"),
+		html.Button(html.ID("plain"), html.PopoverTarget("p-1"), "Plain"),
+		PopoverContent("p-1", "", "Hello"),
+	)
+	const script = /*js*/ `
+var t=document.getElementById('trigger'),p=document.getElementById('p-1');
+t.click();
+await wait(0);
+out.open=t.getAttribute('aria-expanded');
+out.plain=document.getElementById('plain').hasAttribute('aria-expanded');
+p.hidePopover();
+await wait(0);
+out.closed=t.getAttribute('aria-expanded');
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"open":   "true",
+		"plain":  false,
+		"closed": "false",
+	})
+}

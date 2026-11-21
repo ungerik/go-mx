@@ -1923,3 +1923,295 @@ out.progress=bar.value+'/'+bar.max+':'+bar.hidden;
 		"progress":     "30/120:false",
 	})
 }
+
+type comboboxForm struct {
+	Debit  string    `form:"widget=combobox,options=test-shadcn-tags,required"`
+	Credit string    `form:"widget=combobox,options=test-shadcn-tags,help=The account credited"`
+	Color  colorEnum `form:"widget=combobox,required,placeholder=Pick a color"`
+	Fixed  colorEnum `form:"widget=combobox,readonly"`
+}
+
+// comboboxValueRe finds the name and selected value of a Combobox's select.
+var comboboxValueRe = regexp.MustCompile(`<select data-slot="combobox-input" name="([^"]*)"[^<]*<option value="([^"]*)" selected="selected">`)
+
+// A form:"widget=combobox" field renders a Combobox of the field's
+// options: the field label points at its trigger, and its select submits
+// the value under the field path and carries the hx-trigger of every
+// other control of the form.
+func TestShadcn_Combobox(t *testing.T) {
+	out := renderShadcn(t, &comboboxForm{Debit: "b"}, "Debit", nil)
+	for _, want := range []string{
+		`for="Debit"`,
+		`data-slot="combobox-trigger" id="Debit"`,
+		`aria-required="true"`,
+		`>Tag B</span>`,
+		`data-value="b" data-checked="true"`,
+		`data-value="a"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	input := regexp.MustCompile(`<select data-slot="combobox-input"[^<]*`).FindString(out)
+	for _, want := range []string{`name="Debit"`, `required`, `hx-trigger="change"`} {
+		if !strings.Contains(input, want) {
+			t.Errorf("select: missing %s in %s", want, input)
+		}
+	}
+	if strings.Contains(out, `data-value="" `) {
+		t.Errorf("a required combobox offers no blank: %s", out)
+	}
+
+	// An optional field offers its blank first, as the select's "(none)",
+	// and the trigger shows it, muted, while it is picked, as the select
+	// does.
+	optional := renderShadcn(t, &comboboxForm{}, "Credit", nil)
+	for _, want := range []string{
+		`data-value="" data-checked="true" aria-checked="true" class=`,
+		`>(none)<svg`,
+		`data-empty="true"`,
+		`>(none)</span>`,
+		/*html*/ `<option value="" selected="selected">(none)</option>`,
+	} {
+		if !strings.Contains(optional, want) {
+			t.Errorf("missing %s in %s", want, optional)
+		}
+	}
+	// A required field with nothing picked shows the placeholder, which a
+	// form:"placeholder" replaces.
+	if placeholder := renderShadcn(t, &comboboxForm{}, "Color", nil); !strings.Contains(placeholder, `>Pick a color</span>`) || !strings.Contains(placeholder, `data-value="green"`) {
+		t.Errorf("a form:\"placeholder\" replaces the placeholder, and an enum offers its values: %s", placeholder)
+	}
+
+	// A readonly field cannot be picked and stays a disabled select.
+	if fixed := renderShadcn(t, &comboboxForm{Fixed: "red"}, "Fixed", nil); !strings.Contains(fixed, `data-slot="select"`) || strings.Contains(fixed, "combobox") {
+		t.Errorf("a readonly combobox renders the disabled select: %s", fixed)
+	}
+}
+
+// The trigger is described by the field's help and error messages and
+// marked invalid on an error, as every other control is. An optional
+// field refers to the note on a removed value first, as the select does,
+// which is empty and hidden while saving removes nothing.
+func TestShadcn_ComboboxDescribedBy(t *testing.T) {
+	out := renderShadcn(t, &comboboxForm{}, "Credit", []error{stringErr("not an account")})
+	trigger := regexp.MustCompile(`<button [^<]*data-slot="combobox-trigger"[^<]*`).FindString(out)
+	for _, want := range []string{`aria-describedby="Credit-note Credit-help Credit-error-0"`, `aria-invalid="true"`} {
+		if !strings.Contains(trigger, want) {
+			t.Errorf("trigger: missing %s in %s", want, trigger)
+		}
+	}
+	for _, want := range []string{`id="Credit-help"`, `id="Credit-error-0"`, `data-invalid="true"`, `id="Credit-note" hidden`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+}
+
+// A stored value a per-request option list does not offer is not echoed:
+// the trigger says it is not available, the select submits nothing, and a
+// note the trigger refers to says saving removes it, as on the select.
+func TestShadcn_ComboboxUnavailableValue(t *testing.T) {
+	type draftForm struct {
+		Partner string `form:"widget=combobox,options=test-shadcn-partners"`
+	}
+	v := reflect.ValueOf(&draftForm{Partner: "gone"}).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider("Partner", f, v.Field(0)).Render("Partner", f, v.Field(0), nil)
+	ctx := context.WithValue(context.Background(), shadcnPartnersKey{},
+		[]mx.NamedOption{{Name: "Partner One", Value: "p1"}})
+	var b strings.Builder
+	if err := comp.Render(ctx, mx.NewCheckedWriter(&b)); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := b.String()
+	if strings.Contains(out, "gone") {
+		t.Errorf("the out-of-list value must not be echoed: %s", out)
+	}
+	for _, want := range []string{
+		`>(current value not available)</span>`,
+		// The caption is the select's option text, so a form reset shows
+		// it again, while the placeholder, shown after an unpick, stays the
+		// generic one.
+		/*html*/ `<option value="" selected="selected" data-caption="true">(current value not available)</option>`,
+		`data-placeholder="Choose…" data-empty="true"`,
+		`aria-describedby="Partner-note"`,
+		`id="Partner-note"`,
+		"The current value is removed when you save.",
+		`>Partner One<svg`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+}
+
+// An optional static list that does not offer the stored value, which
+// mx.SelectPreface lets the select clear with its "(none)" option, shows
+// and submits "(none)" as the select does: the value is not echoed, also
+// not for a sensitive field, and not submitted again for validation to
+// reject.
+func TestShadcn_ComboboxClearsValueNotInStaticList(t *testing.T) {
+	type shadeForm struct {
+		Shade colorEnum `form:"widget=combobox,sensitive"`
+	}
+	out := renderShadcn(t, &shadeForm{Shade: "purple"}, "Shade", nil)
+	if strings.Contains(out, "purple") {
+		t.Errorf("the out-of-list value must not be echoed: %s", out)
+	}
+	for _, want := range []string{
+		/*html*/ `<option value="" selected="selected">(none)</option>`,
+		`>(none)</span>`,
+		`data-value="" data-checked="true"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+}
+
+// A GET followed by a POST of what the comboboxes hold stores the shown
+// values, and a value no option has is rejected, as for a select: the
+// browser submits whatever the select holds.
+func TestShadcn_ComboboxRoundTrip(t *testing.T) {
+	var saved *comboboxForm
+	handler := mx.ReflectFormHandler(
+		func(context.Context) (*comboboxForm, error) {
+			return &comboboxForm{Debit: "a", Color: "blue", Fixed: "red"}, nil
+		},
+		func(_ context.Context, r *comboboxForm) error { saved = r; return nil },
+		FieldDecider,
+	)
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "/booking", nil))
+	// The form's own inputs, such as its submit marker, plus what the
+	// comboboxes' selects hold.
+	shown := submittedValues(rec.Body.String())
+	comboboxes := url.Values{}
+	for _, m := range comboboxValueRe.FindAllStringSubmatch(rec.Body.String(), -1) {
+		comboboxes.Set(m[1], m[2])
+		shown.Set(m[1], m[2])
+	}
+	if want := (url.Values{"Debit": {"a"}, "Credit": {""}, "Color": {"blue"}}); !reflect.DeepEqual(comboboxes, want) {
+		t.Fatalf("GET shows %v, want %v", comboboxes, want)
+	}
+
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/booking", strings.NewReader(values.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+	shown.Set("Credit", "b")
+	if rec := post(shown); rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST: status %d, want 303, body %s", rec.Code, rec.Body.String())
+	}
+	if want := (&comboboxForm{Debit: "a", Credit: "b", Color: "blue", Fixed: "red"}); !reflect.DeepEqual(saved, want) {
+		t.Errorf("saved %+v, want %+v", saved, want)
+	}
+
+	saved = nil
+	shown.Set("Color", "purple")
+	if rec := post(shown); rec.Code == http.StatusSeeOther || saved != nil {
+		t.Errorf("a value no option has must be rejected: status %d, saved %+v", rec.Code, saved)
+	}
+	shown.Set("Color", "blue")
+	shown.Set("Debit", "")
+	if rec := post(shown); rec.Code == http.StatusSeeOther || saved != nil {
+		t.Errorf("a required combobox submitted blank must be rejected: status %d, saved %+v", rec.Code, saved)
+	}
+}
+
+// Value: protects=the "(none)" choice keeping an offered stored value picked, the removed-on-save note only on optional fields, and a provider error failing the render; fails_when=Clear resets the selection, the note ignores required, or the CollectOptions error is swallowed; why_new=Clear was hit only with a value the list lacks, Unavailable only optional, no error path; seam=none; no_claim=browser behavior
+func TestShadcn_ComboboxPrefaces(t *testing.T) {
+	kept := renderShadcn(t, &comboboxForm{Credit: "b"}, "Credit", nil)
+	for _, want := range []string{
+		`data-value="b" data-checked="true"`,
+		`>Tag B</span>`,
+		/*html*/ `<option value="b" selected="selected">`,
+	} {
+		if !strings.Contains(kept, want) {
+			t.Errorf("an offered value stays picked: missing %s in %s", want, kept)
+		}
+	}
+	if !strings.Contains(kept, `data-value=""`) || strings.Contains(kept, `data-value="" data-checked`) {
+		t.Errorf("an optional field offers an unchecked (none): %s", kept)
+	}
+
+	// A required field rejects the blank instead, so nothing says saving
+	// removes the value.
+	required := renderShadcn(t, &comboboxForm{Color: "purple"}, "Color", nil)
+	if !strings.Contains(required, `>(current value not available)</span>`) || strings.Contains(required, "Color-note") || strings.Contains(required, "purple") {
+		t.Errorf("a required unavailable value: caption, no note, not echoed: %s", required)
+	}
+
+	type broken struct {
+		Partner string `form:"widget=combobox,options=test-shadcn-unregistered"`
+	}
+	v := reflect.ValueOf(&broken{}).Elem()
+	f, _ := v.Type().FieldByName("Partner")
+	comp := FieldDecider("Partner", f, v.Field(0)).Render("Partner", f, v.Field(0), nil)
+	if err := comp.Render(t.Context(), mx.NewCheckedWriter(&strings.Builder{})); err == nil {
+		t.Error("an option list that cannot be collected must fail the render")
+	}
+}
+
+// A field whose path is no valid id, as a non-ASCII Go field name gives,
+// still renders the combobox it asks for: the trigger and its popover get
+// an id keyed from the path, which the field label points at, while the
+// select submits under the path.
+//
+// Value: protects=a widget=combobox field with a non-ASCII name rendering as a labelled combobox; fails_when=the derived id is dropped (validateID panics) or the label keeps pointing at the path; why_new=review found the widget silently replaced by a select; seam=none; no_claim=none beyond protects
+func TestShadcn_ComboboxNonIDPath(t *testing.T) {
+	type form struct {
+		Größe colorEnum `form:"widget=combobox"`
+	}
+	out := renderShadcn(t, &form{Größe: "red"}, "Größe", nil)
+	id := widgetID("Größe")
+	if !isValidID(id) {
+		t.Fatalf("widgetID must give a valid id, got %q", id)
+	}
+	for _, want := range []string{`for="` + id + `"`, `id="` + id + `"`, `id="` + id + `-popover"`, `name="Größe"`, `data-slot="combobox-trigger"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+}
+
+// A widget=datepicker field whose path is no valid id still renders the
+// picker, with its trigger and popover ids keyed from the path, as the
+// combobox does.
+//
+// Value: protects=a non-ASCII widget=datepicker field rendering as a labelled picker; fails_when=the derived id is dropped (validateID panics) or the label keeps pointing at the path; why_new=the Combobox review found the widget silently replaced; seam=none; no_claim=none beyond protects
+func TestShadcn_DatePickerNonIDPath(t *testing.T) {
+	type form struct {
+		Gültig time.Time `form:"widget=datepicker"`
+	}
+	out := renderShadcn(t, &form{}, "Gültig", nil)
+	id := widgetID("Gültig")
+	for _, want := range []string{`for="` + id + `"`, `id="` + id + `"`, `popovertarget="` + id + `-calendar"`, `id="` + id + `-calendar"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	if strings.Contains(out, `type="date"`) {
+		t.Errorf("the field renders the picker, not the date input: %s", out)
+	}
+}
+
+// widgetID keeps a path that is a valid id, and keys every other one into
+// a valid, non-empty id, also where no character of the path is usable.
+func TestWidgetID(t *testing.T) {
+	if got := widgetID("Address-Street"); got != "Address-Street" {
+		t.Errorf("a valid path stays the id, got %q", got)
+	}
+	for _, path := range []mx.FieldPath{"Größe", "日本", "Größe-Breite"} {
+		if id := widgetID(path); !isValidID(id) || !strings.HasPrefix(id, "_") {
+			t.Errorf("%s: want a valid keyed id, got %q", path, id)
+		}
+	}
+	if widgetID("Größe") == widgetID("Grösse") {
+		t.Error("distinct paths must give distinct ids")
+	}
+}

@@ -26,8 +26,9 @@ import (
 //  6. form:"widget=file" tag, or a *multipart.FileHeader or
 //     []*multipart.FileHeader field → FieldKindFile
 //  7. form:"widget=<other>" tag (text/email/url/tel/date/datetime/
-//     time/password/select/radio/switch/checkbox) → FieldKindString,
-//     FieldKindDateTime, or FieldKindBool depending on the widget name
+//     time/password/select/radio/combobox/switch/checkbox) →
+//     FieldKindString, FieldKindEnum, FieldKindDateTime, or
+//     FieldKindBool depending on the widget name
 //  8. Type implementing [FormWidgetHint] → kind from the hint's name,
 //     which is also returned as the tag's Widget
 //  9. Type implementing the Enums()/EnumStrings() convention →
@@ -155,7 +156,7 @@ func detectField(field reflect.StructField, value reflect.Value) (FieldKind, For
 			return FieldKindDateTime, tag
 		case "switch", "checkbox":
 			return FieldKindBool, tag
-		case "select", "radio":
+		case "select", "radio", "combobox":
 			return FieldKindEnum, tag
 		case "text", "email", "url", "tel", "password":
 			return FieldKindString, tag
@@ -202,7 +203,7 @@ func detectField(field reflect.StructField, value reflect.Value) (FieldKind, For
 			return FieldKindDateTime, tag
 		case "switch", "checkbox":
 			return FieldKindBool, tag
-		case "select", "radio":
+		case "select", "radio", "combobox":
 			return FieldKindEnum, tag
 		case "hidden":
 			return FieldKindHidden, tag

@@ -440,6 +440,27 @@ them; the messages with a number need a format string, like shadcn's
 **Priority:** P3
 **Depends on:** None
 
+### Two reflected forms of one struct on a page share element ids
+
+**What:** Let a reflected form prefix the element ids it derives from field
+paths, separately from the input names.
+
+**Why:** Every field's id is its path (`Debit`), so two forms of the same
+struct on one page (an inline edit form per table row) repeat ids. A
+`<label for>` then names the first form's control, and a
+`form:"widget=combobox"` or `widget=datepicker` trigger opens the first
+form's popover, so a pick changes the other form's value.
+
+**Context:** Found by the /ship review of the Combobox branch
+(2026-11-21). `shadcnField`/`FieldLabelFor(string(path))`, `comboboxField`
+(`Name: string(c.path)`, the id defaults to it) and `datePickerField` all
+take the path as id; a prefix would go into `mx.ReflectFormConfig` or the
+render context and be applied where ids are written, not to names.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
 ## mx writer
 
 ### `CheckedWriter.Comment` writes text that closes the comment early
@@ -697,6 +718,104 @@ V1-AUDIT.md §3.3.
 **Effort:** S
 **Priority:** P2
 **Depends on:** Does `hx` target htmx 2 or htmx 4 at v1.0?
+
+## shadcn
+
+### `Combobox` options have no groups and cannot be disabled
+
+**What:** Let a `shadcn.Combobox` list its options under group headings
+(`CommandGroup`) and dim single options (`data-disabled="true"`).
+
+**Why:** A chart of accounts reads best grouped by account class, and some
+accounts may be closed for booking while they stay listed.
+
+**Context:** `mx.NamedOption` has only `Name` and `Value`, and
+`ComboboxOptions.Options` builds one untitled `CommandGroup`. A group
+field, or a separate `ComboboxOptions.Groups`, would also serve
+`<optgroup>` in the reflected select. Command already skips disabled items.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### A `Combobox`'s own `aria-invalid` outlives an htmx history restore
+
+**What:** Clear the `aria-invalid` a `shadcn.Combobox` script set after a
+failed required check also when the markup was restored from a snapshot.
+
+**Why:** The script remembers that it set the mark only in the `mxInvalid`
+property, which an htmx history snapshot drops. After a restore the mark
+reads as one the server set and stays after a valid pick: the trigger
+looks and is announced invalid. The submitted value is not affected.
+
+**Context:** Found by the /ship adversarial review (2026-11-21). A
+`data-mx-invalid` attribute in `comboboxScript`, set and cleared with the
+mark, would survive the snapshot.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### `Combobox` renders every option into the page
+
+**What:** Load a `Combobox`'s matches from the server as the user types,
+for option lists of thousands of entries.
+
+**Why:** Each option is a `CommandItem` in the markup, so a long list
+makes the page large in every form that shows the field; a few hundred
+entries are fine.
+
+**Context:** `Command` already picks up items an htmx swap puts into its
+`CommandList` (its `MutationObserver`), so the search input could carry
+`hx-get` with a `keyup changed delay` trigger. The combobox script reads
+the label of a pick from the item, so swapped items work as they are; the
+selected option's label must still render server-side.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
+### Scripted `shadcn` components repeat their script in every instance
+
+**What:** Emit the definition of a component's client script once per
+render (or once per page), and only a short init call per instance.
+
+**Why:** Every `Combobox` carries the whole `comboboxScript` (about 6 KB)
+plus, through its `Command`, the whole `commandScript`; their guards keep
+the definitions from running twice, but the bytes are repeated. A form with
+eight `widget=combobox` fields, or a table of inline row-edit forms, sends
+eight copies of both in every response and every htmx swap. `Tabs`,
+`ToggleGroup`, `Calendar`, `Menu`, `Tooltip` and the other scripted
+components follow the same pattern.
+
+**Context:** Found by the Combobox code review (2026-11-21). mx has no
+render-scoped state to record that a script was already written, and an
+htmx fragment rendered alone still needs the definition, so the flag
+belongs to one render, not to the page: a context value the render entry
+points set (a `*sync.Map` or a small registry), consulted by a
+`scriptOnce(name, js)` component, with the definition emitted as is where
+the context has no registry. The strict-CSP question in `## v1.0 release`
+(how `shadcn` and `logview` support a Content-Security-Policy) may move the
+scripts into an external asset instead, which would settle this too.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** The strict-CSP decision under `## v1.0 release`
+
+### A `Combobox` that picks several values
+
+**What:** A multi-select combobox, upstream Base UI's chips variant.
+
+**Why:** Tags and similar sets want search too; the reflected form renders
+an enum set as a checkbox grid.
+
+**Context:** The single-option `<select>` would become a `<select
+multiple>`, the trigger would show chips, and the popover would stay open
+after a pick, as a `CalendarMultiple` does.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
 
 ## web
 

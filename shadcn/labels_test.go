@@ -40,6 +40,8 @@ var germanLabels = Labels{
 	CalendarSelected:               "%s, ausgewählt",
 	CarouselPrevious:               "Vorheriges Bild",
 	CarouselNext:                   "Nächstes Bild",
+	ComboboxSearch:                 "Suchen…",
+	ComboboxEmpty:                  "Keine Treffer.",
 	CodeBlockCopy:                  "Kopieren",
 	CodeBlockCopied:                "Kopiert",
 	DialogClose:                    "Schließen",
@@ -150,6 +152,11 @@ var labelCases = []labelCase{
 		fields:  []string{"CodeBlockCopy", "CodeBlockCopied"},
 		english: []string{`aria-label="Copy"`, `data-copy-label="Copy"`, `data-copied-label="Copied"`},
 		german:  []string{`aria-label="Kopieren"`, `data-copy-label="Kopieren"`, `data-copied-label="Kopiert"`},
+	}, {
+		name: "Combobox", comp: func() mx.Component { return Combobox(ComboboxOptions{Name: "account"}) },
+		fields:  []string{"ComboboxSearch", "ComboboxEmpty", "FormChooseOption"},
+		english: []string{`placeholder="Search…"`, `>No results found.</div>`, `data-placeholder="Choose…"`, `>Choose…</span>`},
+		german:  []string{`placeholder="Suchen…"`, `>Keine Treffer.</div>`, `data-placeholder="Auswählen…"`, `>Auswählen…</span>`},
 	}, {
 		name: "DialogContent", comp: func() mx.Component { return DialogContent("dlg") },
 		fields:  []string{"DialogClose"},

@@ -372,11 +372,24 @@ renders in a text input that saves unchanged.
 as upstream's DatePicker recipe instead of a date input: a popover trigger
 showing the picked day and a select-mode `shadcn.Calendar` whose hidden input
 submits what a date input submits, so it binds exactly like `widget=date`
-(which is what the html renderer shows for it). A readonly field, or stored
-text the calendar cannot show, stays a date or text input.
+(which is what the html renderer shows for it). A readonly field or stored
+text the calendar cannot show stays a date or text input. A field whose path
+is not a valid HTML id (a Go field name with non-ASCII letters) gets a
+derived id for the picker, which its label points at.
 `shadcn.ContextWithDatePickerOptions` hands the picker its `CalendarOptions`
 per field, `MonthURL` among them for the other months, answered by
 `shadcn.DatePickerCalendar`.
+
+`form:"widget=combobox"` on an option field (an enum, a type with options, or
+`form:"options=…"`) is a select that `shadcn.FieldDecider` renders as a
+`shadcn.Combobox`: a trigger showing the picked label that opens a searchable
+list, for option lists too long to scroll through. Its value is submitted and
+parsed as the select's, so a value the options lack is rejected, and the
+html renderer shows it as that select. As on the select, an optional field
+offers "(none)" first, a stored value a per-request list lacks is shown as not
+available rather than echoed, and a readonly field stays a disabled select.
+A field whose path is not a valid HTML id gets a derived id for the
+trigger, as the date picker does.
 
 A `form:"sensitive"` date never
 shows its value, like a sensitive text input; as with a password field, a
