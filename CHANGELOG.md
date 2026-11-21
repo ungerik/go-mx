@@ -33,8 +33,11 @@ API is still free to change.
   is a `combobox` pointing at the selected `option` of a `listbox` with
   `aria-activedescendant`, groups are named by their heading, and
   `CommandEmpty` and `CommandSeparator` get cmdk's `presentation` and
-  `separator` roles. Keys are ignored during IME composition, and items an
-  htmx swap puts into the list are selected. The Combobox recipe gets the
+  `separator` roles. Keys are ignored during IME composition and when they
+  come from a link or button focused inside an item, which keeps its own
+  activation; an item an htmx swap puts into the list, or one that gets
+  `data-disabled="true"` after loading, moves the selection as cmdk's does,
+  and Enter never activates a disabled item. The Combobox recipe gets the
   same keyboard support.
 - **`shadcn/README.md` lists what is not ported from upstream, and why**:
   React-only API, behavior left out, what depends on the browser, styles and

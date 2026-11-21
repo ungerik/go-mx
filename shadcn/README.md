@@ -814,12 +814,16 @@ examples, not functions in this package.
   link or button inside it. Focus stays in the input, a `combobox` pointing at
   the selected `option` of the `listbox` with `aria-activedescendant`. An item
   with `data-disabled="true"` is dimmed and skipped. As in cmdk, keys are left
-  alone during IME composition (`isComposing`, or Safari's `keyCode` 229) and
-  after an earlier handler's `preventDefault`, `CommandEmpty` has
+  alone during IME composition (`isComposing`, or Safari's `keyCode` 229),
+  after an earlier handler's `preventDefault`, and when they come from a link
+  or button focused inside an item, which keeps its own activation.
+  `CommandEmpty` has
   `role="presentation"` and `CommandSeparator` `role="separator"`. Items
   swapped in later (server-side results an htmx swap puts into the
-  `CommandList`) are picked up by a `MutationObserver`: a removed selection
-  moves to the first item, and a replaced list is linked to the input again.
+  `CommandList`) are picked up by a `MutationObserver`: a removed selection,
+  or one that gets `data-disabled="true"`, moves to the first item, and a
+  replaced list is linked to the input again. Enter never activates a
+  disabled item.
   cmdk's fuzzy ranking is not reproduced: the matches keep their order.
 - **Calendar** — `Calendar(month, selected, …)` and the configurable
   `CalendarWith(opts, month, selected, …)`. A single-month grid generated
