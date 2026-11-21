@@ -42,10 +42,11 @@ func AlertDialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 }
 
 // alertDialogContentClasses is shadcn's AlertDialogContent class string with
-// the Radix-only positioning (fixed/translate/z-50), animation
-// (data-[state=*]) and duration classes removed, and `backdrop:bg-black/50`
-// added. A native modal <dialog> is centered in the top layer by the user
-// agent and has no data-state attribute.
+// the Radix-only positioning (fixed/translate/z-50) and animation
+// (data-[state=*]) classes removed. A native modal <dialog> is centered in the
+// top layer by the user agent and has no data-state attribute, so the fade
+// and zoom, the duration and the backdrop color come from [dialogZoomClasses]
+// and [modalTransitionClasses], shared with Dialog.
 //
 // The display utility is `open:grid`, not `grid`: shadcn renders the content
 // only while the Radix dialog is open, but a native <dialog> is always in the
@@ -59,7 +60,8 @@ func AlertDialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 // <dialog> in the top layer. Tailwind v4 Preflight (required by this package)
 // resets every element's margin to 0, which otherwise defeats that centering
 // and pins the open dialog to the top-left.
-const alertDialogContentClasses = "group/alert-dialog-content open:grid m-auto w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg backdrop:bg-black/50 data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg"
+const alertDialogContentClasses = "group/alert-dialog-content open:grid m-auto w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg " +
+	dialogZoomClasses + " " + modalTransitionClasses
 
 // AlertDialogContent renders the modal <dialog id=dialogID>. Its children are
 // placed inside a <form method="dialog"> so that the submit buttons produced

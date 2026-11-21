@@ -16,13 +16,25 @@ import (
 // Dropped vs Vaul: multi snap-points, momentum physics, the background-scale
 // effect, and non-bottom directions. Trigger and content are linked by the
 // drawer id, not by DOM nesting.
-const drawerScript = /*js*/ `if(!window.drawerStart){window.drawerStart=function(e,h){var d=h.closest('dialog');if(!d)return;var y0=e.clientY;d.style.transition='none';function mv(ev){var dy=ev.clientY-y0;if(dy<0)dy=0;d.style.transform='translateY('+dy+'px)';}function up(ev){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);var dy=ev.clientY-y0;d.style.transition='transform .2s ease';if(dy>d.offsetHeight*0.4){d.style.transform='translateY(100%)';setTimeout(function(){d.close();d.style.transform='';d.style.transition='';},200);}else{d.style.transform='translateY(0)';}}document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);};}`
+//
+// Opening and closing slide the drawer like Vaul's, with
+// [modalTransitionClasses]. The drag moves the drawer with an inline
+// `translate`, the property those classes transition, and turns transitions
+// off while the pointer is down. On release it clears both, so the classes
+// take over from wherever the drag left the drawer: they slide it back into
+// place, or, when the drag went past the threshold, slide it out as it
+// closes. No timer outlives the gesture, so a new drag or an Escape right
+// after a release finds nothing left over from the previous one.
+const drawerScript = /*js*/ `if(!window.drawerStart){window.drawerStart=function(e,h){var d=h.closest('dialog');if(!d)return;var y0=e.clientY;d.style.transition='none';function mv(ev){var dy=ev.clientY-y0;if(dy<0)dy=0;d.style.translate='0 '+dy+'px';}function up(ev){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);var dy=ev.clientY-y0;d.style.transition='';d.style.translate='';if(dy>d.offsetHeight*0.4)d.close();}document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);};}`
 
 // drawerContentClasses pins the drawer to the bottom edge (overriding the UA
 // modal centering the same way SheetContent does) and rounds its top corners.
 // `open:flex` keeps a closed <dialog> display:none; max-h-[80vh] keeps it below
-// full screen.
-const drawerContentClasses = "open:flex flex-col fixed inset-x-0 bottom-0 top-auto m-0 h-auto w-full max-h-[80vh] max-w-none rounded-t-lg border-t bg-background shadow-lg backdrop:bg-black/50"
+// full screen. It slides up from below the edge and back down with Vaul's
+// 500ms cubic-bezier(0.32,0.72,0,1) transition.
+const drawerContentClasses = "open:flex flex-col fixed inset-x-0 bottom-0 top-auto m-0 h-auto w-full max-h-[80vh] max-w-none rounded-t-lg border-t bg-background shadow-lg " +
+	"translate-y-full open:translate-y-0 starting:open:translate-y-full duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] " +
+	modalTransitionClasses
 
 // Drawer wraps a trigger and its drawer content.
 func Drawer(attribsChildren ...any) *mx.Element {

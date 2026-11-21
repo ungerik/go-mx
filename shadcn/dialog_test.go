@@ -69,3 +69,33 @@ func TestDialogValidateIDPanics(t *testing.T) {
 		}()
 	}
 }
+
+// TestModalTransitions checks that every modal <dialog> carries the CSS
+// transitions that replace upstream's data-state animations, with the
+// movement of its kind, and that Cn kept every class while merging.
+func TestModalTransitions(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		out      string
+		movement []string
+	}{
+		{"Dialog", render(t, DialogContent("d")), []string{"opacity-0 scale-95 open:opacity-100 open:scale-100 starting:open:opacity-0 starting:open:scale-95", "duration-200"}},
+		{"AlertDialog", render(t, AlertDialogContent("a", "")), []string{"opacity-0 scale-95 open:opacity-100 open:scale-100 starting:open:opacity-0 starting:open:scale-95", "duration-200"}},
+		{"Sheet", render(t, SheetContent("s", "")), []string{"translate-x-full open:translate-x-0 starting:open:translate-x-full", "duration-300 open:duration-500"}},
+		{"Drawer", render(t, DrawerContent("w")), []string{"translate-y-full open:translate-y-0 starting:open:translate-y-full", "duration-500"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			for _, want := range append(c.movement, modalTransitionClasses) {
+				if !strings.Contains(c.out, want) {
+					t.Errorf("missing %q in %s", want, c.out)
+				}
+			}
+			// Radix's data-state animations have no attribute to match here.
+			for _, gone := range []string{"data-[state=", "animate-in", "animate-out"} {
+				if strings.Contains(c.out, gone) {
+					t.Errorf("unrewritten upstream animation %q in %s", gone, c.out)
+				}
+			}
+		})
+	}
+}
