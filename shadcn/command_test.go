@@ -280,3 +280,49 @@ out.appendKeepsSelection=document.querySelector('#plain [data-selected=true]')==
 		"appendKeepsSelection":    true,
 	})
 }
+
+// TestCommandLeavesFocusedControlsAndDisabledItemsAloneInChrome checks the
+// two cases the selection must not take over: a key pressed on a link or
+// button focused inside an item keeps that control's own activation, and an
+// item disabled after load stops being selected, so Enter cannot activate it.
+//
+// Value: protects=Enter on a focused link inside an item running that link, not the selected item, and a disabled item never being activated; fails_when=the keydown handler stops ignoring keys from controls inside items, or the observer stops watching data-disabled; why_new=the keyboard test only sends keys from the input and disables items in the markup; seam=none; no_claim=synthetic events trigger no native link navigation, so the link's own activation is shown by the event not being cancelled
+func TestCommandLeavesFocusedControlsAndDisabledItemsAloneInChrome(t *testing.T) {
+	body := Command(html.ID("cmd"), CommandInput(), CommandList(
+		CommandItem(html.ID("a"), html.OnClick("window.clicked='a'"), html.A(html.HRef("#a"), "A")),
+		CommandItem(html.ID("b"), html.A(html.ID("blink"), html.HRef("#b"), "B")),
+		CommandItem(html.ID("c"), "C"),
+	))
+	const script = /*js*/ `
+var input=document.querySelector('#cmd [data-slot=command-input]');
+var selected=function(){return document.querySelector('#cmd [data-selected=true]').id;};
+var link=document.getElementById('blink');
+link.focus();
+window.clicked='';
+var enter=new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});
+link.dispatchEvent(enter);
+out.linkEnterPrevented=enter.defaultPrevented;
+out.linkEnterClicked=window.clicked;
+var down=new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true});
+link.dispatchEvent(down);
+out.linkArrowPrevented=down.defaultPrevented;
+out.linkArrowSelected=selected();
+// Select the first item from the input, then disable it in place.
+input.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
+document.getElementById('a').setAttribute('data-disabled','true');
+await wait(0);
+out.disabledReselected=selected();
+window.clicked='';
+input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+out.disabledNotClicked=window.clicked;
+`
+	got := runInChrome(t, body, script, nil)
+	checkRecorded(t, got, map[string]any{
+		"linkEnterPrevented": false,
+		"linkEnterClicked":   "",
+		"linkArrowPrevented": false,
+		"linkArrowSelected":  "a",
+		"disabledReselected": "b",
+		"disabledNotClicked": "",
+	})
+}

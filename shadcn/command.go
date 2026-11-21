@@ -23,13 +23,15 @@ import (
 // with aria-activedescendant, so the script gives items and the list an id
 // when they have none. An item with data-disabled="true" is never selected.
 // Like cmdk, the keys are left alone while an IME composes text (isComposing,
-// or keyCode 229 as Safari reports it) and when an earlier handler called
-// preventDefault.
+// or keyCode 229 as Safari reports it), when an earlier handler called
+// preventDefault, and when they come from a link or button focused inside an
+// item, which keeps its own activation.
 //
 // Items inserted or removed after the page loads, such as server-side search
 // results that htmx swaps into the [CommandList], are picked up by a
-// MutationObserver: when the selected item is gone, the first item is
-// selected again, and a replaced list gets its id and aria-controls back.
+// MutationObserver: when the selected item is gone or gets data-disabled, the
+// first item is selected again, and a replaced list gets its id and
+// aria-controls back.
 //
 // cmdk's fuzzy ranking (sorting the matches by score) is not reproduced: the
 // matches keep their order.
@@ -48,11 +50,11 @@ const commandScript = /*js*/ `if(!window.commandFilter){(function(){` +
 	`window.commandFilter=function(input){var root=input.closest('[data-slot=command]');if(!root)return;var q=input.value.trim().toLowerCase();var any=false;root.querySelectorAll('[data-slot=command-item]').forEach(function(it){var m=it.textContent.toLowerCase().indexOf(q)>=0;it.hidden=!m;if(m)any=true;});root.querySelectorAll('[data-slot=command-group]').forEach(function(g){g.hidden=g.querySelectorAll('[data-slot=command-item]:not([hidden])').length===0;});var e=root.querySelector('[data-slot=command-empty]');if(e)e.hidden=any;sel(root,items(root)[0]||null,true);};` +
 	`window.commandFilter.init=function(root){if(!root||root.mxCommand)return;root.mxCommand=true;` +
 	`var link=function(){var input=root.querySelector('[data-slot=command-input]'),list=root.querySelector('[data-slot=command-list]');if(input&&list){if(!list.id)list.id='mx-command-list-'+(++n);input.setAttribute('aria-controls',list.id);}};link();` +
-	`root.addEventListener('keydown',function(e){if(e.defaultPrevented||e.isComposing||e.keyCode===229)return;var all=items(root);if(!all.length)return;var cur=root.querySelector('[data-slot=command-item][data-selected=true]');var i=all.indexOf(cur),next;` +
+	`root.addEventListener('keydown',function(e){if(e.defaultPrevented||e.isComposing||e.keyCode===229||(e.target.closest&&e.target.closest('[data-slot=command-item]')))return;var all=items(root);if(!all.length)return;var cur=root.querySelector('[data-slot=command-item][data-selected=true]');var i=all.indexOf(cur),next;` +
 	`switch(e.key){case 'ArrowDown':next=all[Math.min(i+1,all.length-1)];break;case 'ArrowUp':next=all[Math.max(i-1,0)];break;case 'Home':next=all[0];break;case 'End':next=all[all.length-1];break;` +
-	`case 'Enter':if(cur){e.preventDefault();(cur.querySelector('a[href],button')||cur).click();}return;default:return;}e.preventDefault();sel(root,next,true);});` +
+	`case 'Enter':if(cur&&cur.getAttribute('data-disabled')!=='true'){e.preventDefault();(cur.querySelector('a[href],button')||cur).click();}return;default:return;}e.preventDefault();sel(root,next,true);});` +
 	`root.addEventListener('pointermove',function(e){var it=e.target.closest&&e.target.closest('[data-slot=command-item]');if(it&&root.contains(it)&&!it.hidden&&it.getAttribute('data-selected')!=='true'&&it.getAttribute('data-disabled')!=='true')sel(root,it,false);});` +
-	`if(window.MutationObserver)new MutationObserver(function(){link();var cur=root.querySelector('[data-slot=command-item][data-selected=true]');if(!cur||cur.hidden||cur.getAttribute('data-disabled')==='true')sel(root,items(root)[0]||null,false);}).observe(root,{childList:true,subtree:true});` +
+	`if(window.MutationObserver)new MutationObserver(function(){link();var cur=root.querySelector('[data-slot=command-item][data-selected=true]');if(!cur||cur.hidden||cur.getAttribute('data-disabled')==='true')sel(root,items(root)[0]||null,false);}).observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['data-disabled']});` +
 	`sel(root,items(root)[0]||null,false);};` +
 	`})();}` +
 	`window.commandFilter.init(document.currentScript&&document.currentScript.closest('[data-slot=command]'));`

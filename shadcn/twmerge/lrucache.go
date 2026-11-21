@@ -21,10 +21,10 @@ var cache = newLRUCache(cacheSize)
 //
 // Upstream's cache lives in single-threaded JavaScript; here [Merge] runs
 // concurrently, so a read-write mutex guards the maps. A hit in the current
-// generation, the common case once the class lists in use are cached, only
-// reads and takes the read lock, so concurrent renders do not wait on each
-// other; promoting from the previous generation and storing take the write
-// lock.
+// generation, the common case once the class lists in use are cached, and a
+// miss in both generations only read and take the read lock, so concurrent
+// renders do not wait on each other; promoting from the previous generation
+// and storing take the write lock.
 type lruCache struct {
 	mu       sync.RWMutex
 	maxSize  int
@@ -51,9 +51,15 @@ func (c *lruCache) get(key string) (string, bool) {
 	}
 	c.mu.RLock()
 	value, ok := c.current[key]
+	_, inPrevious := c.previous[key]
 	c.mu.RUnlock()
 	if ok {
 		return value, true
+	}
+	if !inPrevious {
+		// A miss in both generations, the common case for a new class
+		// list, needs no write lock: only a promotion writes.
+		return "", false
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
