@@ -86,3 +86,12 @@ func TestButtonUnknownVariantFallsBack(t *testing.T) {
 		t.Errorf("unknown variant/size should fall back to default classes: %s", out)
 	}
 }
+
+// BenchmarkButton measures building one Button with a caller class, the
+// common case in which finish merges the caller's class into the base
+// classes with Cn.
+func BenchmarkButton(b *testing.B) {
+	for b.Loop() {
+		Button(ButtonOutline, SizeSM, html.Class("w-full"), "Save")
+	}
+}

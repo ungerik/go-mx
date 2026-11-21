@@ -298,9 +298,15 @@ func TestMerge(t *testing.T) {
 		{"leading-4 leading-none", "leading-none"},
 	}
 
-	for _, c := range cases {
-		if got := Merge(c.in); got != c.want {
-			t.Errorf("Merge(%q) = %q, want %q", c.in, got, c.want)
+	// Start from an empty cache, so the first pass computes every result
+	// even if an earlier test merged the same class list; the second pass
+	// reads every result from the cache.
+	cache = newLRUCache(cacheSize)
+	for _, pass := range []string{"computed", "cached"} {
+		for _, c := range cases {
+			if got := Merge(c.in); got != c.want {
+				t.Errorf("%s: Merge(%q) = %q, want %q", pass, c.in, got, c.want)
+			}
 		}
 	}
 }
