@@ -309,7 +309,14 @@ out.linkArrowPrevented=down.defaultPrevented;
 out.linkArrowSelected=selected();
 // Select the first item from the input, then disable it in place.
 input.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
+// Enter in the same task as the disable, before the observer has run, finds
+// the disabled item still selected and must leave it alone.
+window.clicked='';
 document.getElementById('a').setAttribute('data-disabled','true');
+var sameTask=new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});
+input.dispatchEvent(sameTask);
+out.sameTaskClicked=window.clicked;
+out.sameTaskPrevented=sameTask.defaultPrevented;
 await wait(0);
 out.disabledReselected=selected();
 window.clicked='';
@@ -324,5 +331,7 @@ out.disabledNotClicked=window.clicked;
 		"linkArrowSelected":  "a",
 		"disabledReselected": "b",
 		"disabledNotClicked": "",
+		"sameTaskClicked":    "",
+		"sameTaskPrevented":  false,
 	})
 }
