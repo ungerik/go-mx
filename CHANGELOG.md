@@ -19,7 +19,7 @@ API is still free to change.
   Options, Selected, Placeholder, SearchPlaceholder, Empty, Required,
   Disabled, ID})` renders upstream's Combobox (a trigger button opening a
   searchable `Command` in a `Popover`) over `mx.NamedOption`s and submits
-  the picked value under `Name`. A click or Enter picks: the trigger shows
+  the picked value under `Name`. After a click or Enter the trigger shows
   the label, the check mark moves, the popover closes and the focus returns
   to the trigger; ArrowDown, ArrowUp or a typed character open the list from
   the trigger, the character starting the search. The value lives in a
@@ -31,7 +31,11 @@ API is still free to change.
   select is, and shows a stored value the list does not offer as the select
   does: never echoed nor submitted again. The search box's own `input` and
   `change` events stay inside the combobox, so an `hx-trigger="change"` on
-  an enclosing element only sees picks. New labels `Labels.ComboboxSearch`
+  an enclosing element only sees picks. The trigger always shows what the
+  form submits: after a form reset, after markup an htmx history restore
+  puts back, and after a key the browser handles on the focused select. A
+  field whose Go name is not a valid HTML id (non-ASCII letters) renders the
+  select instead. New labels `Labels.ComboboxSearch`
   and `ComboboxEmpty`; the gallery's Combobox page shows the component and
   a booking form.
   `window.commandFilter.select(item)` selects a `Command` item from script.
@@ -990,6 +994,10 @@ API is still free to change.
 
 ### Fixed
 
+- **A `form:"widget=datepicker"` field with a non-ASCII Go name no longer
+  panics the form render** in `shadcn.FieldDecider`: a field path that is
+  not a valid HTML id cannot name the picker's popover, so the field stays a
+  date input.
 - **`shadcn.PopoverTrigger` reports whether its popover is open.** Its
   `aria-expanded` stayed `"false"`; `PopoverContent` now has a default
   `ontoggle` that keeps it in step (a caller's `ontoggle` replaces it), as

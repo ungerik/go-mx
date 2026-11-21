@@ -563,7 +563,8 @@ input keeps the stored value; `widget=password` implies it), `hidden`, `-` (skip
 `inputmode=…`, `accept=…` (a file input's picker),
 `label=…`, `widget=…` (`textarea`, `email`, `url`, `tel`, `password`, `date`,
 `datepicker` (a date input here, shadcn's date picker in `shadcn`), `time`,
-`radio`, `file`, …).
+`radio`, `combobox` (a select here, a searchable `shadcn.Combobox` in
+`shadcn`), `file`, …).
 
 ## Templates and table views
 

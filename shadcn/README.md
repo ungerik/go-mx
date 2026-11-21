@@ -200,7 +200,8 @@ Content-Security-Policy?").
 A handful of components render a user-visible string the caller never passes:
 the screen-reader text of the built-in dialog/sheet close button, the
 pagination captions, the ellipsis "more" texts, the reflected-form clear
-checkbox, select placeholders, the notes on values a save removes and the
+checkbox, select placeholders, the search placeholder and no-match text of a
+`Combobox`, the notes on values a save removes and the
 date and time format hint, and the default `aria-label`s of the
 landmark `<nav>`s and the icon-only buttons. Those strings live in the
 `Labels` struct and are resolved **from the render context**, not baked into
@@ -831,7 +832,9 @@ recipe cannot submit a value, so here it is a form field (below).
   `CommandList`) are picked up by a `MutationObserver`: a removed selection,
   or one that gets `data-disabled="true"`, moves to the first item, and a
   replaced list is linked to the input again. Enter never activates a
-  disabled item.
+  disabled item. `window.commandFilter.select(item)` selects a visible,
+  enabled item from script and scrolls it into view, as cmdk's `value` prop
+  does; a `Combobox` selects its picked option with it when the list opens.
   cmdk's fuzzy ranking is not reproduced: the matches keep their order.
 - **Combobox** — `Combobox(ComboboxOptions{Name, Options, Selected, …}, …)`.
   Upstream's recipe, a `Popover` whose outline-button trigger
