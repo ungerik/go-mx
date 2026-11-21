@@ -44,6 +44,8 @@ conditional classes; see its doc comment for the contract. `twmerge.Merge` is a
 faithful port of `tailwind-merge` v3.7.0 (Tailwind CSS v4) — the merge
 algorithm and full config live in the [`twmerge`](twmerge/) subpackage
 (`merge.go`, `classmap.go`, `validators.go`, `parse.go`, `defaultconfig.go`).
+Like tailwind-merge, `Merge` caches its results by class list (`lrucache.go`,
+about the 500 most recent), so merging a class list again is a map lookup.
 
 ## `cva` — the variant builder
 
@@ -780,7 +782,8 @@ notes there (trigger/content linked by a `dialogID`, `m-auto` centering,
   `DrawerContent(drawerID, …)` / `DrawerHeader` / `DrawerFooter` /
   `DrawerTitle` / `DrawerDescription` / `DrawerClose`. A bottom sheet with a
   grab handle: one shared `drawerStart` pointer-drag script lets the user
-  drag it down — past a ~40% threshold it closes, otherwise it snaps back.
+  drag it down — past a ~40% threshold it closes, otherwise it slides back
+  into place.
   This is the most client JS of any port (the Slider/Resizable tradeoff).
   Vaul's snap points, momentum physics, background scaling and non-bottom
   directions are not reproduced.
