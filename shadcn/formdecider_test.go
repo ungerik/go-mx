@@ -1990,16 +1990,18 @@ func TestShadcn_Combobox(t *testing.T) {
 }
 
 // The trigger is described by the field's help and error messages and
-// marked invalid on an error, as every other control is.
+// marked invalid on an error, as every other control is. An optional
+// field refers to the note on a removed value first, as the select does,
+// which is empty and hidden while saving removes nothing.
 func TestShadcn_ComboboxDescribedBy(t *testing.T) {
 	out := renderShadcn(t, &comboboxForm{}, "Credit", []error{stringErr("not an account")})
 	trigger := regexp.MustCompile(`<button [^<]*data-slot="combobox-trigger"[^<]*`).FindString(out)
-	for _, want := range []string{`aria-describedby="Credit-help Credit-error-0"`, `aria-invalid="true"`} {
+	for _, want := range []string{`aria-describedby="Credit-note Credit-help Credit-error-0"`, `aria-invalid="true"`} {
 		if !strings.Contains(trigger, want) {
 			t.Errorf("trigger: missing %s in %s", want, trigger)
 		}
 	}
-	for _, want := range []string{`id="Credit-help"`, `id="Credit-error-0"`, `data-invalid="true"`} {
+	for _, want := range []string{`id="Credit-help"`, `id="Credit-error-0"`, `data-invalid="true"`, `id="Credit-note" hidden`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %s in %s", want, out)
 		}
@@ -2031,7 +2033,7 @@ func TestShadcn_ComboboxUnavailableValue(t *testing.T) {
 		// The caption is the select's option text, so a form reset shows
 		// it again, while the placeholder, shown after an unpick, stays the
 		// generic one.
-		/*html*/ `<option value="" selected="selected">(current value not available)</option>`,
+		/*html*/ `<option value="" selected="selected" data-caption="true">(current value not available)</option>`,
 		`data-placeholder="Choose…" data-empty="true"`,
 		`aria-describedby="Partner-note"`,
 		`id="Partner-note"`,
@@ -2156,30 +2158,60 @@ func TestShadcn_ComboboxPrefaces(t *testing.T) {
 }
 
 // A field whose path is no valid id, as a non-ASCII Go field name gives,
-// cannot name a combobox's trigger and popover, so it renders the select
-// instead of failing the form.
+// still renders the combobox it asks for: the trigger and its popover get
+// an id keyed from the path, which the field label points at, while the
+// select submits under the path.
 //
-// Value: protects=a widget=combobox field with a non-ASCII name still rendering; fails_when=the id check before the combobox is removed (validateID panics); why_new=review found it; seam=none; no_claim=the label of such a field
-func TestShadcn_ComboboxNonIDPathFallsBackToSelect(t *testing.T) {
+// Value: protects=a widget=combobox field with a non-ASCII name rendering as a labelled combobox; fails_when=the derived id is dropped (validateID panics) or the label keeps pointing at the path; why_new=review found the widget silently replaced by a select; seam=none; no_claim=none beyond protects
+func TestShadcn_ComboboxNonIDPath(t *testing.T) {
 	type form struct {
 		Größe colorEnum `form:"widget=combobox"`
 	}
 	out := renderShadcn(t, &form{Größe: "red"}, "Größe", nil)
-	if !strings.Contains(out, `data-slot="select"`) || strings.Contains(out, "combobox") {
-		t.Errorf("a path that is no valid id renders the select: %s", out)
+	id := widgetID("Größe")
+	if !isValidID(id) {
+		t.Fatalf("widgetID must give a valid id, got %q", id)
+	}
+	for _, want := range []string{`for="` + id + `"`, `id="` + id + `"`, `id="` + id + `-popover"`, `name="Größe"`, `data-slot="combobox-trigger"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
 	}
 }
 
-// A widget=datepicker field whose path is no valid id stays a date input
-// instead of failing the form, as widget=combobox falls back to a select.
+// A widget=datepicker field whose path is no valid id still renders the
+// picker, with its trigger and popover ids keyed from the path, as the
+// combobox does.
 //
-// Value: protects=a non-ASCII widget=datepicker field still rendering; fails_when=the id check before the picker is removed (validateID panics); why_new=the Combobox review found it for the date picker too; seam=none; no_claim=none beyond protects
-func TestShadcn_DatePickerNonIDPathFallsBackToDateInput(t *testing.T) {
+// Value: protects=a non-ASCII widget=datepicker field rendering as a labelled picker; fails_when=the derived id is dropped (validateID panics) or the label keeps pointing at the path; why_new=the Combobox review found the widget silently replaced; seam=none; no_claim=none beyond protects
+func TestShadcn_DatePickerNonIDPath(t *testing.T) {
 	type form struct {
 		Gültig time.Time `form:"widget=datepicker"`
 	}
 	out := renderShadcn(t, &form{}, "Gültig", nil)
-	if !strings.Contains(out, `type="date"`) || strings.Contains(out, "popovertarget") {
-		t.Errorf("a path that is no valid id renders the date input: %s", out)
+	id := widgetID("Gültig")
+	for _, want := range []string{`for="` + id + `"`, `id="` + id + `"`, `popovertarget="` + id + `-calendar"`, `id="` + id + `-calendar"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	if strings.Contains(out, `type="date"`) {
+		t.Errorf("the field renders the picker, not the date input: %s", out)
+	}
+}
+
+// widgetID keeps a path that is a valid id, and keys every other one into
+// a valid, non-empty id, also where no character of the path is usable.
+func TestWidgetID(t *testing.T) {
+	if got := widgetID("Address-Street"); got != "Address-Street" {
+		t.Errorf("a valid path stays the id, got %q", got)
+	}
+	for _, path := range []mx.FieldPath{"Größe", "日本", "Größe-Breite"} {
+		if id := widgetID(path); !isValidID(id) || !strings.HasPrefix(id, "_") {
+			t.Errorf("%s: want a valid keyed id, got %q", path, id)
+		}
+	}
+	if widgetID("Größe") == widgetID("Grösse") {
+		t.Error("distinct paths must give distinct ids")
 	}
 }

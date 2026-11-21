@@ -775,6 +775,33 @@ selected option's label must still render server-side.
 **Priority:** P4
 **Depends on:** None
 
+### Scripted `shadcn` components repeat their script in every instance
+
+**What:** Emit the definition of a component's client script once per
+render (or once per page), and only a short init call per instance.
+
+**Why:** Every `Combobox` carries the whole `comboboxScript` (about 6 KB)
+plus, through its `Command`, the whole `commandScript`; their guards keep
+the definitions from running twice, but the bytes are repeated. A form with
+eight `widget=combobox` fields, or a table of inline row-edit forms, sends
+eight copies of both in every response and every htmx swap. `Tabs`,
+`ToggleGroup`, `Calendar`, `Menu`, `Tooltip` and the other scripted
+components follow the same pattern.
+
+**Context:** Found by the Combobox code review (2026-11-21). mx has no
+render-scoped state to record that a script was already written, and an
+htmx fragment rendered alone still needs the definition, so the flag
+belongs to one render, not to the page: a context value the render entry
+points set (a `*sync.Map` or a small registry), consulted by a
+`scriptOnce(name, js)` component, with the definition emitted as is where
+the context has no registry. The strict-CSP question in `## v1.0 release`
+(how `shadcn` and `logview` support a Content-Security-Policy) may move the
+scripts into an external asset instead, which would settle this too.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** The strict-CSP decision under `## v1.0 release`
+
 ### A `Combobox` that picks several values
 
 **What:** A multi-select combobox, upstream Base UI's chips variant.

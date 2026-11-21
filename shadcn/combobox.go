@@ -57,6 +57,14 @@ type ComboboxOptions struct {
 	// Disabled disables the trigger, and the value is not submitted, as
 	// for a disabled <select>.
 	Disabled bool
+
+	// caption is the trigger's text while Selected is "", in place of the
+	// placeholder and of the label of an option for "", which is then not
+	// checked either: the [FieldDecider] shows a caption there for a
+	// stored value the list does not offer. Unlike the placeholder, the
+	// caption is gone once the user picked anything, also after
+	// unpicking, and a form reset brings it back.
+	caption string
 }
 
 // comboboxScript is the client code of a [Combobox], emitted in every
@@ -73,10 +81,11 @@ const comboboxScript = /*js*/ `if(!window.comboboxPick){(function(){` +
 	`var part=function(r,s){return r.querySelector('[data-slot='+s+']');};` +
 	// The trigger shows the selected option's text, which is "" only
 	// where nothing is picked: then the placeholder. Either is muted
-	// while the value is "", as for the "(none)" option.
+	// while the value is "", as for the "(none)" option. A caption
+	// (data-caption) checks no item, not even the one for "".
 	`var show=function(r){var s=part(r,'combobox-input'),t=part(r,'combobox-value'),o=s.options[s.selectedIndex],v=o?o.value:'';` +
 	`t.textContent=(o&&o.text)||t.getAttribute('data-placeholder');if(v)t.removeAttribute('data-empty');else t.setAttribute('data-empty','true');` +
-	`r.querySelectorAll('[data-slot=command-item]').forEach(function(it){if(o&&it.getAttribute('data-value')===v){it.setAttribute('data-checked','true');it.setAttribute('aria-checked','true');}else{it.removeAttribute('data-checked');it.removeAttribute('aria-checked');}});};` +
+	`var cap=o&&o.hasAttribute('data-caption');r.querySelectorAll('[data-slot=command-item]').forEach(function(it){if(o&&!cap&&it.getAttribute('data-value')===v){it.setAttribute('data-checked','true');it.setAttribute('aria-checked','true');}else{it.removeAttribute('data-checked');it.removeAttribute('aria-checked');}});};` +
 	// prune removes every option but the server-rendered one, which it
 	// returns: the select then holds no stale pick that a key on the
 	// focused select, a reset or a re-inserted copy of the markup (an
@@ -84,20 +93,24 @@ const comboboxScript = /*js*/ `if(!window.comboboxPick){(function(){` +
 	`var prune=function(s){var keep=null;Array.prototype.slice.call(s.options).forEach(function(o){if(o.defaultSelected&&!keep)keep=o;else o.remove();});return keep;};` +
 	`var reset=function(r){var t=part(r,'combobox-trigger'),k=prune(part(r,'combobox-input'));if(k)k.selected=true;show(r);if(r.mxInvalid){t.removeAttribute('aria-invalid');r.mxInvalid=false;}};` +
 	`window.comboboxPick=function(it){var r=it.closest('[data-slot=combobox]');if(!r||it.getAttribute('data-disabled')==='true')return;` +
-	`var s=part(r,'combobox-input'),c=part(r,'combobox-content'),t=part(r,'combobox-trigger'),v=it.getAttribute('data-value')||'',l=it.textContent.trim(),cur=s.options[s.selectedIndex],prev=cur?cur.value:'';` +
+	`var s=part(r,'combobox-input'),c=part(r,'combobox-content'),t=part(r,'combobox-trigger'),v=it.getAttribute('data-value')||'',l=it.textContent.trim(),cur=s.options[s.selectedIndex],cap=cur&&cur.hasAttribute('data-caption'),prev=cur?cur.value:'';` +
 	// Like upstream's recipe, picking the picked option again unpicks it,
 	// unless a pick is required; the trigger then shows the option that
 	// stands for no selection, if the list has one, else the placeholder.
 	`if(v&&v===prev&&!s.required){v='';var n=r.querySelector('[data-slot=command-item][data-value=""]');l=n?n.textContent.trim():'';}` +
 	// The server-rendered option is kept for a form reset, and reused
-	// only for the same value and text: its text can be a caption, such
-	// as the one for a stored value the list no longer offers.
+	// only for the same value and text, never as a caption: that stands
+	// for a stored value the list no longer offers.
 	// An empty value goes first, where the browser takes it for the
 	// placeholder that a required check rejects.
 	`var keep=prune(s);` +
-	`var o=keep&&keep.value===v&&keep.text===l?keep:null;if(!o){o=new Option(l,v);s.add(o,v===''?0:null);}o.selected=true;show(r);` +
-	`if(v!==prev){s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));}` +
-	`if(r.mxInvalid&&s.checkValidity()){t.removeAttribute('aria-invalid');r.mxInvalid=false;}` +
+	`var o=keep&&!cap&&keep.value===v&&keep.text===l?keep:null;if(!o){o=new Option(l,v);s.add(o,v===''?0:null);}o.selected=true;show(r);` +
+	// Leaving a caption is a change, also for the option for "", as a
+	// native select fires change when another option is picked.
+	`if(v!==prev||cap){s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));}` +
+	// validity.valid, unlike checkValidity(), fires no invalid event,
+	// whose listener would expose the select to assistive technology.
+	`if(r.mxInvalid&&s.validity.valid){t.removeAttribute('aria-invalid');r.mxInvalid=false;}` +
 	`if(c.matches(':popover-open'))c.hidePopover();t.focus();};` +
 	// Init starts from the server-rendered option, so a re-inserted copy
 	// of picked markup shows what the select submits.
@@ -192,28 +205,48 @@ const comboboxTriggerClasses = "w-full justify-between font-normal peer-focus:bo
 // outside close it, as for every [PopoverContent].
 //
 // A class in attribs goes to the root element, which sizes the trigger
-// (full width by default); every other attribute goes to the trigger
-// button, such as aria-describedby or aria-invalid. htmx attributes do not
-// belong on the trigger, a button that would send its request on click:
-// put them on an enclosing element and trigger them on change.
+// (full width by default). A disabled or required attribute sets
+// opts.Disabled or opts.Required, so the select that submits the value
+// follows it, and a form attribute goes to that select. An id attribute
+// is an error: the id is opts.ID, which the popover and label ids derive
+// from. Every other attribute goes to the trigger button, such as
+// aria-describedby or aria-invalid. htmx attributes do not belong on the
+// trigger, a button that would send its request on click: put them on an
+// enclosing element and trigger them on change.
 //
 // The server checks a submitted value against the options as for any
 // <select>: the browser submits whatever the select holds.
 func Combobox(opts ComboboxOptions, attribs ...mx.Attrib) *mx.Element {
-	root, _ := comboboxParts(opts, "", attribs)
+	root, _ := comboboxParts(opts, attribs)
 	return root
 }
 
 // comboboxParts builds a [Combobox] and returns its root and the select
 // that holds its value, to which the [FieldDecider]'s widget adds its
 // hx-trigger. The select is nil when the root is an error element.
-//
-// shown is the trigger's text for opts.Selected when it is not "":
-// the [FieldDecider] shows a caption there for a stored value the list
-// does not offer, where Selected is "" so that nothing is submitted. Unlike
-// the placeholder, the caption is gone once the user picked anything, also
-// after unpicking, and a form reset brings it back.
-func comboboxParts(opts ComboboxOptions, shown string, attribs []mx.Attrib) (root, input *mx.Element) {
+func comboboxParts(opts ComboboxOptions, attribs []mx.Attrib) (root, input *mx.Element) {
+	// The attributes that concern the select are sorted out first, as
+	// they change what it is built with.
+	var rootClasses, triggerAttribs, inputAttribs []any
+	for _, a := range attribs {
+		if mx.IsNilAttrib(a) {
+			continue
+		}
+		switch a.AttribName() {
+		case "class":
+			rootClasses = append(rootClasses, a)
+		case "id":
+			return mx.NewErrElement(errs.New("shadcn: Combobox takes its id from ComboboxOptions.ID, not from an id attribute")), nil
+		case "disabled":
+			opts.Disabled = true
+		case "required":
+			opts.Required = true
+		case "form":
+			inputAttribs = append(inputAttribs, a)
+		default:
+			triggerAttribs = append(triggerAttribs, a)
+		}
+	}
 	if opts.Name == "" {
 		return mx.NewErrElement(errs.New("shadcn: Combobox needs a Name")), nil
 	}
@@ -225,7 +258,9 @@ func comboboxParts(opts ComboboxOptions, shown string, attribs []mx.Attrib) (roo
 
 	// The selected option, with the label of the option list. Nothing
 	// selected and no option for it leaves the label "", for which the
-	// trigger shows the placeholder.
+	// trigger shows the placeholder; a caption replaces both, marked for
+	// the script, which then checks no item.
+	captioned := opts.Selected == "" && opts.caption != ""
 	selectedLabel := opts.Selected
 	for _, opt := range opts.Options {
 		if opt.Value == opts.Selected {
@@ -233,16 +268,19 @@ func comboboxParts(opts ComboboxOptions, shown string, attribs []mx.Attrib) (roo
 			break
 		}
 	}
-	if shown != "" {
-		selectedLabel = shown
+	option := html.Option(html.Value(opts.Selected), html.Selected)
+	if captioned {
+		selectedLabel = opts.caption
+		option.Attribs = append(option.Attribs, html.DataAttr("caption", "true"))
 	}
-	input = html.Select(
+	option.Children = mx.Components{mx.Text(selectedLabel)}
+	input = html.Select(append(inputAttribs,
 		html.Name(opts.Name),
 		html.TabIndex(-1),
 		html.Attrib("aria-hidden", "true"),
 		html.Attrib("autocomplete", "off"),
-		html.Option(html.Value(opts.Selected), html.Selected, selectedLabel),
-	)
+		option,
+	)...)
 	if opts.Required {
 		input.Attribs = append(input.Attribs, html.Required)
 	}
@@ -273,18 +311,7 @@ func comboboxParts(opts ComboboxOptions, shown string, attribs []mx.Attrib) (roo
 	}
 	value = finish(value, "combobox-value", "truncate data-[empty=true]:text-muted-foreground")
 
-	var rootClasses []any
-	triggerArgs := []any{html.ID(id), html.Role("combobox"), html.Attrib("aria-controls", popoverID)}
-	for _, a := range attribs {
-		if mx.IsNilAttrib(a) {
-			continue
-		}
-		if a.AttribName() == "class" {
-			rootClasses = append(rootClasses, a)
-		} else {
-			triggerArgs = append(triggerArgs, a)
-		}
-	}
+	triggerArgs := append([]any{html.ID(id), html.Role("combobox"), html.Attrib("aria-controls", popoverID)}, triggerAttribs...)
 	if opts.Required {
 		triggerArgs = append(triggerArgs, html.Attrib("aria-required", "true"))
 	}
@@ -302,7 +329,7 @@ func comboboxParts(opts ComboboxOptions, shown string, attribs []mx.Attrib) (roo
 	items := make([]any, 0, len(opts.Options))
 	for _, opt := range opts.Options {
 		item := []any{html.DataAttr("value", opt.Value), html.Class("group")}
-		if opt.Value == opts.Selected {
+		if opt.Value == opts.Selected && !captioned {
 			item = append(item, html.DataAttr("checked", "true"), html.Attrib("aria-checked", "true"))
 		}
 		item = append(item,

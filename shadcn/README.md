@@ -862,8 +862,10 @@ recipe cannot submit a value, so here it is a form field (below).
   while it is picked, and unpicking picks it. `ID` (default
   `Name`) names the trigger for a `<label for>`, the popover is
   `ID-popover`, so comboboxes with distinct names do not collide. A caller
-  class sizes the root (the trigger is full width); other attributes go to
-  the trigger. The popover is as wide as the trigger through
+  class sizes the root (the trigger is full width); a `disabled`, `required`
+  or `form` attribute applies to the select that submits the value, an `id`
+  attribute is an error (the id is `ID`), and other attributes go to the
+  trigger. The popover is as wide as the trigger through
   `anchor-size(width)`. `Placeholder`, `SearchPlaceholder` and `Empty`
   default to `Labels.FormChooseOption`, `ComboboxSearch` and
   `ComboboxEmpty`. In a reflected form, `form:"widget=combobox"` on an

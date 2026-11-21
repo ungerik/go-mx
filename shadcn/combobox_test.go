@@ -49,7 +49,7 @@ func TestComboboxMarkup(t *testing.T) {
 	// validates it, and it is kept out of reach of pointer, Tab and
 	// assistive technology.
 	input := startTag(t, out, `data-slot="combobox-input"`)
-	for _, want := range []string{`<select `, `name="debit"`, `tabindex="-1"`, `aria-hidden="true"`, `required`, `pointer-events-none`, `opacity-0`} {
+	for _, want := range []string{ /*html*/ `<select `, `name="debit"`, `tabindex="-1"`, `aria-hidden="true"`, `required`, `pointer-events-none`, `opacity-0`} {
 		if !strings.Contains(input, want) {
 			t.Errorf("select: missing %s in %s", want, input)
 		}
@@ -186,6 +186,55 @@ func TestComboboxErrors(t *testing.T) {
 	}
 }
 
+// A disabled or required attribute reaches the select that submits the
+// value, as ComboboxOptions.Disabled and Required do, and a form attribute
+// goes to it too; an id attribute is an error, as the trigger's id is
+// ComboboxOptions.ID, from which the popover and label ids derive.
+//
+// Value: protects=a caller's disabled or required attribute applying to the submitted select, and an id attribute not splitting the trigger from its derived ids; fails_when=attributes other than class all go to the trigger again; why_new=review found a disabled trigger over an enabled, required select; seam=none; no_claim=none beyond protects
+func TestComboboxAttribs(t *testing.T) {
+	out := render(t, Combobox(ComboboxOptions{Name: "acct", Options: accounts}, html.Disabled, html.Required, html.Attrib("form", "booking")))
+	input := startTag(t, out, `data-slot="combobox-input"`)
+	for _, want := range []string{`disabled="disabled"`, `required="required"`, `form="booking"`} {
+		if !strings.Contains(input, want) {
+			t.Errorf("select: missing %s in %s", want, input)
+		}
+	}
+	trigger := startTag(t, out, `data-slot="combobox-trigger"`)
+	for _, want := range []string{`disabled="disabled"`, `aria-required="true"`} {
+		if !strings.Contains(trigger, want) {
+			t.Errorf("trigger: missing %s in %s", want, trigger)
+		}
+	}
+	if strings.Contains(trigger, `form=`) {
+		t.Errorf("the form attribute belongs to the select: %s", trigger)
+	}
+	if err := Combobox(ComboboxOptions{Name: "acct", Options: accounts}, html.ID("x")).Render(t.Context(), mx.NewCheckedWriter(&strings.Builder{})); err == nil {
+		t.Error("an id attribute must be an error")
+	}
+}
+
+// A caption replaces the trigger text while nothing is selected, and
+// checks no item, not even an option for "" the list has.
+//
+// Value: protects=the list not contradicting the caption for an unavailable value; fails_when=the option for "" is checked under a caption; why_new=review found "(none)" checked beside "(current value not available)"; seam=none; no_claim=the script's own marking, driven in TestComboboxInChrome
+func TestComboboxCaption(t *testing.T) {
+	none := append([]mx.NamedOption{{Name: "(none)"}}, accounts...)
+	root, _ := comboboxParts(ComboboxOptions{Name: "vendor", Options: none, caption: "(not available)"}, nil)
+	out := render(t, root)
+	for _, want := range []string{
+		/*html*/ `<option value="" selected="selected" data-caption="true">(not available)</option>`,
+		`>(not available)</span>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in %s", want, out)
+		}
+	}
+	if strings.Contains(out, `data-checked="true"`) {
+		t.Errorf("a caption checks no item: %s", out)
+	}
+}
+
 // TestComboboxInChrome drives the script: picking with the pointer and the
 // keyboard, the required check, a form reset, and two comboboxes on one
 // page.
@@ -194,13 +243,16 @@ func TestComboboxErrors(t *testing.T) {
 func TestComboboxInChrome(t *testing.T) {
 	// A combobox showing a caption for a value the list does not offer,
 	// as the FieldDecider renders one, and an optional one with "(none)".
-	unavailable, _ := comboboxParts(ComboboxOptions{Name: "partner", Options: accounts}, "(not available)", nil)
+	unavailable, _ := comboboxParts(ComboboxOptions{Name: "partner", Options: accounts, caption: "(not available)"}, nil)
 	none := append([]mx.NamedOption{{Name: "(none)"}}, accounts...)
+	// A caption over a list with its own option for "".
+	unavailableNone, _ := comboboxParts(ComboboxOptions{Name: "vendor", Options: none, caption: "(not available)"}, nil)
 	body := html.Form(html.ID("booking"),
 		LabelFor("debit", "Debit account"),
 		Combobox(ComboboxOptions{Name: "debit", Options: accounts, Required: true}, html.Attrib("aria-describedby", "debit-help")),
 		Combobox(ComboboxOptions{Name: "credit", Options: accounts, Selected: "1200"}),
 		unavailable,
+		unavailableNone,
 		Combobox(ComboboxOptions{Name: "tax", Options: none, Selected: "8400"}),
 		// An error the server reported, which no pick or reset clears.
 		Combobox(ComboboxOptions{Name: "cost", Options: accounts}, html.Attrib("aria-invalid", "true")),
@@ -319,6 +371,13 @@ out.creditDidNotTouchDebit=new FormData(form).get('debit');
 item('partner','1200').click();
 item('partner','1200').click();
 out.unavailableUnpicked=text('partner');
+// Value: protects=a caption checking no item, and leaving it for the option for "" being a change; fails_when=show checks the item for "" under a caption, or the change guard compares values only; why_new=review found the list contradicting the caption; seam=none; no_claim=none beyond protects
+// Counted, as checked() cannot tell the item for "" from none.
+var nChecked=function(n){return root(n).querySelectorAll('[data-checked=true]').length;};
+out.captionChecked=text('vendor')+'|'+nChecked('vendor');
+var captionChanges=changes;
+item('vendor','').click();
+out.captionLeft=text('vendor')+'|'+nChecked('vendor')+'|'+(changes-captionChanges)+'|'+new FormData(form).get('vendor');
 // Picking "(none)" shows it, as does unpicking.
 item('tax','').click();
 out.nonePicked=text('tax')+'|'+part('tax','combobox-value').getAttribute('data-empty')+'|'+checked('tax');
@@ -344,6 +403,7 @@ out.resetCreditChecked=checked('credit');
 out.resetValidity=part('debit','combobox-input').checkValidity();
 out.resetUnavailable=text('partner')+'|'+new FormData(form).get('partner');
 out.resetTax=text('tax');
+out.resetCaption=text('vendor')+'|'+nChecked('vendor');
 out.serverInvalidAfterReset=part('cost','combobox-trigger').getAttribute('aria-invalid');
 `
 	got := runInChrome(t, body, script, nil)
@@ -364,6 +424,9 @@ out.serverInvalidAfterReset=part('cost','combobox-trigger').getAttribute('aria-i
 		"noneUnpicked":            "(none)|",
 		"resetUnavailable":        "(not available)|",
 		"resetTax":                "8400 Revenue 19%",
+		"captionChecked":          "(not available)|0",
+		"captionLeft":             "(none)|1|1|",
+		"resetCaption":            "(not available)|0",
 		"openFromSelect":          true,
 		"expanded":                "true",
 		"searchFocused":           true,
@@ -441,7 +504,13 @@ out.resetValue=new FormData(form).get('debit');
 
 item('tax','').click();
 out.nonePicked=new FormData(form).get('tax');
-out.noneValid=part('tax','combobox-input').checkValidity();
+out.noneValid=part('tax','combobox-input').validity.valid;
+
+// Value: protects=a pick on an invalid field not exposing its select to assistive technology; fails_when=the pick checks validity with checkValidity(), which fires invalid; why_new=review found the synthetic invalid event; seam=none; no_claim=what a screen reader announces
+form.requestSubmit();
+var invalids=0;part('tax','combobox-input').addEventListener('invalid',function(){invalids++;});
+item('tax','').click();
+out.pickFiresNoInvalid=invalids+'|'+part('tax','combobox-input').getAttribute('aria-hidden');
 
 // Value: protects=the trigger following a change the browser makes on the focused select; fails_when=the select's change listener is removed; why_new=Codex and three readers found keys the script leaves to the browser; seam=none; no_claim=which keys a platform maps to a select change (synthetic keys have no default action)
 var taxSel=part('tax','combobox-input');
@@ -458,15 +527,16 @@ out.cancelledReset=new FormData(form).get('debit')+'|'+part('debit','combobox-va
 `
 	got := runInChrome(t, body, script, nil)
 	checkRecorded(t, got, map[string]any{
-		"restoredValue":     "1200",
-		"restoredText":      "1200 Bank",
-		"restoredChecked":   "1200",
-		"restoredOptions":   float64(1),
-		"resetOptions":      float64(1),
-		"resetValue":        "1200",
-		"nonePicked":        "",
-		"noneValid":         false,
-		"nativeChangeShown": "8400 Revenue 19%|8400",
-		"cancelledReset":    "4930|4930 Office supplies",
+		"restoredValue":      "1200",
+		"restoredText":       "1200 Bank",
+		"restoredChecked":    "1200",
+		"restoredOptions":    float64(1),
+		"resetOptions":       float64(1),
+		"resetValue":         "1200",
+		"nonePicked":         "",
+		"noneValid":          false,
+		"pickFiresNoInvalid": "0|true",
+		"nativeChangeShown":  "8400 Revenue 19%|8400",
+		"cancelledReset":     "4930|4930 Office supplies",
 	})
 }

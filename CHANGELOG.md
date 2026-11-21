@@ -34,8 +34,11 @@ API is still free to change.
   an enclosing element only sees picks. The trigger always shows what the
   form submits: after a form reset, after markup an htmx history restore
   puts back, and after a key the browser handles on the focused select. A
-  field whose Go name is not a valid HTML id (non-ASCII letters) renders the
-  select instead. New labels `Labels.ComboboxSearch`
+  field whose Go name is not a valid HTML id (non-ASCII letters) gets an id
+  keyed from its path for the trigger and popover, which its label points
+  at. A `disabled`, `required` or `form` attribute passed to `Combobox`
+  applies to the select that submits the value; an `id` attribute is an
+  error, as the id is `ID`. New labels `Labels.ComboboxSearch`
   and `ComboboxEmpty`; the gallery's Combobox page shows the component and
   a booking form.
   `window.commandFilter.select(item)` selects a `Command` item from script.
@@ -996,8 +999,8 @@ API is still free to change.
 
 - **A `form:"widget=datepicker"` field with a non-ASCII Go name no longer
   panics the form render** in `shadcn.FieldDecider`: a field path that is
-  not a valid HTML id cannot name the picker's popover, so the field stays a
-  date input.
+  not a valid HTML id cannot name the picker's popover, so the trigger and
+  popover get an id keyed from the path, which the field label points at.
 - **`shadcn.PopoverTrigger` reports whether its popover is open.** Its
   `aria-expanded` stayed `"false"`; `PopoverContent` now has a default
   `ontoggle` that keeps it in step (a caller's `ontoggle` replaces it), as
