@@ -267,12 +267,12 @@
                               <circle cx="11" cy="11" r="8"></circle>
                               <path d="m21 21-4.3-4.3"></path>
                             </svg>
-                            <input data-slot="command-input" type="text" oninput="commandFilter(this)" placeholder="Search framework..." class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"/>
+                            <input data-slot="command-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" autocomplete="off" autocorrect="off" spellcheck="false" oninput="commandFilter(this)" placeholder="Search framework..." class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"/>
                           </div>
-                          <div data-slot="command-list" class="max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto">
-                            <div data-slot="command-empty" hidden="hidden" class="py-6 text-center text-sm">No framework found.</div>
-                            <div data-slot="command-group" class="text-foreground overflow-hidden p-1">
-                              <div data-slot="command-item" class="hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0">
+                          <div data-slot="command-list" role="listbox" class="max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto">
+                            <div data-slot="command-empty" role="presentation" hidden="hidden" class="py-6 text-center text-sm">No framework found.</div>
+                            <div data-slot="command-group" role="group" class="text-foreground overflow-hidden p-1">
+                              <div data-slot="command-item" role="option" class="relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg:not([class*='text-'])]:text-muted-foreground">
                                 <span class="mr-2">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 6 9 17l-5-5"></path>
@@ -280,7 +280,7 @@
                                 </span>
                                 <span>Next.js</span>
                               </div>
-                              <div data-slot="command-item" class="hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0">
+                              <div data-slot="command-item" role="option" class="relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg:not([class*='text-'])]:text-muted-foreground">
                                 <span class="mr-2 opacity-0">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 6 9 17l-5-5"></path>
@@ -288,7 +288,7 @@
                                 </span>
                                 <span>SvelteKit</span>
                               </div>
-                              <div data-slot="command-item" class="hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0">
+                              <div data-slot="command-item" role="option" class="relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg:not([class*='text-'])]:text-muted-foreground">
                                 <span class="mr-2 opacity-0">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 6 9 17l-5-5"></path>
@@ -296,7 +296,7 @@
                                 </span>
                                 <span>Nuxt.js</span>
                               </div>
-                              <div data-slot="command-item" class="hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0">
+                              <div data-slot="command-item" role="option" class="relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg:not([class*='text-'])]:text-muted-foreground">
                                 <span class="mr-2 opacity-0">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 6 9 17l-5-5"></path>
@@ -304,7 +304,7 @@
                                 </span>
                                 <span>Remix</span>
                               </div>
-                              <div data-slot="command-item" class="hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0">
+                              <div data-slot="command-item" role="option" class="relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg:not([class*='text-'])]:text-muted-foreground">
                                 <span class="mr-2 opacity-0">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 6 9 17l-5-5"></path>
@@ -314,7 +314,7 @@
                               </div>
                             </div>
                           </div>
-                          <script>if(!window.commandFilter){window.commandFilter=function(input){var root=input.closest('[data-slot=command]');if(!root)return;var q=input.value.trim().toLowerCase();var any=false;root.querySelectorAll('[data-slot=command-item]').forEach(function(it){var m=it.textContent.toLowerCase().indexOf(q)>=0;it.hidden=!m;if(m)any=true;});root.querySelectorAll('[data-slot=command-group]').forEach(function(g){g.hidden=g.querySelectorAll('[data-slot=command-item]:not([hidden])').length===0;});var e=root.querySelector('[data-slot=command-empty]');if(e)e.hidden=any;};}</script>
+                          <script>if(!window.commandFilter){(function(){var n=0;var items=function(root){return Array.prototype.filter.call(root.querySelectorAll('[data-slot=command-item]'),function(it){return !it.hidden&&it.getAttribute('data-disabled')!=='true';});};var sel=function(root,it,scroll){root.querySelectorAll('[data-slot=command-item][data-selected]').forEach(function(o){o.removeAttribute('data-selected');o.removeAttribute('aria-selected');});var input=root.querySelector('[data-slot=command-input]');if(!it){if(input)input.removeAttribute('aria-activedescendant');return;}if(!it.id)it.id='mx-command-item-'+(++n);it.setAttribute('data-selected','true');it.setAttribute('aria-selected','true');if(input)input.setAttribute('aria-activedescendant',it.id);if(scroll)it.scrollIntoView({block:'nearest'});};window.commandFilter=function(input){var root=input.closest('[data-slot=command]');if(!root)return;var q=input.value.trim().toLowerCase();var any=false;root.querySelectorAll('[data-slot=command-item]').forEach(function(it){var m=it.textContent.toLowerCase().indexOf(q)>=0;it.hidden=!m;if(m)any=true;});root.querySelectorAll('[data-slot=command-group]').forEach(function(g){g.hidden=g.querySelectorAll('[data-slot=command-item]:not([hidden])').length===0;});var e=root.querySelector('[data-slot=command-empty]');if(e)e.hidden=any;sel(root,items(root)[0]||null,true);};window.commandFilter.init=function(root){if(!root||root.mxCommand)return;root.mxCommand=true;var link=function(){var input=root.querySelector('[data-slot=command-input]'),list=root.querySelector('[data-slot=command-list]');if(input&&list){if(!list.id)list.id='mx-command-list-'+(++n);input.setAttribute('aria-controls',list.id);}};link();root.addEventListener('keydown',function(e){if(e.defaultPrevented||e.isComposing||e.keyCode===229)return;var all=items(root);if(!all.length)return;var cur=root.querySelector('[data-slot=command-item][data-selected=true]');var i=all.indexOf(cur),next;switch(e.key){case 'ArrowDown':next=all[Math.min(i+1,all.length-1)];break;case 'ArrowUp':next=all[Math.max(i-1,0)];break;case 'Home':next=all[0];break;case 'End':next=all[all.length-1];break;case 'Enter':if(cur){e.preventDefault();(cur.querySelector('a[href],button')||cur).click();}return;default:return;}e.preventDefault();sel(root,next,true);});root.addEventListener('pointermove',function(e){var it=e.target.closest&&e.target.closest('[data-slot=command-item]');if(it&&root.contains(it)&&!it.hidden&&it.getAttribute('data-selected')!=='true'&&it.getAttribute('data-disabled')!=='true')sel(root,it,false);});if(window.MutationObserver)new MutationObserver(function(){link();var cur=root.querySelector('[data-slot=command-item][data-selected=true]');if(!cur||cur.hidden||cur.getAttribute('data-disabled')==='true')sel(root,items(root)[0]||null,false);}).observe(root,{childList:true,subtree:true});sel(root,items(root)[0]||null,false);};})();}window.commandFilter.init(document.currentScript&&document.currentScript.closest('[data-slot=command]'));</script>
                         </div>
                       </div>
                     </div>
