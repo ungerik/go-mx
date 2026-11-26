@@ -37,6 +37,13 @@ func AuroraText(opts AuroraTextOptions, attribsChildren ...any) *mx.Element {
 	if len(colors) == 0 {
 		colors = auroraTextColors
 	}
+	for _, color := range colors {
+		// Checked one by one: a color like "red), radial-gradient(blue" is
+		// balanced only together with another.
+		if err := checkCSSValue("AuroraText color", color); err != nil {
+			return mx.NewErrElement(err)
+		}
+	}
 	speed := opts.Speed
 	if speed <= 0 {
 		speed = 1

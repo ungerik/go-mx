@@ -12,14 +12,17 @@
   }
 }
 /* Upstream's light and dark values are the same, so :root alone carries
-   them; in the base layer, so an app's own --color-1 … --color-5 win. */
+   them. Upstream names them --color-1 … --color-5, which are in Tailwind's
+   color namespace: this base-layer :root would override an app's own @theme
+   --color-1 and its bg-1 utility. An app changes them unlayered or in a
+   later layer. */
 @layer base {
   :root {
-    --color-1: oklch(66.2% 0.225 25.9);
-    --color-2: oklch(60.4% 0.26 302);
-    --color-3: oklch(69.6% 0.165 251);
-    --color-4: oklch(80.2% 0.134 225);
-    --color-5: oklch(90.7% 0.231 133);
+    --rainbow-color-1: oklch(66.2% 0.225 25.9);
+    --rainbow-color-2: oklch(60.4% 0.26 302);
+    --rainbow-color-3: oklch(69.6% 0.165 251);
+    --rainbow-color-4: oklch(80.2% 0.134 225);
+    --rainbow-color-5: oklch(90.7% 0.231 133);
   }
 }
 @media (prefers-reduced-motion: reduce) {

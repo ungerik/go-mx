@@ -1,6 +1,7 @@
 package magicui
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -42,4 +43,10 @@ func TestAnimatedCircularProgressBarRange(t *testing.T) {
 	// A range ending at 0 is possible because Max is a pointer.
 	out = render(t, AnimatedCircularProgressBar(AnimatedCircularProgressBarOptions{Min: -100, Max: new(0.0), Value: -50}))
 	mustContain(t, out, `data-current-value="50"`)
+	// NaN and huge values would convert to a platform-dependent int label.
+	for _, value := range []float64{math.NaN(), math.Inf(1), 1e30} {
+		if renderErr(t, AnimatedCircularProgressBar(AnimatedCircularProgressBarOptions{Value: value})) == nil {
+			t.Errorf("Value %v accepted", value)
+		}
+	}
 }

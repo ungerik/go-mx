@@ -121,7 +121,7 @@ The gallery shows each of them with its Go source:
 ### Buttons
 
 - **InteractiveHoverButton** — `InteractiveHoverButton(attribsChildren ...any)`: a pill button whose dot floods it on hover while the label slides out and a copy with an arrow slides in, by Tailwind transitions only. The children render twice, so they should not carry ids.
-- **RainbowButton** — `RainbowButton(opts RainbowButtonOptions, attribsChildren ...any)`: a button whose border and glow cycle through `--color-1` to `--color-5`, in a default or outline variant and four sizes. Instead of upstream's `asChild`, put `RainbowButtonClasses(variant, size)` on a link.
+- **RainbowButton** — `RainbowButton(opts RainbowButtonOptions, attribsChildren ...any)`: a button whose border and glow cycle through `--rainbow-color-1` to `--rainbow-color-5`, in a default or outline variant and four sizes. Instead of upstream's `asChild`, put `RainbowButtonClasses(variant, size)` on a link.
 - **ShimmerButton** — `ShimmerButton(opts ShimmerButtonOptions, attribsChildren ...any)`: a button with a spark of light travelling around its border; the options become the `--shimmer-color`, `--cut`, `--shimmer-button-radius`, `--speed` and `--bg` variables.
 - **ShinyButton** — `ShinyButton(attribsChildren ...any)`: a bordered button swept by a diagonal shine that pops in with a springy overshoot and shrinks while pressed. The motion animation is CSS: the shine position is the registered property `--shiny-button-x` (upstream's `--x` would clash with other components), the springs are `linear()` easings, and upstream's invalid `var(--primary)/10%` colors are written as `color-mix()`, so its border shine and dark-mode glow show.
 

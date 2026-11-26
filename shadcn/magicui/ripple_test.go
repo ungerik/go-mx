@@ -23,10 +23,10 @@ func TestRippleDefault(t *testing.T) {
 
 func TestRippleOptions(t *testing.T) {
 	out := render(t, Ripple(RippleOptions{MainCircleSize: 100, MainCircleOpacity: 0.5, NumCircles: 2},
-		html.Class("[--duration:3s]"), html.P("Ripple")))
-	mustContain(t, out, "width:100px", "opacity:0.5;", "width:170px", "opacity:0.47;", "[--duration:3s]",
+		html.Class("[--ripple-duration:3s]"), html.P("Ripple")))
+	mustContain(t, out, "width:100px", "opacity:0.5;", "width:170px", "opacity:0.47;", "[--ripple-duration:3s]",
 		// Children come before the aria-hidden circles.
-		`select-none [--duration:3s]"><p>Ripple</p><div aria-hidden="true"`)
+		`select-none [--ripple-duration:3s]"><p>Ripple</p><div aria-hidden="true"`)
 	if n := strings.Count(out, "animate-ripple"); n != 2 {
 		t.Errorf("%d circles, want 2", n)
 	}

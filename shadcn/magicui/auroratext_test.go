@@ -27,3 +27,11 @@ func TestAuroraTextOptions(t *testing.T) {
 		t.Error("an invalid color should be a render error")
 	}
 }
+
+func TestAuroraTextChecksEachColor(t *testing.T) {
+	// Balanced only together, so the joined gradient alone would pass.
+	colors := []string{"red, blue), radial-gradient(green", "yellow)"}
+	if renderErr(t, AuroraText(AuroraTextOptions{Colors: colors}, "x")) == nil {
+		t.Error("a color that closes the gradient early was accepted")
+	}
+}

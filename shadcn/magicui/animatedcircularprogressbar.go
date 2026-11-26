@@ -48,7 +48,13 @@ func AnimatedCircularProgressBar(opts AnimatedCircularProgressBarOptions, attrib
 	circumference := 2 * math.Pi * 45
 	percentPx := circumference / 100
 	// Math.round rounds halves up, towards +Inf.
-	currentPercent := int(math.Floor((opts.Value-opts.Min)/(maximum-opts.Min)*100 + 0.5))
+	percent := math.Floor((opts.Value-opts.Min)/(maximum-opts.Min)*100 + 0.5)
+	if math.IsNaN(percent) || math.Abs(percent) > math.MaxInt32 {
+		// Converting NaN, ±Inf or a huge float to int is platform
+		// dependent, so the label would read differently per CPU.
+		return mx.NewErrElement(fmt.Errorf("magicui: AnimatedCircularProgressBar Value %v, Min %v, Max %v give no displayable percentage", opts.Value, opts.Min, maximum))
+	}
+	currentPercent := int(percent)
 
 	rootStyle, err := styleVars(
 		"--circle-size", "100px",

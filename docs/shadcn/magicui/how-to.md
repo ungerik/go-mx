@@ -238,8 +238,10 @@ html.A(html.HRef("/pricing"),
 
 An empty variant or size means the default, so
 `RainbowButtonClasses("", "")` is the plain rainbow button. The colors are the
-CSS variables `--color-1` to `--color-5`, defined by `magicui.CSS` in the base
-layer, so your own values for them win.
+CSS variables `--rainbow-color-1` to `--rainbow-color-5` (upstream's
+`--color-1` … `--color-5`, renamed out of Tailwind's color namespace), defined
+by `magicui.CSS` on `:root` in the base layer; set them unlayered or in a later
+layer to change them.
 
 ### Verification
 

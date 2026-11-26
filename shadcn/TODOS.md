@@ -104,6 +104,36 @@ TweetCard needs a server-side fetch of the tweet, so it is a design question
 more than a port.
 **Effort:** M each · **Priority:** P4 · **Depends on:** nothing.
 
+### HeroVideoDialog may load its iframe before the dialog opens
+
+**What:** Check in headed Chrome whether the `loading="lazy"` iframe inside
+the closed `<dialog>` loads on page load, and whether the `onclose` reload
+(`f.src=f.src`) restarts a `?autoplay=1` video behind the closed dialog. If
+either happens, keep the URL in `data-src`, set `src` when the trigger opens
+the dialog and `about:blank` on close.
+**Why:** a YouTube embed loaded on page load sends third-party requests and
+cookies before anyone clicks play; a restarted autoplay video plays sound
+behind a closed dialog.
+**Context:** Chromium does not lazy-load iframes it considers hidden, and a
+closed `<dialog>` is `display:none`. Headless Chrome loads lazy iframes even
+far below the fold, so `internal/headless` cannot decide it. Raised by the
+adversarial review of the first batch.
+**Effort:** S · **Priority:** P2 · **Depends on:** nothing.
+
+### Marquee copies are aria-hidden but focusable
+
+**What:** Decide how the repeated Marquee copies (and AuroraText's visible
+copy) keep focusable children out of the tab order. `inert` would do it but
+also makes the scrolling duplicates unclickable with a mouse, which breaks a
+marquee of logo links.
+**Why:** keyboard users tab into links that screen readers do not announce,
+and form controls or ids in the children are duplicated.
+**Context:** upstream does not mark the copies at all; the port added
+`aria-hidden` so the content is read once. Options: `inert` plus documenting
+that only the first copy is interactive, or `tabindex="-1"` on focusable
+children set by a small script.
+**Effort:** S · **Priority:** P3 · **Depends on:** nothing.
+
 ---
 
 ## Calendar and DatePicker follow-ups

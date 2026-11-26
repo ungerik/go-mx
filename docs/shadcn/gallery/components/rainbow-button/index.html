@@ -492,14 +492,17 @@
   }
 }
 /* Upstream's light and dark values are the same, so :root alone carries
-   them; in the base layer, so an app's own --color-1 … --color-5 win. */
+   them. Upstream names them --color-1 … --color-5, which are in Tailwind's
+   color namespace: this base-layer :root would override an app's own @theme
+   --color-1 and its bg-1 utility. An app changes them unlayered or in a
+   later layer. */
 @layer base {
   :root {
-    --color-1: oklch(66.2% 0.225 25.9);
-    --color-2: oklch(60.4% 0.26 302);
-    --color-3: oklch(69.6% 0.165 251);
-    --color-4: oklch(80.2% 0.134 225);
-    --color-5: oklch(90.7% 0.231 133);
+    --rainbow-color-1: oklch(66.2% 0.225 25.9);
+    --rainbow-color-2: oklch(60.4% 0.26 302);
+    --rainbow-color-3: oklch(69.6% 0.165 251);
+    --rainbow-color-4: oklch(80.2% 0.134 225);
+    --rainbow-color-5: oklch(90.7% 0.231 133);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -511,7 +514,7 @@
 
 /* Ripple */
 @theme inline {
-  --animate-ripple: ripple var(--duration,2s) ease calc(var(--i, 0)*.2s) infinite;
+  --animate-ripple: ripple var(--ripple-duration,2s) ease calc(var(--i, 0)*.2s) infinite;
 
   @keyframes ripple {
     0%,
@@ -1023,7 +1026,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-rainbow-button-demo-panel-preview" aria-labelledby="tab-rainbow-button-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
-                    <button data-slot="rainbow-button" type="button" class="relative cursor-pointer group transition-all animate-rainbow inline-flex items-center justify-center gap-2 shrink-0 rounded-sm outline-none focus-visible:ring-[3px] aria-invalid:border-destructive text-sm font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg]:shrink-0 h-9 px-4 py-2 border-0 bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] bg-[length:200%] text-primary-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.125rem)_solid_transparent] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)] dark:bg-[linear-gradient(#fff,#fff),linear-gradient(#fff_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]">Get Unlimited Access</button>
+                    <button data-slot="rainbow-button" type="button" class="relative cursor-pointer group transition-all animate-rainbow inline-flex items-center justify-center gap-2 shrink-0 rounded-sm outline-none focus-visible:ring-[3px] aria-invalid:border-destructive text-sm font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg]:shrink-0 h-9 px-4 py-2 border-0 bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))] bg-[length:200%] text-primary-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.125rem)_solid_transparent] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)] dark:bg-[linear-gradient(#fff,#fff),linear-gradient(#fff_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))]">Get Unlimited Access</button>
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-rainbow-button-demo-panel-code" aria-labelledby="tab-rainbow-button-demo-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">
@@ -1041,7 +1044,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-rainbow-button-outline-panel-preview" aria-labelledby="tab-rainbow-button-outline-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
-                    <button data-slot="rainbow-button" type="button" class="relative cursor-pointer group transition-all animate-rainbow inline-flex items-center justify-center gap-2 shrink-0 rounded-sm outline-none focus-visible:ring-[3px] aria-invalid:border-destructive text-sm font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg]:shrink-0 h-9 px-4 py-2 border border-input border-b-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(#ffffff_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] bg-[length:200%] text-accent-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)] dark:bg-[linear-gradient(#0a0a0a,#0a0a0a),linear-gradient(#0a0a0a_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]">Get Unlimited Access</button>
+                    <button data-slot="rainbow-button" type="button" class="relative cursor-pointer group transition-all animate-rainbow inline-flex items-center justify-center gap-2 shrink-0 rounded-sm outline-none focus-visible:ring-[3px] aria-invalid:border-destructive text-sm font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 [&amp;_svg]:shrink-0 h-9 px-4 py-2 border border-input border-b-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(#ffffff_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))] bg-[length:200%] text-accent-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)] dark:bg-[linear-gradient(#0a0a0a,#0a0a0a),linear-gradient(#0a0a0a_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,var(--rainbow-color-1),var(--rainbow-color-5),var(--rainbow-color-3),var(--rainbow-color-4),var(--rainbow-color-2))]">Get Unlimited Access</button>
                   </div>
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-rainbow-button-outline-panel-code" aria-labelledby="tab-rainbow-button-outline-tab-code" data-tabs-value="code" tabindex="0" hidden="hidden" class="flex-1 outline-none">

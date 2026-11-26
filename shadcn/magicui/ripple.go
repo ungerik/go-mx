@@ -23,8 +23,10 @@ type RippleOptions struct {
 // Ripple draws concentric circles that pulse outwards from the center of
 // its positioned parent, like ripples on water, as an absolutely positioned
 // background faded out towards the bottom. The circles are aria-hidden;
-// children are placed before them. The pulse lasts --duration (2s), which a
-// caller class such as html.Class("[--duration:3s]") overrides.
+// children are placed before them. The pulse lasts --ripple-duration (2s),
+// which a caller class such as html.Class("[--ripple-duration:3s]")
+// overrides; it has its own name so a Ripple nested in a Marquee or an
+// OrbitingCircles item does not inherit their --duration.
 //
 // Needs [CSS] in the app's Tailwind input.
 func Ripple(opts RippleOptions, attribsChildren ...any) *mx.Element {
