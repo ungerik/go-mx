@@ -1,0 +1,64 @@
+package magicui
+
+import (
+	"strings"
+
+	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
+)
+
+// AuroraTextOptions configures an [AuroraText]. The zero value is
+// upstream's default: a pink, purple, blue and sky gradient at speed 1.
+type AuroraTextOptions struct {
+	// Colors are the CSS colors of the gradient, which returns to the first
+	// one at its end; empty means "#FF0080", "#7928CA", "#0070F3",
+	// "#38bdf8".
+	Colors []string
+	// Speed multiplies the speed of the animation, whose cycle takes
+	// 10s / Speed; 0 means 1.
+	Speed float64
+}
+
+// auroraTextColors are upstream's default colors of an [AuroraText].
+var auroraTextColors = []string{"#FF0080", "#7928CA", "#0070F3", "#38bdf8"}
+
+// AuroraText renders its children as text filled with a slowly swirling,
+// tilting color gradient. The children are rendered twice: once sr-only
+// for assistive technology and once aria-hidden with the gradient, so they
+// should be text or inline markup without ids. A color that could escape
+// its CSS declaration makes it render an error.
+//
+// Upstream passes on only className; here every attribute goes to the
+// root span.
+//
+// Needs [CSS] in the app's Tailwind input.
+func AuroraText(opts AuroraTextOptions, attribsChildren ...any) *mx.Element {
+	colors := opts.Colors
+	if len(colors) == 0 {
+		colors = auroraTextColors
+	}
+	speed := opts.Speed
+	if speed <= 0 {
+		speed = 1
+	}
+	gradientStyle, err := styleVars(
+		"background-image", "linear-gradient(135deg, "+strings.Join(colors, ", ")+", "+colors[0]+")",
+		"-webkit-background-clip", "text",
+		"-webkit-text-fill-color", "transparent",
+		"animation-duration", num(10/speed)+"s",
+	)
+	if err != nil {
+		return mx.NewErrElement(err)
+	}
+	root := html.Span(attribsChildren...)
+	children := anys(root.Children)
+	root.Children = []mx.Component{
+		html.Span(append([]any{html.Class("sr-only")}, children...)...),
+		html.Span(append([]any{
+			html.Class("animate-aurora relative bg-size-[200%_auto] bg-clip-text text-transparent"),
+			html.Style(gradientStyle),
+			ariaHidden,
+		}, children...)...),
+	}
+	return finish(root, "aurora-text", "relative inline-block", "")
+}

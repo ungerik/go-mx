@@ -30,6 +30,9 @@ html.Div(html.Class("card"),
   the live `cmd/shadcn-gallery` app.
 - **[shadcn package docs](shadcn/)** — a tutorial, task-oriented how-to guides,
   and the full component reference for the `shadcn` package.
+- **[Magic UI docs](shadcn/magicui/)** — a tutorial, how-to guides and the
+  design rationale for `shadcn/magicui`, the port of Magic UI's animated
+  components, animated by CSS alone.
 - **[The public knowledge layer](web/knowledge-layer.html)** — the same pages
   for crawlers and AI agents: hreflang alternates, Markdown versions of pages,
   `llms.txt`, schema.org JSON-LD, and MCP tools, all limited to the pages a

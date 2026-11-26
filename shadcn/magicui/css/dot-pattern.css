@@ -1,0 +1,30 @@
+/* Dot Pattern */
+@theme inline {
+  --animate-dot-pattern-glow: dot-pattern-glow 3s ease-in-out infinite both;
+  --animate-dot-pattern-repaint: dot-pattern-repaint 1s linear infinite alternate;
+
+  @keyframes dot-pattern-glow {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.5);
+    }
+  }
+  /* Chrome does not repaint a <pattern> for an animation inside it alone;
+     an imperceptible animation of the rect it fills makes it repaint. */
+  @keyframes dot-pattern-repaint {
+    to {
+      opacity: 0.999;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-dot-pattern-glow,
+  .animate-dot-pattern-repaint {
+    animation: none;
+  }
+}

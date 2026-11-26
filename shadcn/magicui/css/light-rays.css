@@ -1,0 +1,28 @@
+/* Light Rays */
+@theme inline {
+  --animate-light-rays-ray: light-rays-ray 15.4s ease-in-out infinite both;
+
+  /* One cycle of upstream's motion animation (0 → intensity → 0 while
+     swinging) takes the first 1/1.1 of the animation; the rest is its
+     repeat delay of a tenth of the duration. */
+  @keyframes light-rays-ray {
+    0% {
+      opacity: 0;
+      rotate: calc(var(--ray-rotate) - var(--ray-swing));
+    }
+    45.4545% {
+      opacity: var(--ray-intensity);
+      rotate: calc(var(--ray-rotate) + var(--ray-swing));
+    }
+    90.9091%,
+    100% {
+      opacity: 0;
+      rotate: calc(var(--ray-rotate) - var(--ray-swing));
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-light-rays-ray {
+    animation: none;
+  }
+}

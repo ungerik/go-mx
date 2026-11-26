@@ -40,13 +40,16 @@ An internet connection is required: Tailwind v4 is loaded from a CDN (see below)
 | File             | Responsibility                                                        |
 |------------------|-----------------------------------------------------------------------|
 | `main.go`        | The component catalog (`docs()`), the flags, and the HTTP routes.    |
+| `magicui.go`     | The Magic UI part of the catalog (`magicUIDocs()`), its own group.   |
 | `export.go`      | `-out` static-site generation: render every page to a file.          |
-| `shell.go`       | The page shell: `<head>` wiring, sidebar + main layout, Preview/Code  |
-|                  | tab blocks. Embeds `theme.css`.                                       |
-| `registry.go`    | Types (`Example`, `ComponentDoc`, `Registry`) and Go-source           |
-|                  | extraction. Embeds `examples/*.go`.                                   |
+| `shell.go`       | The page shell: `<head>` wiring, sidebar + main layout grouped by     |
+|                  | library, Preview/Code tab blocks. Embeds `theme.css`.                 |
+| `registry.go`    | Types (`Example`, `ComponentDoc`, `DocGroup`, `Registry`) and Go-     |
+|                  | source extraction. Embeds `examples/*.go` and                         |
+|                  | `examples/magicui/*.go`.                                              |
 | `examples/`      | One function per labeled preview — the live component. Their bodies   |
-|                  | are the snippets shown in the Code tab.                               |
+|                  | are the snippets shown in the Code tab. The Magic UI examples are     |
+|                  | the `examples/magicui` package.                                       |
 | `theme.css`      | shadcn/ui new-york-v4 `globals.css` theme tokens.                     |
 
 ## Tailwind v4 via the browser CDN build
@@ -73,8 +76,11 @@ names that function as `Example.ShowSource`, and the Code tab shows it.
 ## Status
 
 The gallery covers the whole shadcn/ui registry: 65 pages, one per
-component, listed alphabetically like the shadcn/ui docs (see `docs()` in
-`main.go` for the catalog). Date Picker and Data Table are compositions
+component, listed alphabetically like the shadcn/ui docs (see `shadcnDocs()`
+in `main.go` for the catalog). A second section holds the 41 pages of the
+Magic UI port, `shadcn/magicui` (`magicUIDocs()` in `magicui.go`, examples in
+the `examples/magicui` package); `head()` adds `magicui.CSS` to the Tailwind
+input so their animations compile. Date Picker and Data Table are compositions
 rather than package functions, so their pages show the recipes, as upstream
 ships them. Combobox is a recipe upstream too, but here it is the
 `shadcn.Combobox` form field, as a recipe cannot submit a value.

@@ -19,17 +19,19 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 ## Documentation
 
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
-  `html`, `shadcn` and `hx` tutorials and how-to guides, the public knowledge
-  layer guide, and the rendered component gallery. (GitHub Pages, served from
+  `html`, `shadcn`, `shadcn/magicui` and `hx` tutorials and how-to guides, the
+  public knowledge layer guide, and the rendered component gallery. (GitHub Pages, served from
   [`docs/`](docs/).)
 - **[Component gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)** — every
-  ported shadcn/ui component shown next to its Go source. Built by
+  ported shadcn/ui and Magic UI component shown next to its Go source. Built by
   [`cmd/shadcn-gallery`](cmd/shadcn-gallery/README.md), which also serves it
   locally.
 - **[`html` package](html/README.md)** — the core HTML vocabulary: elements,
   attributes, typed keyword enums, and the `html/entity` character set.
 - **[`shadcn` package](shadcn/README.md)** — the shadcn/ui port: full component
   reference and design notes.
+- **[`shadcn/magicui` package](shadcn/magicui/README.md)** — the Magic UI port:
+  animated components and effects on shadcn's tokens, driven by CSS alone.
 - **[API reference](https://pkg.go.dev/github.com/ungerik/go-mx)** on pkg.go.dev.
 - **[CHANGELOG.md](CHANGELOG.md)** — what changed. Nothing is tagged yet, so
   everything is still under `Unreleased` and the API is free to change.
@@ -107,6 +109,10 @@ For streaming output or serving over HTTP, render a `Component` into an
 - **`shadcn`** — `Cn`, a faithful Go port of tailwind-merge v3, plus ported
   shadcn/ui components and `shadcn.FieldDecider` for Tailwind/shadcn form
   rendering. See [shadcn/README.md](shadcn/README.md).
+- **`shadcn/magicui`** — Magic UI's animated components and effects (Marquee,
+  BorderBeam, TextAnimate, the SVG patterns, device mockups, …) built on
+  `shadcn`, animated by CSS alone through `magicui.CSS`. See
+  [shadcn/magicui/README.md](shadcn/magicui/README.md).
 - **`highlight`** — Go syntax highlighter: tokenizes Go source and renders it as
   highlighted HTML components, or as the go-mx source that builds that markup,
   plus a `Theme` that emits CSS. Depends only on `mx` and `html`. See

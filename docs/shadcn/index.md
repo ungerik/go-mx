@@ -14,6 +14,10 @@ CSS Anchor Positioning, native form controls).
 See every component rendered live next to its Go source in the
 **[component gallery](gallery/)**.
 
+For animated components and effects on the same tokens (marquees, shimmering
+buttons, text that animates in), see the
+**[Magic UI port](magicui/)**, `shadcn/magicui`.
+
 ```go
 import "github.com/ungerik/go-mx/shadcn"
 

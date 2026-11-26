@@ -1,0 +1,15 @@
+/* Animated Gradient Text */
+@theme inline {
+  --animate-gradient: gradient 8s linear infinite;
+
+  @keyframes gradient {
+    to {
+      background-position: var(--bg-size, 300%) 0;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-gradient {
+    animation: none;
+  }
+}

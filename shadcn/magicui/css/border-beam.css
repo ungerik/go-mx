@@ -1,0 +1,20 @@
+/* Border Beam */
+@theme inline {
+  /* Upstream animates offset-distance with motion; the from/to offsets,
+     duration and (negated) delay come from the beam's style. */
+  --animate-border-beam: border-beam var(--border-beam-duration) linear var(--border-beam-delay) infinite;
+
+  @keyframes border-beam {
+    from {
+      offset-distance: var(--border-beam-from);
+    }
+    to {
+      offset-distance: var(--border-beam-to);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-border-beam {
+    animation: none;
+  }
+}

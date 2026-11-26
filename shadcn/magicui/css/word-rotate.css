@@ -1,0 +1,27 @@
+/* Word Rotate */
+@theme inline {
+  --animate-word-rotate: word-rotate-fade var(--word-rotate-cycle) var(--word-rotate-fade-easing) calc(var(--i, 0) * var(--word-rotate-step) - var(--word-rotate-lead)) infinite both, word-rotate-slide var(--word-rotate-cycle) var(--word-rotate-slide-easing) calc(var(--i, 0) * var(--word-rotate-step) - var(--word-rotate-lead)) infinite both;
+
+  /* The cycle's timing lives in the easings WordRotate computes. */
+  @keyframes word-rotate-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes word-rotate-slide {
+    from {
+      translate: 0 -50px;
+    }
+    to {
+      translate: 0 50px;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-word-rotate {
+    animation: none;
+  }
+}

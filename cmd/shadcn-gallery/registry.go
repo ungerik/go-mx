@@ -16,8 +16,12 @@ import (
 // shown next to the exact Go code that produced it. The files are parsed once
 // at startup (see [newSourceMap]); the running gallery never re-reads them.
 //
-//go:embed examples/*.go
+//go:embed examples/*.go examples/magicui/*.go
 var exampleFS embed.FS
+
+// exampleDirs are the directories of exampleFS holding example packages:
+// the shadcn/ui examples and the Magic UI examples.
+var exampleDirs = []string{"examples", "examples/magicui"}
 
 // Example is one labeled preview of a component: a function that renders the
 // live component and the Go source of that function's body, extracted from
@@ -33,13 +37,46 @@ type Example struct {
 }
 
 // ComponentDoc is one component's documentation page: a slug for its route, a
-// title, a one-line description (transcribed from the shadcn/ui docs) and the
-// ordered list of examples shown on the page.
+// title, a one-line description (transcribed from the upstream docs), the
+// ordered list of examples shown on the page, and the library group the
+// sidebar and the index list it under ("" for shadcn/ui).
 type ComponentDoc struct {
 	Slug        string
 	Title       string
 	Description string
 	Examples    []Example
+	Group       string
+}
+
+// DocGroup is a titled run of component pages, such as the Magic UI ones.
+type DocGroup struct {
+	Title string
+	Docs  []ComponentDoc
+}
+
+// groupTitle is the heading of a ComponentDoc.Group.
+func groupTitle(group string) string {
+	if group == "" {
+		return "shadcn/ui"
+	}
+	return group
+}
+
+// Groups returns the pages grouped by ComponentDoc.Group, in the order each
+// group first appears.
+func (r *Registry) Groups() []DocGroup {
+	var groups []DocGroup
+	index := map[string]int{}
+	for _, d := range r.Docs {
+		i, ok := index[d.Group]
+		if !ok {
+			i = len(groups)
+			index[d.Group] = i
+			groups = append(groups, DocGroup{Title: groupTitle(d.Group)})
+		}
+		groups[i].Docs = append(groups[i].Docs, d)
+	}
+	return groups
 }
 
 // Registry is the ordered set of component pages plus a slug index. It owns the
@@ -66,7 +103,13 @@ func NewRegistry(docs []ComponentDoc) *Registry {
 		r.Docs = append(r.Docs, d)
 	}
 	for i := range r.Docs {
-		r.bySlug[r.Docs[i].Slug] = &r.Docs[i]
+		slug := r.Docs[i].Slug
+		if _, dup := r.bySlug[slug]; dup {
+			// Pages share one URL space (components/<slug>/) and one id
+			// space (tab ids), so a slug must be unique across groups.
+			panic("duplicate component slug " + slug)
+		}
+		r.bySlug[slug] = &r.Docs[i]
 	}
 	return r
 }
@@ -76,46 +119,50 @@ func (r *Registry) Lookup(slug string) *ComponentDoc {
 	return r.bySlug[slug]
 }
 
-// funcName returns the unqualified name of a function value, e.g.
-// "ButtonDefault" for examples.ButtonDefault. Names are unique within the
-// examples package, so the short name is a stable key into the source map.
+// funcName returns the package name and name of a function value, e.g.
+// "examples.ButtonDefault" for examples.ButtonDefault and
+// "magicui.MarqueeDemo" for the Magic UI example. Names are unique within an
+// example package, so this is a stable key into the source map.
 func funcName(fn any) string {
 	full := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-	if i := strings.LastIndex(full, "."); i >= 0 {
+	if i := strings.LastIndex(full, "/"); i >= 0 {
 		return full[i+1:]
 	}
 	return full
 }
 
 // newSourceMap parses every embedded example file and maps each top-level
-// function name to the dedented source shown in the "Code" tab. Parse errors
-// and non-function declarations are skipped.
+// function, keyed "<package>.<name>" like [funcName], to the dedented source
+// shown in the "Code" tab. Parse errors and non-function declarations are
+// skipped.
 func newSourceMap() map[string]string {
 	m := make(map[string]string)
 	fset := token.NewFileSet()
-	entries, _ := exampleFS.ReadDir("examples")
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
-			continue
-		}
-		src, err := exampleFS.ReadFile("examples/" + e.Name())
-		if err != nil {
-			continue
-		}
-		file, err := parser.ParseFile(fset, e.Name(), src, parser.SkipObjectResolution)
-		if err != nil {
-			continue
-		}
-		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Recv != nil || fn.Body == nil {
+	for _, dir := range exampleDirs {
+		entries, _ := exampleFS.ReadDir(dir)
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
 				continue
 			}
-			lo, hi := snippetBounds(fset, fn.Body)
-			if lo < 0 || hi > len(src) {
+			src, err := exampleFS.ReadFile(dir + "/" + e.Name())
+			if err != nil {
 				continue
 			}
-			m[fn.Name.Name] = dedent(strings.Trim(string(src[lo:hi]), "\n"))
+			file, err := parser.ParseFile(fset, e.Name(), src, parser.SkipObjectResolution)
+			if err != nil {
+				continue
+			}
+			for _, decl := range file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok || fn.Recv != nil || fn.Body == nil {
+					continue
+				}
+				lo, hi := snippetBounds(fset, fn.Body)
+				if lo < 0 || hi > len(src) {
+					continue
+				}
+				m[file.Name.Name+"."+fn.Name.Name] = dedent(strings.Trim(string(src[lo:hi]), "\n"))
+			}
 		}
 	}
 	return m

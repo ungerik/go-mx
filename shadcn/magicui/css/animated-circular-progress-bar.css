@@ -1,0 +1,17 @@
+/* Animated Circular Progress Bar */
+@theme inline {
+  /* Upstream's tw-animate-css "animate-in fade-in" on the number, with its
+     duration-(--transition-length), ease-linear and delay-(--delay). */
+  --animate-animated-circular-progress-bar-fade: animated-circular-progress-bar-fade var(--transition-length) linear var(--delay) both;
+
+  @keyframes animated-circular-progress-bar-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-animated-circular-progress-bar-fade {
+    animation: none;
+  }
+}
