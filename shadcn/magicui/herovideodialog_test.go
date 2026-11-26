@@ -51,16 +51,11 @@ func TestHeroVideoDialogAnimationStyles(t *testing.T) {
 func TestHeroVideoDialogCaller(t *testing.T) {
 	out := render(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv", ThumbnailAlt: "Hero"}, html.Class("block dark:hidden")))
 	mustContain(t, out, `class="relative block dark:hidden"`, `alt="Hero"`)
-	// An invalid id is a programming error that shadcn reports by panicking
-	// (shadcn.PanicOnInvalidID).
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Error("invalid dialog id accepted")
-			}
-		}()
-		HeroVideoDialog(HeroVideoDialogOptions{ID: "bad id"})
-	}()
+	// An invalid id renders an error like the other magicui ID options,
+	// instead of reaching shadcn's id check, which panics by default.
+	if renderErr(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "bad id"})) == nil {
+		t.Error("invalid dialog id accepted")
+	}
 	// Without an ID every dialog gets its own.
 	a, b := render(t, HeroVideoDialog(HeroVideoDialogOptions{})), render(t, HeroVideoDialog(HeroVideoDialogOptions{}))
 	if a == b {

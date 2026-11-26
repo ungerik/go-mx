@@ -139,4 +139,13 @@ func TestFinish(t *testing.T) {
 			t.Errorf("unexpected attribute order: %s", out)
 		}
 	})
+
+	t.Run("typed-nil attribute is a render error, not a panic", func(t *testing.T) {
+		// StyleSlot must not call methods on it; Element.Render refuses it.
+		e := StyleSlot(html.Div((*mx.Attribute)(nil)), "thing", "p-2")
+		var b strings.Builder
+		if err := e.Render(t.Context(), mx.NewCheckedWriter(&b)); err == nil {
+			t.Errorf("typed-nil attribute rendered without error: %s", b.String())
+		}
+	})
 }

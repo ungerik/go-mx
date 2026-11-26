@@ -24,7 +24,7 @@ type SpinningTextOptions struct {
 // position and turns the circle endlessly. The children must be strings,
 // as upstream's children: string | string[]; another child makes it render
 // an error. Every character is an aria-hidden span rotated into place by
-// the CSS variables --index, --total and --radius, followed by a space
+// the CSS variables --index, --total and --spinning-text-radius, followed by a space
 // that closes the circle, and an sr-only copy holds the text for assistive
 // technology. The element itself takes no space, so place it in a box of
 // its own.
@@ -47,7 +47,7 @@ func SpinningText(opts SpinningTextOptions, attribsChildren ...any) *mx.Element 
 	style, err := styleVars(
 		"--spinning-text-duration", seconds(opts.Duration, 10*time.Second),
 		"--total", strconv.Itoa(len(letters)),
-		"--radius", num(or(opts.Radius, 5)),
+		"--spinning-text-radius", num(or(opts.Radius, 5)),
 	)
 	if err != nil {
 		return mx.NewErrElement(err)
@@ -57,7 +57,7 @@ func SpinningText(opts SpinningTextOptions, attribsChildren ...any) *mx.Element 
 		root.Children = append(root.Children, html.Span(
 			html.Class("absolute top-1/2 left-1/2 inline-block"),
 			ariaHidden,
-			html.Style("--index:"+strconv.Itoa(i)+";transform:translate(-50%, -50%) rotate(calc(360deg / var(--total) * var(--index))) translateY(calc(var(--radius, 5) * -1ch));transform-origin:center"),
+			html.Style("--index:"+strconv.Itoa(i)+";transform:translate(-50%, -50%) rotate(calc(360deg / var(--total) * var(--index))) translateY(calc(var(--spinning-text-radius, 5) * -1ch));transform-origin:center"),
 			string(letter),
 		))
 	}

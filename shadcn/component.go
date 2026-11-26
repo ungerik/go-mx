@@ -30,6 +30,12 @@ func StyleSlot(e *mx.Element, slot, baseClasses string) *mx.Element {
 	)
 
 	for _, a := range e.Attribs {
+		if mx.IsNilAttrib(a) {
+			// Kept without calling its methods, so Element.Render
+			// refuses it with an error instead of a panic here.
+			other = append(other, a)
+			continue
+		}
 		switch name := a.AttribName(); name {
 		case "class":
 			value, err := a.AttribValue(context.Background())

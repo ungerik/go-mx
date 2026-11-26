@@ -30,4 +30,3 @@ func deviceVideo(src, class string, withPreload bool) *mx.Element {
 	}
 	return video
 }
-

@@ -44,7 +44,10 @@ func WordRotate(opts WordRotateOptions, attribsChildren ...any) *mx.Element {
 		return mx.NewErrElement(fmt.Errorf("magicui: WordRotate takes its words from WordRotateOptions.Words, not from children"))
 	}
 	n := len(opts.Words)
-	step := or(opts.Duration, 2500*time.Millisecond)
+	step := opts.Duration
+	if step <= 0 {
+		step = 2500 * time.Millisecond
+	}
 	lead := min(250*time.Millisecond, step/4)
 	var style string
 	if n > 1 {

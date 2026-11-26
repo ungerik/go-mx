@@ -164,12 +164,15 @@ func TestCSSNoTailwindOverride(t *testing.T) {
 }
 
 func TestCheckCSSValue(t *testing.T) {
-	for _, valid := range []string{"#ffaa40", "rgba(0, 0, 0, 1)", "0.05em", "var(--primary)", "calc(100% - 2px)", "oklch(0.7 0.1 200)"} {
+	for _, valid := range []string{"#ffaa40", "rgba(0, 0, 0, 1)", "0.05em", "var(--primary)", "calc(100% - 2px)", "oklch(0.7 0.1 200)", "linear-gradient(red, rgb(0 0 255))", "[x]"} {
 		if err := checkCSSValue("x", valid); err != nil {
 			t.Errorf("checkCSSValue(%q): %v", valid, err)
 		}
 	}
-	for _, invalid := range []string{"red;background:blue", "red}", "{", "url(https://example.com/x.png)", "URL(x)", `"x"`, "a\\b", "<x>", "#fff/*", "*/red"} {
+	for _, invalid := range []string{"red;background:blue", "red}", "{", "url(https://example.com/x.png)", "URL(x)", `"x"`, "a\\b", "<x>", "#fff/*", "*/red",
+		// An unclosed or stray parenthesis or bracket would pull the
+		// declarations after it into the value, or end a function early.
+		"rgb(1 2 3", "red), linear-gradient(red,red", "a[", "a]", "(]", "([)]"} {
 		if err := checkCSSValue("x", invalid); err == nil {
 			t.Errorf("checkCSSValue(%q) accepted an unsafe value", invalid)
 		}

@@ -144,8 +144,10 @@ type HeroVideoDialogOptions struct {
 	// ThumbnailAlt is the thumbnail's alt text; empty means
 	// "Video thumbnail".
 	ThumbnailAlt string
-	// ID is the id of the <dialog>. It must be unique in the document; empty
-	// derives one with [mx.UniqueID].
+	// ID is the id of the <dialog>. It must be unique in the document and
+	// may only contain letters, digits, '_' and '-', any other character
+	// makes the component render an error; empty derives one with
+	// [mx.UniqueID].
 	ID string
 }
 
@@ -168,9 +170,9 @@ type HeroVideoDialogOptions struct {
 // need a browser with the CSS overlay property, elsewhere the dialog closes
 // at once, see [shadcn.Dialog]); its spring becomes a 300ms ease-out.
 func HeroVideoDialog(opts HeroVideoDialogOptions, attribsChildren ...any) *mx.Element {
-	id := opts.ID
-	if id == "" {
-		id, _ = mx.UniqueID().AttribValue(context.Background())
+	id, err := svgRefID(opts.ID)
+	if err != nil {
+		return mx.NewErrElement(err)
 	}
 	animation := heroVideoAnimationClasses[opts.AnimationStyle.ValidOr(HeroVideoFromCenter)]
 

@@ -134,15 +134,40 @@ func (d Direction) String() string {
 
 // checkCSSValue returns an error if value could escape the CSS declaration
 // it is placed in: a ';', a brace, an angle bracket, a backslash, a quote,
-// a comment delimiter that would swallow the declarations after it, or a
-// url( that would load a resource.
+// a comment delimiter or an unbalanced parenthesis or bracket that would
+// swallow the declarations after it, or a url( that would load a resource.
 func checkCSSValue(name, value string) error {
 	if strings.ContainsAny(value, ";{}<>\\\"'") ||
 		strings.Contains(value, "/*") || strings.Contains(value, "*/") ||
-		strings.Contains(strings.ToLower(value), "url(") {
+		strings.Contains(strings.ToLower(value), "url(") ||
+		!balancedCSSBrackets(value) {
 		return fmt.Errorf("magicui: invalid CSS value %q for %s", value, name)
 	}
 	return nil
+}
+
+// balancedCSSBrackets reports whether every '(' and '[' in value is closed
+// by its matching ')' or ']' in order. CSS keeps a ';' that follows an open
+// function or block inside the value, so an unclosed one would swallow the
+// declarations after it, and a stray closer would end a function early.
+func balancedCSSBrackets(value string) bool {
+	var open []rune
+	for _, r := range value {
+		switch r {
+		case '(', '[':
+			open = append(open, r)
+		case ')', ']':
+			want := '('
+			if r == ']' {
+				want = '['
+			}
+			if len(open) == 0 || open[len(open)-1] != want {
+				return false
+			}
+			open = open[:len(open)-1]
+		}
+	}
+	return len(open) == 0
 }
 
 // styleVars formats name/value pairs as CSS declarations for a style

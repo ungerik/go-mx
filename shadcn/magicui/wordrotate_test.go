@@ -22,6 +22,11 @@ func TestWordRotate(t *testing.T) {
 
 	out = render(t, WordRotate(WordRotateOptions{Words: []string{"a", "b", "c"}, Duration: 400 * time.Millisecond}))
 	mustContain(t, out, "--word-rotate-cycle:1.2s", "--word-rotate-lead:0.1s")
+
+	// A negative Duration means the default, as in the other components,
+	// not a zero-length cycle with negative easing stops.
+	out = render(t, WordRotate(WordRotateOptions{Words: []string{"a", "b"}, Duration: -time.Second}))
+	mustContain(t, out, "--word-rotate-cycle:5s", "--word-rotate-step:2.5s")
 }
 
 func TestWordRotateSingleWord(t *testing.T) {

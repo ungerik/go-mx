@@ -15,7 +15,7 @@ func TestOrbitingCirclesDefault(t *testing.T) {
 		`data-slot="orbiting-circles" class="contents"`,
 		`<circle class="stroke-black/10 stroke-1 dark:stroke-white/10" cx="50%" cy="50%" r="160" fill="none">`,
 		`data-slot="orbiting-circles-item"`, "animate-orbit absolute flex size-(--icon-size)",
-		"--duration:20;--radius:160;--angle:0;--icon-size:30px",
+		"--duration:20;--orbiting-circles-radius:160;--angle:0;--icon-size:30px",
 		"--angle:120;", "--angle:240;",
 	)
 	if n := strings.Count(out, `data-slot="orbiting-circles-item"`); n != 3 {
@@ -26,6 +26,13 @@ func TestOrbitingCirclesDefault(t *testing.T) {
 	}
 }
 
+func TestOrbitingCirclesNegativeDurationAndSpeed(t *testing.T) {
+	// Negative values mean the defaults, like 0, not a negative --duration
+	// that makes the animation shorthand invalid.
+	out := render(t, OrbitingCircles(OrbitingCirclesOptions{Duration: -time.Second, Speed: -2}, html.Span("a")))
+	mustContain(t, out, "--duration:20;")
+}
+
 func TestOrbitingCirclesOptions(t *testing.T) {
 	out := render(t, OrbitingCircles(
 		OrbitingCirclesOptions{Reverse: true, Duration: 30 * time.Second, Speed: 2, Radius: 100, IconSize: 40, HidePath: true},
@@ -33,7 +40,7 @@ func TestOrbitingCirclesOptions(t *testing.T) {
 	))
 	mustContain(t, out,
 		"[animation-direction:reverse]", "size-12 border",
-		`style="--duration:15;--radius:100;--angle:0;--icon-size:40px;color:red"`, "--angle:180;",
+		`style="--duration:15;--orbiting-circles-radius:100;--angle:0;--icon-size:40px;color:red"`, "--angle:180;",
 	)
 	if strings.Contains(out, "<svg") {
 		t.Error("HidePath still draws the orbit")

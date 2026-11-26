@@ -44,8 +44,15 @@ func OrbitingCircles(opts OrbitingCirclesOptions, attribsChildren ...any) *mx.El
 		return split
 	}
 	radius := or(opts.Radius, 160)
-	speed := or(opts.Speed, 1)
-	duration := or(opts.Duration, 20*time.Second).Seconds() / speed
+	speed := opts.Speed
+	if speed <= 0 {
+		speed = 1
+	}
+	period := opts.Duration
+	if period <= 0 {
+		period = 20 * time.Second
+	}
+	duration := period.Seconds() / speed
 	itemClasses := shadcn.Cn(
 		"animate-orbit absolute flex size-(--icon-size) transform-gpu items-center justify-center rounded-full",
 		map[string]bool{"[animation-direction:reverse]": opts.Reverse},
@@ -75,7 +82,7 @@ func OrbitingCircles(opts OrbitingCirclesOptions, attribsChildren ...any) *mx.El
 		angle := 360 / float64(len(items)) * float64(i)
 		style, err := styleVars(
 			"--duration", num(duration),
-			"--radius", num(radius),
+			"--orbiting-circles-radius", num(radius),
 			"--angle", num(angle),
 			"--icon-size", px(or(opts.IconSize, 30)),
 		)

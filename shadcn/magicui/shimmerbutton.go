@@ -27,7 +27,7 @@ type ShimmerButtonOptions struct {
 
 // ShimmerButton renders a button with a spark of light travelling around
 // its border. The options become the CSS variables --shimmer-color, --cut,
-// --radius, --speed and --bg on the button (plus --spread: 90deg, the
+// --shimmer-button-radius, --speed and --bg on the button (plus --spread: 90deg, the
 // spark's angle), so a caller style or class can still override them.
 // A string option that could escape its CSS declaration makes the button
 // render an error.
@@ -40,7 +40,7 @@ func ShimmerButton(opts ShimmerButtonOptions, attribsChildren ...any) *mx.Elemen
 	style, err := styleVars(
 		"--spread", "90deg",
 		"--shimmer-color", or(opts.ShimmerColor, "#ffffff"),
-		"--radius", or(opts.BorderRadius, "100px"),
+		"--shimmer-button-radius", or(opts.BorderRadius, "100px"),
 		"--speed", seconds(opts.ShimmerDuration, 3*time.Second),
 		"--cut", or(opts.ShimmerSize, "0.05em"),
 		"--bg", or(opts.Background, "rgba(0, 0, 0, 1)"),
@@ -73,12 +73,12 @@ func ShimmerButton(opts ShimmerButtonOptions, attribsChildren ...any) *mx.Elemen
 		),
 		// backdrop
 		html.Div(
-			html.Class("absolute inset-(--cut) -z-20 [border-radius:var(--radius)] [background:var(--bg)]"),
+			html.Class("absolute inset-(--cut) -z-20 [border-radius:var(--shimmer-button-radius)] [background:var(--bg)]"),
 			ariaHidden,
 		),
 	)
 	return finish(root, "shimmer-button",
-		"group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px",
+		"group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--shimmer-button-radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px",
 		style,
 	)
 }
