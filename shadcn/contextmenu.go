@@ -21,7 +21,7 @@ const contextMenuScript = /*js*/ `if(!window.contextMenuOpen){window.contextMenu
 // context menu, positions the popover at the cursor, and shows it. Keyboard
 // navigation reuses the same menuKeyNav script as [DropdownMenu].
 func ContextMenu(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "context-menu", "")
+	return StyleSlot(html.Div(attribsChildren...), "context-menu", "")
 }
 
 // ContextMenuTrigger renders the wrapping area whose right-click opens the
@@ -38,7 +38,7 @@ func ContextMenuTrigger(menuID string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("oncontextmenu") < 0 {
 		e.Attribs = append(e.Attribs, html.OnContextMenu("contextMenuOpen(event,'"+menuID+"')"))
 	}
-	return finish(e, "context-menu-trigger", "")
+	return StyleSlot(e, "context-menu-trigger", "")
 }
 
 // ContextMenuContent renders the popover menu body. Unlike
@@ -91,7 +91,7 @@ func ContextMenuRadioItem(name, value string, selected bool, attribsChildren ...
 
 // ContextMenuSub wraps a sub-menu trigger and its sub-popover.
 func ContextMenuSub(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "context-menu-sub", "")
+	return StyleSlot(html.Div(attribsChildren...), "context-menu-sub", "")
 }
 
 // ContextMenuSubTrigger renders a menu item that opens its sub-popover.

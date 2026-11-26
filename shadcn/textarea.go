@@ -12,7 +12,7 @@ const textareaClasses = "border-input placeholder:text-muted-foreground focus-vi
 
 // Textarea renders a shadcn/ui textarea as a styled <textarea>.
 func Textarea(attribsChildren ...any) *mx.Element {
-	return finish(html.TextArea(attribsChildren...), "textarea", textareaClasses)
+	return StyleSlot(html.TextArea(attribsChildren...), "textarea", textareaClasses)
 }
 
 // TextareaID renders a [Textarea] with the given id, to link a [Label] or

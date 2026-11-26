@@ -13,24 +13,24 @@ func Breadcrumb(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-label") < 0 {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.BreadcrumbNav }))
 	}
-	return finish(e, "breadcrumb", "")
+	return StyleSlot(e, "breadcrumb", "")
 }
 
 // BreadcrumbList renders the breadcrumb's <ol> of items.
 func BreadcrumbList(attribsChildren ...any) *mx.Element {
-	return finish(html.OL(attribsChildren...), "breadcrumb-list",
+	return StyleSlot(html.OL(attribsChildren...), "breadcrumb-list",
 		"text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm break-words sm:gap-2.5")
 }
 
 // BreadcrumbItem renders one <li> in a [BreadcrumbList].
 func BreadcrumbItem(attribsChildren ...any) *mx.Element {
-	return finish(html.LI(attribsChildren...), "breadcrumb-item", "inline-flex items-center gap-1.5")
+	return StyleSlot(html.LI(attribsChildren...), "breadcrumb-item", "inline-flex items-center gap-1.5")
 }
 
 // BreadcrumbLink renders a breadcrumb hyperlink as an <a>. Pass html.HRef for
 // the target.
 func BreadcrumbLink(attribsChildren ...any) *mx.Element {
-	return finish(html.A(attribsChildren...), "breadcrumb-link", "hover:text-foreground transition-colors")
+	return StyleSlot(html.A(attribsChildren...), "breadcrumb-link", "hover:text-foreground transition-colors")
 }
 
 // BreadcrumbPage renders the current page in a breadcrumb: a non-link <span>
@@ -46,7 +46,7 @@ func BreadcrumbPage(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-current") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-current", "page"))
 	}
-	return finish(e, "breadcrumb-page", "text-foreground font-normal")
+	return StyleSlot(e, "breadcrumb-page", "text-foreground font-normal")
 }
 
 // BreadcrumbSeparator renders the separator <li> between breadcrumb items; it
@@ -63,7 +63,7 @@ func BreadcrumbSeparator(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{iconChevronRight()}
 	}
-	return finish(e, "breadcrumb-separator", "[&>svg]:size-3.5")
+	return StyleSlot(e, "breadcrumb-separator", "[&>svg]:size-3.5")
 }
 
 // BreadcrumbEllipsis renders a collapsed-items indicator as a <span>. With no
@@ -83,5 +83,5 @@ func BreadcrumbEllipsis(attribsChildren ...any) *mx.Element {
 			html.SpanClass("sr-only", labelText(func(l Labels) string { return l.BreadcrumbEllipsis })),
 		}
 	}
-	return finish(e, "breadcrumb-ellipsis", "flex size-9 items-center justify-center")
+	return StyleSlot(e, "breadcrumb-ellipsis", "flex size-9 items-center justify-center")
 }

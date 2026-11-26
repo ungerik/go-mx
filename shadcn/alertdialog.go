@@ -19,7 +19,7 @@ import (
 // the trigger and content are linked by the dialog id passed to
 // [AlertDialogTrigger] and [AlertDialogContent], not by DOM nesting.
 func AlertDialog(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-dialog", "")
+	return StyleSlot(html.Div(attribsChildren...), "alert-dialog", "")
 }
 
 // AlertDialogTrigger renders a button that opens the <dialog> with the given
@@ -38,7 +38,7 @@ func AlertDialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs,
 			html.OnClick("document.getElementById('"+dialogID+"').showModal()"))
 	}
-	return finish(e, "alert-dialog-trigger", "")
+	return StyleSlot(e, "alert-dialog-trigger", "")
 }
 
 // alertDialogContentClasses is shadcn's AlertDialogContent class string with
@@ -83,36 +83,36 @@ func AlertDialogContent(dialogID string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("data-size") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("size", "default"))
 	}
-	return finish(e, "alert-dialog-content", alertDialogContentClasses)
+	return StyleSlot(e, "alert-dialog-content", alertDialogContentClasses)
 }
 
 // AlertDialogHeader groups the dialog's title and description.
 func AlertDialogHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-dialog-header",
+	return StyleSlot(html.Div(attribsChildren...), "alert-dialog-header",
 		"grid grid-rows-[auto_1fr] place-items-center gap-1.5 text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-6 sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-left sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]")
 }
 
 // AlertDialogFooter groups the dialog's action buttons.
 func AlertDialogFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-dialog-footer",
+	return StyleSlot(html.Div(attribsChildren...), "alert-dialog-footer",
 		"flex flex-col-reverse gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end")
 }
 
 // AlertDialogTitle renders the dialog's title as an <h2>.
 func AlertDialogTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.H2(attribsChildren...), "alert-dialog-title",
+	return StyleSlot(html.H2(attribsChildren...), "alert-dialog-title",
 		"text-lg font-semibold sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2")
 }
 
 // AlertDialogDescription renders the dialog's description as a <p>.
 func AlertDialogDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "alert-dialog-description",
+	return StyleSlot(html.P(attribsChildren...), "alert-dialog-description",
 		"text-sm text-muted-foreground")
 }
 
 // AlertDialogMedia renders an optional icon/media slot above the title.
 func AlertDialogMedia(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-dialog-media",
+	return StyleSlot(html.Div(attribsChildren...), "alert-dialog-media",
 		"mb-2 inline-flex size-16 items-center justify-center rounded-md bg-muted sm:group-data-[size=default]/alert-dialog-content:row-span-2 *:[svg:not([class*='size-'])]:size-8")
 }
 
@@ -140,5 +140,5 @@ func alertDialogButton(attribsChildren []any, slot string, variant ButtonVariant
 	if e.AttribIndex("value") < 0 {
 		e.Attribs = append(e.Attribs, html.Value(defaultValue))
 	}
-	return finish(e, slot, ButtonClasses(variant, SizeDefault))
+	return StyleSlot(e, slot, ButtonClasses(variant, SizeDefault))
 }

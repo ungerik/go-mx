@@ -89,5 +89,5 @@ func Separator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Ele
 	if o == SeparatorVertical && e.AttribIndex("aria-orientation") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-orientation", "vertical"))
 	}
-	return finish(e, "separator", separatorClasses)
+	return StyleSlot(e, "separator", separatorClasses)
 }

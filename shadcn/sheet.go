@@ -88,7 +88,7 @@ func (s SheetSide) String() string {
 // transitions instead of Radix's data-state animations; see
 // [modalTransitionClasses].
 func Sheet(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "sheet", "")
+	return StyleSlot(html.Div(attribsChildren...), "sheet", "")
 }
 
 // SheetTrigger renders a button that opens the sheet via showModal(). Pass
@@ -106,7 +106,7 @@ func SheetTrigger(sheetID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs,
 			html.OnClick("document.getElementById('"+sheetID+"').showModal()"))
 	}
-	return finish(e, "sheet-trigger", "")
+	return StyleSlot(e, "sheet-trigger", "")
 }
 
 // sheetContentBaseClasses are the side-independent SheetContent classes. As with
@@ -151,27 +151,27 @@ func SheetContent(sheetID string, side SheetSide, attribsChildren ...any) *mx.El
 		e.Attribs = append(e.Attribs, html.OnClick("if(event.target===this)this.close()"))
 	}
 	e.Children = append(e.Children, nativeDialogCloseButton("sheet-close"))
-	return finish(e, "sheet-content", sheetContentBaseClasses+" "+sheetSideClasses(side))
+	return StyleSlot(e, "sheet-content", sheetContentBaseClasses+" "+sheetSideClasses(side))
 }
 
 // SheetHeader groups the sheet's title and description.
 func SheetHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "sheet-header", "flex flex-col gap-1.5 p-4")
+	return StyleSlot(html.Div(attribsChildren...), "sheet-header", "flex flex-col gap-1.5 p-4")
 }
 
 // SheetFooter groups the sheet's action buttons at the bottom (mt-auto).
 func SheetFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "sheet-footer", "mt-auto flex flex-col gap-2 p-4")
+	return StyleSlot(html.Div(attribsChildren...), "sheet-footer", "mt-auto flex flex-col gap-2 p-4")
 }
 
 // SheetTitle renders the sheet's title as an <h2>.
 func SheetTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.H2(attribsChildren...), "sheet-title", "text-foreground font-semibold")
+	return StyleSlot(html.H2(attribsChildren...), "sheet-title", "text-foreground font-semibold")
 }
 
 // SheetDescription renders the sheet's description as a <p>.
 func SheetDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "sheet-description", "text-muted-foreground text-sm")
+	return StyleSlot(html.P(attribsChildren...), "sheet-description", "text-muted-foreground text-sm")
 }
 
 // SheetClose renders a button that closes the enclosing sheet. Like
@@ -184,5 +184,5 @@ func SheetClose(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("this.closest('dialog').close()"))
 	}
-	return finish(e, "sheet-close", "")
+	return StyleSlot(e, "sheet-close", "")
 }

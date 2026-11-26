@@ -101,7 +101,7 @@ func ToggleGroup(groupType ToggleGroupType, variant ToggleVariant, size ToggleSi
 		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 		html.DataAttr("toggle-group", id),
 	)
-	return finish(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
+	return StyleSlot(e, "toggle-group", "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs")
 }
 
 // toggleGroupItemJoinClasses are the join classes shadcn applies on top of
@@ -142,5 +142,5 @@ func ToggleGroupItem(groupID, value string, variant ToggleVariant, size ToggleSi
 	if e.AttribIndex("onclick") < 0 && !hasHX(e) {
 		e.Attribs = append(e.Attribs, html.OnClick("toggleGroupClick(this)"))
 	}
-	return finish(e, "toggle-group-item", Cn(ToggleClasses(variant, size), toggleGroupItemJoinClasses))
+	return StyleSlot(e, "toggle-group-item", Cn(ToggleClasses(variant, size), toggleGroupItemJoinClasses))
 }

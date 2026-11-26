@@ -71,7 +71,7 @@ const commandScript = /*js*/ `if(!window.commandFilter){(function(){` +
 // Command is the filterable command palette container.
 func Command(attribsChildren ...any) *mx.Element {
 	e := html.Div(append(attribsChildren, html.ScriptJS(commandScript))...)
-	return finish(e, "command",
+	return StyleSlot(e, "command",
 		"bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md")
 }
 
@@ -92,9 +92,9 @@ func CommandInput(attribs ...mx.Attrib) *mx.Element {
 		html.Attrib("spellcheck", "false"),
 		html.OnInput("commandFilter(this)"),
 	}, attribs...)...)
-	input = finish(input, "command-input",
+	input = StyleSlot(input, "command-input",
 		"placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50")
-	return finish(html.Div(
+	return StyleSlot(html.Div(
 		icon("search", "size-4 shrink-0 opacity-50", svg.Circle(svg.CX(11), svg.CY(11), svg.R(8)), svg.Path(svg.D("m21 21-4.3-4.3"))),
 		input,
 	), "command-input-wrapper", "flex h-9 items-center gap-2 border-b px-3")
@@ -102,7 +102,7 @@ func CommandInput(attribs ...mx.Attrib) *mx.Element {
 
 // CommandList is the scrollable results region, a listbox of the items.
 func CommandList(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(append([]any{html.Role("listbox")}, attribsChildren...)...), "command-list",
+	return StyleSlot(html.Div(append([]any{html.Role("listbox")}, attribsChildren...)...), "command-list",
 		"max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto")
 }
 
@@ -114,7 +114,7 @@ func CommandEmpty(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("hidden") < 0 {
 		e.Attribs = append(e.Attribs, html.Hidden)
 	}
-	return finish(e, "command-empty", "py-6 text-center text-sm")
+	return StyleSlot(e, "command-empty", "py-6 text-center text-sm")
 }
 
 // CommandGroup is a labeled set of items. heading may be "" for no label.
@@ -135,7 +135,7 @@ func CommandGroup(heading string, attribsChildren ...any) *mx.Element {
 			heading,
 		)))
 	}
-	return finish(e, "command-group", "text-foreground overflow-hidden p-1")
+	return StyleSlot(e, "command-group", "text-foreground overflow-hidden p-1")
 }
 
 // CommandItem is one selectable row, an option of the [CommandList]. Its text
@@ -144,17 +144,17 @@ func CommandGroup(heading string, attribsChildren ...any) *mx.Element {
 // [Command]); pass html.Attrib("data-disabled", "true") to dim an item and
 // keep it from being selected.
 func CommandItem(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(append([]any{html.Role("option")}, attribsChildren...)...), "command-item",
+	return StyleSlot(html.Div(append([]any{html.Role("option")}, attribsChildren...)...), "command-item",
 		"relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground")
 }
 
 // CommandSeparator divides groups. It has role="separator", as cmdk's does.
 func CommandSeparator(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(append([]any{html.Role("separator")}, attribsChildren...)...), "command-separator", "bg-border -mx-1 h-px")
+	return StyleSlot(html.Div(append([]any{html.Role("separator")}, attribsChildren...)...), "command-separator", "bg-border -mx-1 h-px")
 }
 
 // CommandShortcut renders a right-aligned keyboard hint inside a [CommandItem].
 func CommandShortcut(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "command-shortcut",
+	return StyleSlot(html.Span(attribsChildren...), "command-shortcut",
 		"text-muted-foreground ml-auto text-xs tracking-widest")
 }

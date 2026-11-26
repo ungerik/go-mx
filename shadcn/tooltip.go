@@ -28,7 +28,7 @@ const tooltipContentClasses = "bg-primary text-primary-foreground w-fit rounded-
 // mouseover/focusin and closes it on mouseout/focusout. Provider, Portal and
 // Arrow are not ported.
 func Tooltip(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "tooltip", "inline-block")
+	return StyleSlot(html.Div(attribsChildren...), "tooltip", "inline-block")
 }
 
 // TooltipTrigger renders the wrapping element that fires the tooltip on
@@ -64,7 +64,7 @@ func TooltipTrigger(tooltipID string, attribsChildren ...any) *mx.Element {
 	// Name the trigger as the CSS anchor for TooltipContent's position-anchor;
 	// without it the content has no anchor and falls back to the viewport corner.
 	mergeStyle(e, popoverAnchorStyle(tooltipID))
-	return finish(e, "tooltip-trigger", "")
+	return StyleSlot(e, "tooltip-trigger", "")
 }
 
 // TooltipContent renders the tooltip body as a <div popover="auto"
@@ -89,5 +89,5 @@ func TooltipContent(tooltipID string, side PopoverSide, attribsChildren ...any) 
 		e.Attribs = append(e.Attribs, html.Role("tooltip"))
 	}
 	mergeStyle(e, popoverContentStyle(tooltipID, side))
-	return finish(e, "tooltip-content", tooltipContentClasses)
+	return StyleSlot(e, "tooltip-content", tooltipContentClasses)
 }

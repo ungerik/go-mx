@@ -420,7 +420,7 @@ func CalendarText(name string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("data-calendar-text") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("calendar-text", name))
 	}
-	return finish(e, "calendar-text", "data-[empty=true]:text-muted-foreground")
+	return StyleSlot(e, "calendar-text", "data-[empty=true]:text-muted-foreground")
 }
 
 // calendarDayName is the accessible name of a day: the DayLabel, wrapped in
@@ -649,7 +649,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 				}
 				isToday := !opts.Today.IsZero() && sameDay(day, opts.Today)
 				if isToday {
-					// finish merges the classes, so these replace a muted color.
+					// StyleSlot merges the classes, so these replace a muted color.
 					cls += " bg-accent text-accent-foreground"
 				}
 				// A disabled day is never selectable, so it is never marked
@@ -728,7 +728,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 					)
 				}
 				// The class is merged once per distinct string, not per day.
-				dayButton := finish(btn, "calendar-day", "")
+				dayButton := StyleSlot(btn, "calendar-day", "")
 				dayButton.Attribs = append(dayButton.Attribs, mx.NewAttrib("class", calendarDayClasses(cls)))
 				cell.Children = append(cell.Children, dayButton)
 				row.Children = append(row.Children, cell)
@@ -799,7 +799,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 			html.DataAttr("year-url", opts.MonthURL(yearOn)),
 			html.OnClick("calendarNav(this)"))
 	}
-	prevButton, nextButton := finish(prev, "calendar-prev", ""), finish(next, "calendar-next", "")
+	prevButton, nextButton := StyleSlot(prev, "calendar-prev", ""), StyleSlot(next, "calendar-next", "")
 	var structure []any
 	if count == 1 {
 		structure = []any{
@@ -837,7 +837,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 	if selectable || navigates {
 		structure = append(structure, html.ScriptJS(calendarScript))
 	}
-	// Structural children first, then any caller attribs/children; finish
+	// Structural children first, then any caller attribs/children; StyleSlot
 	// merges a caller class into the base.
 	root := html.Div(append(structure, attribsChildren...)...)
 	if selectable {
@@ -854,7 +854,7 @@ func CalendarWith(opts CalendarOptions, month, selected time.Time, attribsChildr
 			labelAttrib{name: "data-selected-label", get: func(l Labels) string { return l.CalendarSelected }},
 		)
 	}
-	return finish(root, "calendar", "bg-background w-fit rounded-md border p-3")
+	return StyleSlot(root, "calendar", "bg-background w-fit rounded-md border p-3")
 }
 
 // calendarInputs returns the hidden inputs of a calendar in select mode,
@@ -950,7 +950,7 @@ func calendarCaption(opts CalendarOptions, first time.Time, monthLabel func(time
 		// react-day-picker draws its dropdowns, so the caption keeps the
 		// calendar's look and the platform still opens the native list.
 		return html.SpanClass("relative rounded-md border border-input shadow-xs has-focus:border-ring has-focus:ring-[3px] has-focus:ring-ring/50",
-			finish(sel, slot, ""),
+			StyleSlot(sel, slot, ""),
 			html.SpanClass("flex h-8 items-center gap-1 rounded-md ps-2 pe-1 text-sm font-medium [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
 				html.Attrib("aria-hidden", "true"), shown, iconChevronDown()),
 		)

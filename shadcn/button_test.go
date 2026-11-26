@@ -88,7 +88,7 @@ func TestButtonUnknownVariantFallsBack(t *testing.T) {
 }
 
 // BenchmarkButton measures building one Button with a caller class, the
-// common case in which finish merges the caller's class into the base
+// common case in which StyleSlot merges the caller's class into the base
 // classes with Cn.
 func BenchmarkButton(b *testing.B) {
 	for b.Loop() {

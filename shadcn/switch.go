@@ -42,7 +42,7 @@ func Switch(attribs ...mx.Attrib) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("switch"))
 	}
-	return finish(e, "switch", switchClasses)
+	return StyleSlot(e, "switch", switchClasses)
 }
 
 // SwitchID renders a [Switch] with the given id, to link a [Label] or

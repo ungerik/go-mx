@@ -551,7 +551,7 @@ func TestLabelsCallerAttribStillWins(t *testing.T) {
 
 // TestLabelsCallerAttribWinsViaDedup covers the second override mechanism:
 // PaginationPrevious/Next put their label attrib FIRST and prepend it to the
-// caller's, so the caller only wins through finish's last-value-wins dedup —
+// caller's, so the caller only wins through StyleSlot's last-value-wins dedup —
 // a different path from the AttribIndex guard the other components use.
 func TestLabelsCallerAttribWinsViaDedup(t *testing.T) {
 	ctx := ContextWithLabels(context.Background(), germanLabels)

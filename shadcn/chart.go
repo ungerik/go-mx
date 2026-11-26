@@ -334,13 +334,13 @@ func Chart(kind ChartKind, data ChartData, opts ChartOptions, attribsChildren ..
 				item("var(--color-"+s.key+")", s.label)
 			}
 		}
-		structure = append(structure, finish(legend, "chart-legend", ""))
+		structure = append(structure, StyleSlot(legend, "chart-legend", ""))
 	}
 	structure = append(structure, chartTable(data, series, opts.Label, format))
 	e := html.Div(append(structure, attribsChildren...)...)
 	mergeStyle(e, strings.TrimSpace(style.String()))
 	e.Attribs = append(e.Attribs, html.DataAttr("chart", string(kind)))
-	return finish(e, "chart", chartClasses)
+	return StyleSlot(e, "chart", chartClasses)
 }
 
 // chartCartesianSVG draws a bar, line or area chart of series over data's

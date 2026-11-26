@@ -38,7 +38,7 @@ const drawerContentClasses = "open:flex flex-col fixed inset-x-0 bottom-0 top-au
 
 // Drawer wraps a trigger and its drawer content.
 func Drawer(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "drawer", "")
+	return StyleSlot(html.Div(attribsChildren...), "drawer", "")
 }
 
 // DrawerTrigger renders a button that opens the drawer via showModal(). Pass
@@ -55,7 +55,7 @@ func DrawerTrigger(drawerID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs,
 			html.OnClick("document.getElementById('"+drawerID+"').showModal()"))
 	}
-	return finish(e, "drawer-trigger", "")
+	return StyleSlot(e, "drawer-trigger", "")
 }
 
 // DrawerContent renders the bottom <dialog id=drawerID> with a grab handle on
@@ -69,31 +69,31 @@ func DrawerContent(drawerID string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("if(event.target===this)this.close()"))
 	}
-	handle := finish(html.Div(html.Attrib("onpointerdown", "drawerStart(event,this)")),
+	handle := StyleSlot(html.Div(html.Attrib("onpointerdown", "drawerStart(event,this)")),
 		"drawer-handle", "bg-muted mx-auto mt-4 h-2 w-[100px] shrink-0 cursor-grab touch-none rounded-full")
 	// Grab handle first, then the caller's children, then the shared script.
 	e.Children = append(append(mx.Components{handle}, e.Children...), html.ScriptJS(drawerScript))
-	return finish(e, "drawer-content", drawerContentClasses)
+	return StyleSlot(e, "drawer-content", drawerContentClasses)
 }
 
 // DrawerHeader groups the drawer's title and description.
 func DrawerHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "drawer-header", "flex flex-col gap-1.5 p-4 text-center md:text-left")
+	return StyleSlot(html.Div(attribsChildren...), "drawer-header", "flex flex-col gap-1.5 p-4 text-center md:text-left")
 }
 
 // DrawerFooter groups the drawer's action buttons at the bottom.
 func DrawerFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "drawer-footer", "mt-auto flex flex-col gap-2 p-4")
+	return StyleSlot(html.Div(attribsChildren...), "drawer-footer", "mt-auto flex flex-col gap-2 p-4")
 }
 
 // DrawerTitle renders the drawer's title as an <h2>.
 func DrawerTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.H2(attribsChildren...), "drawer-title", "text-foreground font-semibold")
+	return StyleSlot(html.H2(attribsChildren...), "drawer-title", "text-foreground font-semibold")
 }
 
 // DrawerDescription renders the drawer's description as a <p>.
 func DrawerDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "drawer-description", "text-muted-foreground text-sm")
+	return StyleSlot(html.P(attribsChildren...), "drawer-description", "text-muted-foreground text-sm")
 }
 
 // DrawerClose renders a button that closes the enclosing drawer. Like
@@ -106,5 +106,5 @@ func DrawerClose(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("this.closest('dialog').close()"))
 	}
-	return finish(e, "drawer-close", "")
+	return StyleSlot(e, "drawer-close", "")
 }

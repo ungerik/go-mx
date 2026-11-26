@@ -23,5 +23,5 @@ func AspectRatio(ratio float64, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs,
 			html.Style("aspect-ratio: "+strconv.FormatFloat(ratio, 'f', -1, 64)))
 	}
-	return finish(e, "aspect-ratio", "")
+	return StyleSlot(e, "aspect-ratio", "")
 }

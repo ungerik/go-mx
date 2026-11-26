@@ -236,5 +236,5 @@ func Button(variant ButtonVariant, size ButtonSize, attribsChildren ...any) *mx.
 		html.DataAttr("variant", string(variant)),
 		html.DataAttr("size", string(size)),
 	)
-	return finish(e, "button", ButtonClasses(variant, size))
+	return StyleSlot(e, "button", ButtonClasses(variant, size))
 }

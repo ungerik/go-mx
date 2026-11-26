@@ -24,7 +24,7 @@ import (
 // animate-pulse instead (not under prefers-reduced-motion); with
 // [UseUtilities] it shimmers.
 func Trace(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "trace",
+	return StyleSlot(html.Div(attribsChildren...), "trace",
 		"flex w-full min-w-0 flex-col *:has-[>[data-slot=trace-line]]:flex *:has-[>[data-slot=trace-line]]:w-fit *:has-[>[data-slot=trace-line]]:max-w-full *:has-[>[data-slot=trace-line]]:min-w-0 *:has-[>[data-slot=trace-line]]:text-left *:has-[>[data-slot=trace-line]]:outline-none gap-2 *:has-[>[data-slot=trace-line]]:rounded-md *:has-[>[data-slot=trace-line]]:focus-visible:ring-3 *:has-[>[data-slot=trace-line]]:focus-visible:ring-ring/50")
 }
 
@@ -104,7 +104,7 @@ func TraceLine(status TraceStatus, attribsChildren ...any) *mx.Element {
 	if status.Valid() {
 		e.Attribs = append(e.Attribs, html.DataAttr("status", string(status)))
 	}
-	return finish(e, "trace-line",
+	return StyleSlot(e, "trace-line",
 		"flex w-fit max-w-full min-w-0 items-center text-muted-foreground transition-colors in-[a,button,summary]:cursor-pointer in-[a:hover,button:hover,summary:hover]:text-foreground data-[status=error]:text-destructive data-[status=error]:in-[a:hover,button:hover,summary:hover]:text-destructive data-[status=pending]:opacity-60 "+utilityClasses("data-[status=running]:*:data-[slot=trace-title]:shimmer motion-reduce:shimmer-none", "motion-safe:data-[status=running]:*:data-[slot=trace-title]:animate-pulse")+" gap-2 text-sm")
 }
 
@@ -120,18 +120,18 @@ func TraceIcon(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-hidden") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-hidden", "true"))
 	}
-	return finish(e, "trace-icon", traceIconClasses)
+	return StyleSlot(e, "trace-icon", traceIconClasses)
 }
 
 // TraceTitle renders a [TraceLine]'s title, truncated to one line.
 func TraceTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "trace-title", "min-w-0 truncate")
+	return StyleSlot(html.Span(attribsChildren...), "trace-title", "min-w-0 truncate")
 }
 
 // TraceDescription renders a [TraceLine]'s secondary text, such as a
 // duration, after the title.
 func TraceDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "trace-description",
+	return StyleSlot(html.Span(attribsChildren...), "trace-description",
 		"shrink-0 text-muted-foreground/70 tabular-nums")
 }
 
@@ -141,7 +141,7 @@ func TraceDescription(attribsChildren ...any) *mx.Element {
 // controlled open/onOpenChange has no counterpart; the browser owns the
 // state.
 func TraceCollapsible(attribsChildren ...any) *mx.Element {
-	return finish(Collapsible(attribsChildren...), "trace-collapsible",
+	return StyleSlot(Collapsible(attribsChildren...), "trace-collapsible",
 		"flex w-full min-w-0 flex-col")
 }
 
@@ -152,9 +152,9 @@ func TraceCollapsible(attribsChildren ...any) *mx.Element {
 // group-aria-expanded becomes [details[open]>summary>&]), so a nested
 // TraceCollapsible does not turn the outer chevron.
 func TraceCollapsibleTrigger(attribsChildren ...any) *mx.Element {
-	chevron := finish(html.Span(html.Attrib("aria-hidden", "true"), iconChevronRight()), "trace-icon",
+	chevron := StyleSlot(html.Span(html.Attrib("aria-hidden", "true"), iconChevronRight()), "trace-icon",
 		Cn(traceIconClasses, "transition-transform [details[open]>summary>&]:rotate-90"))
-	return finish(CollapsibleTrigger(append(attribsChildren, chevron)...), "trace-collapsible-trigger",
+	return StyleSlot(CollapsibleTrigger(append(attribsChildren, chevron)...), "trace-collapsible-trigger",
 		"group/trace-collapsible-trigger flex w-fit max-w-full min-w-0 cursor-pointer items-center text-left text-muted-foreground transition-colors outline-none hover:text-foreground has-[[data-status=error]]:text-destructive gap-1 rounded-md focus-visible:ring-3 focus-visible:ring-ring/50")
 }
 
@@ -167,7 +167,7 @@ func TraceCollapsibleContent(attribsChildren ...any) *mx.Element {
 	e := CollapsibleContent(attribsChildren...)
 	inner := html.Div(takeClassAttribs(e)...)
 	inner.Children = e.Children
-	e.Children = mx.Components{finish(inner, "trace-collapsible-content-inner",
+	e.Children = mx.Components{StyleSlot(inner, "trace-collapsible-content-inner",
 		"min-w-0 wrap-break-word text-muted-foreground mt-2 mb-1 ml-[calc(--spacing(2)-1px)] border-l pr-1 pl-4 leading-relaxed")}
-	return finish(e, "trace-collapsible-content", "min-w-0 overflow-hidden")
+	return StyleSlot(e, "trace-collapsible-content", "min-w-0 overflow-hidden")
 }

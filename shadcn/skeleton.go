@@ -9,6 +9,6 @@ import (
 // stands in for content which has not loaded yet. Give it sizing classes
 // (e.g. html.Class("h-4 w-32")) to match the content it replaces.
 func Skeleton(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "skeleton",
+	return StyleSlot(html.Div(attribsChildren...), "skeleton",
 		"bg-accent animate-pulse rounded-md")
 }

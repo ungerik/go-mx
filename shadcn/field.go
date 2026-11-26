@@ -122,7 +122,7 @@ func Field(orientation FieldOrientation, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
 	e.Attribs = append(e.Attribs, html.DataAttr("orientation", string(o)))
-	return finish(e, "field",
+	return StyleSlot(e, "field",
 		Cn(fieldVariants(map[string]string{"orientation": string(o)})))
 }
 
@@ -130,16 +130,16 @@ func Field(orientation FieldOrientation, attribsChildren ...any) *mx.Element {
 // container the responsive orientation queries (@container/field-group).
 func FieldGroup(attribsChildren ...any) *mx.Element {
 	// Upstream's data-[slot=checkbox-group]:gap-3 self-selector is dropped:
-	// finish always sets this element's data-slot to "field-group", so it
+	// StyleSlot always sets this element's data-slot to "field-group", so it
 	// could never match (same policy as the cn-font-heading drop in empty.go).
-	return finish(html.Div(attribsChildren...), "field-group",
+	return StyleSlot(html.Div(attribsChildren...), "field-group",
 		"group/field-group @container/field-group flex w-full flex-col gap-7 *:data-[slot=field-group]:gap-4")
 }
 
 // FieldSet groups related [Field]s as a native <fieldset>, titled by a
 // [FieldLegend].
 func FieldSet(attribsChildren ...any) *mx.Element {
-	return finish(html.FieldSet(attribsChildren...), "field-set",
+	return StyleSlot(html.FieldSet(attribsChildren...), "field-set",
 		"flex flex-col gap-6 has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3")
 }
 
@@ -207,14 +207,14 @@ func FieldLegend(variant FieldLegendVariant, attribsChildren ...any) *mx.Element
 	variant = variant.ValidOr(FieldLegendDefault)
 	e := html.Element("legend", attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
-	return finish(e, "field-legend",
+	return StyleSlot(e, "field-legend",
 		"mb-3 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base")
 }
 
 // FieldContent stacks a [FieldTitle]/[FieldDescription] next to a control
 // (e.g. beside a Checkbox in a horizontal [Field]), filling the free space.
 func FieldContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "field-content",
+	return StyleSlot(html.Div(attribsChildren...), "field-content",
 		"group/field-content flex flex-1 flex-col leading-snug gap-1")
 }
 
@@ -255,7 +255,7 @@ var fieldLabelClasses = Cn(labelClasses,
 // ring is drawn once, while a control labelled inline keeps its own ring. A
 // checked card keeps its selected tint under the pointer.
 func FieldLabel(attribsChildren ...any) *mx.Element {
-	return finish(html.Label(attribsChildren...), "field-label", fieldLabelClasses)
+	return StyleSlot(html.Label(attribsChildren...), "field-label", fieldLabelClasses)
 }
 
 // FieldLabelFor is a [FieldLabel] bound to the control with the given id, as
@@ -268,13 +268,13 @@ func FieldLabelFor(id string, attribsChildren ...any) *mx.Element {
 // upstream it emits data-slot="field-label" so the [Field] layout classes
 // treat it as the label.
 func FieldTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "field-label",
+	return StyleSlot(html.Div(attribsChildren...), "field-label",
 		"flex w-fit items-center gap-2 leading-snug text-sm font-medium group-data-[disabled=true]/field:opacity-50")
 }
 
 // FieldDescription renders helper text for a [Field].
 func FieldDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "field-description",
+	return StyleSlot(html.P(attribsChildren...), "field-description",
 		"text-muted-foreground text-left text-sm leading-normal font-normal group-data-[orientation=horizontal]/field:text-balance last:mt-0 nth-last-2:-mt-1 [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary [[data-variant=legend]+&]:-mt-1.5")
 }
 
@@ -294,7 +294,7 @@ func FieldSeparator(attribsChildren ...any) *mx.Element {
 		span.Children = content
 		e.Children = append(e.Children, span)
 	}
-	return finish(e, "field-separator",
+	return StyleSlot(e, "field-separator",
 		"relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2")
 }
 
@@ -308,5 +308,5 @@ func FieldError(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	return finish(e, "field-error", "font-normal text-destructive text-sm")
+	return StyleSlot(e, "field-error", "font-normal text-destructive text-sm")
 }

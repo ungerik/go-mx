@@ -113,13 +113,13 @@ func ButtonGroup(orientation ButtonGroupOrientation, attribsChildren ...any) *mx
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
 	e.Attribs = append(e.Attribs, html.DataAttr("orientation", string(o)))
-	return finish(e, "button-group", ButtonGroupClasses(o))
+	return StyleSlot(e, "button-group", ButtonGroupClasses(o))
 }
 
 // ButtonGroupText renders static text (or an icon) inline with the buttons
 // of a [ButtonGroup].
 func ButtonGroupText(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "button-group-text",
+	return StyleSlot(html.Div(attribsChildren...), "button-group-text",
 		"flex items-center [&_svg]:pointer-events-none bg-muted gap-2 rounded-md border px-2.5 text-sm font-medium shadow-xs [&_svg:not([class*='size-'])]:size-4")
 }
 
@@ -137,7 +137,7 @@ const buttonGroupSeparatorClasses = "relative self-stretch data-[orientation=hor
 // win the merge (bg-input over bg-border, h-auto over h-full) while any
 // caller class still wins over them.
 func ButtonGroupSeparator(orientation SeparatorOrientation, attribsChildren ...any) *mx.Element {
-	return finish(
+	return StyleSlot(
 		Separator(orientation.ValidOr(SeparatorVertical), append([]any{html.Class(buttonGroupSeparatorClasses)}, attribsChildren...)...),
 		"button-group-separator", "")
 }

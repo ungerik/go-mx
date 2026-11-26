@@ -88,7 +88,7 @@ func checkRecorded(t *testing.T, got, want map[string]any) {
 
 func TestFinish(t *testing.T) {
 	t.Run("base only", func(t *testing.T) {
-		out := render(t, finish(html.Div(), "thing", "p-2 text-sm"))
+		out := render(t, StyleSlot(html.Div(), "thing", "p-2 text-sm"))
 		if !strings.Contains(out, `data-slot="thing"`) {
 			t.Errorf("missing data-slot: %s", out)
 		}
@@ -98,7 +98,7 @@ func TestFinish(t *testing.T) {
 	})
 
 	t.Run("caller class overrides base", func(t *testing.T) {
-		out := render(t, finish(html.Div(html.Class("p-8")), "thing", "p-2 text-sm"))
+		out := render(t, StyleSlot(html.Div(html.Class("p-8")), "thing", "p-2 text-sm"))
 		if strings.Contains(out, "p-2") {
 			t.Errorf("conflicting base class p-2 should be dropped: %s", out)
 		}
@@ -108,7 +108,7 @@ func TestFinish(t *testing.T) {
 	})
 
 	t.Run("two caller class attribs merge into one", func(t *testing.T) {
-		out := render(t, finish(html.Div(html.Class("p-2"), html.Class("m-4")), "thing", "text-sm"))
+		out := render(t, StyleSlot(html.Div(html.Class("p-2"), html.Class("m-4")), "thing", "text-sm"))
 		if n := strings.Count(out, "class="); n != 1 {
 			t.Errorf("expected exactly one class attribute, got %d: %s", n, out)
 		}
@@ -120,21 +120,21 @@ func TestFinish(t *testing.T) {
 	})
 
 	t.Run("caller data-slot is dropped", func(t *testing.T) {
-		out := render(t, finish(html.Div(html.DataAttr("slot", "evil")), "thing", ""))
+		out := render(t, StyleSlot(html.Div(html.DataAttr("slot", "evil")), "thing", ""))
 		if !strings.Contains(out, `data-slot="thing"`) || strings.Contains(out, "evil") {
 			t.Errorf("caller data-slot must not override component slot: %s", out)
 		}
 	})
 
 	t.Run("duplicate attribute last wins, no render error", func(t *testing.T) {
-		out := render(t, finish(html.Div(html.ID("a"), html.ID("b")), "thing", ""))
+		out := render(t, StyleSlot(html.Div(html.ID("a"), html.ID("b")), "thing", ""))
 		if !strings.Contains(out, `id="b"`) || strings.Contains(out, `id="a"`) {
 			t.Errorf("last id should win: %s", out)
 		}
 	})
 
 	t.Run("attribute order: data-slot first, class last", func(t *testing.T) {
-		out := render(t, finish(html.Div(html.ID("x")), "thing", "p-2"))
+		out := render(t, StyleSlot(html.Div(html.ID("x")), "thing", "p-2"))
 		if !strings.HasPrefix(out, `<div data-slot="thing" id="x" class="`) {
 			t.Errorf("unexpected attribute order: %s", out)
 		}

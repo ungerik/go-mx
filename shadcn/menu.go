@@ -77,7 +77,7 @@ func menuContent(slot, popoverID string, side PopoverSide, anchored, submenu boo
 	if anchored {
 		mergeStyle(e, popoverContentStyle(popoverID, side))
 	}
-	return finish(e, slot, menuContentClasses)
+	return StyleSlot(e, slot, menuContentClasses)
 }
 
 // menuItem builds a generic menu item <div role=menuitem tabindex=-1>. slot
@@ -90,7 +90,7 @@ func menuItem(slot string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("tabindex") < 0 {
 		e.Attribs = append(e.Attribs, html.TabIndex(-1))
 	}
-	return finish(e, slot, menuItemClasses)
+	return StyleSlot(e, slot, menuItemClasses)
 }
 
 // menuCheckboxItem builds a checkbox-style menu item. checked drives
@@ -113,7 +113,7 @@ func menuCheckboxItem(slot string, checked bool, attribsChildren ...any) *mx.Ele
 		indicator.Children = mx.Components{iconCheck()}
 	}
 	e.Children = append(mx.Components{indicator}, e.Children...)
-	return finish(e, slot, menuCheckRadioItemClasses)
+	return StyleSlot(e, slot, menuCheckRadioItemClasses)
 }
 
 // menuRadioItem builds a radio-style menu item. name + value identify the
@@ -143,12 +143,12 @@ func menuRadioItem(slot, name, value string, selected bool, attribsChildren ...a
 		indicator.Children = mx.Components{iconCircle()}
 	}
 	e.Children = append(mx.Components{indicator}, e.Children...)
-	return finish(e, slot, menuCheckRadioItemClasses)
+	return StyleSlot(e, slot, menuCheckRadioItemClasses)
 }
 
 // menuLabel renders a non-interactive label inside a menu.
 func menuLabel(slot string, attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), slot, menuLabelClasses)
+	return StyleSlot(html.Div(attribsChildren...), slot, menuLabelClasses)
 }
 
 // menuSeparator renders a horizontal divider between menu sections.
@@ -157,7 +157,7 @@ func menuSeparator(slot string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("separator"))
 	}
-	return finish(e, slot, menuSeparatorClasses)
+	return StyleSlot(e, slot, menuSeparatorClasses)
 }
 
 // menuGroup renders a logical group of menu items (role="group").
@@ -166,7 +166,7 @@ func menuGroup(slot string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
-	return finish(e, slot, "")
+	return StyleSlot(e, slot, "")
 }
 
 // menuRadioGroup renders a group of radio items sharing one name.
@@ -181,12 +181,12 @@ func menuRadioGroup(slot, name string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("data-radio-group") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("radio-group", name))
 	}
-	return finish(e, slot, "")
+	return StyleSlot(e, slot, "")
 }
 
 // menuShortcut renders a keyboard-shortcut hint floated to the right of an item.
 func menuShortcut(slot string, attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), slot, menuShortcutClasses)
+	return StyleSlot(html.Span(attribsChildren...), slot, menuShortcutClasses)
 }
 
 // menuSubTrigger builds a menu item that opens a sub-popover. It uses
@@ -217,5 +217,5 @@ func menuSubTrigger(slot, popoverID string, attribsChildren ...any) *mx.Element 
 	}
 	mergeStyle(e, popoverAnchorStyle(popoverID))
 	e.Children = append(e.Children, html.SpanClass("ml-auto", iconChevronRight()))
-	return finish(e, slot, menuItemClasses)
+	return StyleSlot(e, slot, menuItemClasses)
 }

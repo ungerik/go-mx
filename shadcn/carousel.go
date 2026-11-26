@@ -13,19 +13,19 @@ import (
 // inline onclick — the only JS, since there is no declarative "scroll by a page"
 // control. embla's autoplay, loop and orientation options are not reproduced.
 func Carousel(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "carousel", "relative")
+	return StyleSlot(html.Div(attribsChildren...), "carousel", "relative")
 }
 
 // CarouselContent is the scroll-snap track. Children are [CarouselItem]s.
 func CarouselContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "carousel-content",
+	return StyleSlot(html.Div(attribsChildren...), "carousel-content",
 		"flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")
 }
 
 // CarouselItem is one snap slide. It defaults to one slide per view
 // (basis-full); pass html.Class("basis-1/2") etc. to show several.
 func CarouselItem(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "carousel-item",
+	return StyleSlot(html.Div(attribsChildren...), "carousel-item",
 		"min-w-0 shrink-0 grow-0 basis-full snap-start pl-4 first:pl-0")
 }
 
@@ -50,7 +50,7 @@ func CarouselPrevious(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.CarouselPrevious }))
 	}
 	e.Children = append(e.Children, iconChevronLeft())
-	return finish(e, "carousel-previous",
+	return StyleSlot(e, "carousel-previous",
 		ButtonClasses(ButtonOutline, SizeIcon)+" absolute top-1/2 -left-12 size-8 -translate-y-1/2 rounded-full")
 }
 
@@ -69,6 +69,6 @@ func CarouselNext(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.CarouselNext }))
 	}
 	e.Children = append(e.Children, iconChevronRight())
-	return finish(e, "carousel-next",
+	return StyleSlot(e, "carousel-next",
 		ButtonClasses(ButtonOutline, SizeIcon)+" absolute top-1/2 -right-12 size-8 -translate-y-1/2 rounded-full")
 }

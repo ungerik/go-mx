@@ -122,7 +122,7 @@ var bubbleVariants = cva.New(cva.Config{
 
 // BubbleGroup stacks consecutive [Bubble]s of one sender.
 func BubbleGroup(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "bubble-group",
+	return StyleSlot(html.Div(attribsChildren...), "bubble-group",
 		"flex min-w-0 flex-col gap-2")
 }
 
@@ -138,7 +138,7 @@ func Bubble(variant BubbleVariant, align ChatAlign, attribsChildren ...any) *mx.
 		html.DataAttr("variant", v),
 		html.DataAttr("align", a),
 	)
-	return finish(e, "bubble", Cn(bubbleVariants(map[string]string{"variant": v})))
+	return StyleSlot(e, "bubble", Cn(bubbleVariants(map[string]string{"variant": v})))
 }
 
 // BubbleContent renders a [Bubble]'s text. It must be the bubble's direct
@@ -151,7 +151,7 @@ func Bubble(variant BubbleVariant, align ChatAlign, attribsChildren ...any) *mx.
 func BubbleContent(attribsChildren ...any) *mx.Element {
 	e := html.Div(attribsChildren...)
 	e.Name = renderTag(e, "div")
-	return finish(e, "bubble-content",
+	return StyleSlot(e, "bubble-content",
 		"w-fit max-w-full min-w-0 overflow-hidden wrap-break-word [button]:text-left [button,a]:transition-colors rounded-xl border border-transparent px-3 py-2 text-sm leading-relaxed [button,a]:outline-none [button,a]:focus-visible:border-ring [button,a]:focus-visible:ring-3 [button,a]:focus-visible:ring-ring/50 group-data-[align=end]/bubble:self-end")
 }
 
@@ -244,6 +244,6 @@ func BubbleReactions(side BubbleReactionsSide, align ChatAlign, attribsChildren 
 		html.DataAttr("align", a),
 		html.DataAttr("side", s),
 	)
-	return finish(e, "bubble-reactions",
+	return StyleSlot(e, "bubble-reactions",
 		Cn(bubbleReactionsVariants(map[string]string{"side": s, "align": a})))
 }

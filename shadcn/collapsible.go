@@ -20,7 +20,7 @@ import (
 //
 // Pass html.Open to start in the open state.
 func Collapsible(attribsChildren ...any) *mx.Element {
-	return finish(html.Details(attribsChildren...), "collapsible", "group")
+	return StyleSlot(html.Details(attribsChildren...), "collapsible", "group")
 }
 
 // CollapsibleTrigger renders the always-visible disclosure trigger as a
@@ -28,7 +28,7 @@ func Collapsible(attribsChildren ...any) *mx.Element {
 // so callers can supply their own chevron — typically with the group-open:
 // variant to rotate it when [Collapsible] is open.
 func CollapsibleTrigger(attribsChildren ...any) *mx.Element {
-	return finish(html.Summary(attribsChildren...), "collapsible-trigger",
+	return StyleSlot(html.Summary(attribsChildren...), "collapsible-trigger",
 		"list-none cursor-pointer [&::-webkit-details-marker]:hidden")
 }
 
@@ -36,5 +36,5 @@ func CollapsibleTrigger(attribsChildren ...any) *mx.Element {
 // plain <div>. shadcn's Radix-driven height animation is dropped; the content
 // snaps in.
 func CollapsibleContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "collapsible-content", "")
+	return StyleSlot(html.Div(attribsChildren...), "collapsible-content", "")
 }

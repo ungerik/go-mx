@@ -44,7 +44,7 @@ func ScrollArea(attribsChildren ...any) *mx.Element {
 		// see the initial content arrive rather than measuring after it.
 		e.Children = append([]mx.Component{html.ScriptJS(stickToBottomScript)}, e.Children...)
 	}
-	return finish(e, "scroll-area", scrollAreaClasses)
+	return StyleSlot(e, "scroll-area", scrollAreaClasses)
 }
 
 // stickToBottomAttr marks a [ScrollArea] as scroll-anchored. It is what the

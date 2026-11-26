@@ -7,21 +7,22 @@ import (
 	"github.com/ungerik/go-mx"
 )
 
-// finish completes a shadcn component element. It merges the component's base
-// classes with any caller-supplied class attributes via [Cn], guarantees a
-// single data-slot attribute, and rebuilds the element's attributes in a
+// StyleSlot completes a shadcn component element. It merges the component's
+// base classes with any caller-supplied class attributes via [Cn], guarantees
+// a single data-slot attribute, and rebuilds the element's attributes in a
 // stable order.
 //
 // The go-mx CheckedWriter rejects a duplicate attribute name on one element,
 // so a component that carries base classes and also accepts a caller-supplied
-// class must merge them into one class attribute itself. finish is that merge
-// step, shared by every component in this package.
+// class must merge them into one class attribute itself. StyleSlot is that
+// merge step, shared by every component in this package and exported for
+// add-on packages built on it, such as shadcn/magicui.
 //
 // Caller attributes are deduplicated by name (last value wins) so an
 // accidental duplicate never causes a render error. A caller-supplied
 // data-slot is dropped: the slot identifies the component and is not
 // caller-configurable.
-func finish(e *mx.Element, slot, baseClasses string) *mx.Element {
+func StyleSlot(e *mx.Element, slot, baseClasses string) *mx.Element {
 	var (
 		callerClasses []string
 		other         = make([]mx.Attrib, 0, len(e.Attribs))

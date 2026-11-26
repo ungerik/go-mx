@@ -64,7 +64,7 @@ func sliderSingle(min, max, step, value float64, attribsChildren ...any) *mx.Ele
 	if e.AttribIndex("value") < 0 {
 		e.Attribs = append(e.Attribs, html.Value(value))
 	}
-	return finish(e, "slider", "w-full "+sliderInputBase)
+	return StyleSlot(e, "slider", "w-full "+sliderInputBase)
 }
 
 func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...any) *mx.Element {
@@ -75,8 +75,8 @@ func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...a
 		widthPct = fmtFloat((hi-lo)/rangeSize*100) + "%"
 	}
 
-	track := finish(html.Div(
-		finish(html.Div(html.Style("left: "+leftPct+"; width: "+widthPct)),
+	track := StyleSlot(html.Div(
+		StyleSlot(html.Div(html.Style("left: "+leftPct+"; width: "+widthPct)),
 			"slider-range", "bg-primary absolute h-full"),
 	), "slider-track", "bg-muted relative h-1.5 w-full rounded-full overflow-hidden")
 
@@ -107,7 +107,7 @@ func sliderRange(min, max, step, lo, hi float64, id string, attribsChildren ...a
 		mkInput(hi),
 		html.ScriptJS(sliderClampScript),
 	)
-	return finish(e, "slider", "relative flex w-full touch-none items-center select-none h-4")
+	return StyleSlot(e, "slider", "relative flex w-full touch-none items-center select-none h-4")
 }
 
 func fmtFloat(f float64) string {

@@ -28,13 +28,13 @@ func Menubar(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("menubar"))
 	}
-	return finish(e, "menubar", menubarClasses)
+	return StyleSlot(e, "menubar", menubarClasses)
 }
 
 // MenubarMenu wraps one menu (trigger + content) inside a [Menubar]. It is
 // purely structural.
 func MenubarMenu(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "menubar-menu", "")
+	return StyleSlot(html.Div(attribsChildren...), "menubar-menu", "")
 }
 
 // MenubarTrigger renders the button for one [MenubarMenu]. menuID is
@@ -67,7 +67,7 @@ func MenubarTrigger(menuID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.OnMouseEnter("menubarHover(this)"))
 	}
 	mergeStyle(e, popoverAnchorStyle(menuID))
-	return finish(e, "menubar-trigger", menubarTriggerClasses)
+	return StyleSlot(e, "menubar-trigger", menubarTriggerClasses)
 }
 
 // MenubarContent renders the popover menu body for one [MenubarMenu]. side
@@ -118,7 +118,7 @@ func MenubarRadioItem(name, value string, selected bool, attribsChildren ...any)
 
 // MenubarSub wraps a sub-menu trigger and its sub-popover.
 func MenubarSub(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "menubar-sub", "")
+	return StyleSlot(html.Div(attribsChildren...), "menubar-sub", "")
 }
 
 // MenubarSubTrigger renders a menu item that opens its sub-popover.

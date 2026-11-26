@@ -100,11 +100,11 @@ func NativeSelect(size NativeSelectSize, attribsChildren ...any) *mx.Element {
 
 	wrapper := html.Div(append(wrapperClasses,
 		html.DataAttr("size", s),
-		finish(sel, "native-select", nativeSelectClasses),
-		finish(chevron, "native-select-icon",
+		StyleSlot(sel, "native-select", nativeSelectClasses),
+		StyleSlot(chevron, "native-select-icon",
 			"pointer-events-none absolute select-none text-muted-foreground top-1/2 right-2.5 size-4 -translate-y-1/2"),
 	)...)
-	return finish(wrapper, "native-select-wrapper",
+	return StyleSlot(wrapper, "native-select-wrapper",
 		"group/native-select relative w-fit has-[select:disabled]:opacity-50")
 }
 
@@ -118,7 +118,7 @@ func NativeSelectOption(value string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("value") < 0 {
 		e.Attribs = append(e.Attribs, html.Value(value))
 	}
-	return finish(e, "native-select-option", "bg-[Canvas] text-[CanvasText]")
+	return StyleSlot(e, "native-select-option", "bg-[Canvas] text-[CanvasText]")
 }
 
 // NativeSelectOptGroup renders an <optgroup> of a [NativeSelect]. label is the
@@ -128,5 +128,5 @@ func NativeSelectOptGroup(label string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("label") < 0 {
 		e.Attribs = append(e.Attribs, html.LabelAttr(label))
 	}
-	return finish(e, "native-select-optgroup", "bg-[Canvas] text-[CanvasText]")
+	return StyleSlot(e, "native-select-optgroup", "bg-[Canvas] text-[CanvasText]")
 }
