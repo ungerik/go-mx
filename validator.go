@@ -10,7 +10,7 @@ package mx
 // Types that can produce a richer error should implement
 // Validate() error, or Normalize() error / Normalize() []error if they
 // also canonicalize the value in place. See the validation chain in
-// validation_chain.go for the full ordering.
+// validationchain.go for the full ordering.
 type Validator interface {
 	Valid() bool
 }
@@ -21,7 +21,7 @@ type Validator interface {
 // receivers because they need to write back the normalized value.
 //
 // When a type implements multiple validator methods, Normalize() []error
-// wins over the others (see validation_chain.go).
+// wins over the others (see validationchain.go).
 type Normalizer interface {
 	Normalize() []error
 }
