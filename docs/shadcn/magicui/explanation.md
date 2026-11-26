@@ -92,7 +92,8 @@ redefine one of Tailwind's own animations that `shadcn` components rely on.
 **Options that become CSS are validated.** Colors and lengths from options go
 into `style` as custom properties. A value that could end the declaration or
 load a resource (`;`, braces, angle brackets, quotes, backslashes, comment
-delimiters, `url(`) makes the component render an error instead.
+delimiters, unbalanced parentheses or brackets, `url(`) makes the component
+render an error instead.
 
 ## Trade-offs
 

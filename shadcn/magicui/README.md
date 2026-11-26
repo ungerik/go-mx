@@ -69,8 +69,9 @@ so it wins too.
 
 Colors, lengths and other CSS values from options are set as CSS custom
 properties in `style`. A value holding `;`, a brace, an angle bracket, a
-backslash, a quote or `url(` is rejected: the component renders an error
-instead of the injected CSS.
+backslash, a quote, a comment delimiter, `url(` or an unbalanced parenthesis
+or bracket is rejected: the component renders an error instead of the
+injected CSS.
 
 ## Differences from upstream
 

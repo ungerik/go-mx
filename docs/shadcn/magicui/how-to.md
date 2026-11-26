@@ -332,7 +332,7 @@ error says what to fix:
 
 | Error | Cause | Fix |
 |---|---|---|
-| `magicui: invalid CSS value "…" for --shimmer-color` | A color, length or other CSS option holds `;`, a brace, an angle bracket, a backslash, a quote, a comment delimiter or `url(`, any of which could break out of the `style` attribute | Pass a plain CSS value such as `#3b82f6`, `oklch(70% 0.2 250)` or `12px`. Check user-supplied values before passing them in. |
+| `magicui: invalid CSS value "…" for --shimmer-color` | A color, length or other CSS option holds `;`, a brace, an angle bracket, a backslash, a quote, a comment delimiter, `url(` or an unbalanced parenthesis or bracket, any of which could break out of the `style` attribute | Pass a plain CSS value such as `#3b82f6`, `oklch(70% 0.2 250)` or `12px`. Check user-supplied values before passing them in. |
 | `magicui: invalid id "…": only letters, digits, '_' and '-' are allowed` | An `ID` option holds another character | Use a slug like `hero-phone` |
 | `magicui: Marquee Repeat -1 is negative` | A count option is negative | Use 0 for the default, or a positive count |
 | `magicui: … children must be text, got …` | `TextAnimate`, `TextReveal`, `SpinningText`, `Text3DFlip` or `LineShadowText` got a non-text child | Pass strings; put attributes such as `html.Class` before them |

@@ -25,7 +25,7 @@ html.Div(html.Class("card"),
   reference for the `hx` htmx attributes and for streaming components to a page
   over Server-Sent Events: `mx.SSEResponse`, `mx.KeyedID`, the `hx.SSE*`
   attributes, `shadcn.StickToBottom` and the `logview` log viewer.
-- **[Component gallery](shadcn/gallery/)** — every ported shadcn/ui component, rendered
+- **[Component gallery](shadcn/gallery/)** — every ported shadcn/ui and Magic UI component, rendered
   server-side in Go and shown next to its source. A pre-rendered static copy of
   the live `cmd/shadcn-gallery` app.
 - **[shadcn package docs](shadcn/)** — a tutorial, task-oriented how-to guides,
