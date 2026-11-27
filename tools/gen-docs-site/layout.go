@@ -132,11 +132,11 @@ func shell(nav []navSection, file, title string, content mx.Component) *html.Doc
 }
 
 // codeThemeCSS is the stylesheet of the code blocks: the colors of
-// highlight.LightTheme, and those of highlight.DarkTheme below the .dark root
-// the theme toggle sets, so code follows the page's mode as it does on GitHub.
+// highlight.LightTheme, and those of highlight.OneMonokaiTheme below the .dark
+// root the theme toggle sets, so code follows the page's mode.
 func codeThemeCSS() string {
 	var dark strings.Builder
-	for line := range strings.Lines(highlight.DarkTheme.CSS("")) {
+	for line := range strings.Lines(highlight.OneMonokaiTheme.CSS("")) {
 		// Every rule of the theme starts at the beginning of a line with
 		// its selector, pre.hl or a .hl-… token class.
 		if strings.HasPrefix(line, ".") || strings.HasPrefix(line, "pre.") {

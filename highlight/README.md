@@ -164,8 +164,9 @@ css := highlight.LightTheme.CSS("")          // stylesheet string
 style := highlight.DarkTheme.StyleElement("") // *mx.Element: <style>…</style>
 ```
 
-Built-in themes: `LightTheme` and `DarkTheme` (GitHub-like palettes). Pass `""`
-to match the default `hl-` class prefix.
+Built-in themes: `LightTheme` and `DarkTheme` (GitHub-like palettes) and
+`OneMonokaiTheme` (the dark One Monokai editor theme). Pass `""` to match the
+default `hl-` class prefix.
 
 ## Customizing
 

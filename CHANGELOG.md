@@ -15,6 +15,10 @@ API is still free to change.
 
 ### Added
 
+- **`highlight.OneMonokaiTheme`**, a dark theme with the colors of the One
+  Monokai editor theme, next to the GitHub-like `LightTheme` and `DarkTheme`.
+  The documentation site colors its code blocks with `LightTheme` in light
+  mode and `OneMonokaiTheme` in dark mode.
 - **The documentation site is rendered by go-mx and deployed from CI.**
   `tools/gen-docs-site` (in the `tools` module, so goldmark stays out of the
   library's `go.mod`) renders every Markdown file of the repository — the

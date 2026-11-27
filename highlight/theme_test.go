@@ -74,3 +74,20 @@ func TestStyleDecls(t *testing.T) {
 		}
 	}
 }
+
+// TestOneMonokaiTheme checks that the One Monokai theme colors every token
+// class its palette names: a class left out would fall back to the
+// foreground color and lose its highlighting.
+func TestOneMonokaiTheme(t *testing.T) {
+	for _, class := range []TokenClass{ClassKeyword, ClassType, ClassFunction, ClassBuiltin, ClassConstant, ClassString, ClassNumber, ClassComment, ClassOperator, ClassPunctuation, ClassIdent} {
+		if OneMonokaiTheme.Styles[class].Color == "" {
+			t.Errorf("no color for %s", class)
+		}
+	}
+	css := OneMonokaiTheme.CSS("")
+	for _, want := range []string{"background-color: #282c34", ".hl-keyword { color: #e06c75 }", ".hl-string { color: #e5c07b }"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("CSS misses %q:\n%s", want, css)
+		}
+	}
+}

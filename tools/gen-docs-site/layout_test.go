@@ -36,14 +36,14 @@ func TestBuildNav(t *testing.T) {
 }
 
 // TestCodeThemeCSS checks that the code blocks take the light theme's colors
-// by default and the dark theme's below the .dark root, token rules included.
+// by default and One Monokai's below the .dark root, token rules included.
 func TestCodeThemeCSS(t *testing.T) {
 	css := codeThemeCSS()
 	for _, want := range []string{
 		"pre.hl {\n\tbackground-color: " + highlight.LightTheme.Background,
-		".dark pre.hl {\n\tbackground-color: " + highlight.DarkTheme.Background,
+		".dark pre.hl {\n\tbackground-color: " + highlight.OneMonokaiTheme.Background,
 		".hl-keyword { color: " + highlight.LightTheme.Styles[highlight.ClassKeyword].Color,
-		".dark .hl-keyword { color: " + highlight.DarkTheme.Styles[highlight.ClassKeyword].Color,
+		".dark .hl-keyword { color: " + highlight.OneMonokaiTheme.Styles[highlight.ClassKeyword].Color,
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("code theme misses %q", want)
