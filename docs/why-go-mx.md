@@ -63,6 +63,15 @@ some distinctive choices:
   Tailwind markup in Go with faithful Go ports of `clsx`, `tailwind-merge` v3,
   and `cva`. You get shadcn-style components without pulling a single npm
   package into your build. This is the supply-chain argument made concrete.
+  The port covers the whole shadcn/ui registry, and where React leans on Radix
+  it leans on the web platform instead: the dialogs are native `<dialog>`
+  elements that animate in and out, the floating parts use the Popover API,
+  `Select` is a real `<select>`, and a small inline script appears only where
+  nothing native exists, such as `Command`'s keyboard navigation.
+  `shadcn/magicui` adds 41 animated [Magic UI](https://magicui.design)
+  components — marquees, beams, text reveals, device mockups — whose motion is
+  plain CSS rather than a motion library, and which all hold still under
+  `prefers-reduced-motion`.
 
 - **Reflection-driven forms are a genuine differentiator.**
   `mx.ReflectFormHandler[T]` turns a struct into a full `http.Handler` —
@@ -71,7 +80,12 @@ some distinctive choices:
   actually rendered) and runs a richest-first validation chain. For the
   CRUD/admin/line-of-business work that is the bread and butter of
   server-rendered apps, this is exactly the right abstraction. Neither templ
-  nor gomponents ships it.
+  nor gomponents ships it. A tag covers the fields that usually send people
+  back to a JavaScript widget: `form:"widget=combobox"` renders a searchable
+  combobox that still takes part in the browser's own required check. Captions
+  and messages come from the request, so one struct renders in each reader's
+  language, and an error a user should not read is replaced by a generic text
+  and reported to the application instead of leaking its call stack.
 
 - **Escaping and structural validation are built in.** `CheckedWriter`
   escapes text and attribute values and validates structure (for example,
@@ -128,7 +142,10 @@ go-mx is a strong fit when most of these are true:
   line-of-business apps** — `ReflectFormHandler` is purpose-built for this,
   and these apps rarely need SPA-grade interactivity.
 - **Content, docs, and marketing sites** where SEO and fast first paint
-  matter.
+  matter. The [go-mx documentation site](index.md) is one: its pages, the
+  component gallery and the example snapshots are rendered by go-mx from the
+  repository's Markdown on every push, with a sitemap, an `llms.txt` and a
+  Markdown version of each page from the `web` package.
 - **You are already a Go shop** and want one language end-to-end, no separate
   frontend build/deploy, and no JS supply chain to audit.
 - **Security/compliance pressure** makes minimizing the client-side
@@ -152,8 +169,8 @@ The honest pitch is not "SPAs are dead." It is that the industry
 over-applied the SPA default to a huge class of apps — CRUD, admin, content,
 internal tools — that never needed it, and paid for the mismatch in build
 complexity and supply-chain risk. go-mx is a well-aimed bet on that reality:
-**type-safe HTML as plain Go, batteries (shadcn, HTMX, reflected forms)
-included, and a near-zero client dependency surface.** Its main risks are its
+**type-safe HTML as plain Go, batteries (shadcn, Magic UI, HTMX, reflected
+forms) included, and a near-zero client dependency surface.** Its main risks are its
 youth and the inherent ceiling of server-driven interactivity — both
 acceptable precisely for the use cases above, and disqualifying outside them.
 
