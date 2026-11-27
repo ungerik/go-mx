@@ -158,6 +158,37 @@ render or a route keyed by the hash) and needs a decision on how apps serve
 it.
 **Effort:** M · **Priority:** P3 · **Depends on:** nothing.
 
+### Loose ends of the strict-CSP class defaults
+
+**What:** Five small gaps the review of the strict-CSP change left open:
+1. AnimatedGradientText, AnimatedShinyText and LineShadowText use
+   `bg-clip-text` alone. Tailwind emits `-webkit-background-clip` only under
+   `--minify`/`--optimize`, so an unminified build shows Chrome 111–119 a
+   gradient box instead of gradient text. AuroraText and ComicText already add
+   `[-webkit-background-clip:text]`.
+2. ComicText's `-webkit-text-stroke` reads `--comic-text-font-size`, so a
+   caller `text-*` class that replaces the font size keeps a stroke sized for
+   5rem. An `em` stroke (`0.021875em`, the same 0.35px per rem) would follow
+   the actual size.
+3. `--border-beam-width`, set on a BorderBeam's parent as the docs advise
+   under a strict CSP, also reaches nested BorderBeams left at 1px.
+4. An option set to its default value (`BlurFadeOptions{Direction:
+   DirectionDown}`, GlareHover `Color: "#ffffff"`) still writes a `style`
+   attribute, which a strict CSP reports as a violation.
+5. The padding rule in `@utility shine-border-mask` doubles the class by
+   name (`&.shine-border-mask`), so a variant such as `md:shine-border-mask`
+   alone gets the mask but not the ring padding; `&&` would double whichever
+   class matched.
+**Why:** each is a visible difference from the inline styles of before:
+an ungradiented text box, a smeared outline, a thicker nested border, CSP
+reports for a component that looks default.
+**Context:** found by the pre-landing review of PR #54 and left as notes
+there; none is a regression a test catches. Also worth a README sentence:
+the defaults now live in Tailwind's `@layer utilities`, so an app's
+unlayered element rules (`div { padding: 0 }`) beat them where the inline
+styles used to win.
+**Effort:** S · **Priority:** P3 · **Depends on:** nothing.
+
 ---
 
 ## Calendar and DatePicker follow-ups
