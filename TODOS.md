@@ -878,23 +878,6 @@ the docs-site PR to keep it to one change.
 **Priority:** P3
 **Depends on:** None
 
-### Pin the Tailwind browser build the demo pages load
-
-**What:** Load `@tailwindcss/browser` at an exact version with an SRI hash,
-the way `hx.ScriptFromCDN` loads htmx.
-
-**Why:** `shadcntheme.TailwindBrowserURL` is `@tailwindcss/browser@4`, a
-floating major: a new minor release changes the gallery and the docs site
-without a commit, and nothing checks the script's integrity.
-
-**Context:** `internal/shadcntheme/shadcntheme.go`; `hx/htmx.go` and its
-`MX_CHECK_CDN` test are the pattern. Moot if the CSS is compiled in CI (the
-item above).
-
-**Effort:** S
-**Priority:** P4
-**Depends on:** None
-
 ### Live examples on the documentation site
 
 **What:** Decide whether the example servers get a live deployment linked
@@ -935,6 +918,24 @@ would freeze it as it is; V1-AUDIT.md §1 and §3.6 W5.
 **Depends on:** None
 
 ## Completed
+
+### Pin the Tailwind browser build the demo pages load
+
+**What:** Load `@tailwindcss/browser` at an exact version with an SRI hash,
+the way `hx.ScriptFromCDN` loads htmx.
+
+**Why:** `shadcntheme.TailwindBrowserURL` is `@tailwindcss/browser@4`, a
+floating major: a new minor release changes the gallery and the docs site
+without a commit, and nothing checks the script's integrity.
+
+**Context:** `internal/shadcntheme/shadcntheme.go`; `hx/htmx.go` and its
+`MX_CHECK_CDN` test are the pattern. Moot if the CSS is compiled in CI (the
+item above).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-27 — `shadcntheme.TailwindBrowserURL` loads 4.3.5 at an exact URL with `TailwindBrowserIntegrity` and anonymous crossorigin; `TestTailwindBrowserIntegrity` checks the hash when `MX_CHECK_CDN` is set.
 
 ### `NewDocument` repeats `NewElement`'s argument sorting
 

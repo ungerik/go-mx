@@ -35,8 +35,9 @@ API is still free to change.
   `-snapshot DIR`: they fetch their own pages from their handler and write
   them as static files for the documentation site, each with a note that it is
   a snapshot and the `go run` command of the live version. The streaming
-  examples show the state their stream ends in: the finished transcript, and
-  a fixed batch of log lines generated from the seed.
+  examples show the state their stream ends in, which is the finished
+  transcript for the chat and a fixed batch of log lines generated from the
+  seed for the log view.
 - **`cmd/shadcn-gallery -home`** links the gallery's sidebar back to the home
   page of the site it is published in.
 
@@ -745,13 +746,16 @@ API is still free to change.
   `--border-beam-size`, and its border width is inherited from the parent,
   since the caller's classes go to the beam.
 
-- **The gallery's theme moved to `internal/shadcntheme`.** The shadcn/ui
-  new-york-v4 `theme.css` the tutorials tell readers to copy is now
-  `internal/shadcntheme/theme.css` (was `cmd/shadcn-gallery/theme.css`), next
-  to the `<head>` wiring the gallery and the documentation site share. The
-  gallery's output is unchanged apart from its demo links: the breadcrumb,
-  attachment, marker and trace examples link `#` instead of paths that do not
-  exist on a static host.
+- **The gallery and the documentation site share one theme head.**
+  `theme.css`, the shadcn/ui new-york-v4 stylesheet the tutorials tell readers
+  to copy, is now `internal/shadcntheme/theme.css` (was
+  `cmd/shadcn-gallery/theme.css`), next to the `<head>` wiring both use. That
+  head loads Tailwind's browser build at a pinned version (4.3.5) with a
+  Subresource Integrity hash instead of the floating `@4` tag, so a new
+  Tailwind release can no longer restyle the demo pages without a commit.
+  The gallery's output is otherwise unchanged apart from its demo links: the
+  breadcrumb, attachment, marker and trace examples link `#` instead of paths
+  that do not exist on a static host.
 
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
