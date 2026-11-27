@@ -75,10 +75,7 @@ func renderMarkdown(page *Page, links *resolver) (string, error) {
 		}
 		link := t.relativeTo(page.File())
 		if image {
-			// A blob URL is GitHub's page about the file, not the file.
-			if rest, ok := strings.CutPrefix(link, repoURL+"blob/"); ok {
-				link = repoURL + "raw/" + rest
-			}
+			link = imageURL(link)
 		}
 		*dest = []byte(link)
 		return ast.WalkContinue, nil
@@ -91,6 +88,16 @@ func renderMarkdown(page *Page, links *resolver) (string, error) {
 		return "", fmt.Errorf("%s: %w", page.Source, err)
 	}
 	return buf.String(), nil
+}
+
+// imageURL returns the URL an image linked as link loads from: a GitHub
+// blob URL of a repository file is GitHub's page about the file, so it
+// becomes the file's raw URL; any other link stays as it is.
+func imageURL(link string) string {
+	if rest, ok := strings.CutPrefix(link, repoURL+"blob/"); ok {
+		return repoURL + "raw/" + rest
+	}
+	return link
 }
 
 // gitHubIDs generates heading ids the way GitHub does for the anchors of a

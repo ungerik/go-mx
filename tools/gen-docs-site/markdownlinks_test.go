@@ -21,10 +21,24 @@ func TestRewriteMarkdownLinks(t *testing.T) {
 		"~~~~",
 		"[after](after.md)",
 		"empty []() and ](",
+		"",
+		"    y := m[k](indented.md)",
+		"",
+		"- a list item with a fence:",
+		"",
+		"    ```go",
+		"    x := ForEach[int](xs, f)",
+		"    ```",
+		"",
+		"[![badge](b.svg)](target.md) and [wrapped",
+		"text](w.md)",
 	}, "\n")
-	var seen []string
-	got := string(rewriteMarkdownLinks([]byte(source), func(dest string) string {
+	var seen, images []string
+	got := string(rewriteMarkdownLinks([]byte(source), func(dest string, image bool) string {
 		seen = append(seen, dest)
+		if image {
+			images = append(images, dest)
+		}
 		return "<" + dest + ">"
 	}))
 	want := strings.Join([]string{
@@ -42,11 +56,27 @@ func TestRewriteMarkdownLinks(t *testing.T) {
 		"~~~~",
 		"[after](<after.md>)",
 		"empty []() and ](",
+		"",
+		// Code as goldmark sees it: an indented block, and a fence in a
+		// list item indented by four spaces.
+		"    y := m[k](indented.md)",
+		"",
+		"- a list item with a fence:",
+		"",
+		"    ```go",
+		"    x := ForEach[int](xs, f)",
+		"    ```",
+		"",
+		"[![badge](<b.svg>)](<target.md>) and [wrapped",
+		"text](<w.md>)",
 	}, "\n")
 	if got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
-	if strings.Join(seen, " ") != "a.md i.png c.md#x https://x.org/a_(b) ref.md f.md a b.md after.md" {
+	if strings.Join(seen, " ") != "a.md i.png c.md#x https://x.org/a_(b) ref.md f.md a b.md after.md b.svg target.md w.md" {
 		t.Errorf("rewrote %q", seen)
+	}
+	if strings.Join(images, " ") != "i.png b.svg" {
+		t.Errorf("images %q", images)
 	}
 }

@@ -191,7 +191,7 @@ func build(ctx context.Context, cfg config) error {
 // around it.
 func newWebPage(page *Page, links *resolver, baseURL string, dates fileDates) (*web.Page, error) {
 	var errs []error
-	content := rewriteMarkdownLinks(page.Body, func(dest string) string {
+	content := rewriteMarkdownLinks(page.Body, func(dest string, image bool) string {
 		t, err := links.resolve(page, dest)
 		if err != nil {
 			errs = append(errs, err)
@@ -199,6 +199,9 @@ func newWebPage(page *Page, links *resolver, baseURL string, dates fileDates) (*
 		}
 		if t.File == "" && strings.HasPrefix(dest, "#") {
 			return dest
+		}
+		if image {
+			return imageURL(t.absolute(baseURL))
 		}
 		return t.absolute(baseURL)
 	})

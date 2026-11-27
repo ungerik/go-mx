@@ -22,7 +22,8 @@ func TestCheckLinks(t *testing.T) {
 
 	writeFiles(t, dir, map[string]string{
 		"broken.html": `<a href="missing.html">1</a> <a href="html/">2</a> <a href="html">3</a>
-<a href="index.html#nope">4</a> <a href="../outside.html">5</a> <a href="#gone">6</a>`,
+<a href="index.html#nope">4</a> <a href="../outside.html">5</a> <a href="#gone">6</a>
+<a href="/index.html">7</a>`,
 	})
 	err := checkLinks(dir)
 	if err == nil {
@@ -35,6 +36,9 @@ func TestCheckLinks(t *testing.T) {
 		`"index.html#nope": no id "nope"`,
 		`"../outside.html": leaves the site`,
 		`"#gone": no id "gone"`,
+		// index.html exists below the site, but the browser loads
+		// /index.html from the root of the host.
+		`"/index.html": root-absolute path leaves the site`,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error misses %q", want)

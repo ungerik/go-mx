@@ -41,6 +41,8 @@ func TestResolve(t *testing.T) {
 		{"README.md", "html/README.md#elements", "html/index.html#elements"},
 		{"README.md", "highlight/DESIGN.md", "highlight/design.html"},
 		{"html/README.md", "../README.md", "../index.html"},
+		// The repository root as a directory, as highlight/README.md links it.
+		{"html/README.md", "../", "../index.html"},
 		{"README.md", "docs/html/tutorial.md", "../html/tutorial.html"},
 		// The Jekyll forms the docs use: .html, a directory, no extension.
 		{"docs/index.md", "html/tutorial.html", "html/tutorial.html"},

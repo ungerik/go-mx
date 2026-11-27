@@ -17,7 +17,7 @@ func fixtureRepo(t *testing.T) string {
 		"docs/index.md":         "---\ntitle: go-mx\n---\n\n# go-mx\n\nThe home page. Read the [tutorial](html/tutorial.html) and the [README](https://github.com/ungerik/go-mx/blob/main/README.md).\n",
 		"docs/html/tutorial.md": "---\ntitle: Tutorial\n---\n\n# Tutorial\n\nBack [home](../) or to the [package](../../html/README.md#install).\n\n```go\npackage main\n```\n",
 		"README.md":             "# go-mx\n\n[![badge](https://x.org/b.svg)](https://x.org)\n\nRoot readme. See [html](html/README.md) and [the plan](TODOS.md).\n",
-		"html/README.md":        "# html\n\nThe html package.\n\n## Install\n\nSee [the docs](../docs/index.md) and [the code](element.go).\n",
+		"html/README.md":        "# html\n\nThe html package.\n\n## Install\n\nSee [the docs](../docs/index.md) and [the code](element.go).\n\n![the code](element.go)\n",
 		"html/element.go":       "package html\n",
 		"TODOS.md":              "# internal\n",
 	}
@@ -91,6 +91,14 @@ func TestBuild(t *testing.T) {
 	} {
 		if !strings.Contains(alternate, want) {
 			t.Errorf("html/tutorial.md misses %q", want)
+		}
+	}
+
+	// An image of a repository file loads from GitHub's raw URL in the page
+	// and in its alternate, not from the blob URL, GitHub's page about it.
+	for _, name := range []string{"repo/html/index.html", "repo/html/index.md"} {
+		if !strings.Contains(read(name), repoURL+"raw/main/html/element.go") {
+			t.Errorf("%s does not load the image from the raw URL", name)
 		}
 	}
 

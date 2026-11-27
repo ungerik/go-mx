@@ -25,8 +25,9 @@ var idAttr = regexp.MustCompile(`\s(?:id|name)="([^"]*)"`)
 // checkLinks checks every link of every HTML file of the site in dir that
 // stays inside the site: its file has to exist below dir, a link to a
 // directory has to name its index.html (opened from disk, a directory link
-// shows a file listing), and a fragment has to name an id or name in the
-// target file. Links with a scheme or host, data: and javascript: URLs and
+// shows a file listing), a fragment has to name an id or name in the target
+// file, and a root-absolute path ("/x") is refused because the site is
+// published below a base path of a host it does not own. Links with a scheme or host, data: and javascript: URLs and
 // query-only links are not checked. It returns every broken link at once.
 func checkLinks(dir string) error {
 	ids := make(map[string]map[string]bool)
@@ -85,6 +86,11 @@ func checkLink(dir, from, ref string, idsOf func(string) (map[string]bool, error
 	}
 	file := from
 	if u.Path != "" {
+		// The browser resolves a root-absolute path against the host, which
+		// the site shares below its base path.
+		if strings.HasPrefix(u.Path, "/") {
+			return errors.New("root-absolute path leaves the site")
+		}
 		file = path.Join(path.Dir(from), u.Path)
 		if file == ".." || strings.HasPrefix(file, "../") {
 			return errors.New("leaves the site")

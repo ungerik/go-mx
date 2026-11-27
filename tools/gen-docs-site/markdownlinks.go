@@ -2,40 +2,38 @@ package main
 
 import (
 	"regexp"
+	"sort"
 	"strings"
+
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
 // rewriteMarkdownLinks returns the Markdown source with the destination of
 // every inline link and image, and of every link reference definition,
-// replaced by what rewrite returns for it. Destinations inside fenced code
-// blocks and code spans are left alone.
+// replaced by what rewrite returns for it; image reports whether the
+// destination is the source of an image. Destinations inside code blocks and
+// code spans are left alone.
 //
 // The Markdown alternates of the pages need it: they are the Markdown source
 // itself, read without the site around it, so a link relative to the file in
 // the repository has to become an absolute URL. It is a scanner for the link
-// syntax the documentation uses rather than a full CommonMark parser; the
-// HTML pages are rendered from goldmark's syntax tree instead.
-func rewriteMarkdownLinks(source []byte, rewrite func(dest string) string) []byte {
+// syntax the documentation uses rather than a full CommonMark parser; which
+// lines are code comes from goldmark's syntax tree, the one the HTML pages
+// are rendered from, so fenced and indented code blocks are recognized
+// wherever goldmark sees them, in list items and block quotes too.
+func rewriteMarkdownLinks(source []byte, rewrite func(dest string, image bool) string) []byte {
 	lines := strings.SplitAfter(string(source), "\n")
+	code := codeBlockLines(source, lines)
 	var b strings.Builder
-	var fence string
-	for _, line := range lines {
-		trimmed := strings.TrimLeft(line, " ")
-		if fence != "" {
-			if strings.HasPrefix(trimmed, fence) && strings.TrimSpace(strings.TrimLeft(trimmed, fence[:1])) == "" {
-				fence = ""
-			}
-			b.WriteString(line)
-			continue
-		}
-		if f := openingFence(trimmed); f != "" && len(line)-len(trimmed) < 4 {
-			fence = f
+	for i, line := range lines {
+		if code[i] {
 			b.WriteString(line)
 			continue
 		}
 		if m := referenceDefinition.FindStringSubmatchIndex(line); m != nil {
 			b.WriteString(line[:m[2]])
-			b.WriteString(rewriteDestination(line[m[2]:m[3]], rewrite))
+			b.WriteString(rewriteDestination(line[m[2]:m[3]], false, rewrite))
 			b.WriteString(line[m[3]:])
 			continue
 		}
@@ -44,30 +42,51 @@ func rewriteMarkdownLinks(source []byte, rewrite func(dest string) string) []byt
 	return []byte(b.String())
 }
 
+// codeBlockLines reports for each of lines, the lines of source, whether
+// goldmark parses it as content of a fenced or indented code block.
+func codeBlockLines(source []byte, lines []string) []bool {
+	starts := make([]int, len(lines))
+	offset := 0
+	for i, line := range lines {
+		starts[i] = offset
+		offset += len(line)
+	}
+	code := make([]bool, len(lines))
+	doc := newMarkdown().Parser().Parse(text.NewReader(source))
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering || (n.Kind() != ast.KindCodeBlock && n.Kind() != ast.KindFencedCodeBlock) {
+			return ast.WalkContinue, nil
+		}
+		segments := n.Lines()
+		for i := range segments.Len() {
+			start := segments.At(i).Start
+			// The line holding the segment, the last one starting at or
+			// before it.
+			line := sort.Search(len(starts), func(j int) bool { return starts[j] > start }) - 1
+			code[line] = true
+		}
+		return ast.WalkSkipChildren, nil
+	})
+	return code
+}
+
 // referenceDefinition matches a link reference definition, "[label]: dest",
 // its submatch the destination. A footnote definition, "[^label]: text", is
 // none; its links are inline links.
 var referenceDefinition = regexp.MustCompile(`^ {0,3}\[[^\]^][^\]]*\]:[ \t]*(<[^>\n]*>|\S+)`)
 
-// openingFence returns the fence a line (without its indentation) opens, a
-// run of three or more backticks or tildes, or "".
-func openingFence(line string) string {
-	for _, c := range []string{"`", "~"} {
-		n := len(line) - len(strings.TrimLeft(line, c))
-		if n >= 3 {
-			return strings.Repeat(c, n)
-		}
-	}
-	return ""
-}
-
 // rewriteInlineLinks rewrites the destinations of the inline links and images
-// of one line, the "(dest)" after a "]", skipping code spans.
-func rewriteInlineLinks(line string, rewrite func(dest string) string) string {
+// of one line, the "(dest)" after a "]", skipping code spans. A "]" whose
+// "[" is on an earlier line, as in link text wrapped across lines, is a
+// link's too.
+func rewriteInlineLinks(line string, rewrite func(dest string, image bool) string) string {
 	var b strings.Builder
 	codeRun := 0 // length of the backtick run that opened the current code span
+	// opened holds for each "[" not yet closed whether it opens an image, "![".
+	var opened []bool
 	for i := 0; i < len(line); {
-		if line[i] == '`' {
+		switch {
+		case line[i] == '`':
 			n := len(line[i:]) - len(strings.TrimLeft(line[i:], "`"))
 			switch {
 			case codeRun == 0:
@@ -78,13 +97,22 @@ func rewriteInlineLinks(line string, rewrite func(dest string) string) string {
 			b.WriteString(line[i : i+n])
 			i += n
 			continue
-		}
-		if codeRun == 0 && strings.HasPrefix(line[i:], "](") {
-			if end := destinationEnd(line, i+2); end > 0 {
-				b.WriteString("](")
-				b.WriteString(rewriteDestination(line[i+2:end], rewrite))
-				i = end
-				continue
+		case codeRun > 0:
+		case line[i] == '[':
+			opened = append(opened, i > 0 && line[i-1] == '!')
+		case line[i] == ']':
+			image := false // a "[" on an earlier line is taken as a link's
+			if n := len(opened); n > 0 {
+				image = opened[n-1]
+				opened = opened[:n-1]
+			}
+			if strings.HasPrefix(line[i:], "](") {
+				if end := destinationEnd(line, i+2); end > 0 {
+					b.WriteString("](")
+					b.WriteString(rewriteDestination(line[i+2:end], image, rewrite))
+					i = end
+					continue
+				}
 			}
 		}
 		b.WriteByte(line[i])
@@ -128,11 +156,11 @@ func destinationEnd(line string, start int) int {
 	return -1
 }
 
-// rewriteDestination rewrites one destination, keeping angle brackets around
-// it.
-func rewriteDestination(dest string, rewrite func(string) string) string {
+// rewriteDestination rewrites one destination, of an image if image is true,
+// keeping angle brackets around it.
+func rewriteDestination(dest string, image bool, rewrite func(string, bool) string) string {
 	if inner, ok := strings.CutPrefix(dest, "<"); ok {
-		return "<" + rewrite(strings.TrimSuffix(inner, ">")) + ">"
+		return "<" + rewrite(strings.TrimSuffix(inner, ">"), image) + ">"
 	}
-	return rewrite(dest)
+	return rewrite(dest, image)
 }
