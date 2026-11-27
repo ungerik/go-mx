@@ -9,6 +9,9 @@
 //	go run ./cmd/example-form
 //
 // Then browse to http://localhost:8080/admin/profile.
+//
+// With -snapshot DIR it writes static pages of the form instead of serving
+// (see snapshot.go); the documentation site publishes them.
 package main
 
 import (
@@ -22,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/internal/snapshot"
 	"github.com/ungerik/go-mx/shadcn"
 )
 
@@ -107,11 +111,9 @@ func (s *store) Save(_ context.Context, p *Profile) error {
 	return nil
 }
 
-func main() {
-	addr := flag.String("addr", ":8080", "listen address")
-	flag.Parse()
-
-	s := &store{
+// newStore returns the store holding the example's one Profile record.
+func newStore() *store {
+	return &store{
 		p: Profile{
 			ID:       "user-1",
 			Name:     "Ada Lovelace",
@@ -133,10 +135,28 @@ func main() {
 			},
 		},
 	}
+}
 
+// newHandler serves the form of s at /admin/profile, rendered by the shadcn
+// field decider.
+func newHandler(s *store) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/admin/profile", mx.ReflectFormHandlerWith(mx.ReflectFormConfig{FormMessage: shadcn.FormMessage}, s.Load, s.Save))
-	handler := mx.Middleware(shadcn.FieldDecider)(mux)
+	return mx.Middleware(shadcn.FieldDecider)(mux)
+}
+
+func main() {
+	addr := flag.String("addr", ":8080", "listen address")
+	snap := snapshot.RegisterFlags(flag.CommandLine, "cmd/example-form")
+	flag.Parse()
+
+	handler := newHandler(newStore())
+	if snap.Enabled() {
+		if err := writeSnapshot(snap, handler); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	fmt.Printf("listening on %s\n", *addr)
 	fmt.Printf("open http://localhost%s/admin/profile\n", *addr)

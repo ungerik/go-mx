@@ -40,6 +40,10 @@
 //     because by then the 200 status is committed and there is no 500 left.
 //   - -rate sets the mean number of lines per second, to see the view under a
 //     firehose or at a trickle.
+//
+// With -snapshot DIR it writes static pages holding a fixed batch of
+// generated lines instead of serving (see snapshot.go); the documentation
+// site publishes them.
 package main
 
 import (
@@ -57,6 +61,7 @@ import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/hx"
+	"github.com/ungerik/go-mx/internal/snapshot"
 	"github.com/ungerik/go-mx/logview"
 )
 
@@ -408,12 +413,28 @@ func pageHandler() http.HandlerFunc {
 	}
 }
 
+// newHandler serves the page at / and the stream of src at /stream.
+func newHandler(src *source, fail bool) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stream", streamHandler(src, fail))
+	mux.HandleFunc("/", pageHandler())
+	return mux
+}
+
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	rate := flag.Float64("rate", 3, "mean log lines per second")
 	fail := flag.Bool("fail", false, "report an in-band error after a few lines instead of continuing")
 	seed := flag.Uint64("seed", 1, "generator seed")
+	snap := snapshot.RegisterFlags(flag.CommandLine, "cmd/example-logstream")
 	flag.Parse()
+
+	if snap.Enabled() {
+		if err := writeSnapshot(snap, *seed); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	if *rate <= 0 {
 		log.Fatal("-rate must be positive")
@@ -422,10 +443,6 @@ func main() {
 	src := newSource()
 	go src.run(context.Background(), *rate, rand.New(rand.NewPCG(*seed, *seed+1)))
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/stream", streamHandler(src, *fail))
-	mux.HandleFunc("/", pageHandler())
-
 	log.Printf("listening on %s", *addr)
-	log.Fatal(http.ListenAndServe(*addr, mux))
+	log.Fatal(http.ListenAndServe(*addr, newHandler(src, *fail)))
 }
