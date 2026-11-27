@@ -124,12 +124,15 @@ func SidebarMenuItem(attribsChildren ...any) *mx.Element {
 	return StyleSlot(html.Element("li", attribsChildren...), "sidebar-menu-item", "group/menu-item relative")
 }
 
-// SidebarMenuButton is the clickable nav button. Mark the current item active
-// with html.DataAttr("active", "true"). A leading icon stays visible when the
+// SidebarMenuButton is the clickable nav button. Given an href it is a link,
+// the <a> upstream renders with asChild for a navigation item. Mark the
+// current item active with html.DataAttr("active", "true") (and
+// aria-current="page" on a link). A leading icon stays visible when the
 // sidebar collapses; the label clips.
 func SidebarMenuButton(attribsChildren ...any) *mx.Element {
 	e := html.Button(attribsChildren...)
-	if e.AttribIndex("type") < 0 {
+	e.Name = renderTag(e, "button")
+	if e.Name == "button" && e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
 	}
 	return StyleSlot(e, "sidebar-menu-button",
