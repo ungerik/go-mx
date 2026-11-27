@@ -166,7 +166,7 @@ func siteHeader(file string) mx.Component {
 func navLinks(nav []navSection, file string) mx.Component {
 	return mx.ForEach(nav, func(s navSection) mx.Component {
 		return mx.Components{
-			html.DivClass("px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase", s.Title),
+			html.DivClass("px-3 pt-5 pb-1.5 text-sm font-semibold text-foreground", s.Title),
 			mx.ForEach(s.Items, func(item navItem) mx.Component {
 				if item.File == file {
 					return html.AHRef(relativeURL(file, item.File),
