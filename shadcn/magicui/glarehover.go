@@ -47,16 +47,28 @@ type GlareHoverOptions struct {
 // it needs no JavaScript. Round the root like its child, as in
 // html.Class("rounded-xl"), so the glare does not overhang the corners.
 func GlareHover(opts GlareHoverOptions, attribsChildren ...any) *mx.Element {
-	duration := opts.Duration
-	if duration <= 0 {
-		duration = 650 * time.Millisecond
+	// The defaults are classes, so a GlareHover left at them needs no style
+	// attribute (see "Strict Content-Security-Policy" in the README); only
+	// the options set go into style.
+	var angle, duration, size, rgba string
+	if opts.Angle != 0 {
+		angle = num(opts.Angle) + "deg"
+	}
+	if opts.Duration > 0 {
+		duration = num(float64(opts.Duration)/float64(time.Millisecond)) + "ms"
+	}
+	if opts.Size != 0 {
+		size = num(opts.Size) + "%"
+	}
+	if opts.Color != "" || opts.Opacity != 0 {
+		rgba = glareHoverRGBA(or(opts.Color, "#ffffff"), or(opts.Opacity, 0.5))
 	}
 	style, err := styleVars(
-		"--gh-angle", num(or(opts.Angle, -45))+"deg",
-		"--gh-duration", num(float64(duration)/float64(time.Millisecond))+"ms",
-		"--gh-size", num(or(opts.Size, 250))+"%",
-		"--gh-rgba", glareHoverRGBA(or(opts.Color, "#ffffff"), or(opts.Opacity, 0.5)),
-		"background", or(opts.Background, "#000"),
+		"--gh-angle", angle,
+		"--gh-duration", duration,
+		"--gh-size", size,
+		"--gh-rgba", rgba,
+		"background", opts.Background,
 		"width", opts.Width,
 		"height", opts.Height,
 	)
@@ -64,7 +76,8 @@ func GlareHover(opts GlareHoverOptions, attribsChildren ...any) *mx.Element {
 		return mx.NewErrElement(err)
 	}
 	return finish(html.Div(attribsChildren...), "glare-hover", shadcn.Cn(
-		"relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent",
+		"[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000]",
+		"relative grid size-fit cursor-pointer place-items-center overflow-hidden",
 		"before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-['']",
 		"before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)]",
 		"before:[background-size:var(--gh-size)_var(--gh-size),100%_100%]",

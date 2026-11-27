@@ -12,7 +12,7 @@ func TestWarpBackgroundDefault(t *testing.T) {
 	out := render(t, WarpBackground(WarpBackgroundOptions{}, html.Span("card")))
 	mustContain(t, out, `data-slot="warp-background"`, `class="relative rounded border p-20"`,
 		`style="--perspective:100px;--grid-color:var(--border);--beam-size:5%"`,
-		"@container-[size] pointer-events-none absolute top-0 left-0 size-full overflow-hidden [clipPath:inset(0)] perspective-(--perspective) transform-3d",
+		"@container-[size] pointer-events-none absolute top-0 left-0 size-full overflow-hidden [clip-path:inset(0)] perspective-(--perspective) transform-3d",
 		"transform-[rotate(90deg)_rotateX(-90deg)]", "transform-[rotate(-90deg)_rotateX(-90deg)]",
 		"animate-warp-background-beam absolute top-0 left-(--x) aspect-[1/var(--aspect-ratio)] w-(--width) [background:var(--background)]",
 		// Three beams per side on a grid of 20 cells: at cells 0, 6 and 13.

@@ -32,6 +32,13 @@ type IphoneOptions struct {
 	ID string
 }
 
+// iphoneScreenClasses place the screen's image or video in the frame: the
+// screen constants above as percentages of the frame, written out as one
+// literal so Tailwind finds the classes (TestDeviceScreenClasses checks them
+// against the constants).
+const iphoneScreenClasses = "left-[4.907621247113164%] top-[2.1825396825396823%] w-[89.95381062355659%] h-[95.63492063492063%] " +
+	"[border-radius:14.313222079589217%_/_6.609365737996444%]"
+
 // Iphone renders a mockup of an iPhone as an SVG frame scaled to the width
 // of its container, with an optional image or video on the screen. The SVG
 // paths are upstream's, the frame is aria-hidden, and the screen image has
@@ -45,22 +52,15 @@ func Iphone(opts IphoneOptions, attribsChildren ...any) *mx.Element {
 	children := root.Children
 	root.Children = nil
 	hasMedia := opts.VideoSrc != "" || opts.Src != ""
-	screenStyle := "left:" + devicePercent(iphoneScreenX, iphoneWidth) +
-		";top:" + devicePercent(iphoneScreenY, iphoneHeight) +
-		";width:" + devicePercent(iphoneScreenWidth, iphoneWidth) +
-		";height:" + devicePercent(iphoneScreenHeight, iphoneHeight) +
-		";border-radius:" + devicePercent(iphoneScreenRadius, iphoneScreenWidth) + " / " + devicePercent(iphoneScreenRadius, iphoneScreenHeight)
 	switch {
 	case opts.VideoSrc != "":
 		root.Children = append(root.Children, html.Div(
-			html.Class("pointer-events-none absolute z-0 overflow-hidden"),
-			html.Style(screenStyle),
+			html.Class("pointer-events-none absolute z-0 overflow-hidden", iphoneScreenClasses),
 			deviceVideo(opts.VideoSrc, "block size-full object-cover", true),
 		))
 	case opts.Src != "":
 		root.Children = append(root.Children, html.Div(
-			html.Class("pointer-events-none absolute z-0 overflow-hidden"),
-			html.Style(screenStyle),
+			html.Class("pointer-events-none absolute z-0 overflow-hidden", iphoneScreenClasses),
 			html.Img(html.Src(opts.Src), html.Alt(""), html.Class("block size-full object-cover object-top")),
 		))
 	}
@@ -101,8 +101,7 @@ func Iphone(opts IphoneOptions, attribsChildren ...any) *mx.Element {
 		svg.ViewBox(0, 0, iphoneWidth, iphoneHeight),
 		svg.Fill("none"),
 		svg.XMLNS,
-		svg.Class("absolute inset-0 size-full"),
-		svg.Style("transform:translateZ(0)"),
+		svg.Class("absolute inset-0 size-full [transform:translateZ(0)]"),
 		ariaHidden,
 		body,
 		svg.Path(svg.Opacity(0.5), svg.D("M174 5H258V5.5C258 6.60457 257.105 7.5 256 7.5H176C174.895 7.5 174 6.60457 174 5.5V5Z"), svg.Class(frame)),
@@ -112,6 +111,6 @@ func Iphone(opts IphoneOptions, attribsChildren ...any) *mx.Element {
 		svg.Path(svg.D("M254 48.5C254 45.4624 256.462 43 259.5 43C262.538 43 265 45.4624 265 48.5C265 51.5376 262.538 54 259.5 54C256.462 54 254 51.5376 254 48.5Z"), svg.Class(frame)),
 	}, defs...)...))
 	root.Children = append(root.Children, children...)
-	return finish(root, "iphone", "relative inline-block w-full align-middle leading-none",
-		"aspect-ratio:"+num(iphoneWidth)+"/"+num(iphoneHeight))
+	// aspect-[433/882] is iphoneWidth/iphoneHeight, written out for Tailwind.
+	return finish(root, "iphone", "relative inline-block w-full aspect-[433/882] align-middle leading-none", "")
 }

@@ -1,6 +1,7 @@
 package magicui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ungerik/go-mx/html"
@@ -10,10 +11,16 @@ func TestComicText(t *testing.T) {
 	out := render(t, ComicText(ComicTextOptions{}, "BOOM!"))
 	mustContain(t, out,
 		`data-slot="comic-text"`, "text-center select-none animate-comic-text-pop",
-		"font-size:5rem;font-family:'Bangers', 'Comic Sans MS', 'Impact', sans-serif;font-weight:900;-webkit-text-stroke:1.75px #000000",
-		"transform:skewX(-10deg)", "drop-shadow(3px 3px 0px #EF4444)", "background-color:#FACC15",
-		"-webkit-text-fill-color:transparent", ">BOOM!</div>",
+		"[--comic-text-font-size:5] [font-size:calc(var(--comic-text-font-size)*1rem)]", "[font-family:Bangers,Comic_Sans_MS,Impact,sans-serif]",
+		"[-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000]", "[transform:skewX(-10deg)]",
+		"drop-shadow(3px_3px_0px_#EF4444)", "bg-[#FACC15]", "bg-[radial-gradient(", "[-webkit-text-fill-color:transparent]", ">BOOM!</div>",
 	)
+	if strings.Contains(out, "style=") {
+		t.Errorf("the default size needs no style attribute: %s", out)
+	}
 	out = render(t, ComicText(ComicTextOptions{FontSize: 2}, html.Class("text-left"), html.Style("color:red"), "Pow"))
-	mustContain(t, out, "font-size:2rem", "-webkit-text-stroke:0.7px", "select-none animate-comic-text-pop text-left", "-webkit-text-fill-color:transparent;color:red")
+	mustContain(t, out, `style="--comic-text-font-size:2;color:red"`, "select-none animate-comic-text-pop text-left")
+	if strings.Contains(out, "text-center") {
+		t.Errorf("caller text-left should replace text-center: %s", out)
+	}
 }

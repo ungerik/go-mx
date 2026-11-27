@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes the gradient copy's --aurora-text-duration, which is
+     10s / Speed. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,15 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +629,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1049,8 +1074,8 @@
                         <button data-slot="button" type="button" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Register</button>
                         <button data-slot="button" type="button" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90">Login</button>
                       </div>
-                      <div data-slot="border-beam" aria-hidden="true" style="--border-beam-width:1px" class="pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
-                        <div data-slot="border-beam-light" style="width:100px;offset-path:rect(0 auto auto 0 round 100px);--color-from:#ffaa40;--color-to:#9c40ff;offset-distance:0%;--border-beam-from:0%;--border-beam-to:100%;--border-beam-duration:8s;--border-beam-delay:0s" class="absolute aspect-square bg-linear-to-l from-(--color-from) via-(--color-to) to-transparent animate-border-beam"></div>
+                      <div data-slot="border-beam" aria-hidden="true" class="[--border-beam-width:1px] pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
+                        <div data-slot="border-beam-light" style="width:100px;offset-path:rect(0 auto auto 0 round 100px);--border-beam-duration:8s" class="w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%] [--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s] absolute aspect-square bg-linear-to-l from-(--color-from) via-(--color-to) to-transparent animate-border-beam"></div>
                       </div>
                     </div>
                   </div>
@@ -1095,8 +1120,8 @@
                         <button data-slot="button" type="button" data-variant="outline" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">Register</button>
                         <button data-slot="button" type="button" data-variant="default" data-size="default" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 bg-primary text-primary-foreground hover:bg-primary/90">Login</button>
                       </div>
-                      <div data-slot="border-beam" aria-hidden="true" style="--border-beam-width:1px" class="pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
-                        <div data-slot="border-beam-light" style="width:300px;offset-path:rect(0 auto auto 0 round 300px);--color-from:#ffaa40;--color-to:#9c40ff;offset-distance:0%;--border-beam-from:100%;--border-beam-to:-0%;--border-beam-duration:4s;--border-beam-delay:0s" class="absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-green-500 to-transparent"></div>
+                      <div data-slot="border-beam" aria-hidden="true" class="[--border-beam-width:1px] pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
+                        <div data-slot="border-beam-light" style="width:300px;offset-path:rect(0 auto auto 0 round 300px);offset-distance:0%;--border-beam-from:100%;--border-beam-to:-0%;--border-beam-duration:4s" class="w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%] [--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s] absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-green-500 to-transparent"></div>
                       </div>
                     </div>
                   </div>
@@ -1155,11 +1180,11 @@
                           </svg>
                         </button>
                       </div>
-                      <div data-slot="border-beam" aria-hidden="true" style="--border-beam-width:1px" class="pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
-                        <div data-slot="border-beam-light" style="width:400px;offset-path:rect(0 auto auto 0 round 400px);--color-from:#ffaa40;--color-to:#9c40ff;offset-distance:0%;--border-beam-from:0%;--border-beam-to:100%;--border-beam-duration:6s;--border-beam-delay:0s" class="absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-red-500 to-transparent"></div>
+                      <div data-slot="border-beam" aria-hidden="true" class="[--border-beam-width:1px] pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
+                        <div data-slot="border-beam-light" style="width:400px;offset-path:rect(0 auto auto 0 round 400px);--border-beam-duration:6s" class="w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%] [--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s] absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-red-500 to-transparent"></div>
                       </div>
-                      <div data-slot="border-beam" aria-hidden="true" style="--border-beam-width:2px" class="pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
-                        <div data-slot="border-beam-light" style="width:400px;offset-path:rect(0 auto auto 0 round 400px);--color-from:#ffaa40;--color-to:#9c40ff;offset-distance:0%;--border-beam-from:0%;--border-beam-to:100%;--border-beam-duration:6s;--border-beam-delay:-3s" class="absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-blue-500 to-transparent"></div>
+                      <div data-slot="border-beam" aria-hidden="true" style="--border-beam-width:2px" class="[--border-beam-width:1px] pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]">
+                        <div data-slot="border-beam-light" style="width:400px;offset-path:rect(0 auto auto 0 round 400px);--border-beam-duration:6s;--border-beam-delay:-3s" class="w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%] [--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s] absolute aspect-square bg-linear-to-l animate-border-beam from-transparent via-blue-500 to-transparent"></div>
                       </div>
                     </div>
                   </div>

@@ -67,11 +67,41 @@ A component without props takes only `attribsChildren ...any`. Every root has
 `shadcn`. A caller `style` is appended after the component's own declarations,
 so it wins too.
 
-Colors, lengths and other CSS values from options are set as CSS custom
-properties in `style`. A value holding `;`, a brace, an angle bracket, a
-backslash, a quote, a comment delimiter, `url(` or an unbalanced parenthesis
-or bracket is rejected: the component renders an error instead of the
-injected CSS.
+An option left at its default is a class on the element, such as
+`[--blur-fade-duration:0.4s]`, and only an option that is set goes into
+`style`, as a CSS custom property or declaration. So a caller class replaces a
+default through `Cn`, and each component's root resets every value it reads,
+so a component nested in another of its kind does not inherit the outer
+one's. A value holding `;`, a brace, an angle bracket, a backslash, a quote,
+a comment delimiter, `url(` or an unbalanced parenthesis or bracket is
+rejected: the component renders an error instead of the injected CSS.
+
+## Strict Content-Security-Policy
+
+A Content-Security-Policy whose `style-src` lacks `'unsafe-inline'` makes the
+browser ignore every `style` attribute. Most components need none:
+
+- **Left at their defaults, 26 of the 41 write no `style` attribute.** Their
+  defaults are classes, and their fixed declarations are classes too, or
+  `@utility` rules in `magicui.CSS`.
+- **To change a value under such a policy, pass a class instead of the
+  option**: the variable the option sets, as an arbitrary property, which
+  `Cn` puts in place of the default. For example
+  `html.Class("[--shimmer-color:#3b82f6] [--speed:1.5s]")` rather than
+  `ShimmerButtonOptions{ShimmerColor: "#3b82f6", ShimmerDuration: 1500 * time.Millisecond}`.
+  Tailwind has to find the class in your source, so write it as a literal.
+- **15 components write a `style` attribute even at their defaults**, because
+  a value differs from element to element: an index per item, segment or
+  letter (AnimatedList, Ripple, SpinningText, Text3DFlip, TextAnimate,
+  TextReveal, WordRotate), positions and timings drawn from `Seed` (LightRays,
+  Meteors, SparklesText, WarpBackground), values computed from the options
+  (OrbitingCircles, AnimatedCircularProgressBar, ProgressiveBlur), or the id
+  of its own SVG filter (Backlight). Under a strict policy they render
+  without those values, so they do not look as intended: the items of an
+  AnimatedList, for example, enter together instead of one after another.
+
+`csp_test.go` holds the package to this: a component outside that list that
+writes a `style` attribute with its defaults fails it.
 
 ## Differences from upstream
 

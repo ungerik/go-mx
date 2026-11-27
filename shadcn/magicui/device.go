@@ -7,12 +7,6 @@ import (
 
 // Helpers shared by the device mockups [Iphone], [Safari] and [Android].
 
-// devicePercent formats part/whole as a CSS percentage, computed in float64
-// steps like upstream's JavaScript so the digits match.
-func devicePercent(part, whole float64) string {
-	return num(part/whole*100) + "%"
-}
-
 // deviceVideo is the muted, looping, inline-playing <video> of the device
 // mockups; withPreload adds upstream's preload="metadata", which Android
 // does not set.

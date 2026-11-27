@@ -30,17 +30,10 @@ func ShinyButton(attribsChildren ...any) *mx.Element {
 	children := anys(root.Children)
 	root.Children = []mx.Component{
 		html.Span(append([]any{
-			html.Class("relative block size-full text-sm tracking-wide text-[rgb(0,0,0,65%)] uppercase dark:font-light dark:text-[rgb(255,255,255,90%)]"),
-			html.Style("mask-image:linear-gradient(-75deg,var(--primary) calc(var(--shiny-button-x) + 20%),transparent calc(var(--shiny-button-x) + 30%),var(--primary) calc(var(--shiny-button-x) + 100%))"),
+			html.Class("shiny-button-label relative block size-full text-sm tracking-wide text-[rgb(0,0,0,65%)] uppercase dark:font-light dark:text-[rgb(255,255,255,90%)]"),
 		}, children...)...),
 		html.Span(
-			html.Class("absolute inset-0 z-10 block rounded-[inherit] p-px"),
-			html.Style("mask:linear-gradient(rgb(0,0,0), rgb(0,0,0)) content-box exclude,linear-gradient(rgb(0,0,0), rgb(0,0,0));"+
-				"-webkit-mask:linear-gradient(rgb(0,0,0), rgb(0,0,0)) content-box exclude,linear-gradient(rgb(0,0,0), rgb(0,0,0));"+
-				"background-image:linear-gradient(-75deg,"+
-				"color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),"+
-				"color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),"+
-				"color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%))"),
+			html.Class("shiny-button-shine absolute inset-0 z-10 block rounded-[inherit] p-px"),
 			ariaHidden,
 		),
 	}

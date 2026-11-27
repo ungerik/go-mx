@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes the gradient copy's --aurora-text-duration, which is
+     10s / Speed. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,15 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +629,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1027,11 +1052,11 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-iphone-demo-panel-preview" aria-labelledby="tab-iphone-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[434px]">
-                      <div data-slot="iphone" style="aspect-ratio:433/882" class="relative inline-block w-full align-middle leading-none">
-                        <div class="pointer-events-none absolute z-0 overflow-hidden" style="left:4.907621247113164%;top:2.1825396825396823%;width:89.95381062355659%;height:95.63492063492063%;border-radius:14.313222079589217% / 6.609365737996444%">
+                      <div data-slot="iphone" class="relative inline-block w-full aspect-[433/882] align-middle leading-none">
+                        <div class="pointer-events-none absolute z-0 overflow-hidden left-[4.907621247113164%] top-[2.1825396825396823%] w-[89.95381062355659%] h-[95.63492063492063%] [border-radius:14.313222079589217%_/_6.609365737996444%]">
                           <img src="https://placehold.co/900x1600?text=Hello+World" alt="" class="block size-full object-cover object-top"/>
                         </div>
-                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <g mask="url(#iphone-demo-screen)">
                             <path d="M2 73C2 32.6832 34.6832 0 75 0H357C397.317 0 430 32.6832 430 73V809C430 849.317 397.317 882 357 882H75C34.6832 882 2 849.317 2 809V73Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
                             <path d="M0 171C0 170.448 0.447715 170 1 170H3V204H1C0.447715 204 0 203.552 0 203V171Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
@@ -1074,11 +1099,11 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-iphone-video-panel-preview" aria-labelledby="tab-iphone-video-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[434px]">
-                      <div data-slot="iphone" style="aspect-ratio:433/882" class="relative inline-block w-full align-middle leading-none">
-                        <div class="pointer-events-none absolute z-0 overflow-hidden" style="left:4.907621247113164%;top:2.1825396825396823%;width:89.95381062355659%;height:95.63492063492063%;border-radius:14.313222079589217% / 6.609365737996444%">
+                      <div data-slot="iphone" class="relative inline-block w-full aspect-[433/882] align-middle leading-none">
+                        <div class="pointer-events-none absolute z-0 overflow-hidden left-[4.907621247113164%] top-[2.1825396825396823%] w-[89.95381062355659%] h-[95.63492063492063%] [border-radius:14.313222079589217%_/_6.609365737996444%]">
                           <video class="block size-full object-cover" src="https://videos.pexels.com/video-files/8946986/8946986-uhd_1440_2732_25fps.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata"></video>
                         </div>
-                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <g mask="url(#iphone-video-screen)">
                             <path d="M2 73C2 32.6832 34.6832 0 75 0H357C397.317 0 430 32.6832 430 73V809C430 849.317 397.317 882 357 882H75C34.6832 882 2 849.317 2 809V73Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
                             <path d="M0 171C0 170.448 0.447715 170 1 170H3V204H1C0.447715 204 0 203.552 0 203V171Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
@@ -1121,8 +1146,8 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-iphone-empty-panel-preview" aria-labelledby="tab-iphone-empty-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[434px]">
-                      <div data-slot="iphone" style="aspect-ratio:433/882" class="relative inline-block w-full align-middle leading-none">
-                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                      <div data-slot="iphone" class="relative inline-block w-full aspect-[433/882] align-middle leading-none">
+                        <svg viewBox="0 0 433 882" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <g>
                             <path d="M2 73C2 32.6832 34.6832 0 75 0H357C397.317 0 430 32.6832 430 73V809C430 849.317 397.317 882 357 882H75C34.6832 882 2 849.317 2 809V73Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
                             <path d="M0 171C0 170.448 0.447715 170 1 170H3V204H1C0.447715 204 0 203.552 0 203V171Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>

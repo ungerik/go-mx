@@ -701,6 +701,21 @@ API is still free to change.
 
 ### Changed
 
+- **`shadcn/magicui` components left at their defaults write no `style`
+  attribute.** A Content-Security-Policy without `'unsafe-inline'` in
+  `style-src` makes the browser ignore every `style` attribute, and every
+  component wrote its defaults into one. Now an option left at its default
+  is a class on the element (`[--blur-fade-duration:0.4s]`), fixed
+  declarations are classes or `@utility` rules in `magicui.CSS`, and only
+  options that are set go into `style`. 26 of the 41 components render
+  without a `style` attribute at their defaults; a caller class such as
+  `[--shimmer-color:#3b82f6]` replaces a default through `Cn`, which works
+  under such a policy where the option does not. The 15 that still need one,
+  for an index, a seeded position or a computed value per element, are listed
+  in `shadcn/magicui/README.md` under "Strict Content-Security-Policy", and
+  `csp_test.go` fails for any other. A caller class now also beats a
+  component's default where the inline default used to win (the width of a
+  BorderBeam, the background of a GlareHover, ComicText's lettering).
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
   with `Cn`, set one `data-slot`, dedupe attributes), formerly the unexported
@@ -1021,6 +1036,14 @@ API is still free to change.
 
 ### Fixed
 
+- **`magicui.WarpBackground` clips its tunnel.** Its class
+  `[clipPath:inset(0)]`, the React style key carried over from upstream, is
+  no CSS property, so Tailwind generated nothing for it; it is
+  `[clip-path:inset(0)]` now, and a test checks every arbitrary property the
+  components use for a CSS property name.
+- **A `magicui.BlurFade` inside a horizontal one moves vertically.** A
+  vertical BlurFade set no `--blur-fade-x`, so it inherited the offset of an
+  enclosing horizontal BlurFade; every root now resets both axes.
 - **A `form:"widget=datepicker"` field with a non-ASCII Go name no longer
   panics the form render** in `shadcn.FieldDecider`: a field path that is
   not a valid HTML id cannot name the picker's popover, so the trigger and

@@ -10,10 +10,11 @@ import (
 
 func TestBlurFadeDefault(t *testing.T) {
 	out := render(t, BlurFade(BlurFadeOptions{}, html.Img(html.Src("/a.png"))))
-	mustContain(t, out, `data-slot="blur-fade"`, `class="animate-blur-fade-in"`,
-		"--blur-fade-duration:0.4s", "--blur-fade-delay:0.04s", "--blur-fade-blur:6px", "--blur-fade-y:-6px", `<img src="/a.png"/>`)
-	if strings.Contains(out, "--blur-fade-x") {
-		t.Errorf("direction down should not move horizontally: %s", out)
+	mustContain(t, out, `data-slot="blur-fade"`,
+		`class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]"`,
+		`<img src="/a.png"/>`)
+	if strings.Contains(out, "style=") {
+		t.Errorf("the defaults need no style attribute: %s", out)
 	}
 }
 
@@ -26,10 +27,20 @@ func TestBlurFadeOptions(t *testing.T) {
 		InView:    true,
 		Blur:      "10px",
 	}, html.Class("mb-4"), html.Style("color:red"), "x"))
-	mustContain(t, out, `class="animate-blur-fade-in-view mb-4"`, "--blur-fade-duration:1s", "--blur-fade-delay:0.29s",
-		"--blur-fade-blur:10px", "--blur-fade-x:20px", ";color:red")
-	for dir, want := range map[Direction]string{DirectionUp: "--blur-fade-y:6px", DirectionRight: "--blur-fade-x:-6px"} {
+	mustContain(t, out, `class="animate-blur-fade-in-view `, ` mb-4"`,
+		`style="--blur-fade-duration:1s;--blur-fade-delay:0.29s;--blur-fade-blur:10px;--blur-fade-x:20px;--blur-fade-y:0px;color:red"`)
+	// A direction alone sets both axes, so the class defaults of a vertical
+	// entrance do not leak into a horizontal one.
+	for dir, want := range map[Direction]string{
+		DirectionUp:    `style="--blur-fade-x:0px;--blur-fade-y:6px"`,
+		DirectionRight: `style="--blur-fade-x:-6px;--blur-fade-y:0px"`,
+	} {
 		mustContain(t, render(t, BlurFade(BlurFadeOptions{Direction: dir})), want)
+	}
+	// A caller class replaces a default class instead of competing with it.
+	out = render(t, BlurFade(BlurFadeOptions{}, html.Class("[--blur-fade-y:12px]")))
+	if strings.Contains(out, "[--blur-fade-y:-6px]") || !strings.Contains(out, "[--blur-fade-y:12px]") {
+		t.Errorf("the caller's class should replace the default: %s", out)
 	}
 }
 

@@ -51,36 +51,58 @@ type BorderBeamOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func BorderBeam(opts BorderBeamOptions, attribsChildren ...any) *mx.Element {
-	size := or(opts.Size, 50)
-	from, to := opts.InitialOffset, 100+opts.InitialOffset
-	if opts.Reverse {
-		from, to = 100-opts.InitialOffset, -opts.InitialOffset
+	// The defaults are classes, so a BorderBeam left at them needs no style
+	// attribute (see "Strict Content-Security-Policy" in the README); only
+	// the options set go into style.
+	var width, offsetPath, offset, from, to, duration, delay string
+	if opts.Size != 0 {
+		width = px(opts.Size)
+		offsetPath = "rect(0 auto auto 0 round " + px(opts.Size) + ")"
+	}
+	if opts.InitialOffset != 0 || opts.Reverse {
+		start, end := opts.InitialOffset, 100+opts.InitialOffset
+		if opts.Reverse {
+			start, end = 100-opts.InitialOffset, -opts.InitialOffset
+		}
+		offset, from, to = num(opts.InitialOffset)+"%", num(start)+"%", num(end)+"%"
+	}
+	if opts.Duration > 0 {
+		duration = seconds(opts.Duration, 0)
+	}
+	if opts.Delay != 0 {
+		delay = num((-opts.Delay).Seconds()) + "s"
 	}
 	beamStyle, err := styleVars(
-		"width", px(size),
-		"offset-path", "rect(0 auto auto 0 round "+px(size)+")",
-		"--color-from", or(opts.ColorFrom, "#ffaa40"),
-		"--color-to", or(opts.ColorTo, "#9c40ff"),
-		"offset-distance", num(opts.InitialOffset)+"%",
-		"--border-beam-from", num(from)+"%",
-		"--border-beam-to", num(to)+"%",
-		"--border-beam-duration", seconds(opts.Duration, 6*time.Second),
-		"--border-beam-delay", num((-opts.Delay).Seconds())+"s",
+		"width", width,
+		"offset-path", offsetPath,
+		"--color-from", opts.ColorFrom,
+		"--color-to", opts.ColorTo,
+		"offset-distance", offset,
+		"--border-beam-from", from,
+		"--border-beam-to", to,
+		"--border-beam-duration", duration,
+		"--border-beam-delay", delay,
 	)
 	if err != nil {
 		return mx.NewErrElement(err)
 	}
 	beam := finish(html.Div(attribsChildren...), "border-beam-light",
-		"absolute aspect-square bg-linear-to-l from-(--color-from) via-(--color-to) to-transparent animate-border-beam",
+		"w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%] "+
+			"[--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s] "+
+			"absolute aspect-square bg-linear-to-l from-(--color-from) via-(--color-to) to-transparent animate-border-beam",
 		beamStyle)
 	if beam.Err != nil {
 		return beam
 	}
-	widthStyle, err := styleVars("--border-beam-width", px(or(opts.BorderWidth, 1)))
+	var borderWidth string
+	if opts.BorderWidth != 0 {
+		borderWidth = px(opts.BorderWidth)
+	}
+	widthStyle, err := styleVars("--border-beam-width", borderWidth)
 	if err != nil {
 		return mx.NewErrElement(err)
 	}
 	return finish(html.Div(ariaHidden, beam), "border-beam",
-		"pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]",
+		"[--border-beam-width:1px] pointer-events-none absolute inset-0 rounded-[inherit] border-(length:--border-beam-width) border-transparent mask-[linear-gradient(transparent,transparent),linear-gradient(#000,#000)] mask-intersect [mask-clip:padding-box,border-box]",
 		widthStyle)
 }

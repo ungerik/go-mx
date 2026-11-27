@@ -11,12 +11,15 @@ import (
 func TestBorderBeamDefault(t *testing.T) {
 	out := render(t, BorderBeam(BorderBeamOptions{}))
 	mustContain(t, out,
-		`data-slot="border-beam"`, `aria-hidden="true"`, `style="--border-beam-width:1px"`,
+		`data-slot="border-beam"`, `aria-hidden="true"`, "[--border-beam-width:1px]",
 		"border-(length:--border-beam-width)", "mask-intersect",
 		`data-slot="border-beam-light"`, "animate-border-beam", "from-(--color-from) via-(--color-to)",
-		"width:50px;offset-path:rect(0 auto auto 0 round 50px);--color-from:#ffaa40;--color-to:#9c40ff",
-		"offset-distance:0%;--border-beam-from:0%;--border-beam-to:100%;--border-beam-duration:6s;--border-beam-delay:0s",
+		"w-[50px] [offset-path:rect(0_auto_auto_0_round_50px)] [--color-from:#ffaa40] [--color-to:#9c40ff] [offset-distance:0%]",
+		"[--border-beam-from:0%] [--border-beam-to:100%] [--border-beam-duration:6s] [--border-beam-delay:0s]",
 	)
+	if strings.Contains(out, "style=") {
+		t.Errorf("the defaults need no style attribute: %s", out)
+	}
 }
 
 func TestBorderBeamOptions(t *testing.T) {

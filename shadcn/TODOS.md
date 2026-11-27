@@ -134,6 +134,30 @@ that only the first copy is interactive, or `tabindex="-1"` on focusable
 children set by a small script.
 **Effort:** S · **Priority:** P3 · **Depends on:** nothing.
 
+### 15 components need a style attribute under a strict CSP
+
+**What:** Give the components that still write a `style` attribute at their
+defaults (`needStyleAttribute` in `magicui/csp_test.go`) a way to work under a
+Content-Security-Policy without `'unsafe-inline'` in `style-src`. They need a
+value per element: an index (AnimatedList, Ripple, SpinningText, Text3DFlip,
+TextAnimate, TextReveal, WordRotate), a seeded position (LightRays, Meteors,
+SparklesText, WarpBackground), a computed value (OrbitingCircles,
+AnimatedCircularProgressBar, ProgressiveBlur) or an id in `url()`
+(Backlight). Candidate: a collector in the render context that turns each
+distinct set of declarations into a class (`mxs-<hash>`) and the app serves
+the collected rules as a stylesheet from its own origin, or as a `<style>`
+with a nonce. For the indexes alone, `sibling-index()` would do it in CSS
+once Firefox and Safari ship it.
+**Why:** under such a policy these components render without those values:
+an AnimatedList's items enter together, and the seeded components lose
+their scattered positions.
+**Context:** the other 26 components carry their defaults as classes since
+the strict-CSP change. A collector touches the root package (a document
+renders its head before its body, so the stylesheet link needs a two-pass
+render or a route keyed by the hash) and needs a decision on how apps serve
+it.
+**Effort:** M · **Priority:** P3 · **Depends on:** nothing.
+
 ---
 
 ## Calendar and DatePicker follow-ups

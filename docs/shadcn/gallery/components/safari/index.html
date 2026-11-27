@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes the gradient copy's --aurora-text-duration, which is
+     10s / Speed. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,15 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +629,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1027,11 +1052,11 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-safari-demo-panel-preview" aria-labelledby="tab-safari-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[1203px]">
-                      <div data-slot="safari" style="aspect-ratio:1203/753" class="relative inline-block w-full align-middle leading-none">
-                        <div class="pointer-events-none absolute z-0 overflow-hidden" style="left:0.0831255195344971%;top:6.905710491367861%;width:99.75062344139651%;height:92.96148738379813%;border-radius:0 0 11px 11px">
+                      <div data-slot="safari" class="relative inline-block w-full aspect-[1203/753] align-middle leading-none">
+                        <div class="pointer-events-none absolute z-0 overflow-hidden [border-radius:0_0_11px_11px] left-[0.0831255195344971%] top-[6.905710491367861%] w-[99.75062344139651%] h-[92.96148738379813%]">
                           <img src="https://placehold.co/1200x750?text=Hello+World" alt="" class="block size-full object-cover object-top"/>
                         </div>
-                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <defs>
                             <mask id="safari-demo-page" maskUnits="userSpaceOnUse">
                               <rect x="0" y="0" width="1203" height="753" fill="white"></rect>
@@ -1100,11 +1125,11 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-safari-video-panel-preview" aria-labelledby="tab-safari-video-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[1203px]">
-                      <div data-slot="safari" style="aspect-ratio:1203/753" class="relative inline-block w-full align-middle leading-none">
-                        <div class="pointer-events-none absolute z-0 overflow-hidden" style="left:0.0831255195344971%;top:6.905710491367861%;width:99.75062344139651%;height:92.96148738379813%">
+                      <div data-slot="safari" class="relative inline-block w-full aspect-[1203/753] align-middle leading-none">
+                        <div class="pointer-events-none absolute z-0 overflow-hidden left-[0.0831255195344971%] top-[6.905710491367861%] w-[99.75062344139651%] h-[92.96148738379813%]">
                           <video class="block size-full object-cover" src="https://videos.pexels.com/video-files/27180348/12091515_2560_1440_50fps.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata"></video>
                         </div>
-                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <defs>
                             <mask id="safari-video-page" maskUnits="userSpaceOnUse">
                               <rect x="0" y="0" width="1203" height="753" fill="white"></rect>
@@ -1173,8 +1198,8 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-safari-simple-panel-preview" aria-labelledby="tab-safari-simple-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="w-[1203px]">
-                      <div data-slot="safari" style="aspect-ratio:1203/753" class="relative inline-block w-full align-middle leading-none">
-                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full" style="transform:translateZ(0)" aria-hidden="true">
+                      <div data-slot="safari" class="relative inline-block w-full aspect-[1203/753] align-middle leading-none">
+                        <svg viewBox="0 0 1203 753" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 z-10 size-full [transform:translateZ(0)]" aria-hidden="true">
                           <g>
                             <path d="M0 52H1202V741C1202 747.627 1196.63 753 1190 753H12C5.37258 753 0 747.627 0 741V52Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M0 12C0 5.37258 5.37258 0 12 0H1190C1196.63 0 1202 5.37258 1202 12V52H0L0 12Z" class="fill-[#E5E5E5] dark:fill-[#404040]"></path>

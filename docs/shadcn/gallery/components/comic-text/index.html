@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes the gradient copy's --aurora-text-duration, which is
+     10s / Speed. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,15 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +629,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1027,7 +1052,7 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-comic-text-demo-panel-preview" aria-labelledby="tab-comic-text-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="space-y-8 text-center">
-                      <div data-slot="comic-text" style="font-size:5rem;font-family:'Bangers', 'Comic Sans MS', 'Impact', sans-serif;font-weight:900;-webkit-text-stroke:1.75px #000000;transform:skewX(-10deg);text-transform:uppercase;filter:drop-shadow(5px 5px 0px #000000) drop-shadow(3px 3px 0px #EF4444);background-color:#FACC15;background-image:radial-gradient(circle at 1px 1px, #EF4444 1px, transparent 0);background-size:8px 8px;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent" class="text-center select-none animate-comic-text-pop">BOOM!</div>
+                      <div data-slot="comic-text" style="--comic-text-font-size:5" class="[--comic-text-font-size:5] [font-size:calc(var(--comic-text-font-size)*1rem)] [font-family:Bangers,Comic_Sans_MS,Impact,sans-serif] font-black uppercase [transform:skewX(-10deg)] [-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000] [filter:drop-shadow(5px_5px_0px_#000000)_drop-shadow(3px_3px_0px_#EF4444)] bg-[#FACC15] bg-[radial-gradient(circle_at_1px_1px,#EF4444_1px,transparent_0)] bg-size-[8px_8px] bg-clip-text [-webkit-text-fill-color:transparent] text-center select-none animate-comic-text-pop">BOOM!</div>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 package magicui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -11,11 +12,14 @@ func TestShineBorderDefault(t *testing.T) {
 	out := render(t, ShineBorder(ShineBorderOptions{}))
 	mustContain(t, out,
 		`data-slot="shine-border"`, `aria-hidden="true"`,
-		"--border-width:1px;--duration:14s;",
-		"radial-gradient(transparent,transparent, #000000,transparent,transparent)",
-		"mask-composite:exclude", "-webkit-mask-composite:xor", "padding:var(--border-width)",
+		"[--border-width:1px] [--duration:14s]",
+		"bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)]",
+		"shine-border-mask", "p-(--border-width)",
 		"motion-safe:animate-shine", "rounded-[inherit]",
 	)
+	if strings.Contains(out, "style=") {
+		t.Errorf("the defaults need no style attribute: %s", out)
+	}
 }
 
 func TestShineBorderOptions(t *testing.T) {
