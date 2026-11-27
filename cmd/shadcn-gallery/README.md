@@ -27,11 +27,14 @@ calendar's month fragments, so month navigation needs the directory served
 (e.g. `python3 -m http.server` inside `./dist`).
 
 ```bash
-go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
+go run ./cmd/shadcn-gallery -out ./dist -static-highlight -home ../../index.html
 ```
 
-This is exactly how the gallery committed under [`docs/shadcn/gallery/`](../../docs/shadcn/gallery/)
-(served at `https://ungerik.github.io/go-mx/shadcn/gallery/`) is generated.
+This is how the documentation site
+([`tools/gen-docs-site`](../../tools/gen-docs-site/main.go)) writes the gallery
+it publishes at <https://ungerik.github.io/go-mx/shadcn/gallery/>
+whenever `main` changes; the output is not committed. `-home` adds a link from
+the sidebar back to the site's home page, given relative to the gallery index.
 
 An internet connection is required: Tailwind v4 is loaded from a CDN (see below).
 
@@ -43,14 +46,14 @@ An internet connection is required: Tailwind v4 is loaded from a CDN (see below)
 | `magicui.go`     | The Magic UI part of the catalog (`magicUIDocs()`), its own group.   |
 | `export.go`      | `-out` static-site generation: render every page to a file.          |
 | `shell.go`       | The page shell: `<head>` wiring, sidebar + main layout grouped by     |
-|                  | library, Preview/Code tab blocks. Embeds `theme.css`.                 |
+|                  | library, Preview/Code tab blocks. The `<head>` comes from             |
+|                  | `internal/shadcntheme`, which the documentation site shares.         |
 | `registry.go`    | Types (`Example`, `ComponentDoc`, `DocGroup`, `Registry`) and Go-     |
 |                  | source extraction. Embeds `examples/*.go` and                         |
 |                  | `examples/magicui/*.go`.                                              |
 | `examples/`      | One function per labeled preview — the live component. Their bodies   |
 |                  | are the snippets shown in the Code tab. The Magic UI examples are     |
 |                  | the `examples/magicui` package.                                       |
-| `theme.css`      | shadcn/ui new-york-v4 `globals.css` theme tokens.                     |
 
 ## Tailwind v4 via the browser CDN build
 
@@ -58,7 +61,9 @@ The `shadcn` components emit only Tailwind v4 utility classes and rely on the
 shadcn CSS variables (`--background`, `--primary`, …). Rather than add a node
 toolchain to this pure-Go repo, the gallery loads
 [`@tailwindcss/browser`](https://www.npmjs.com/package/@tailwindcss/browser):
-the `theme.css` tokens go in a `<style type="text/tailwindcss">` block and the
+the shadcn/ui new-york-v4 theme tokens
+([`internal/shadcntheme/theme.css`](../../internal/shadcntheme/theme.css)) go in a
+`<style type="text/tailwindcss">` block and the
 CDN script compiles them plus the classes it finds in the live DOM at runtime.
 Zero build step; the trade-off is a CDN dependency and a brief first-paint
 compile, which is fine for a demo. A production app would run the Tailwind v4

@@ -28,7 +28,7 @@ func TraceDemo() mx.Component {
 				),
 			),
 		),
-		html.A(html.HRef("#trace"),
+		html.A(html.HRef("#"),
 			shadcn.TraceLine("",
 				shadcn.TraceIcon(iconFileText()),
 				shadcn.TraceTitle("Read shadcn/trace.go"),

@@ -106,7 +106,7 @@ into CSS. The no-build way (great for development and demos) is the
 `@tailwindcss/browser` CDN build, which compiles classes in the page at runtime.
 
 First, grab the shadcn theme tokens. Copy
-[`cmd/shadcn-gallery/theme.css`](https://github.com/ungerik/go-mx/blob/main/cmd/shadcn-gallery/theme.css)
+[`internal/shadcntheme/theme.css`](https://github.com/ungerik/go-mx/blob/main/internal/shadcntheme/theme.css)
 from the go-mx repo into your project as `theme.css` — it's the shadcn
 new-york-v4 `globals.css` (the `--background`, `--primary`, … variable
 definitions the components reference).

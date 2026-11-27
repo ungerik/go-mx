@@ -9,7 +9,7 @@ terms are reproduced below.
 
 | Project | Used in | License |
 | ------------------------------------------ | ------------------------- | ------------ |
-| [shadcn/ui](https://github.com/shadcn-ui/ui)                          | `shadcn/` components, `cn.go`, `shadcn/utilities.css`, gallery `theme.css` | MIT |
+| [shadcn/ui](https://github.com/shadcn-ui/ui)                          | `shadcn/` components, `cn.go`, `shadcn/utilities.css`, `internal/shadcntheme/theme.css` | MIT |
 | [Magic UI](https://github.com/magicuidesign/magicui)                  | `shadcn/magicui/` components and `css/*.css` | MIT |
 | [clsx](https://github.com/lukeed/clsx)                                | `shadcn/clsx/`            | MIT |
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
@@ -41,7 +41,7 @@ modules and are not reproduced here.
 ## shadcn/ui
 
 The `shadcn/` package reproduces the markup and Tailwind class strings of
-shadcn/ui components in Go; `cmd/shadcn-gallery/theme.css` reuses the shadcn/ui
+shadcn/ui components in Go; `internal/shadcntheme/theme.css` reuses the shadcn/ui
 new-york-v4 theme tokens.
 
 ```

@@ -1,0 +1,61 @@
+// Package shadcntheme is the page head the go-mx demo sites share: the
+// shadcn/ui new-york-v4 theme tokens compiled in the browser by the
+// @tailwindcss/browser CDN build, and the light/dark switch that carries
+// across page loads. The component gallery (cmd/shadcn-gallery) and the
+// documentation site (tools/gen-docs-site) both build their <head> with
+// [Head], so the two look the same without either forking the theme.
+//
+// It is internal because it is demo plumbing, not library API: an
+// application ships compiled Tailwind CSS instead of the CDN build. The
+// theme file itself, theme.css, is the one the shadcn tutorial tells readers
+// to copy into their own project.
+package shadcntheme
+
+import (
+	_ "embed"
+	"strings"
+
+	"github.com/ungerik/go-mx"
+	"github.com/ungerik/go-mx/html"
+)
+
+// CSS is the shadcn/ui new-york-v4 globals.css, the Tailwind v4 input that
+// [Head] puts into a <style type="text/tailwindcss"> block. See theme.css for
+// the full note.
+//
+//go:embed theme.css
+var CSS string
+
+// TailwindBrowserURL is the @tailwindcss/browser build that compiles the
+// text/tailwindcss style block and the classes it finds in the live DOM at
+// runtime, so the demo sites need no node toolchain.
+const TailwindBrowserURL = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"
+
+// InitScript applies the light/dark choice before the body renders, so the
+// preference carries across full-page navigations with no flash of the wrong
+// mode. It runs synchronously during head parsing. Precedence: a ?theme=dark or
+// ?theme=light query param wins and is persisted (so it carries forward like
+// using the toggle); otherwise the value saved by [ToggleScript] is used.
+const InitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}`
+
+// ToggleScript is the onclick handler of a theme toggle button: it flips the
+// dark class on the root element and saves the choice for [InitScript].
+const ToggleScript = /*js*/ `localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'`
+
+// Head returns the head elements of a demo page: [InitScript], a
+// text/tailwindcss style block holding [CSS] followed by each of extraCSS
+// (for example magicui.CSS, or page-specific @apply rules), and the
+// [TailwindBrowserURL] script that compiles it.
+func Head(extraCSS ...string) mx.Components {
+	return mx.Components{
+		html.ScriptJS(InitScript),
+		html.Element("style", html.Type("text/tailwindcss"), html.Raw(TailwindInput(extraCSS...))),
+		html.ScriptSrc(TailwindBrowserURL),
+	}
+}
+
+// TailwindInput is the Tailwind CSS input [Head] embeds: [CSS] followed by
+// each of extraCSS, separated by newlines.
+func TailwindInput(extraCSS ...string) string {
+	return strings.Join(append([]string{CSS}, extraCSS...), "\n")
+}
