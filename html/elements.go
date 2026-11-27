@@ -59,16 +59,20 @@ func BDi(attribsChildren ...any) *mx.Element { return Element("bdi", attribsChil
 
 // BDo creates a <bdo> element that displays its text in the direction dir,
 // overriding the Unicode bidirectional algorithm. dir must be DirLTR or
-// DirRTL; DirAuto is not allowed on <bdo> and makes Render return an error.
-// An empty dir renders no dir attribute, for a dir passed in attribsChildren.
+// DirRTL; DirAuto is not allowed on <bdo> and makes Render return an error,
+// also when it is passed in attribsChildren. An empty dir renders no dir
+// attribute, for a dir passed in attribsChildren.
 func BDo(dir Dir, attribsChildren ...any) *mx.Element {
-	switch dir {
-	case "":
-		return Element("bdo", attribsChildren...)
-	case DirAuto:
-		return Element("bdo", append([]any{mx.ErrAttribf("dir", "bdo dir must be %q or %q, not %q", DirLTR, DirRTL, dir)}, attribsChildren...)...)
+	if dir != "" {
+		attribsChildren = append([]any{dir}, attribsChildren...)
 	}
-	return Element("bdo", append([]any{dir}, attribsChildren...)...)
+	e := Element("bdo", attribsChildren...)
+	for i, a := range e.Attribs {
+		if a == DirAuto {
+			e.Attribs[i] = mx.ErrAttribf("dir", "bdo dir must be %q or %q, not %q", DirLTR, DirRTL, DirAuto)
+		}
+	}
+	return e
 }
 
 // Blockquote creates a <blockquote> element for an extended quotation.

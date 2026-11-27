@@ -72,9 +72,12 @@ func TestRequiredAttribConstructors(t *testing.T) {
 }
 
 func TestBDoRejectsDirAuto(t *testing.T) {
-	// <bdo> overrides the direction, so it needs an explicit one.
-	err := BDo(DirAuto, "Hello").Render(t.Context(), mx.NewCheckedWriter(io.Discard))
-	require.Error(t, err)
+	// <bdo> overrides the direction, so it needs an explicit one, whether
+	// DirAuto comes as the dir parameter or among the attributes.
+	for _, bdo := range []*mx.Element{BDo(DirAuto, "Hello"), BDo("", DirAuto, "Hello")} {
+		err := bdo.Render(t.Context(), mx.NewCheckedWriter(io.Discard))
+		require.Error(t, err)
+	}
 }
 
 func TestButtonTypeConstructors(t *testing.T) {

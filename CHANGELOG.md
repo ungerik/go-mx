@@ -54,10 +54,9 @@ API is still free to change.
   page of the site it is published in.
 - **More closed sets are go-enum types**: `mx.FieldKind`,
   `mx.DateTimeProblem`, `mx.OptionPreface`, `mx.TextProblem`,
-  `highlight.TokenClass`, `pdf.OutputIntentSubtype` and `doc.Strike` get the
-  generated `Valid`, `Validate`, `ValidOr`, `Enums` and `EnumStrings` methods
-  (`TokenClass` and `OutputIntentSubtype` also `String`), like the other enum
-  types of go-mx.
+  `highlight.TokenClass` and `doc.Strike` get the generated `Valid`,
+  `Validate`, `ValidOr`, `Enums` and `EnumStrings` methods (`TokenClass` also
+  `String`), like the other enum types of go-mx.
 
 - **`shadcn/magicui`, a port of Magic UI.** 41 components of
   [Magic UI](https://magicui.design) (the animated effects built on
