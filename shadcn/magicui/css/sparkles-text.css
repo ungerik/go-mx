@@ -1,0 +1,29 @@
+/* Sparkles Text */
+@theme inline {
+  --animate-sparkles-text: sparkles-text-twinkle 0.8s ease-in-out var(--sparkles-text-delay, 0s) infinite both;
+
+  /* The sparkle's own style is opacity 0: under prefers-reduced-motion
+     the decoration does not show. */
+  @keyframes sparkles-text-twinkle {
+    0% {
+      opacity: 0;
+      scale: 0;
+      rotate: 75deg;
+    }
+    50% {
+      opacity: 1;
+      scale: var(--sparkles-text-scale, 1);
+      rotate: 120deg;
+    }
+    100% {
+      opacity: 0;
+      scale: 0;
+      rotate: 150deg;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-sparkles-text {
+    animation: none;
+  }
+}

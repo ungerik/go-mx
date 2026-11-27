@@ -15,6 +15,25 @@ API is still free to change.
 
 ### Added
 
+- **`shadcn/magicui`, a port of Magic UI.** 41 components of
+  [Magic UI](https://magicui.design) (the animated effects built on
+  shadcn/ui's tokens), transcribed from `magicuidesign/magicui` at
+  `magicui.UpstreamCommit`: the ones that are markup and CSS upstream (Marquee,
+  ShimmerButton, OrbitingCircles, the SVG patterns, the device mockups, …) and
+  the motion-library ones whose animation CSS can re-express (BorderBeam,
+  BlurFade, TextAnimate, WordRotate, ScrollProgress, TextReveal,
+  HeroVideoDialog on `shadcn.Dialog`, …). Every animation is Tailwind v4 CSS in
+  `magicui.CSS`, which an app adds to its Tailwind input; under
+  `prefers-reduced-motion: reduce` all of them stop and each component shows
+  its final state. Positions upstream draws with `Math.random` come from a
+  `Seed` option, and caller CSS values are validated so they cannot inject
+  declarations. The gallery lists the components in a new Magic UI section,
+  and `shadcn/TODOS.md` lists the scripted and library-based components still
+  to port. See `shadcn/magicui/README.md`, and on the docs site
+  `docs/shadcn/magicui/`: a tutorial (an animated landing hero), how-to guides
+  (among them the production Tailwind build, whose `@source` line makes
+  Tailwind scan the go-mx source in the Go module cache) and an explanation of
+  why the port animates with CSS alone.
 - **`shadcn.Combobox` is a form field.** `Combobox(ComboboxOptions{Name,
   Options, Selected, Placeholder, SearchPlaceholder, Empty, Required,
   Disabled, ID})` renders upstream's Combobox (a trigger button opening a
@@ -682,6 +701,11 @@ API is still free to change.
 
 ### Changed
 
+- **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
+  finishes its element with (merge the caller's classes over the base classes
+  with `Cn`, set one `data-slot`, dedupe attributes), formerly the unexported
+  `finish`, so add-on packages such as `shadcn/magicui` build their components
+  the same way.
 - **`twmerge.Merge` caches its results** like tailwind-merge does (its
   two-generation cache of 500 entries, read under a read lock so concurrent
   renders do not wait on each other), so building a component no longer

@@ -8,7 +8,7 @@ import (
 // Avatar renders a shadcn/ui avatar container as a <span>. Place an
 // [AvatarImage] and an [AvatarFallback] inside it.
 func Avatar(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "avatar",
+	return StyleSlot(html.Span(attribsChildren...), "avatar",
 		"relative flex size-8 shrink-0 overflow-hidden rounded-full")
 }
 
@@ -28,13 +28,13 @@ func AvatarImage(attribs ...mx.Attrib) *mx.Element {
 	if e.AttribIndex("onerror") < 0 {
 		e.Attribs = append(e.Attribs, html.OnError("this.style.display='none'"))
 	}
-	return finish(e, "avatar-image", "absolute inset-0 aspect-square size-full")
+	return StyleSlot(e, "avatar-image", "absolute inset-0 aspect-square size-full")
 }
 
 // AvatarFallback renders the avatar's fallback content (typically initials) as
 // a <span>. It shows when no [AvatarImage] is present or the image fails to
 // load.
 func AvatarFallback(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "avatar-fallback",
+	return StyleSlot(html.Span(attribsChildren...), "avatar-fallback",
 		"bg-muted flex size-full items-center justify-center rounded-full")
 }

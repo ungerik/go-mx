@@ -28,7 +28,7 @@ func InputGroup(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("group"))
 	}
-	return finish(e, "input-group",
+	return StyleSlot(e, "input-group",
 		"group/input-group relative flex w-full min-w-0 items-center outline-none has-[>textarea]:h-auto border-input dark:bg-input/30 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[[data-slot][aria-invalid=true]]:border-destructive dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 h-9 rounded-md border shadow-xs transition-[color,box-shadow] in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot][aria-invalid=true]]:ring-3 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5")
 }
 
@@ -137,7 +137,7 @@ func InputGroupAddon(align InputGroupAddonAlign, attribsChildren ...any) *mx.Ele
 		e.Attribs = append(e.Attribs, html.OnClick(inputGroupAddonFocus))
 	}
 	e.Attribs = append(e.Attribs, html.DataAttr("align", string(align)))
-	return finish(e, "input-group-addon",
+	return StyleSlot(e, "input-group-addon",
 		Cn(inputGroupAddonVariants(map[string]string{"align": string(align)})))
 }
 
@@ -260,7 +260,7 @@ func InputGroupButton(variant ButtonVariant, size InputGroupButtonSize, attribsC
 		html.DataAttr("variant", string(variant)),
 		html.DataAttr("size", s),
 	)
-	return finish(e, "button", Cn(
+	return StyleSlot(e, "button", Cn(
 		ButtonClasses(variant, inputGroupButtonBaseSize(s)),
 		inputGroupButtonVariants(map[string]string{"size": s}),
 	))
@@ -271,7 +271,7 @@ func InputGroupButton(variant ButtonVariant, size InputGroupButtonSize, attribsC
 // data-slot="input-group-text" for consistency (every component in this
 // package tags its slot).
 func InputGroupText(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "input-group-text",
+	return StyleSlot(html.Span(attribsChildren...), "input-group-text",
 		"flex items-center [&_svg]:pointer-events-none text-muted-foreground gap-2 text-sm [&_svg:not([class*='size-'])]:size-4")
 }
 
@@ -287,7 +287,7 @@ var (
 // borderless (the [InputGroup] wrapper carries the border and focus ring)
 // with data-slot="input-group-control".
 func InputGroupInput(attribs ...mx.Attrib) *mx.Element {
-	return finish(html.VoidElement("input", attribs...), "input-group-control",
+	return StyleSlot(html.VoidElement("input", attribs...), "input-group-control",
 		inputGroupInputClasses)
 }
 
@@ -295,6 +295,6 @@ func InputGroupInput(attribs ...mx.Attrib) *mx.Element {
 // borderless (the [InputGroup] wrapper carries the border and focus ring)
 // with data-slot="input-group-control".
 func InputGroupTextarea(attribsChildren ...any) *mx.Element {
-	return finish(html.TextArea(attribsChildren...), "input-group-control",
+	return StyleSlot(html.TextArea(attribsChildren...), "input-group-control",
 		inputGroupTextareaClasses)
 }

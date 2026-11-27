@@ -89,18 +89,18 @@ func Alert(variant AlertVariant, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	return finish(e, "alert", alertVariants(map[string]string{"variant": string(variant.ValidOr(AlertDefault))}))
+	return StyleSlot(e, "alert", alertVariants(map[string]string{"variant": string(variant.ValidOr(AlertDefault))}))
 }
 
 // AlertTitle renders the title row of an [Alert]. shadcn/ui uses a div here
 // (not a heading element), which this port keeps for parity.
 func AlertTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-title",
+	return StyleSlot(html.Div(attribsChildren...), "alert-title",
 		"col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight")
 }
 
 // AlertDescription renders the description row of an [Alert].
 func AlertDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "alert-description",
+	return StyleSlot(html.Div(attribsChildren...), "alert-description",
 		"col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&_p]:leading-relaxed")
 }

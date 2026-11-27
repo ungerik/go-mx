@@ -43,7 +43,7 @@ func Checkbox(attribs ...mx.Attrib) *mx.Element {
 	if e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("checkbox"))
 	}
-	return finish(e, "checkbox", checkboxClasses)
+	return StyleSlot(e, "checkbox", checkboxClasses)
 }
 
 // CheckboxID renders a [Checkbox] with the given id, to link a [Label] or

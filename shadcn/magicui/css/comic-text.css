@@ -1,0 +1,20 @@
+/* Comic Text */
+@theme inline {
+  /* Upstream's motion entrance (opacity, scale and rotate over 0.6s with a
+     back-out easing). The scale and rotate properties compose with the
+     element's skewX transform instead of replacing it. */
+  --animate-comic-text-pop: comic-text-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+
+  @keyframes comic-text-pop {
+    from {
+      opacity: 0;
+      scale: 0.8;
+      rotate: -2deg;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-comic-text-pop {
+    animation: none;
+  }
+}

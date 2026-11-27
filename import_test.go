@@ -14,7 +14,8 @@ import (
 // shadcn.
 //
 // logview sits above all four — it composes html, hx and shadcn — so
-// nothing below it may import it back.
+// nothing below it may import it back. shadcn/magicui is an add-on built
+// on shadcn, so shadcn must not import it.
 //
 // Catching a violation here is cheap; catching it after a release
 // requires renaming and re-exporting types. The test uses `go list
@@ -52,8 +53,11 @@ func TestImportInvariant(t *testing.T) {
 			},
 		},
 		{
-			pkg:       "github.com/ungerik/go-mx/shadcn",
-			forbidden: []string{"github.com/ungerik/go-mx/logview"},
+			pkg: "github.com/ungerik/go-mx/shadcn",
+			forbidden: []string{
+				"github.com/ungerik/go-mx/logview",
+				"github.com/ungerik/go-mx/shadcn/magicui",
+			},
 		},
 		{
 			pkg:       "github.com/ungerik/go-mx/highlight",

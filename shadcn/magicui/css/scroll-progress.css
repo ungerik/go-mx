@@ -1,0 +1,22 @@
+/* Scroll Progress */
+@keyframes scroll-progress-grow {
+  from {
+    scale: 0 1;
+  }
+}
+/* Hidden unless the browser can link the bar to the scroll position, so it
+   never shows a width that does not match it. */
+@utility animate-scroll-progress {
+  visibility: hidden;
+  @supports (animation-timeline: scroll()) {
+    visibility: visible;
+    animation: scroll-progress-grow linear both;
+    animation-timeline: scroll(root);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-progress {
+    animation: none;
+    visibility: hidden;
+  }
+}

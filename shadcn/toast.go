@@ -23,7 +23,7 @@ const toastScript = /*js*/ `if(!window.toast){window.toast=function(msg,opts){op
 // Toaster renders the fixed bottom-right region that toasts append to, plus the
 // shared toast() script. Render it once per page.
 func Toaster(attribsChildren ...any) *mx.Element {
-	return finish(
+	return StyleSlot(
 		html.Div(append(attribsChildren, html.ScriptJS(toastScript))...),
 		"toaster",
 		"pointer-events-none fixed right-4 bottom-4 z-[100] flex flex-col gap-2",

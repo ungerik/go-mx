@@ -16,7 +16,7 @@ import (
 // (single mode), items with no name behave independently (multiple mode). That
 // choice is made per item by the groupName passed to [AccordionItem].
 func Accordion(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "accordion", "")
+	return StyleSlot(html.Div(attribsChildren...), "accordion", "")
 }
 
 // AccordionItem renders one collapsible item as a native <details>. groupName
@@ -41,7 +41,7 @@ func AccordionItem(groupName string, attribsChildren ...any) *mx.Element {
 			e.Attribs = append(e.Attribs, html.Name(groupName))
 		}
 	}
-	return finish(e, "accordion-item", "border-b last:border-b-0 group")
+	return StyleSlot(e, "accordion-item", "border-b last:border-b-0 group")
 }
 
 // accordionTriggerClasses is shadcn/ui's AccordionTrigger class string, minus
@@ -63,7 +63,7 @@ func AccordionTrigger(attribsChildren ...any) *mx.Element {
 		"text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-180",
 		svg.Path(svg.D("m6 9 6 6 6-6")),
 	)
-	return finish(
+	return StyleSlot(
 		html.Summary(append(attribsChildren, chevron)...),
 		"accordion-trigger",
 		accordionTriggerClasses,
@@ -74,5 +74,5 @@ func AccordionTrigger(attribsChildren ...any) *mx.Element {
 // Radix-driven open/close height animation is dropped; the content snaps in
 // when the parent [AccordionItem] is open.
 func AccordionContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "accordion-content", "pb-4 pt-0 text-sm")
+	return StyleSlot(html.Div(attribsChildren...), "accordion-content", "pb-4 pt-0 text-sm")
 }

@@ -106,7 +106,7 @@ func Marker(variant MarkerVariant, attribsChildren ...any) *mx.Element {
 	e := html.Div(attribsChildren...)
 	e.Name = renderTag(e, "div")
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", v))
-	return finish(e, "marker", Cn(markerVariants(map[string]string{"variant": v})))
+	return StyleSlot(e, "marker", Cn(markerVariants(map[string]string{"variant": v})))
 }
 
 // MarkerIcon holds a [Marker]'s icon or [Spinner]. It is hidden from
@@ -116,13 +116,13 @@ func MarkerIcon(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-hidden") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-hidden", "true"))
 	}
-	return finish(e, "marker-icon",
+	return StyleSlot(e, "marker-icon",
 		"shrink-0 size-4 [&_svg:not([class*='size-'])]:size-4")
 }
 
 // MarkerContent holds a [Marker]'s text. In a [MarkerSeparator] row it
 // shrinks to its text between the two rules.
 func MarkerContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "marker-content",
+	return StyleSlot(html.Span(attribsChildren...), "marker-content",
 		"min-w-0 wrap-break-word group-data-[variant=separator]/marker:flex-none group-data-[variant=separator]/marker:text-center *:[a]:hover:text-foreground *:[a]:underline *:[a]:underline-offset-3")
 }

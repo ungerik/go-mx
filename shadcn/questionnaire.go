@@ -308,7 +308,7 @@ func Questionnaire(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onkeydown") < 0 {
 		e.Attribs = append(e.Attribs, html.OnKeyDown("mxQuestionnaireKey(event)"))
 	}
-	return finish(e, "questionnaire", "flex w-full min-w-0 flex-col gap-6")
+	return StyleSlot(e, "questionnaire", "flex w-full min-w-0 flex-col gap-6")
 }
 
 // QuestionnaireProgress renders the position of the active item as a <div
@@ -344,7 +344,7 @@ func QuestionnaireProgress(current, total int, attribsChildren ...any) *mx.Eleme
 			e.Attribs = append(e.Attribs, html.Attrib("aria-valuetext", string(text)))
 		}
 	}
-	return finish(e, "questionnaire-progress",
+	return StyleSlot(e, "questionnaire-progress",
 		"min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums text-xs")
 }
 
@@ -417,7 +417,7 @@ func QuestionnaireItem(name string, attribsChildren ...any) *mx.Element {
 	// After the content: a <legend> must be the fieldset's first child.
 	e.Children = append(e.Children,
 		html.Input(html.Type("hidden"), html.Name(QuestionnaireItemParam), html.Value(name)))
-	return finish(e, "questionnaire-item",
+	return StyleSlot(e, "questionnaire-item",
 		"group/questionnaire-item min-w-0 border-0 p-0 outline-none flex flex-col gap-5")
 }
 
@@ -425,7 +425,7 @@ func QuestionnaireItem(name string, attribsChildren ...any) *mx.Element {
 // [QuestionnaireItem], which makes it the accessible name of the item and of
 // its group of choices. Pass it as the item's first child.
 func QuestionnaireTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Legend(attribsChildren...), "questionnaire-title",
+	return StyleSlot(html.Legend(attribsChildren...), "questionnaire-title",
 		"text-pretty text-base font-semibold [&:not(:has(~[data-slot=questionnaire-description]))]:mb-5")
 }
 
@@ -433,7 +433,7 @@ func QuestionnaireTitle(attribsChildren ...any) *mx.Element {
 // as a <p>; the [QuestionnaireItem] around it references it from
 // aria-describedby.
 func QuestionnaireDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "questionnaire-description",
+	return StyleSlot(html.P(attribsChildren...), "questionnaire-description",
 		"text-pretty text-muted-foreground text-sm")
 }
 
@@ -475,7 +475,7 @@ func QuestionnaireChoices(shortcuts QuestionnaireShortcuts, attribsChildren ...a
 		}
 		assign(e.Children)
 	}
-	return finish(e, "questionnaire-choices",
+	return StyleSlot(e, "questionnaire-choices",
 		"group/questionnaire-choices grid min-w-0 gap-3")
 }
 
@@ -492,7 +492,7 @@ func setQuestionnaireShortcut(choice *mx.Element, key string) {
 		}
 	}
 	badge := html.Span(html.Attrib("aria-hidden", "true"), key)
-	choice.Children = append(choice.Children, finish(badge, "questionnaire-choice-shortcut",
+	choice.Children = append(choice.Children, StyleSlot(badge, "questionnaire-choice-shortcut",
 		"pointer-events-none ms-auto inline-flex shrink-0 border-input bg-background text-muted-foreground size-5 translate-y-[--spacing(0.45)] group-has-data-[slot=questionnaire-choice-description]/questionnaire-choice:translate-y-0.5 items-center justify-center rounded-md border font-mono text-[0.625rem] font-medium leading-none shadow-xs"))
 }
 
@@ -559,37 +559,37 @@ func QuestionnaireChoice(choiceType QuestionnaireChoiceType, name, value string,
 	if input.AttribIndex("value") < 0 {
 		input.Attribs = append(input.Attribs, html.Value(value))
 	}
-	input = finish(input, "questionnaire-choice-input",
+	input = StyleSlot(input, "questionnaire-choice-input",
 		"absolute inset-0 z-10 size-full cursor-pointer opacity-0")
 
 	var mark *mx.Element
 	rounding := "rounded-[4px]"
 	if choiceType == QuestionnaireRadio {
 		rounding = "rounded-full"
-		mark = finish(html.Span(), "questionnaire-choice-indicator-dot",
+		mark = StyleSlot(html.Span(), "questionnaire-choice-indicator-dot",
 			"hidden rounded-full bg-primary-foreground size-2 group-has-[>input:checked]/questionnaire-choice:block")
 	} else {
-		mark = finish(iconCheck(), "questionnaire-choice-indicator-check",
+		mark = StyleSlot(iconCheck(), "questionnaire-choice-indicator-check",
 			"hidden size-3.5 group-has-[>input:checked]/questionnaire-choice:block")
 	}
-	indicator := finish(html.Span(html.Attrib("aria-hidden", "true"), mark),
+	indicator := StyleSlot(html.Span(html.Attrib("aria-hidden", "true"), mark),
 		"questionnaire-choice-indicator", questionnaireIndicatorClasses+" "+rounding)
 
 	content := html.Span()
 	content.Children = card.Children
-	content = finish(content, "questionnaire-choice-label",
+	content = StyleSlot(content, "questionnaire-choice-label",
 		"flex min-w-0 flex-1 flex-col leading-snug gap-1")
 
 	card.Children = []mx.Component{input, indicator, content}
 	card.Attribs = append(card.Attribs, html.DataAttr("type", string(choiceType)))
-	return finish(card, "questionnaire-choice", questionnaireChoiceClasses)
+	return StyleSlot(card, "questionnaire-choice", questionnaireChoiceClasses)
 }
 
 // QuestionnaireChoiceDescription renders a secondary line under a
 // [QuestionnaireChoice]'s title, as a muted <span>. It also nudges the card's
 // indicator and shortcut badge to the title's line height.
 func QuestionnaireChoiceDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "questionnaire-choice-description",
+	return StyleSlot(html.Span(attribsChildren...), "questionnaire-choice-description",
 		"text-muted-foreground")
 }
 
@@ -609,11 +609,11 @@ func QuestionnaireInput(attribs ...mx.Attrib) *mx.Element {
 	if input.AttribIndex("type") < 0 {
 		input.Attribs = append(input.Attribs, html.Type("text"))
 	}
-	input = finish(input, "questionnaire-input",
+	input = StyleSlot(input, "questionnaire-input",
 		"min-h-11 w-full min-w-0 transition-[color,box-shadow,background-color] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"+
 			" selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground"+
 			" dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-9 rounded-md border bg-transparent px-2.5 py-1 text-base shadow-xs focus-visible:ring-3 aria-invalid:ring-3 md:text-sm")
-	return finish(html.Div(input), "questionnaire-input-wrapper",
+	return StyleSlot(html.Div(input), "questionnaire-input-wrapper",
 		"group/questionnaire-input relative min-w-0 w-full")
 }
 
@@ -627,7 +627,7 @@ func QuestionnaireError(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("alert"))
 	}
-	return finish(e, "questionnaire-error", "text-destructive text-sm")
+	return StyleSlot(e, "questionnaire-error", "text-destructive text-sm")
 }
 
 // QuestionnaireActions lays out the navigation buttons in a three-column
@@ -636,7 +636,7 @@ func QuestionnaireError(attribsChildren ...any) *mx.Element {
 // itself in its column, so a step that leaves one out keeps the others where
 // they were.
 func QuestionnaireActions(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "questionnaire-actions",
+	return StyleSlot(html.Div(attribsChildren...), "questionnaire-actions",
 		"grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:min-h-9")
 }
 
@@ -705,7 +705,7 @@ func questionnaireButton(slot string, action QuestionnaireAction, variant Button
 		html.DataAttr("variant", string(variant)),
 		html.DataAttr("size", string(size)),
 	)
-	return finish(e, slot, Cn(ButtonClasses(variant, size), placement))
+	return StyleSlot(e, slot, Cn(ButtonClasses(variant, size), placement))
 }
 
 // walkQuestionnaireElements calls fn for every element among cs and their

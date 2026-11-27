@@ -1,0 +1,98 @@
+/* Text Animate */
+@theme inline {
+  --animate-text-animate-fade-in: text-animate-up 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-blur-in: text-animate-blur 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-blur-in-up: text-animate-blur-up 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both, text-animate-fade 0.4s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-blur-in-down: text-animate-blur-down 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both, text-animate-fade 0.4s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-slide-up: text-animate-up 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-slide-down: text-animate-down 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-slide-left: text-animate-left 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-slide-right: text-animate-right 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  /* scale springs with motion's damping 15, stiffness 300, sampled as linear() */
+  --animate-text-animate-scale-up: text-animate-scale-up 0.85s linear(0, 0.212, 0.626, 0.988, 1.184, 1.217, 1.151, 1.059, 0.987, 0.954, 0.954, 0.972, 0.992, 1.006, 1.011, 1.009, 1.005, 1.001, 0.998, 0.998, 1) calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both, text-animate-fade 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+  --animate-text-animate-scale-down: text-animate-scale-down 0.85s linear(0, 0.212, 0.626, 0.988, 1.184, 1.217, 1.151, 1.059, 0.987, 0.954, 0.954, 0.972, 0.992, 1.006, 1.011, 1.009, 1.005, 1.001, 0.998, 0.998, 1) calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both, text-animate-fade 0.3s ease-out calc(var(--text-animate-delay, 0s) + var(--i, 0) * var(--text-animate-stagger, 0s)) both;
+}
+/* Outside @theme, so Tailwind keeps them for the StartOnView utility too. */
+@keyframes text-animate-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes text-animate-up {
+  from {
+    opacity: 0;
+    translate: 0 20px;
+  }
+}
+@keyframes text-animate-down {
+  from {
+    opacity: 0;
+    translate: 0 -20px;
+  }
+}
+@keyframes text-animate-left {
+  from {
+    opacity: 0;
+    translate: 20px 0;
+  }
+}
+@keyframes text-animate-right {
+  from {
+    opacity: 0;
+    translate: -20px 0;
+  }
+}
+@keyframes text-animate-blur {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+@keyframes text-animate-blur-up {
+  from {
+    filter: blur(10px);
+    translate: 0 20px;
+  }
+}
+@keyframes text-animate-blur-down {
+  from {
+    filter: blur(10px);
+    translate: 0 -20px;
+  }
+}
+@keyframes text-animate-scale-up {
+  from {
+    scale: 0.5;
+  }
+}
+@keyframes text-animate-scale-down {
+  from {
+    scale: 1.5;
+  }
+}
+/* StartOnView: the element names its view timeline, segment i of --n
+   animates through its share of the element's entry into the viewport. */
+@utility animate-text-animate-on-view {
+  @supports (animation-timeline: view()) {
+    animation-name: var(--text-animate-keyframes);
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+    animation-timeline: --text-animate;
+    animation-range: entry calc(var(--i, 0) / var(--n, 1) * 50%) entry calc(var(--i, 0) / var(--n, 1) * 50% + 50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-text-animate-fade-in,
+  .animate-text-animate-blur-in,
+  .animate-text-animate-blur-in-up,
+  .animate-text-animate-blur-in-down,
+  .animate-text-animate-slide-up,
+  .animate-text-animate-slide-down,
+  .animate-text-animate-slide-left,
+  .animate-text-animate-slide-right,
+  .animate-text-animate-scale-up,
+  .animate-text-animate-scale-down,
+  .animate-text-animate-on-view {
+    animation: none;
+  }
+}

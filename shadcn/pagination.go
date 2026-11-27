@@ -19,17 +19,17 @@ func Pagination(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-label") < 0 {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.PaginationNav }))
 	}
-	return finish(e, "pagination", "mx-auto flex w-full justify-center")
+	return StyleSlot(e, "pagination", "mx-auto flex w-full justify-center")
 }
 
 // PaginationContent renders the <ul> holding the pagination items.
 func PaginationContent(attribsChildren ...any) *mx.Element {
-	return finish(html.UL(attribsChildren...), "pagination-content", "flex flex-row items-center gap-1")
+	return StyleSlot(html.UL(attribsChildren...), "pagination-content", "flex flex-row items-center gap-1")
 }
 
 // PaginationItem renders one <li> in a [PaginationContent].
 func PaginationItem(attribsChildren ...any) *mx.Element {
-	return finish(html.LI(attribsChildren...), "pagination-item", "")
+	return StyleSlot(html.LI(attribsChildren...), "pagination-item", "")
 }
 
 // PaginationLink renders a page link as an <a> styled like a [Button]. active
@@ -51,7 +51,7 @@ func PaginationLink(active bool, size ButtonSize, attribsChildren ...any) *mx.El
 	if active {
 		variant = ButtonOutline
 	}
-	return finish(e, "pagination-link", ButtonClasses(variant, size))
+	return StyleSlot(e, "pagination-link", ButtonClasses(variant, size))
 }
 
 // PaginationPrevious renders the "previous page" link: a default-size
@@ -97,5 +97,5 @@ func PaginationEllipsis(attribsChildren ...any) *mx.Element {
 			html.SpanClass("sr-only", labelText(func(l Labels) string { return l.PaginationEllipsis })),
 		}
 	}
-	return finish(e, "pagination-ellipsis", "flex size-9 items-center justify-center")
+	return StyleSlot(e, "pagination-ellipsis", "flex size-9 items-center justify-center")
 }

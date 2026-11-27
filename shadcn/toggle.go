@@ -197,5 +197,5 @@ func Toggle(variant ToggleVariant, size ToggleSize, attribsChildren ...any) *mx.
 		html.DataAttr("variant", string(variant.ValidOr(ToggleDefault))),
 		html.DataAttr("size", string(size.ValidOr(ToggleSizeDefault))),
 	)
-	return finish(e, "toggle", ToggleClasses(variant, size))
+	return StyleSlot(e, "toggle", ToggleClasses(variant, size))
 }

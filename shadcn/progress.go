@@ -38,12 +38,12 @@ func Progress(value float64, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-valuenow", value))
 	}
 
-	indicator := finish(
+	indicator := StyleSlot(
 		html.Div(html.Style("transform: translateX(-"+offset+"%)")),
 		"progress-indicator",
 		"bg-primary h-full w-full flex-1 transition-all",
 	)
 	e.Children = append(e.Children, indicator)
 
-	return finish(e, "progress", "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full")
+	return StyleSlot(e, "progress", "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full")
 }

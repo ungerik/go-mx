@@ -21,13 +21,13 @@ import (
 // Compose: Empty(EmptyHeader(EmptyMedia(...), EmptyTitle(...),
 // EmptyDescription(...)), EmptyContent(...)).
 func Empty(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "empty",
+	return StyleSlot(html.Div(attribsChildren...), "empty",
 		"flex w-full min-w-0 flex-1 flex-col items-center justify-center text-center text-balance gap-4 rounded-lg border-dashed p-12")
 }
 
 // EmptyHeader groups an [Empty]'s media, title and description.
 func EmptyHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "empty-header",
+	return StyleSlot(html.Div(attribsChildren...), "empty-header",
 		"flex max-w-sm flex-col items-center gap-2")
 }
 
@@ -109,26 +109,26 @@ func EmptyMedia(variant EmptyMediaVariant, attribsChildren ...any) *mx.Element {
 	variant = variant.ValidOr(EmptyMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
-	return finish(e, "empty-icon",
+	return StyleSlot(e, "empty-icon",
 		Cn(emptyMediaVariants(map[string]string{"variant": string(variant)})))
 }
 
 // EmptyTitle renders an [Empty]'s title. Like upstream it is a <div>, not a
 // heading element.
 func EmptyTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "empty-title",
+	return StyleSlot(html.Div(attribsChildren...), "empty-title",
 		"text-lg font-medium tracking-tight")
 }
 
 // EmptyDescription renders an [Empty]'s description text. Like upstream it
 // is a <div> (empty.tsx types it as a <p> but renders a <div>).
 func EmptyDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "empty-description",
+	return StyleSlot(html.Div(attribsChildren...), "empty-description",
 		"text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary text-sm/relaxed")
 }
 
 // EmptyContent holds an [Empty]'s actions (buttons, links) below the header.
 func EmptyContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "empty-content",
+	return StyleSlot(html.Div(attribsChildren...), "empty-content",
 		"flex w-full max-w-sm min-w-0 flex-col items-center text-balance gap-4 text-sm")
 }

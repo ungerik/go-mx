@@ -30,7 +30,7 @@ const selectOptionClasses = "rounded-sm px-2 py-1.5 text-sm cursor-default outli
 // Form submission works as for any native <select>; no hidden field or
 // script is needed.
 func Select(attribsChildren ...any) *mx.Element {
-	return finish(html.Select(attribsChildren...), "select", selectClasses)
+	return StyleSlot(html.Select(attribsChildren...), "select", selectClasses)
 }
 
 // SelectGroup renders an option group inside a [Select] as a native
@@ -41,7 +41,7 @@ func SelectGroup(label string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("label") < 0 {
 		e.Attribs = append(e.Attribs, html.LabelAttr(label))
 	}
-	return finish(e, "select-group", "")
+	return StyleSlot(e, "select-group", "")
 }
 
 // SelectOption renders one item inside a [Select] or [SelectGroup] as a
@@ -54,5 +54,5 @@ func SelectOption(value string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("value") < 0 {
 		e.Attribs = append(e.Attribs, html.Value(value))
 	}
-	return finish(e, "select-option", selectOptionClasses)
+	return StyleSlot(e, "select-option", selectOptionClasses)
 }

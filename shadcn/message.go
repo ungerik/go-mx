@@ -80,7 +80,7 @@ func (c ChatAlign) String() string {
 
 // MessageGroup stacks consecutive [Message]s.
 func MessageGroup(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-group",
+	return StyleSlot(html.Div(attribsChildren...), "message-group",
 		"flex min-w-0 flex-col gap-2")
 }
 
@@ -92,7 +92,7 @@ func Message(align ChatAlign, attribsChildren ...any) *mx.Element {
 	a := string(align.ValidOr(ChatAlignStart))
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("align", a))
-	return finish(e, "message",
+	return StyleSlot(e, "message",
 		"group/message relative flex w-full min-w-0 data-[align=end]:flex-row-reverse text-sm gap-2")
 }
 
@@ -100,14 +100,14 @@ func Message(align ChatAlign, attribsChildren ...any) *mx.Element {
 // the last bubble; with a [MessageFooter] it moves up to stay beside the
 // bubbles.
 func MessageAvatar(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-avatar",
+	return StyleSlot(html.Div(attribsChildren...), "message-avatar",
 		"flex w-fit shrink-0 items-center justify-center self-end overflow-hidden rounded-full bg-muted min-w-8 group-has-data-[slot=message-footer]/message:-translate-y-8")
 }
 
 // MessageContent holds a [Message]'s [MessageHeader], bubbles and
 // [MessageFooter].
 func MessageContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-content",
+	return StyleSlot(html.Div(attribsChildren...), "message-content",
 		"flex w-full min-w-0 flex-col wrap-break-word gap-2.5 group-data-[align=end]/message:*:data-slot:self-end")
 }
 
@@ -121,12 +121,12 @@ const messageHeaderFooterClasses = "flex max-w-full min-w-0 items-center text-xs
 // MessageHeader renders a line above a [Message]'s bubbles, such as the
 // sender's name.
 func MessageHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-header", messageHeaderFooterClasses)
+	return StyleSlot(html.Div(attribsChildren...), "message-header", messageHeaderFooterClasses)
 }
 
 // MessageFooter renders a line below a [Message]'s bubbles, such as a time
 // or actions; in a [ChatAlignEnd] message it aligns to the end.
 func MessageFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-footer",
+	return StyleSlot(html.Div(attribsChildren...), "message-footer",
 		Cn(messageHeaderFooterClasses, "group-data-[align=end]/message:justify-end"))
 }

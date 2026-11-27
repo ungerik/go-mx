@@ -8,6 +8,7 @@ import (
 	"github.com/ungerik/go-mx/highlight"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/shadcn"
+	"github.com/ungerik/go-mx/shadcn/magicui"
 )
 
 // staticHighlight selects how the Code tab is syntax-highlighted. It is set once
@@ -47,14 +48,14 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 		layout(reg, currentSlug, content),
 	)
 	doc.Meta = map[string]string{"viewport": "width=device-width, initial-scale=1"}
-	doc.HeadCustom = head()
+	doc.HeadCustom = head(reg.Lookup(currentSlug))
 	return doc
 }
 
-// head wires up the page <head>, no build step. Tailwind v4 is always loaded
-// via @tailwindcss/browser: the theme tokens go in a
-// <style type="text/tailwindcss"> block, and the script compiles them plus the
-// classes it finds in the live DOM.
+// head wires up the <head> of the page of d (nil for the index), no build
+// step. Tailwind v4 is always loaded via @tailwindcss/browser: the theme
+// tokens (see tailwindInput) go in a <style type="text/tailwindcss"> block,
+// and the script compiles them plus the classes it finds in the live DOM.
 //
 // The Code tab's highlighting is wired here too and depends on staticHighlight:
 //
@@ -65,10 +66,10 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 //   - static: the highlight package's theme stylesheet, which colors the
 //     <span class="hl-…"> markup staticCodeBlock already rendered server-side;
 //     no client-side script and no CDN dependency for the code blocks.
-func head() mx.Component {
+func head(d *ComponentDoc) mx.Component {
 	comps := mx.Components{
 		html.ScriptJS(themeInitScript),
-		html.Element("style", html.Type("text/tailwindcss"), html.Raw(themeCSS)),
+		html.Element("style", html.Type("text/tailwindcss"), html.Raw(tailwindInput(d))),
 		html.ScriptSrc("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"),
 	}
 	if staticHighlight {
@@ -79,6 +80,15 @@ func head() mx.Component {
 		comps = append(comps, html.ScriptModuleJS(shikiScript))
 	}
 	return comps
+}
+
+// tailwindInput is the Tailwind CSS input of a page: the theme, plus
+// magicui.CSS on a Magic UI page, the only pages that use its animations.
+func tailwindInput(d *ComponentDoc) string {
+	if d != nil && d.Group == magicUIGroup {
+		return themeCSS + "\n" + magicui.CSS
+	}
+	return themeCSS
 }
 
 // themeInitScript applies the light/dark choice before the body renders, so the
@@ -135,14 +145,20 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 	)
 }
 
-// sidebarLinks renders one nav link per component, highlighting the active one.
+// sidebarLinks renders one nav link per component under its group's heading,
+// highlighting the active one.
 func sidebarLinks(reg *Registry, currentSlug string) mx.Component {
-	return mx.ForEach(reg.Docs, func(d ComponentDoc) mx.Component {
-		cls := "block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-		if d.Slug == currentSlug {
-			cls = "block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground"
+	return mx.ForEach(reg.Groups(), func(g DocGroup) mx.Component {
+		return mx.Components{
+			html.DivClass("px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase first:pt-0", g.Title),
+			mx.ForEach(g.Docs, func(d ComponentDoc) mx.Component {
+				cls := "block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+				if d.Slug == currentSlug {
+					cls = "block rounded-md px-3 py-1.5 text-sm font-medium bg-accent text-accent-foreground"
+				}
+				return html.AHRef(link(currentSlug, "components/"+d.Slug+"/index.html"), html.Class(cls), d.Title)
+			}),
 		}
-		return html.AHRef(link(currentSlug, "components/"+d.Slug+"/index.html"), html.Class(cls), d.Title)
 	})
 }
 
@@ -152,16 +168,21 @@ func indexContent(reg *Registry) mx.Component {
 	return html.Div(
 		html.H1Class("text-3xl font-bold tracking-tight", "Components"),
 		html.PClass("mt-2 text-lg text-muted-foreground",
-			"A go-mx rebuild of the shadcn/ui component docs — every preview is rendered server-side in Go, with its source shown alongside."),
-		html.DivClass("mt-8 grid gap-4 sm:grid-cols-2",
-			mx.ForEach(reg.Docs, func(d ComponentDoc) mx.Component {
-				return html.AHRef(link("", "components/"+d.Slug+"/index.html"),
-					html.Class("rounded-lg border p-4 transition-colors hover:bg-accent"),
-					html.DivClass("font-medium", d.Title),
-					html.PClass("mt-1 text-sm text-muted-foreground", d.Description),
-				)
-			}),
-		),
+			"A go-mx rebuild of the shadcn/ui and Magic UI component docs — every preview is rendered server-side in Go, with its source shown alongside."),
+		mx.ForEach(reg.Groups(), func(g DocGroup) mx.Component {
+			return mx.Components{
+				html.H2Class("mt-10 text-xl font-semibold tracking-tight", g.Title),
+				html.DivClass("mt-4 grid gap-4 sm:grid-cols-2",
+					mx.ForEach(g.Docs, func(d ComponentDoc) mx.Component {
+						return html.AHRef(link("", "components/"+d.Slug+"/index.html"),
+							html.Class("rounded-lg border p-4 transition-colors hover:bg-accent"),
+							html.DivClass("font-medium", d.Title),
+							html.PClass("mt-1 text-sm text-muted-foreground", d.Description),
+						)
+					}),
+				),
+			}
+		}),
 	)
 }
 

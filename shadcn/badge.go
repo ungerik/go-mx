@@ -106,5 +106,5 @@ func BadgeClasses(variant BadgeVariant) string {
 // default. To render a badge as a link, nest it in an <a> — the [a&]: variant
 // classes target exactly that case.
 func Badge(variant BadgeVariant, attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "badge", BadgeClasses(variant))
+	return StyleSlot(html.Span(attribsChildren...), "badge", BadgeClasses(variant))
 }

@@ -252,7 +252,7 @@ func Attachment(state AttachmentState, size AttachmentSize, orientation Attachme
 		html.DataAttr("size", sz),
 		html.DataAttr("orientation", o),
 	)
-	return finish(e, "attachment",
+	return StyleSlot(e, "attachment",
 		Cn(attachmentVariants(map[string]string{"size": sz, "orientation": o})))
 }
 
@@ -337,34 +337,34 @@ func AttachmentMedia(variant AttachmentMediaVariant, attribsChildren ...any) *mx
 	v := string(variant.ValidOr(AttachmentMediaIcon))
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", v))
-	return finish(e, "attachment-media",
+	return StyleSlot(e, "attachment-media",
 		Cn(attachmentMediaVariants(map[string]string{"variant": v})))
 }
 
 // AttachmentContent holds an [Attachment]'s [AttachmentTitle] and
 // [AttachmentDescription].
 func AttachmentContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "attachment-content",
+	return StyleSlot(html.Div(attribsChildren...), "attachment-content",
 		"max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=vertical]/attachment:px-1")
 }
 
 // AttachmentTitle renders an [Attachment]'s file name, truncated to one line.
 func AttachmentTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "attachment-title",
+	return StyleSlot(html.Span(attribsChildren...), "attachment-title",
 		"block max-w-full min-w-0 truncate "+utilityClasses("group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer", "motion-safe:group-data-[state=processing]/attachment:animate-pulse motion-safe:group-data-[state=uploading]/attachment:animate-pulse")+" font-medium")
 }
 
 // AttachmentDescription renders an [Attachment]'s details, such as the file
 // type and size or an error, truncated to one line.
 func AttachmentDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.Span(attribsChildren...), "attachment-description",
+	return StyleSlot(html.Span(attribsChildren...), "attachment-description",
 		"block min-w-0 truncate text-muted-foreground group-data-[state=error]/attachment:text-destructive/80 max-w-full mt-0.5 text-xs")
 }
 
 // AttachmentActions holds an [Attachment]'s [AttachmentAction]s. They stay
 // clickable above an [AttachmentTrigger].
 func AttachmentActions(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "attachment-actions",
+	return StyleSlot(html.Div(attribsChildren...), "attachment-actions",
 		"flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:right-3 relative z-20 group-data-[orientation=vertical]/attachment:gap-1")
 }
 
@@ -373,7 +373,7 @@ func AttachmentActions(attribsChildren ...any) *mx.Element {
 // [SizeIconXS], upstream's defaults here. An icon-only action needs an
 // aria-label.
 func AttachmentAction(variant ButtonVariant, size ButtonSize, attribsChildren ...any) *mx.Element {
-	return finish(Button(variant.ValidOr(ButtonGhost), size.ValidOr(SizeIconXS), attribsChildren...),
+	return StyleSlot(Button(variant.ValidOr(ButtonGhost), size.ValidOr(SizeIconXS), attribsChildren...),
 		"attachment-action", "")
 }
 
@@ -391,13 +391,13 @@ func AttachmentTrigger(attribsChildren ...any) *mx.Element {
 	if e.Name == "button" && e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
 	}
-	return finish(e, "attachment-trigger", "absolute inset-0 z-10 outline-none")
+	return StyleSlot(e, "attachment-trigger", "absolute inset-0 z-10 outline-none")
 }
 
 // AttachmentGroup lays [Attachment]s out in a row that scrolls sideways and
 // snaps to each card. Upstream's scroll-fade-x edge mask comes from shadcn's
 // own tailwind.css and is emitted only with [UseUtilities].
 func AttachmentGroup(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "attachment-group",
+	return StyleSlot(html.Div(attribsChildren...), "attachment-group",
 		"flex min-w-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-x-auto overscroll-x-contain *:data-[slot=attachment]:flex-none *:data-[slot=attachment]:snap-start gap-3 scroll-px-1 py-1"+utilityClasses(" scroll-fade-x", ""))
 }

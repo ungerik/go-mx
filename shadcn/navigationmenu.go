@@ -32,12 +32,12 @@ func NavigationMenu(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("aria-label") < 0 {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.NavigationMenuNav }))
 	}
-	return finish(e, "navigation-menu", "relative flex max-w-max flex-1 items-center justify-center")
+	return StyleSlot(e, "navigation-menu", "relative flex max-w-max flex-1 items-center justify-center")
 }
 
 // NavigationMenuList renders the horizontal list of nav items as a <ul>.
 func NavigationMenuList(attribsChildren ...any) *mx.Element {
-	return finish(html.UL(attribsChildren...), "navigation-menu-list",
+	return StyleSlot(html.UL(attribsChildren...), "navigation-menu-list",
 		"group flex flex-1 list-none items-center justify-center gap-1")
 }
 
@@ -45,7 +45,7 @@ func NavigationMenuList(attribsChildren ...any) *mx.Element {
 // direct [NavigationMenuLink] or a [NavigationMenuTrigger] +
 // [NavigationMenuContent] pair for items with a dropdown.
 func NavigationMenuItem(attribsChildren ...any) *mx.Element {
-	return finish(html.LI(attribsChildren...), "navigation-menu-item", "")
+	return StyleSlot(html.LI(attribsChildren...), "navigation-menu-item", "")
 }
 
 // NavigationMenuTrigger renders the button that opens an item's content
@@ -77,7 +77,7 @@ func NavigationMenuTrigger(navID string, attribsChildren ...any) *mx.Element {
 		"relative top-[1px] ml-1 size-3 transition duration-300 [button[aria-expanded=true]>&]:rotate-180",
 		svg.Path(svg.D("m6 9 6 6 6-6")))
 	e.Children = append(e.Children, chevron)
-	return finish(e, "navigation-menu-trigger", navigationMenuTriggerClasses)
+	return StyleSlot(e, "navigation-menu-trigger", navigationMenuTriggerClasses)
 }
 
 // NavigationMenuContent renders the popover content panel for one nav item.
@@ -101,7 +101,7 @@ func NavigationMenuContent(navID string, side PopoverSide, attribsChildren ...an
 		e.Attribs = append(e.Attribs, html.OnToggle("menuOpen(event)"))
 	}
 	mergeStyle(e, popoverContentStyle(navID, side))
-	return finish(e, "navigation-menu-content", navigationMenuContentClasses)
+	return StyleSlot(e, "navigation-menu-content", navigationMenuContentClasses)
 }
 
 // NavigationMenuLink renders a direct navigation link as an <a>. active marks
@@ -115,5 +115,5 @@ func NavigationMenuLink(active bool, attribsChildren ...any) *mx.Element {
 	if active && e.AttribIndex("aria-current") < 0 {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-current", "page"))
 	}
-	return finish(e, "navigation-menu-link", navigationMenuLinkClasses)
+	return StyleSlot(e, "navigation-menu-link", navigationMenuLinkClasses)
 }

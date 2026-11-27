@@ -1,0 +1,20 @@
+/* Warp Background */
+@theme inline {
+  --animate-warp-background-beam: warp-background-beam 3s linear infinite both;
+
+  /* A beam flies from the far end of its side (100cqmax) to just past the
+     near edge, where it rests out of view. */
+  @keyframes warp-background-beam {
+    from {
+      translate: -50% 100cqmax;
+    }
+    to {
+      translate: -50% -100%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-warp-background-beam {
+    animation: none;
+  }
+}

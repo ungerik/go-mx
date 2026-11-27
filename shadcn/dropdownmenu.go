@@ -13,7 +13,7 @@ import (
 // Sub-menus, checkbox items, radio groups and keyboard shortcuts are all
 // supported as separate parts; see the matching DropdownMenu* functions.
 func DropdownMenu(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "dropdown-menu", "")
+	return StyleSlot(html.Div(attribsChildren...), "dropdown-menu", "")
 }
 
 // DropdownMenuTrigger renders the button that toggles the menu. menuID is
@@ -44,7 +44,7 @@ func DropdownMenuTrigger(menuID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-expanded", "false"))
 	}
 	mergeStyle(e, popoverAnchorStyle(menuID))
-	return finish(e, "dropdown-menu-trigger", "")
+	return StyleSlot(e, "dropdown-menu-trigger", "")
 }
 
 // DropdownMenuContent renders the popover menu body with id={menuID},
@@ -107,7 +107,7 @@ func DropdownMenuRadioItem(name, value string, selected bool, attribsChildren ..
 // DropdownMenuSub wraps a sub-menu trigger and its sub-popover. Purely
 // structural — like [DropdownMenu] but nested inside a parent menu's content.
 func DropdownMenuSub(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "dropdown-menu-sub", "")
+	return StyleSlot(html.Div(attribsChildren...), "dropdown-menu-sub", "")
 }
 
 // DropdownMenuSubTrigger renders a menu item that opens its sub-popover.

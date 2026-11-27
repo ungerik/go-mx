@@ -183,20 +183,20 @@ func CodeBlock(variant CodeBlockVariant, size CodeBlockSize, attribsChildren ...
 		html.DataAttr("variant", v),
 		html.DataAttr("size", s),
 	)
-	return finish(e, "code-block", Cn(codeBlockVariants(map[string]string{"variant": v})))
+	return StyleSlot(e, "code-block", Cn(codeBlockVariants(map[string]string{"variant": v})))
 }
 
 // CodeBlockHeader renders a row above the code, holding a [CodeBlockTitle]
 // and [CodeBlockActions].
 func CodeBlockHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "code-block-header",
+	return StyleSlot(html.Div(attribsChildren...), "code-block-header",
 		"flex min-w-0 shrink-0 items-center *:has-[>[data-slot=code-block-title]]:min-w-0 gap-2 px-4 pt-4 text-muted-foreground group-data-[variant=destructive]/code-block:text-destructive group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:pt-3")
 }
 
 // CodeBlockTitle renders a [CodeBlock]'s title, such as a file name, with an
 // optional leading icon.
 func CodeBlockTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "code-block-title",
+	return StyleSlot(html.Div(attribsChildren...), "code-block-title",
 		"min-w-0 truncate [&_svg]:pointer-events-none [&_svg]:inline-block [&_svg]:align-middle font-sans text-sm font-medium text-foreground group-data-[variant=destructive]/code-block:text-destructive *:[svg]:me-1.5 [&_svg:not([class*='size-'])]:size-4 group-data-[size=sm]/code-block:text-xs group-data-[size=sm]/code-block:[&_svg:not([class*='size-'])]:size-3.5")
 }
 
@@ -205,7 +205,7 @@ func CodeBlockTitle(attribsChildren ...any) *mx.Element {
 // directly in the CodeBlock it floats over the top end corner, hidden until
 // the block is hovered or holds focus (always shown on touch screens).
 func CodeBlockActions(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "code-block-actions",
+	return StyleSlot(html.Div(attribsChildren...), "code-block-actions",
 		"ms-auto flex shrink-0 items-center [[data-slot=code-block]>&]:absolute [[data-slot=code-block]>&]:z-10 [[data-slot=code-block]>&]:opacity-0 [[data-slot=code-block]>&]:transition-opacity [[data-slot=code-block]>&]:group-focus-within/code-block:opacity-100 [[data-slot=code-block]>&]:group-hover/code-block:opacity-100 [[data-slot=code-block]>&]:pointer-coarse:opacity-100 -my-1 -me-1.5 gap-1 [[data-slot=code-block]>&]:m-0 [[data-slot=code-block]>&]:top-3 [[data-slot=code-block]>&]:end-3 group-data-[size=sm]/code-block:[[data-slot=code-block]>&]:top-2 group-data-[size=sm]/code-block:[[data-slot=code-block]>&]:end-2 [[data-slot=code-block]>&]:*:[button]:bg-background [[data-slot=code-block]>&]:*:[button]:ring-1 [[data-slot=code-block]>&]:*:[button]:ring-foreground/10")
 }
 
@@ -255,7 +255,7 @@ func CodeBlockCopyButton(value string, attribs ...mx.Attrib) *mx.Element {
 		labelAttrib{name: "data-copy-label", get: func(l Labels) string { return l.CodeBlockCopy }},
 		labelAttrib{name: "data-copied-label", get: func(l Labels) string { return l.CodeBlockCopied }},
 	)
-	return finish(e, "code-block-copy-button",
+	return StyleSlot(e, "code-block-copy-button",
 		"[&>.lucide-check]:hidden data-copied:[&>.lucide-copy]:hidden data-copied:[&>.lucide-check]:block")
 }
 
@@ -319,7 +319,7 @@ func CodeBlockContent(attribsChildren ...any) *mx.Element {
 		html.Class("grid min-h-lh min-w-max content-start in-data-numbered:grid-cols-[auto_1fr] in-data-wrap:min-w-0"))
 	code.Children = children
 	e.Children = mx.Components{code}
-	return finish(e, "code-block-content",
+	return StyleSlot(e, "code-block-content",
 		"min-h-0 min-w-0 [scrollbar-width:thin] overflow-auto text-start font-mono outline-none data-wrap:wrap-break-word data-wrap:whitespace-pre-wrap px-4 py-4 leading-relaxed group-has-data-[slot=code-block-header]/code-block:pt-2 group-has-data-[slot=code-block-footer]/code-block:pb-2 group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:py-3 group-data-[size=sm]/code-block:group-has-data-[slot=code-block-header]/code-block:pt-1.5"+utilityClasses(" scroll-fade-x data-wrap:scroll-fade-y", ""))
 }
 
@@ -456,12 +456,12 @@ func CodeBlockLine(variant CodeBlockLineVariant, attribsChildren ...any) *mx.Ele
 	}
 	e.Children = mx.Components{content}
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", v))
-	return finish(e, "code-block-line", Cn(codeBlockLineVariants(map[string]string{"variant": v})))
+	return StyleSlot(e, "code-block-line", Cn(codeBlockLineVariants(map[string]string{"variant": v})))
 }
 
 // CodeBlockFooter renders a row below the code, such as a caption or a
 // status.
 func CodeBlockFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "code-block-footer",
+	return StyleSlot(html.Div(attribsChildren...), "code-block-footer",
 		"flex min-w-0 shrink-0 items-center gap-2 px-4 pb-4 text-muted-foreground group-data-[size=sm]/code-block:px-3 group-data-[size=sm]/code-block:pb-3")
 }

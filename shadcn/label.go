@@ -12,7 +12,7 @@ const labelClasses = "flex items-center gap-2 text-sm leading-none font-medium s
 // Label renders a shadcn/ui label as a styled <label>. Associate it with a
 // form control the normal HTML way, by passing html.For(controlID).
 func Label(attribsChildren ...any) *mx.Element {
-	return finish(html.Label(attribsChildren...), "label", labelClasses)
+	return StyleSlot(html.Label(attribsChildren...), "label", labelClasses)
 }
 
 // LabelFor renders a shadcn/ui [Label] bound to the control with the given id

@@ -172,7 +172,7 @@ func Item(variant ItemVariant, size ItemSize, attribsChildren ...any) *mx.Elemen
 		html.DataAttr("variant", v),
 		html.DataAttr("size", s),
 	)
-	return finish(e, "item",
+	return StyleSlot(e, "item",
 		Cn(itemVariants(map[string]string{"variant": v, "size": s})))
 }
 
@@ -186,14 +186,14 @@ func ItemGroup(attribsChildren ...any) *mx.Element {
 	// Upstream's bare has-data-[size=sm]: selectors would match any
 	// descendant with a data-size — including this port's Button, which
 	// (unlike upstream's) always emits one — so they are scoped to items.
-	return finish(e, "item-group",
+	return StyleSlot(e, "item-group",
 		"group/item-group flex w-full flex-col gap-4 has-[[data-slot=item][data-size=sm]]:gap-2.5 has-[[data-slot=item][data-size=xs]]:gap-2")
 }
 
 // ItemSeparator renders a horizontal [Separator] between items in an
 // [ItemGroup].
 func ItemSeparator(attribsChildren ...any) *mx.Element {
-	return finish(Separator(SeparatorHorizontal, attribsChildren...),
+	return StyleSlot(Separator(SeparatorHorizontal, attribsChildren...),
 		"item-separator", "my-2")
 }
 
@@ -280,44 +280,44 @@ func ItemMedia(variant ItemMediaVariant, attribsChildren ...any) *mx.Element {
 	variant = variant.ValidOr(ItemMediaDefault)
 	e := html.Div(attribsChildren...)
 	e.Attribs = append(e.Attribs, html.DataAttr("variant", string(variant)))
-	return finish(e, "item-media",
+	return StyleSlot(e, "item-media",
 		Cn(itemMediaVariants(map[string]string{"variant": string(variant)})))
 }
 
 // ItemContent holds an [Item]'s [ItemTitle] and [ItemDescription], filling
 // the space between media and actions.
 func ItemContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "item-content",
+	return StyleSlot(html.Div(attribsChildren...), "item-content",
 		"flex flex-1 flex-col [&+[data-slot=item-content]]:flex-none gap-1 group-data-[size=xs]/item:gap-0")
 }
 
 // ItemTitle renders an [Item]'s title. Like upstream it is a <div>, not a
 // heading element.
 func ItemTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "item-title",
+	return StyleSlot(html.Div(attribsChildren...), "item-title",
 		"line-clamp-1 flex w-fit items-center gap-2 text-sm leading-snug font-medium underline-offset-4")
 }
 
 // ItemDescription renders an [Item]'s description text as a <p>.
 func ItemDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "item-description",
+	return StyleSlot(html.P(attribsChildren...), "item-description",
 		"line-clamp-2 font-normal [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary text-muted-foreground text-left text-sm leading-normal group-data-[size=xs]/item:text-xs")
 }
 
 // ItemActions holds an [Item]'s trailing actions (buttons, switches, …).
 func ItemActions(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "item-actions",
+	return StyleSlot(html.Div(attribsChildren...), "item-actions",
 		"flex items-center gap-2")
 }
 
 // ItemHeader renders a full-width row above an [Item]'s media and content.
 func ItemHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "item-header",
+	return StyleSlot(html.Div(attribsChildren...), "item-header",
 		"flex basis-full items-center justify-between gap-2")
 }
 
 // ItemFooter renders a full-width row below an [Item]'s media and content.
 func ItemFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "item-footer",
+	return StyleSlot(html.Div(attribsChildren...), "item-footer",
 		"flex basis-full items-center justify-between gap-2")
 }

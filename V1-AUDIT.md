@@ -32,7 +32,7 @@ non-breaking, can wait. File and line references are as of the audit commit.
 - `go vet` is clean, `go test -race` is clean, govulncheck finds no
   vulnerabilities.
 - staticcheck (latest) has 5 findings: unused fields in `attribs_test.go:78` and
-  `validation_chain_test.go:26`, S1016 in `highlight/highlighter.go:76`, and
+  `validationchain_test.go:26`, S1016 in `highlight/highlighter.go:76`, and
   capitalized error strings (ST1005) in `web/robots.go:188,196`.
 - Every exported top-level identifier has a doc comment. Struct fields less so:
   `web` 13 undocumented, `mcp` 7, `doc` 56 of 57.

@@ -1,0 +1,26 @@
+/* Blur Fade */
+@theme inline {
+  --animate-blur-fade-in: blur-fade-in var(--blur-fade-duration, 0.4s) ease-out var(--blur-fade-delay, 0.04s) both;
+}
+/* Outside @theme, so Tailwind keeps it for the InView utility too. */
+@keyframes blur-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-fade-blur, 6px));
+    translate: var(--blur-fade-x, 0) var(--blur-fade-y, 0);
+  }
+}
+/* InView: the entrance runs while the element enters the viewport. */
+@utility animate-blur-fade-in-view {
+  @supports (animation-timeline: view()) {
+    animation: blur-fade-in ease-out both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-blur-fade-in,
+  .animate-blur-fade-in-view {
+    animation: none;
+  }
+}

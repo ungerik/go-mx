@@ -19,5 +19,5 @@ func Spinner(attribs ...mx.Attrib) *mx.Element {
 	if e.AttribIndex("aria-label") < 0 {
 		e.Attribs = append(e.Attribs, labelAriaLabel(func(l Labels) string { return l.Spinner }))
 	}
-	return finish(e, "spinner", "size-4 animate-spin")
+	return StyleSlot(e, "spinner", "size-4 animate-spin")
 }

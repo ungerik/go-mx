@@ -1,0 +1,39 @@
+/* Shiny Button */
+/* Registered so the shine position can be interpolated; -100% is the
+   resting state, where the label is fully visible. */
+@property --shiny-button-x {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: -100%;
+}
+@theme inline {
+  /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
+     and the shine its --x spring (stiffness 20, damping 15, mass 2, settled
+     after about 3s) followed by the 1s repeat delay, both sampled into
+     linear() easings. */
+  --animate-shiny-button: shiny-button-pop 1s linear(0, 0.392 5%, 1.07 10%, 1.431 15%, 1.337 20%, 1.037 25%, 0.829 30%, 0.826 35%, 0.95 40%, 1.062 45%, 1.085 50%, 0.981 60%, 0.977 70%, 1.017 80%, 1) backwards, shiny-button-shine 4s linear infinite;
+
+  @keyframes shiny-button-pop {
+    from {
+      scale: 0.8;
+    }
+    to {
+      scale: 1;
+    }
+  }
+  @keyframes shiny-button-shine {
+    0% {
+      --shiny-button-x: 100%;
+      animation-timing-function: linear(0, 0.039 3.33%, 0.175 8.33%, 0.423 16.67%, 0.749 33.33%, 0.894 50%, 0.955 66.67%, 0.981 83.33%, 1);
+    }
+    75%,
+    100% {
+      --shiny-button-x: -100%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-shiny-button {
+    animation: none;
+  }
+}

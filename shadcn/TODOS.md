@@ -16,8 +16,8 @@ HTMX (`hx/`) for anything needing a server round-trip.
 
 - Signature `Name(typedVariant…, attribsChildren ...any) *mx.Element`; a
   variant/size is a leading typed param, `""` selects the default.
-- Build the element with `html.*`, then return `finish(e, "<slot>", base)`
-  — `finish` merges caller `class`, sets one `data-slot`, dedupes attribs.
+- Build the element with `html.*`, then return `StyleSlot(e, "<slot>", base)`
+  — `StyleSlot` merges caller `class`, sets one `data-slot`, dedupes attribs.
 - Multi-part components are multiple exported functions linked by id or
   nesting, not one struct (see `AlertDialog*`).
 - A `cva`-style variant component also exports a `…Classes(variant)` helper
@@ -49,6 +49,90 @@ Priorities: **P0** blocking · **P1** critical, this cycle · **P2** important �
 None: Chart landed in Phase 8 and Questionnaire in Phase 9, so every
 component of the shadcn/ui registry is ported. New upstream components are
 triaged here as they appear (see "Upstream sync").
+
+---
+
+## Magic UI (`magicui/`)
+
+The first batch (2026-11-26) ported the Magic UI components that are plain
+markup and CSS upstream, plus the motion-library ones CSS can re-express; see
+`magicui/README.md` for the list. The rest of the registry, pinned at
+`magicui.UpstreamCommit`, is open below, cheapest first.
+
+### Scripted batch: pointer and canvas effects
+
+**What:** Port MagicCard, NeonGradientCard, Dock, Lens, Pointer,
+SmoothCursor, CoolMode, Particles, FlickeringGrid, InteractiveGridPattern,
+AnimatedGridPattern, AnimatedBeam, RetroGrid, Dither, GlyphMatrix,
+Floating3DParticles, PixelImage and AnimatedThemeToggler with one
+shared `window.mxMagicUI…` script in the style of `shadcn/codeblock.go`.
+**Why:** they are the most-used Magic UI effects after the CSS ones.
+**Context:** the pointer effects only need the pointer position written into
+CSS variables; NeonGradientCard and AnimatedBeam measure elements with a
+ResizeObserver, and AnimatedThemeToggler needs the View Transitions API; the canvas ones draw every frame and need a
+`requestAnimationFrame` loop that stops while the canvas is off-screen and
+under `prefers-reduced-motion`. Each needs a headless-Chrome test
+(`internal/headless`).
+**Effort:** L · **Priority:** P3 · **Depends on:** nothing.
+
+### Scripted batch: text effects
+
+**What:** Port NumberTicker (`Intl.NumberFormat` count-up), TypingAnimation,
+HyperText, MorphingText, DiaTextReveal, ScrollBasedVelocity, Terminal,
+VideoText, FileTree, RippleButton and PulsatingButton, and the looping
+re-randomization upstream does in SparklesText and the endless append loop of
+AnimatedList.
+**Why:** NumberTicker, TypingAnimation and Terminal are common on landing
+pages.
+**Context:** a CSS counter could tick an integer through an `@property`, but
+not with thousands separators or decimals, so NumberTicker needs the script.
+PulsatingButton's upstream `--animate-pulse` would override Tailwind's
+`animate-pulse`, which `shadcn` uses; rename it `animate-pulsate` when porting.
+**Effort:** M · **Priority:** P3 · **Depends on:** the shared script of the
+pointer/canvas batch.
+
+### Components that need a third-party library
+
+**What:** Globe (cobe), Confetti (canvas-confetti), IconCloud, TweetCard and
+ClientTweetCard (react-tweet), DottedMap (svg-dotted-map), Highlighter
+(rough-notation), CodeComparison (shiki) and BentoGrid (Radix icons only, so
+it is nearly a CSS port).
+**Why:** completeness; each is used on a few landing pages.
+**Context:** load the library from a CDN with an SRI hash, as `hx` does for
+htmx. CodeComparison should use the `highlight` package instead of shiki, and
+TweetCard needs a server-side fetch of the tweet, so it is a design question
+more than a port.
+**Effort:** M each · **Priority:** P4 · **Depends on:** nothing.
+
+### HeroVideoDialog may load its iframe before the dialog opens
+
+**What:** Check in headed Chrome whether the `loading="lazy"` iframe inside
+the closed `<dialog>` loads on page load, and whether the `onclose` reload
+(`f.src=f.src`) restarts a `?autoplay=1` video behind the closed dialog. If
+either happens, keep the URL in `data-src`, set `src` when the trigger opens
+the dialog and `about:blank` on close.
+**Why:** a YouTube embed loaded on page load sends third-party requests and
+cookies before anyone clicks play; a restarted autoplay video plays sound
+behind a closed dialog.
+**Context:** Chromium does not lazy-load iframes it considers hidden, and a
+closed `<dialog>` is `display:none`. Headless Chrome loads lazy iframes even
+far below the fold, so `internal/headless` cannot decide it. Raised by the
+adversarial review of the first batch.
+**Effort:** S · **Priority:** P2 · **Depends on:** nothing.
+
+### Marquee copies are aria-hidden but focusable
+
+**What:** Decide how the repeated Marquee copies (and AuroraText's visible
+copy) keep focusable children out of the tab order. `inert` would do it but
+also makes the scrolling duplicates unclickable with a mouse, which breaks a
+marquee of logo links.
+**Why:** keyboard users tab into links that screen readers do not announce,
+and form controls or ids in the children are duplicated.
+**Context:** upstream does not mark the copies at all; the port added
+`aria-hidden` so the content is read once. Options: `inert` plus documenting
+that only the first copy is interactive, or `tabindex="-1"` on focusable
+children set by a small script.
+**Effort:** S · **Priority:** P3 · **Depends on:** nothing.
 
 ---
 
@@ -201,7 +285,7 @@ without re-analyzing upstream.
    Radix's `data-[state=open]:` — even for the Radix registry.
 6. **`data-slot` part names are unchanged.** E.g. Base UI's
    `DialogPrimitive.Backdrop` still gets `data-slot="dialog-overlay"`. Our
-   `finish(e, "<slot>", …)` conventions stay aligned with upstream.
+   `StyleSlot(e, "<slot>", …)` conventions stay aligned with upstream.
 
 ### Impact on this port
 
@@ -273,7 +357,7 @@ proven in this port):
 | `IconPlaceholder` (multi icon lib) | inline lucide SVG from `icons.go` |
 
 **Step 5 — everything else is unchanged**: signature conventions,
-`finish(e, "<slot>", base)`, `data-slot` names (upstream kept them),
+`StyleSlot(e, "<slot>", base)`, `data-slot` names (upstream kept them),
 `…Classes` helpers, gallery example + regeneration
 (`go run ./cmd/shadcn-gallery …`, see CLAUDE.md).
 
@@ -298,7 +382,7 @@ phases satisfy.
 - [x] **twmerge** — `tailwind-merge` v3.7.0 port; `Merge` (`twmerge/` subpackage)
 - [x] **cva** — `class-variance-authority` port (`cva/` subpackage)
 - [x] **Cn** — thin `cn` helper composing clsx + twmerge (`cn.go`)
-- [x] **finish** — shared class/attrib merge (`component.go`)
+- [x] **StyleSlot** — shared class/attrib merge (`component.go`)
 - [x] **Button** · Cx 2 — exports `ButtonClasses`
 - [x] **Alert** · Cx 2 — `Alert` / `AlertTitle` / `AlertDescription`
 - [x] **AlertDialog** · Cx 4 — native `<dialog>`, full sub-part set
@@ -723,7 +807,7 @@ attribute a `<button>` (`renderTag` in `component.go`).
   model is a core property of this port (components are self-contained Go
   source, no CSS artifact to distribute or version); `Cn`/twmerge cannot
   resolve conflicts hidden inside `cn-*` rules, which would break the
-  caller-class-wins contract of `finish`; and `shadcn eject` proves the
+  caller-class-wins contract of `StyleSlot`; and `shadcn eject` proves the
   inlined form remains first-class upstream. New ports reconstruct the
   full class string per part (guide Step 2) — the equivalent of what
   `eject` produces. Cost accepted: pinned to one look (frozen new-york-v4

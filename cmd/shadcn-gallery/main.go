@@ -32,8 +32,14 @@ import (
 	"github.com/ungerik/go-mx/cmd/shadcn-gallery/examples"
 )
 
-// docs is the ordered component catalog, alphabetical like the shadcn/ui docs.
+// docs is the ordered component catalog: the shadcn/ui pages, alphabetical
+// like the shadcn/ui docs, followed by the Magic UI pages.
 func docs() []ComponentDoc {
+	return append(shadcnDocs(), magicUIDocs()...)
+}
+
+// shadcnDocs is the shadcn/ui part of the catalog.
+func shadcnDocs() []ComponentDoc {
 	return []ComponentDoc{
 		{
 			Slug:        "accordion",

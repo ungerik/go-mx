@@ -11,6 +11,10 @@ shadcn/ui's class handling depends on — each in its own subpackage:
 - [`twmerge`](twmerge/) — resolves Tailwind utility-class conflicts
 - [`cva`](cva/) — class-variance-authority, the variant builder
 
+[`magicui`](magicui/README.md) builds on it: a port of
+[Magic UI](https://magicui.design), the animated components and effects that
+use shadcn/ui's tokens.
+
 shadcn/ui ships React components. go-mx renders HTML on the server with no
 client runtime, so this is a *port*, not a wrapper: the markup and Tailwind
 classes are reproduced in Go, and behavior that React delegates to libraries is
@@ -75,7 +79,7 @@ wire a merging concatenator in once with `cva.DefineConfig`.
 |------------------------------|------------------------------------------|
 | `<Alert variant="..." />`    | `Alert(variant, attribsChildren...)`     |
 | `className` prop             | `html.Class("...")` in the variadic args |
-| `cn(variants(), className)`  | the shared `finish` helper               |
+| `cn(variants(), className)`  | the shared `StyleSlot` helper            |
 | `data-slot="..."`            | always emitted by the component          |
 | children / `...props`        | the rest of the variadic `...any`        |
 
@@ -83,13 +87,15 @@ Every component function takes go-mx's variadic `...any` of mixed attributes
 and children, with any typed variant as a leading parameter. A caller supplies
 extra classes the normal go-mx way, by passing `html.Class("...")`.
 
-**Why `finish` exists.** go-mx's `CheckedWriter` rejects two attributes with
+**Why `StyleSlot` exists.** go-mx's `CheckedWriter` rejects two attributes with
 the same name on one element. A component carries base classes *and* may
 receive a caller `class`, so it must merge them into a single `class` itself.
-`finish` (in `component.go`) does that: it pulls every caller `class` value,
+`StyleSlot` (in `component.go`) does that: it pulls every caller `class` value,
 merges `Cn(baseClasses, callerClasses...)` so caller classes win conflicts,
 guarantees one `data-slot`, deduplicates any other repeated attribute
-(last wins), and rebuilds the element's attribute list.
+(last wins), and rebuilds the element's attribute list. It is exported so
+add-on packages such as [`magicui`](magicui/README.md) build their
+components the same way.
 
 Conditional classes: go-mx attributes have no `clsx`-style object form. Compute
 them with `Cn(...)` yourself and pass the result as `html.Class(...)`.

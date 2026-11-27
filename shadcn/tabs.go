@@ -30,7 +30,7 @@ func Tabs(id string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("data-tabs") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("tabs", id))
 	}
-	return finish(e, "tabs", "flex flex-col gap-2")
+	return StyleSlot(e, "tabs", "flex flex-col gap-2")
 }
 
 // TabsList renders the row of triggers as a <div role="tablist">.
@@ -39,7 +39,7 @@ func TabsList(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("role") < 0 {
 		e.Attribs = append(e.Attribs, html.Role("tablist"))
 	}
-	return finish(e, "tabs-list",
+	return StyleSlot(e, "tabs-list",
 		"bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]")
 }
 
@@ -88,7 +88,7 @@ func TabsTrigger(tabsID, value string, active bool, attribsChildren ...any) *mx.
 	if e.AttribIndex("onclick") < 0 && !hasHX(e) {
 		e.Attribs = append(e.Attribs, html.OnClick("tabsSelect('"+tabsID+"','"+value+"')"))
 	}
-	return finish(e, "tabs-trigger", tabsTriggerClasses)
+	return StyleSlot(e, "tabs-trigger", tabsTriggerClasses)
 }
 
 // TabsContent renders one tab panel as a <div role="tabpanel">. tabsID must
@@ -118,5 +118,5 @@ func TabsContent(tabsID, value string, active bool, attribsChildren ...any) *mx.
 	if !active && e.AttribIndex("hidden") < 0 {
 		e.Attribs = append(e.Attribs, html.Hidden)
 	}
-	return finish(e, "tabs-content", "flex-1 outline-none")
+	return StyleSlot(e, "tabs-content", "flex-1 outline-none")
 }

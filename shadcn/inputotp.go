@@ -71,7 +71,7 @@ func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
 		if i == 0 {
 			slot.Attribs = append(slot.Attribs, html.AutoComplete("one-time-code"))
 		}
-		slots = append(slots, finish(slot, "input-otp-slot", inputOTPSlotClasses))
+		slots = append(slots, StyleSlot(slot, "input-otp-slot", inputOTPSlotClasses))
 	}
 
 	hidden := html.Element("input",
@@ -84,7 +84,7 @@ func InputOTP(id, name string, length int, attribsChildren ...any) *mx.Element {
 	e.Children = append(e.Children, slots...)
 	e.Children = append(e.Children, hidden, html.ScriptJS(inputOTPScript))
 
-	return finish(e, "input-otp", "flex items-center gap-2")
+	return StyleSlot(e, "input-otp", "flex items-center gap-2")
 }
 
 // InputOTPSeparator renders a separator between [InputOTP] slot groups as a
@@ -97,5 +97,5 @@ func InputOTPSeparator(attribsChildren ...any) *mx.Element {
 	if len(e.Children) == 0 {
 		e.Children = mx.Components{iconMinus()}
 	}
-	return finish(e, "input-otp-separator", "flex items-center text-muted-foreground")
+	return StyleSlot(e, "input-otp-separator", "flex items-center text-muted-foreground")
 }

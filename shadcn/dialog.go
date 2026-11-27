@@ -20,7 +20,7 @@ import (
 // The dialog fades and zooms in and out like upstream's, with CSS transitions
 // instead of Radix's data-state animations; see [modalTransitionClasses].
 func Dialog(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "dialog", "")
+	return StyleSlot(html.Div(attribsChildren...), "dialog", "")
 }
 
 // DialogTrigger renders a button that opens the <dialog> via showModal(). It
@@ -39,7 +39,7 @@ func DialogTrigger(dialogID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs,
 			html.OnClick("document.getElementById('"+dialogID+"').showModal()"))
 	}
-	return finish(e, "dialog-trigger", "")
+	return StyleSlot(e, "dialog-trigger", "")
 }
 
 // dialogContentClasses is shadcn's DialogContent class string with the
@@ -107,7 +107,7 @@ func DialogContent(dialogID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.OnClick("if(event.target===this)this.close()"))
 	}
 	e.Children = append(e.Children, nativeDialogCloseButton("dialog-close"))
-	return finish(e, "dialog-content", dialogContentClasses)
+	return StyleSlot(e, "dialog-content", dialogContentClasses)
 }
 
 // nativeDialogCloseButton renders the built-in top-right X that closes the
@@ -115,7 +115,7 @@ func DialogContent(dialogID string, attribsChildren ...any) *mx.Element {
 // data-slot value ("dialog-close" or "sheet-close"). The caller never passes
 // its screen-reader text, so it comes from [Labels].
 func nativeDialogCloseButton(slot string) *mx.Element {
-	return finish(html.Button(
+	return StyleSlot(html.Button(
 		html.Type("button"),
 		html.OnClick("this.closest('dialog').close()"),
 		iconX(),
@@ -125,25 +125,25 @@ func nativeDialogCloseButton(slot string) *mx.Element {
 
 // DialogHeader groups the dialog's title and description.
 func DialogHeader(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "dialog-header",
+	return StyleSlot(html.Div(attribsChildren...), "dialog-header",
 		"flex flex-col gap-2 text-center sm:text-left")
 }
 
 // DialogFooter groups the dialog's action buttons.
 func DialogFooter(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "dialog-footer",
+	return StyleSlot(html.Div(attribsChildren...), "dialog-footer",
 		"flex flex-col-reverse gap-2 sm:flex-row sm:justify-end")
 }
 
 // DialogTitle renders the dialog's title as an <h2>.
 func DialogTitle(attribsChildren ...any) *mx.Element {
-	return finish(html.H2(attribsChildren...), "dialog-title",
+	return StyleSlot(html.H2(attribsChildren...), "dialog-title",
 		"text-lg leading-none font-semibold")
 }
 
 // DialogDescription renders the dialog's description as a <p>.
 func DialogDescription(attribsChildren ...any) *mx.Element {
-	return finish(html.P(attribsChildren...), "dialog-description",
+	return StyleSlot(html.P(attribsChildren...), "dialog-description",
 		"text-muted-foreground text-sm")
 }
 
@@ -159,5 +159,5 @@ func DialogClose(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("onclick") < 0 {
 		e.Attribs = append(e.Attribs, html.OnClick("this.closest('dialog').close()"))
 	}
-	return finish(e, "dialog-close", "")
+	return StyleSlot(e, "dialog-close", "")
 }

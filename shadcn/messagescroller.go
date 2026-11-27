@@ -30,7 +30,7 @@ import (
 // Give the MessageScroller a height (or put it in a flex column that gives it
 // one), since the viewport scrolls within it.
 func MessageScroller(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-scroller",
+	return StyleSlot(html.Div(attribsChildren...), "message-scroller",
 		"group/message-scroller relative flex size-full min-h-0 flex-col overflow-hidden")
 }
 
@@ -48,14 +48,14 @@ func MessageScrollerViewport(attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, StickToBottom)
 	}
 	e.Children = append(mx.Components{html.ScriptJS(stickToBottomScript)}, e.Children...)
-	return finish(e, "message-scroller-viewport",
+	return StyleSlot(e, "message-scroller-viewport",
 		"size-full min-h-0 min-w-0 [scrollbar-width:thin] [scrollbar-gutter:stable] overflow-y-auto overscroll-contain contain-content"+utilityClasses(" scroll-fade-b", ""))
 }
 
 // MessageScrollerContent stacks a [MessageScroller]'s items, at least as tall
 // as the viewport.
 func MessageScrollerContent(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-scroller-content",
+	return StyleSlot(html.Div(attribsChildren...), "message-scroller-content",
 		"flex h-max min-h-full flex-col gap-8")
 }
 
@@ -64,7 +64,7 @@ func MessageScrollerContent(attribsChildren ...any) *mx.Element {
 // (content-visibility: auto, with a 10rem placeholder height), which keeps a
 // long transcript cheap.
 func MessageScrollerItem(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "message-scroller-item",
+	return StyleSlot(html.Div(attribsChildren...), "message-scroller-item",
 		"min-w-0 shrink-0 [contain-intrinsic-size:auto_10rem] [content-visibility:auto]")
 }
 
@@ -123,7 +123,7 @@ func MessageScrollerButton(variant ButtonVariant, size ButtonSize, attribsChildr
 		e.Attribs = append(e.Attribs, html.OnClick(onclick))
 	}
 	e.Attribs = append(e.Attribs, html.DataAttr("direction", direction))
-	return finish(e, "message-scroller-button", classes)
+	return StyleSlot(e, "message-scroller-button", classes)
 }
 
 // messageScrollerButtonClasses is upstream's button class string with its

@@ -26,7 +26,7 @@ func RadioGroup(name string, attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("data-name") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("name", name))
 	}
-	return finish(e, "radio-group", "grid gap-3")
+	return StyleSlot(e, "radio-group", "grid gap-3")
 }
 
 // radioGroupItemClasses is shadcn/ui's RadioGroupItem class set adapted to a
@@ -67,5 +67,5 @@ func RadioGroupItem(name, value string, attribs ...mx.Attrib) *mx.Element {
 	if e.AttribIndex("value") < 0 {
 		e.Attribs = append(e.Attribs, html.Value(value))
 	}
-	return finish(e, "radio-group-item", radioGroupItemClasses)
+	return StyleSlot(e, "radio-group-item", radioGroupItemClasses)
 }

@@ -124,7 +124,7 @@ const popoverContentClasses = "bg-popover text-popover-foreground w-72 rounded-m
 // Positioning, so no client-side framework is needed for open / close /
 // light-dismiss / Escape-to-close / top-layer rendering.
 func Popover(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "popover", "")
+	return StyleSlot(html.Div(attribsChildren...), "popover", "")
 }
 
 // PopoverTrigger renders the button that toggles the popover with the given
@@ -159,7 +159,7 @@ func PopoverTrigger(popoverID string, attribsChildren ...any) *mx.Element {
 		e.Attribs = append(e.Attribs, html.Attrib("aria-expanded", "false"))
 	}
 	mergeStyle(e, popoverAnchorStyle(popoverID))
-	return finish(e, "popover-trigger", "")
+	return StyleSlot(e, "popover-trigger", "")
 }
 
 // popoverExpandedToggle is PopoverContent's default ontoggle: it sets
@@ -191,7 +191,7 @@ func PopoverContent(popoverID string, side PopoverSide, attribsChildren ...any) 
 		e.Attribs = append(e.Attribs, html.OnToggle(popoverExpandedToggle))
 	}
 	mergeStyle(e, popoverContentStyle(popoverID, side))
-	return finish(e, "popover-content", popoverContentClasses)
+	return StyleSlot(e, "popover-content", popoverContentClasses)
 }
 
 // mergeStyle appends fragment to the element's style attribute. If no style
@@ -204,7 +204,7 @@ func mergeStyle(e *mx.Element, fragment string) {
 		return
 	}
 	if i := e.AttribIndex("style"); i >= 0 {
-		// Concatenate; finish() will not dedupe style because it's a single
+		// Concatenate; StyleSlot() will not dedupe style because it's a single
 		// attribute name from the caller's perspective. We rewrite it here.
 		existing, _ := e.Attribs[i].AttribValue(context.Background())
 		e.Attribs[i] = html.Style(existing + "; " + fragment)

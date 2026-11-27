@@ -85,7 +85,7 @@ func ResizablePanelGroup(direction ResizeDirection, attribsChildren ...any) *mx.
 	if e.AttribIndex("data-direction") < 0 {
 		e.Attribs = append(e.Attribs, html.DataAttr("direction", dir))
 	}
-	return finish(e, "resizable-panel-group",
+	return StyleSlot(e, "resizable-panel-group",
 		"group/resizable flex h-full w-full data-[direction=vertical]:flex-col")
 }
 
@@ -96,7 +96,7 @@ func ResizablePanel(attribsChildren ...any) *mx.Element {
 	if e.AttribIndex("style") < 0 {
 		e.Attribs = append(e.Attribs, html.Style("flex: 1 1 0"))
 	}
-	return finish(e, "resizable-panel", "overflow-hidden")
+	return StyleSlot(e, "resizable-panel", "overflow-hidden")
 }
 
 // ResizableHandle is the draggable divider between two panels. It carries a
@@ -119,6 +119,6 @@ func ResizableHandle(attribsChildren ...any) *mx.Element {
 			),
 		}
 	}
-	return finish(e, "resizable-handle",
+	return StyleSlot(e, "resizable-handle",
 		"bg-border relative flex w-px shrink-0 cursor-col-resize items-center justify-center group-data-[direction=vertical]/resizable:h-px group-data-[direction=vertical]/resizable:w-full group-data-[direction=vertical]/resizable:cursor-row-resize")
 }

@@ -33,7 +33,7 @@ const hoverCardContentClasses = "bg-popover text-popover-foreground w-64 rounded
 // shared inline script that opens/closes the popover with timers — same
 // approach as Tooltip but with delays.
 func HoverCard(attribsChildren ...any) *mx.Element {
-	return finish(html.Div(attribsChildren...), "hover-card", "inline-block")
+	return StyleSlot(html.Div(attribsChildren...), "hover-card", "inline-block")
 }
 
 // HoverCardTrigger renders the wrapping element that fires the hover card.
@@ -75,7 +75,7 @@ func HoverCardTrigger(hoverCardID string, openDelayMs, closeDelayMs int, attribs
 	// Name the trigger as the CSS anchor for HoverCardContent's position-anchor;
 	// without it the content has no anchor and falls back to the viewport corner.
 	mergeStyle(e, popoverAnchorStyle(hoverCardID))
-	return finish(e, "hover-card-trigger", "")
+	return StyleSlot(e, "hover-card-trigger", "")
 }
 
 // HoverCardContent renders the hover-card body as a <div popover="auto"
@@ -116,5 +116,5 @@ func HoverCardContent(hoverCardID string, side PopoverSide, openDelayMs, closeDe
 		e.Attribs = append(e.Attribs, html.OnMouseOut("hoverCardHide(this,'"+hoverCardID+"',"+closeStr+")"))
 	}
 	mergeStyle(e, popoverContentStyle(hoverCardID, side))
-	return finish(e, "hover-card-content", hoverCardContentClasses)
+	return StyleSlot(e, "hover-card-content", hoverCardContentClasses)
 }

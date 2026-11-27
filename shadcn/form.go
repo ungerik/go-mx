@@ -16,5 +16,5 @@ import (
 // equivalent — the caller wires control ids and aria the normal HTML way
 // (html.For, html.ID, html.Attrib("aria-invalid", …)).
 func Form(attribsChildren ...any) *mx.Element {
-	return finish(html.Form(attribsChildren...), "form", "")
+	return StyleSlot(html.Form(attribsChildren...), "form", "")
 }

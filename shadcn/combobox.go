@@ -287,7 +287,7 @@ func comboboxParts(opts ComboboxOptions, attribs []mx.Attrib) (root, input *mx.E
 	if opts.Disabled {
 		input.Attribs = append(input.Attribs, html.Disabled)
 	}
-	input = finish(input, "combobox-input", "peer pointer-events-none absolute inset-0 size-full opacity-0")
+	input = StyleSlot(input, "combobox-input", "peer pointer-events-none absolute inset-0 size-full opacity-0")
 
 	// The trigger text: the selected label, or the placeholder, which the
 	// script shows again when the pick is cleared. Both are muted while
@@ -309,7 +309,7 @@ func comboboxParts(opts ComboboxOptions, attribs []mx.Attrib) (root, input *mx.E
 	default:
 		value.Children = mx.Components{labelText(func(l Labels) string { return l.FormChooseOption })}
 	}
-	value = finish(value, "combobox-value", "truncate data-[empty=true]:text-muted-foreground")
+	value = StyleSlot(value, "combobox-value", "truncate data-[empty=true]:text-muted-foreground")
 
 	triggerArgs := append([]any{html.ID(id), html.Role("combobox"), html.Attrib("aria-controls", popoverID)}, triggerAttribs...)
 	if opts.Required {
@@ -324,7 +324,7 @@ func comboboxParts(opts ComboboxOptions, attribs []mx.Attrib) (root, input *mx.E
 		value,
 		icon("chevrons-up-down", "opacity-50", svg.Path(svg.D("m7 15 5 5 5-5")), svg.Path(svg.D("m7 9 5-5 5 5"))),
 	)
-	trigger := finish(PopoverTrigger(popoverID, triggerArgs...), "combobox-trigger", "")
+	trigger := StyleSlot(PopoverTrigger(popoverID, triggerArgs...), "combobox-trigger", "")
 
 	items := make([]any, 0, len(opts.Options))
 	for _, opt := range opts.Options {
@@ -360,8 +360,8 @@ func comboboxParts(opts ComboboxOptions, attribs []mx.Attrib) (root, input *mx.E
 	// as upstream sizes it with Radix's trigger width; elsewhere the
 	// declaration is dropped and the popover keeps its w-72.
 	mergeStyle(content, "width: anchor-size(width)")
-	content = finish(content, "combobox-content", "")
+	content = StyleSlot(content, "combobox-content", "")
 
 	root = html.Div(append(rootClasses, input, trigger, content, html.ScriptJS(comboboxScript))...)
-	return finish(root, "combobox", "relative"), input
+	return StyleSlot(root, "combobox", "relative"), input
 }

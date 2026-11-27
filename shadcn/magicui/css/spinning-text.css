@@ -1,0 +1,15 @@
+/* Spinning Text */
+@theme inline {
+  --animate-spinning-text: spinning-text-turn var(--spinning-text-duration, 10s) linear infinite;
+
+  @keyframes spinning-text-turn {
+    to {
+      rotate: 360deg;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-spinning-text {
+    animation: none;
+  }
+}
