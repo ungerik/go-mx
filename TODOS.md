@@ -667,6 +667,26 @@ Found by the second /ship review of PR #48.
 **Priority:** P4
 **Depends on:** None
 
+### `BDo` rejects only the typed `DirAuto`
+
+**What:** Decide whether `html.BDo` also rejects `dir="auto"` given as an
+`mx.Attribute`, a `ConstAttrib("dir=auto")` or an `mx.Attribs` map, or
+whether its doc comment should name only the typed `html.DirAuto`.
+
+**Why:** `<bdo>` overrides the direction, so `auto` is invalid on it, but
+those three forms still render `<bdo dir="auto">` without an error.
+
+**Context:** `BDo` in `html/elements.go` replaces every attribute equal to
+`DirAuto` with an `mx.ErrAttribf` after building the element. Checking the
+other forms needs the attribute's value, which an `Attrib` only yields at
+render time with a context, so the check would move into a render-time
+wrapper. Found by the red team in the second /ship review of the
+required-attribute constructors.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ## hx
 
 ### Does `hx` target htmx 2 or htmx 4 at v1.0?
