@@ -193,7 +193,7 @@ func (u SitemapURL) element() *mx.Element {
 // Sitemap is a sitemap XML file listing the URLs of a site that should be
 // crawled. It is a [mx.Component] rendering the complete XML document, so it
 // can be written to a file with [xml.String] for a statically generated site or
-// served with [Sitemap.HandleHTTP].
+// served with [Sitemap.ServeHTTP].
 //
 // A sitemap does not decide what gets indexed, it only helps crawlers discover
 // pages they might otherwise miss, and tells them via <lastmod> what is worth
@@ -249,10 +249,12 @@ func (s *Sitemap) Render(ctx context.Context, w mx.Writer) error {
 	return s.Document().Render(ctx, w)
 }
 
-// HandleHTTP renders the sitemap and writes it as an indented XML response,
-// implementing http.HandlerFunc.
-func (s *Sitemap) HandleHTTP(response http.ResponseWriter, request *http.Request) {
-	s.Document().HandleHTTP(response, request)
+var _ http.Handler = new(Sitemap)
+
+// ServeHTTP renders the sitemap and writes it as an indented XML response,
+// implementing http.Handler.
+func (s *Sitemap) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	s.Document().ServeHTTP(response, request)
 }
 
 // SitemapIndexEntry is one <sitemap> entry of a [SitemapIndex].
@@ -330,10 +332,12 @@ func (x *SitemapIndex) Render(ctx context.Context, w mx.Writer) error {
 	return x.Document().Render(ctx, w)
 }
 
-// HandleHTTP renders the sitemap index and writes it as an indented XML
-// response, implementing http.HandlerFunc.
-func (x *SitemapIndex) HandleHTTP(response http.ResponseWriter, request *http.Request) {
-	x.Document().HandleHTTP(response, request)
+var _ http.Handler = new(SitemapIndex)
+
+// ServeHTTP renders the sitemap index and writes it as an indented XML
+// response, implementing http.Handler.
+func (x *SitemapIndex) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	x.Document().ServeHTTP(response, request)
 }
 
 const (
@@ -348,7 +352,7 @@ const (
 
 	// sitemapIndentBytesPerElement is what one element costs on top of its
 	// compact markup when the document is written indented, the form
-	// [Sitemap.HandleHTTP] serves: a line break plus up to six spaces. Counting
+	// [Sitemap.ServeHTTP] serves: a line break plus up to six spaces. Counting
 	// it makes the size an upper bound for both the compact and the indented
 	// form, so the estimate can only be too careful, never too permissive.
 	sitemapIndentBytesPerElement = 7

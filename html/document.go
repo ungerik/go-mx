@@ -340,10 +340,12 @@ func (d *Document) Serve(addr string) error {
 	return Serve(addr, d)
 }
 
-// HandleHTTP renders the document and writes it as an HTML response,
-// implementing http.HandlerFunc. On a render error it responds with a
+var _ http.Handler = new(Document)
+
+// ServeHTTP renders the document and writes it as an HTML response,
+// implementing http.Handler. On a render error it responds with a
 // generic 500 status via mx.RespondNonContextError.
-func (d *Document) HandleHTTP(response http.ResponseWriter, request *http.Request) {
+func (d *Document) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	buf := bytes.NewBuffer(nil)
 	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")
 	err := d.Render(request.Context(), writer)

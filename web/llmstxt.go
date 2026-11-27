@@ -285,11 +285,13 @@ func (l *LLMsTxt) String() string {
 	return string(text)
 }
 
-// HandleHTTP writes the llms.txt file as a text/markdown response,
-// implementing http.HandlerFunc. The ETag is a hash of the content, so a
+var _ http.Handler = new(LLMsTxt)
+
+// ServeHTTP writes the llms.txt file as a text/markdown response,
+// implementing http.Handler. The ETag is a hash of the content, so a
 // client re-reading an unchanged file gets a 304. On a validation error it
 // responds with a generic 500 status via [mx.RespondNonContextError].
-func (l *LLMsTxt) HandleHTTP(response http.ResponseWriter, request *http.Request) {
+func (l *LLMsTxt) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	text, err := l.MarshalText()
 	if err != nil {
 		mx.RespondNonContextError(response, request, err)

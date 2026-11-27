@@ -56,7 +56,7 @@ func page() *html.Document {
 }
 
 func main() {
-    http.HandleFunc("GET /{$}", page().HandleHTTP)
+    http.Handle("GET /{$}", page())
     log.Println("listening on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -138,7 +138,7 @@ and register it in `main`:
 
 ```go
 f := newFeed()
-http.HandleFunc("GET /{$}", page().HandleHTTP)
+http.Handle("GET /{$}", page())
 http.HandleFunc("POST /post", postHandler(f))
 ```
 

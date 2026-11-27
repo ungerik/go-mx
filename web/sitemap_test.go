@@ -114,10 +114,10 @@ func TestSitemapValidate(t *testing.T) {
 	}
 }
 
-func TestSitemapHandleHTTP(t *testing.T) {
+func TestSitemapServeHTTP(t *testing.T) {
 	sitemap := &web.Sitemap{URLs: []web.SitemapURL{{Loc: "https://example.com/"}}}
 	response := httptest.NewRecorder()
-	sitemap.HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
+	sitemap.ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Equal(t, mx.ContentTypeXML, response.Header().Get("Content-Type"))
@@ -191,12 +191,12 @@ func TestSitemapMaxLocLength(t *testing.T) {
 	require.ErrorContains(t, web.SitemapIndexEntry{Loc: tooLong}.Validate(), "2048")
 }
 
-func TestSitemapIndexHandleHTTP(t *testing.T) {
+func TestSitemapIndexServeHTTP(t *testing.T) {
 	index := &web.SitemapIndex{
 		Sitemaps: []web.SitemapIndexEntry{{Loc: "https://example.com/sitemap-posts.xml"}},
 	}
 	response := httptest.NewRecorder()
-	index.HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
+	index.ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Equal(t, mx.ContentTypeXML, response.Header().Get("Content-Type"))
@@ -206,7 +206,7 @@ func TestSitemapIndexHandleHTTP(t *testing.T) {
 	// document that a crawler would try to parse.
 	broken := &web.SitemapIndex{Sitemaps: []web.SitemapIndexEntry{{Loc: "sitemap.xml"}}}
 	brokenResponse := httptest.NewRecorder()
-	broken.HandleHTTP(brokenResponse, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
+	broken.ServeHTTP(brokenResponse, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
 	require.Equal(t, http.StatusInternalServerError, brokenResponse.Code)
 }
 

@@ -76,7 +76,7 @@ mux.HandleFunc("GET "+web.LLMsTxtPath, func(w http.ResponseWriter, r *http.Reque
         http.Error(w, "llms.txt unavailable", http.StatusInternalServerError)
         return
     }
-    llms.HandleHTTP(w, r)
+    llms.ServeHTTP(w, r)
 })
 
 mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +112,7 @@ mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
     org := schemaorg.NewOrganization(site.Title)
     org.URL = site.BaseURL
     doc.HeadCustom = mx.Components{doc.HeadCustom, html.JSONLD(org)}
-    doc.HandleHTTP(w, r)
+    doc.ServeHTTP(w, r)
 })
 ```
 

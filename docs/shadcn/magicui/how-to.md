@@ -111,7 +111,7 @@ not look in the Go module cache where the components' class names live.
    page.Stylesheets = []string{"/app.css"}
 
    http.Handle("/app.css", http.FileServer(http.Dir("public")))
-   http.HandleFunc("/", page.HandleHTTP)
+   http.Handle("/", page)
    ```
 
 ### Verification
@@ -370,7 +370,7 @@ reads as designed.
 ## Fix a component that renders an error
 
 Magic UI constructors never panic. A bad option becomes an error that
-`Render` returns, and `html.Document.HandleHTTP` answers with
+`Render` returns, and `html.Document.ServeHTTP` answers with
 `500 Internal Server Error` instead of sending a half-rendered page. The
 error says what to fix:
 

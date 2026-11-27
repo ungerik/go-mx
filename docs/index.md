@@ -72,13 +72,13 @@ func main() {
         html.H1("Hello, go-mx"),
         html.P("Type-safe HTML, rendered in Go — no templates."),
     )
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
-`html.NewDocument` returns an `*html.Document` whose `HandleHTTP` method is a
-plain `http.HandlerFunc`. It renders the `<!DOCTYPE html>`, `<head>` and `<body>`
+`html.NewDocument` returns an `*html.Document`, which is an `http.Handler`
+through its `ServeHTTP` method. It renders the `<!DOCTYPE html>`, `<head>` and `<body>`
 for you with an escaping, indenting writer.
 
 ## Core concepts

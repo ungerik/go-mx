@@ -85,7 +85,7 @@ func invoices(w http.ResponseWriter, r *http.Request) {
         mx.ComponentHTTPHandler(list, mx.DefaultWriterFactory, nil)(w, r)
         return
     }
-    html.NewDocument("Invoices", list).HandleHTTP(w, r)
+    html.NewDocument("Invoices", list).ServeHTTP(w, r)
 }
 ```
 

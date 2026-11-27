@@ -40,7 +40,7 @@ func WriteRaw[S ~string](w io.Writer, s S) error {
 
 // String renders component to an XML string using a default (double-quoting)
 // [mx.CheckedWriter], returning any render error. It is a convenience for tests
-// and one-off rendering; use [Serve] or [Document.HandleHTTP] for indented
+// and one-off rendering; use [Serve] or [Document.ServeHTTP] for indented
 // output over HTTP.
 func String(component mx.Component) (string, error) {
 	var b strings.Builder

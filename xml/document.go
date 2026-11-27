@@ -55,10 +55,12 @@ func (d *Document) Serve(addr string) error {
 	return Serve(addr, d)
 }
 
-// HandleHTTP renders the document and writes it as an XML response,
-// implementing http.HandlerFunc. On a render error it responds with a generic
+var _ http.Handler = new(Document)
+
+// ServeHTTP renders the document and writes it as an XML response,
+// implementing http.Handler. On a render error it responds with a generic
 // 500 status via [mx.RespondNonContextError].
-func (d *Document) HandleHTTP(response http.ResponseWriter, request *http.Request) {
+func (d *Document) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	serve(response, request, d)
 }
 
@@ -72,7 +74,7 @@ func Serve(addr string, component mx.Component) error {
 }
 
 // serve renders component to an indented XML response, the shared body of
-// [Serve] and [Document.HandleHTTP].
+// [Serve] and [Document.ServeHTTP].
 func serve(response http.ResponseWriter, request *http.Request, component mx.Component) {
 	buf := bytes.NewBuffer(nil)
 	writer := mx.NewCheckedWriter(buf).WithIndent("", "  ")

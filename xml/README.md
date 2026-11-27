@@ -157,7 +157,7 @@ xml.Element("list",
 element. `NewDocument(root)` defaults the declaration to the standard
 `Declaration`. The writer breaks the line after the declaration's `?>`, so the
 prolog or root starts on the next line in both compact and indented output (an
-indenting writer, as `Serve` and `Document.HandleHTTP` use, further indents
+indenting writer, as `Serve` and `Document.ServeHTTP` use, further indents
 nested elements).
 
 ```go
@@ -166,7 +166,7 @@ doc := &xml.Document{
     Prolog:      mx.Components{xml.Doctype("note"), xml.Comment("generated")},
     Root:        xml.Element("note", /* … */),
 }
-http.HandleFunc("/feed.xml", doc.HandleHTTP) // Content-Type: application/xml
+http.Handle("/feed.xml", doc) // Content-Type: application/xml
 ```
 
 `Serve(addr, component)` serves any component as indented XML — `doc.Serve(addr)`

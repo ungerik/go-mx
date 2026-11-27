@@ -135,7 +135,7 @@ func main() {
     )
     page.HeadCustom = head()
 
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Println("serving on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -164,7 +164,7 @@ func main() {
     page := html.NewDocument("Hero", hero())
     page.HeadCustom = head()
 
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Println("serving on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }

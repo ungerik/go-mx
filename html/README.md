@@ -528,7 +528,7 @@ Serving:
 
 | Method / function                 | What it does                          |
 |-----------------------------------|---------------------------------------|
-| `(*Document).HandleHTTP`          | An `http.HandlerFunc`: renders the page with an indenting `CheckedWriter` |
+| `(*Document).ServeHTTP`           | Makes `*Document` an `http.Handler`: renders the page with an indenting `CheckedWriter` |
 | `(*Document).Serve(addr)`         | `ListenAndServe` serving just this document |
 | `Serve(addr, component)`          | `ListenAndServe` for any `mx.Component` |
 | `DOCTYPE`                         | The `<!DOCTYPE html>` `Raw` constant  |
@@ -542,7 +542,7 @@ page := html.NewDocument("Hello",
     html.H1("Hello, go-mx"),
     html.P("Type-safe HTML, rendered in Go — no templates."),
 )
-http.HandleFunc("/", page.HandleHTTP)
+http.Handle("/", page)
 log.Fatal(http.ListenAndServe(":8080", nil))
 ```
 

@@ -46,15 +46,15 @@ func main() {
         html.P("This page is built entirely in Go."),
     )
 
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Println("listening on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
 `html.NewDocument(title, body...)` returns an `*html.Document` — a complete
-`<!DOCTYPE html>` page. Its `HandleHTTP` method *is* an `http.HandlerFunc`, so it
-plugs straight into the standard library.
+`<!DOCTYPE html>` page. Its `ServeHTTP` method makes it an `http.Handler`, so it plugs
+straight into the standard library.
 
 ## Step 3: Run it and see the HTML
 
@@ -119,7 +119,7 @@ func homePage() *html.Document {
 }
 
 func main() {
-    http.HandleFunc("/", homePage().HandleHTTP)
+    http.Handle("/", homePage())
     log.Println("listening on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -166,7 +166,7 @@ func homePage(loggedIn bool) *html.Document {
 }
 ```
 
-Update `main` to pass a value, for example `homePage(false).HandleHTTP`. Flip it
+Update `main` to pass a value, for example `homePage(false)`. Flip it
 to `true` and the link changes to "Log out". Because the page is plain Go, the
 condition can be anything — a session lookup, a feature flag, a database result.
 
@@ -203,7 +203,7 @@ go test .
 
 `mx.NewCheckedWriter` escapes text and attribute values and validates structure
 (it rejects, for example, two attributes with the same name on one element). The
-same writer backs `HandleHTTP`, so what you test is what you serve.
+same writer backs `ServeHTTP`, so what you test is what you serve.
 
 ## What you built
 
@@ -211,7 +211,7 @@ A server that renders a structured, stateful HTML page entirely from Go — nav,
 heading, a list generated from a slice, and a branch that changes with state —
 plus a test that checks the output directly. You used:
 
-- `html.NewDocument` and `HandleHTTP` to assemble and serve a full page.
+- `html.NewDocument` and `ServeHTTP` to assemble and serve a full page.
 - Element constructors (`Div`, `Nav`, `UL`, `LI`, `A`, `H1`, `P`) that nest.
 - Attributes (`Class`, `HRef`) mixed freely with children.
 - `html.ForEach` for iteration and `html.If(...).Else(...)` for conditionals.

@@ -107,7 +107,7 @@ type Site struct {
 
 	// LLMsTxtOptions, if set, has [Site.RegisterRoutes] serve the llms.txt
 	// that [Site.LLMsTxt] builds with these options (see
-	// [Site.HandleLLMsTxt]) at [LLMsTxtPath] below the BaseURL. Nil serves
+	// [Site.ServeLLMsTxt]) at [LLMsTxtPath] below the BaseURL. Nil serves
 	// none: pointing agents at the site's pages is a publishing decision of
 	// its own, not a side effect of having a sitemap.
 	LLMsTxtOptions *LLMsTxtOptions
@@ -518,7 +518,7 @@ func (s *Site) AddPageMetadata(doc *html.Document, page *Page) error {
 // RegisterRoutes registers the site's robots.txt and sitemap handlers together
 // with the site's Routes on mux, returning the error from [Site.Validate] if
 // the site is not configured completely enough to build absolute URLs. With
-// LLMsTxtOptions set it registers [Site.HandleLLMsTxt] too, and with
+// LLMsTxtOptions set it registers [Site.ServeLLMsTxt] too, and with
 // MarkdownAlternates the Markdown alternates of the pages, for which it reads
 // the Sources once without content and returns their error.
 //
@@ -546,14 +546,14 @@ func (s *Site) RegisterRoutes(mux *http.ServeMux) (err error) {
 	if err != nil {
 		return err
 	}
-	mux.HandleFunc("GET "+RobotsTxtPath, s.HandleRobotsTxt)
-	mux.HandleFunc("GET "+sitemapRoute, s.HandleSitemapXML)
+	mux.HandleFunc("GET "+RobotsTxtPath, s.ServeRobotsTxt)
+	mux.HandleFunc("GET "+sitemapRoute, s.ServeSitemapXML)
 	base, err := s.baseURL()
 	if err != nil {
 		return err
 	}
 	if s.LLMsTxtOptions != nil {
-		mux.HandleFunc("GET "+routePath(base, LLMsTxtPath), s.HandleLLMsTxt)
+		mux.HandleFunc("GET "+routePath(base, LLMsTxtPath), s.ServeLLMsTxt)
 	}
 	if s.MarkdownAlternates {
 		if err := s.registerMarkdownAlternates(mux, base); err != nil {
@@ -672,13 +672,13 @@ func markdownAlternatePage(ctx context.Context, source PageSource, pagePath stri
 	return nil, nil
 }
 
-// HandleLLMsTxt builds the site's llms.txt with [Site.LLMsTxt] from
+// ServeLLMsTxt builds the site's llms.txt with [Site.LLMsTxt] from
 // LLMsTxtOptions, the zero options when it is nil, and writes it as a
-// text/markdown response (see [LLMsTxt.HandleHTTP]), implementing
+// text/markdown response (see [LLMsTxt.ServeHTTP]), implementing
 // http.HandlerFunc. Like the sitemap it is built from the Sources for every
 // request, with their content; a site with expensive sources should cache
 // it.
-func (s *Site) HandleLLMsTxt(response http.ResponseWriter, request *http.Request) {
+func (s *Site) ServeLLMsTxt(response http.ResponseWriter, request *http.Request) {
 	var opts LLMsTxtOptions
 	if s.LLMsTxtOptions != nil {
 		opts = *s.LLMsTxtOptions
@@ -688,30 +688,30 @@ func (s *Site) HandleLLMsTxt(response http.ResponseWriter, request *http.Request
 		mx.RespondNonContextError(response, request, err)
 		return
 	}
-	llms.HandleHTTP(response, request)
+	llms.ServeHTTP(response, request)
 }
 
-// HandleRobotsTxt writes the site's robots.txt as a plain text response,
+// ServeRobotsTxt writes the site's robots.txt as a plain text response,
 // implementing http.HandlerFunc.
-func (s *Site) HandleRobotsTxt(response http.ResponseWriter, request *http.Request) {
+func (s *Site) ServeRobotsTxt(response http.ResponseWriter, request *http.Request) {
 	robots, err := s.RobotsTxt()
 	if err != nil {
 		mx.RespondNonContextError(response, request, err)
 		return
 	}
-	robots.HandleHTTP(response, request)
+	robots.ServeHTTP(response, request)
 }
 
-// HandleSitemapXML builds the site's sitemap and writes it as an XML response,
+// ServeSitemapXML builds the site's sitemap and writes it as an XML response,
 // implementing http.HandlerFunc. The sitemap is built from the Sources for
 // every request; a site with expensive sources should cache it.
-func (s *Site) HandleSitemapXML(response http.ResponseWriter, request *http.Request) {
+func (s *Site) ServeSitemapXML(response http.ResponseWriter, request *http.Request) {
 	sitemap, err := s.Sitemap(request.Context())
 	if err != nil {
 		mx.RespondNonContextError(response, request, err)
 		return
 	}
-	sitemap.HandleHTTP(response, request)
+	sitemap.ServeHTTP(response, request)
 }
 
 // setMeta sets a meta tag of the document, creating the map if needed and

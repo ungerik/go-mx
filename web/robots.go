@@ -131,10 +131,12 @@ func (r *Robots) String() string {
 	return string(text)
 }
 
-// HandleHTTP writes the robots.txt file as a plain text response,
-// implementing http.HandlerFunc. On a validation error it responds with a
+var _ http.Handler = new(Robots)
+
+// ServeHTTP writes the robots.txt file as a plain text response,
+// implementing http.Handler. On a validation error it responds with a
 // generic 500 status via [mx.RespondNonContextError].
-func (r *Robots) HandleHTTP(response http.ResponseWriter, request *http.Request) {
+func (r *Robots) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	text, err := r.MarshalText()
 	if err != nil {
 		mx.RespondNonContextError(response, request, err)

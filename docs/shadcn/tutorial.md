@@ -84,7 +84,7 @@ func main() {
     page := html.NewDocument("Sign in",
         shadcn.Button(shadcn.ButtonDefault, shadcn.SizeDefault, "Sign in"),
     )
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Println("serving on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -146,7 +146,7 @@ func main() {
     )
     page.HeadCustom = head()
 
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Println("serving on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
