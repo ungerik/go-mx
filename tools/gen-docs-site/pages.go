@@ -98,7 +98,9 @@ func discoverPages(root string, skip ...string) ([]*Page, error) {
 			}
 			return nil
 		}
-		if !strings.EqualFold(filepath.Ext(file), ".md") || slices.Contains(excludedFiles, entry.Name()) {
+		// A symlink is not followed, so no file from outside the
+		// repository is published.
+		if !entry.Type().IsRegular() || !strings.EqualFold(filepath.Ext(file), ".md") || slices.Contains(excludedFiles, entry.Name()) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, file)

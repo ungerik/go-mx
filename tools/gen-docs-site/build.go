@@ -295,7 +295,8 @@ func writeResponse(handler http.HandlerFunc, file string) error {
 // copyDocsAssets copies every file below docs/ that is not Markdown (images,
 // downloads) to the same path in the site, as the Jekyll site published them,
 // so a page links its assets in the site rather than on GitHub. Directories
-// beginning with "." or "_" are skipped like in discoverPages.
+// beginning with "." or "_" are skipped like in discoverPages, and so are
+// symlinks.
 func copyDocsAssets(root, out string) error {
 	docs := filepath.Join(root, "docs")
 	err := filepath.WalkDir(docs, func(file string, entry fs.DirEntry, err error) error {
@@ -308,7 +309,9 @@ func copyDocsAssets(root, out string) error {
 			}
 			return nil
 		}
-		if strings.EqualFold(filepath.Ext(file), ".md") || strings.HasPrefix(entry.Name(), ".") {
+		// A symlink is not followed: it could publish a file from outside
+		// docs/, such as .git/config.
+		if !entry.Type().IsRegular() || strings.EqualFold(filepath.Ext(file), ".md") || strings.HasPrefix(entry.Name(), ".") {
 			return nil
 		}
 		rel, err := filepath.Rel(docs, file)

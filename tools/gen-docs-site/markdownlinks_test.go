@@ -32,6 +32,10 @@ func TestRewriteMarkdownLinks(t *testing.T) {
 		"",
 		"[![badge](b.svg)](target.md) and [wrapped",
 		"text](w.md)",
+		"",
+		"A code span `wrapped(",
+		"across)` lines and [after it](span.md); `not",
+		"](a-link.md)` either.",
 	}, "\n")
 	var seen, images []string
 	got := string(rewriteMarkdownLinks([]byte(source), func(dest string, image bool) string {
@@ -69,11 +73,16 @@ func TestRewriteMarkdownLinks(t *testing.T) {
 		"",
 		"[![badge](<b.svg>)](<target.md>) and [wrapped",
 		"text](<w.md>)",
+		"",
+		// A code span wrapped across lines, as goldmark sees it.
+		"A code span `wrapped(",
+		"across)` lines and [after it](<span.md>); `not",
+		"](a-link.md)` either.",
 	}, "\n")
 	if got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
-	if strings.Join(seen, " ") != "a.md i.png c.md#x https://x.org/a_(b) ref.md f.md a b.md after.md b.svg target.md w.md" {
+	if strings.Join(seen, " ") != "a.md i.png c.md#x https://x.org/a_(b) ref.md f.md a b.md after.md b.svg target.md w.md span.md" {
 		t.Errorf("rewrote %q", seen)
 	}
 	if strings.Join(images, " ") != "i.png b.svg" {

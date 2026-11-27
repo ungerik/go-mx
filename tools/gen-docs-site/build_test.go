@@ -205,3 +205,26 @@ func TestBuildWithoutGallery(t *testing.T) {
 		t.Error("the docs asset was not copied")
 	}
 }
+
+// TestBuildSkipsSymlinks builds a fixture whose docs/ holds symlinks to a
+// file outside the repository, as an asset and as a Markdown page: neither is
+// published.
+func TestBuildSkipsSymlinks(t *testing.T) {
+	root := fixtureRepo(t)
+	secret := filepath.Join(t.TempDir(), "secret.md")
+	writeFiles(t, filepath.Dir(secret), map[string]string{"secret.md": "# secret\n"})
+	for _, link := range []string{"docs/leak.txt", "docs/leak.md"} {
+		if err := os.Symlink(secret, filepath.Join(root, filepath.FromSlash(link))); err != nil {
+			t.Skipf("no symlinks: %v", err)
+		}
+	}
+	out := filepath.Join(t.TempDir(), "site")
+	if err := build(t.Context(), config{Root: root, Out: out, BaseURL: "https://example.org/", Check: true, Log: io.Discard}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"leak.txt", "leak.html"} {
+		if _, err := os.Stat(filepath.Join(out, name)); err == nil {
+			t.Errorf("the symlink was published as %s", name)
+		}
+	}
+}

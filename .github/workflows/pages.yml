@@ -42,6 +42,9 @@ jobs:
         # The whole history: each page's published and last-updated dates
         # (sitemap, Open Graph, Markdown alternates) come from git log.
         fetch-depth: 0
+        # The build needs no git credentials, so none are left in .git/config
+        # for a step that publishes files to read.
+        persist-credentials: false
 
     - name: Set up Go
       uses: actions/setup-go@v7

@@ -13,7 +13,7 @@ import (
 // every inline link and image, and of every link reference definition,
 // replaced by what rewrite returns for it; image reports whether the
 // destination is the source of an image. Destinations inside code blocks and
-// code spans are left alone.
+// code spans are left alone; goldmark tells where they are.
 //
 // The Markdown alternates of the pages need it: they are the Markdown source
 // itself, read without the site around it, so a link relative to the file in
@@ -24,10 +24,13 @@ import (
 // wherever goldmark sees them, in list items and block quotes too.
 func rewriteMarkdownLinks(source []byte, rewrite func(dest string, image bool) string) []byte {
 	lines := strings.SplitAfter(string(source), "\n")
-	code := codeBlockLines(source, lines)
+	blockLines, spanBytes := findCode(source, lines)
 	var b strings.Builder
+	offset := 0
 	for i, line := range lines {
-		if code[i] {
+		inSpan := spanBytes[offset : offset+len(line)]
+		offset += len(line)
+		if blockLines[i] {
 			b.WriteString(line)
 			continue
 		}
@@ -37,37 +40,53 @@ func rewriteMarkdownLinks(source []byte, rewrite func(dest string, image bool) s
 			b.WriteString(line[m[3]:])
 			continue
 		}
-		b.WriteString(rewriteInlineLinks(line, rewrite))
+		b.WriteString(rewriteInlineLinks(line, inSpan, rewrite))
 	}
 	return []byte(b.String())
 }
 
-// codeBlockLines reports for each of lines, the lines of source, whether
-// goldmark parses it as content of a fenced or indented code block.
-func codeBlockLines(source []byte, lines []string) []bool {
+// findCode returns where goldmark parses code in source, split into lines:
+// for each line whether it is content of a fenced or indented code block,
+// and for each byte of source whether it is content of a code span. A code
+// span can wrap across lines, which a scanner of single lines cannot tell.
+func findCode(source []byte, lines []string) (blockLines, spanBytes []bool) {
 	starts := make([]int, len(lines))
 	offset := 0
 	for i, line := range lines {
 		starts[i] = offset
 		offset += len(line)
 	}
-	code := make([]bool, len(lines))
+	blockLines = make([]bool, len(lines))
+	spanBytes = make([]bool, len(source))
 	doc := newMarkdown().Parser().Parse(text.NewReader(source))
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || (n.Kind() != ast.KindCodeBlock && n.Kind() != ast.KindFencedCodeBlock) {
+		if !entering {
 			return ast.WalkContinue, nil
 		}
-		segments := n.Lines()
-		for i := range segments.Len() {
-			start := segments.At(i).Start
-			// The line holding the segment, the last one starting at or
-			// before it.
-			line := sort.Search(len(starts), func(j int) bool { return starts[j] > start }) - 1
-			code[line] = true
+		switch n.Kind() {
+		case ast.KindCodeBlock, ast.KindFencedCodeBlock:
+			segments := n.Lines()
+			for i := range segments.Len() {
+				start := segments.At(i).Start
+				// The line holding the segment, the last one starting at
+				// or before it.
+				line := sort.Search(len(starts), func(j int) bool { return starts[j] > start }) - 1
+				blockLines[line] = true
+			}
+			return ast.WalkSkipChildren, nil
+		case ast.KindCodeSpan:
+			for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+				if t, ok := c.(*ast.Text); ok {
+					for i := t.Segment.Start; i < t.Segment.Stop; i++ {
+						spanBytes[i] = true
+					}
+				}
+			}
+			return ast.WalkSkipChildren, nil
 		}
-		return ast.WalkSkipChildren, nil
+		return ast.WalkContinue, nil
 	})
-	return code
+	return blockLines, spanBytes
 }
 
 // referenceDefinition matches a link reference definition, "[label]: dest",
@@ -76,28 +95,16 @@ func codeBlockLines(source []byte, lines []string) []bool {
 var referenceDefinition = regexp.MustCompile(`^ {0,3}\[[^\]^][^\]]*\]:[ \t]*(<[^>\n]*>|\S+)`)
 
 // rewriteInlineLinks rewrites the destinations of the inline links and images
-// of one line, the "(dest)" after a "]", skipping code spans. A "]" whose
-// "[" is on an earlier line, as in link text wrapped across lines, is a
-// link's too.
-func rewriteInlineLinks(line string, rewrite func(dest string, image bool) string) string {
+// of one line, the "(dest)" after a "]", skipping the bytes inSpan marks as
+// code span content. A "]" whose "[" is on an earlier line, as in link text
+// wrapped across lines, is a link's too.
+func rewriteInlineLinks(line string, inSpan []bool, rewrite func(dest string, image bool) string) string {
 	var b strings.Builder
-	codeRun := 0 // length of the backtick run that opened the current code span
 	// opened holds for each "[" not yet closed whether it opens an image, "![".
 	var opened []bool
 	for i := 0; i < len(line); {
 		switch {
-		case line[i] == '`':
-			n := len(line[i:]) - len(strings.TrimLeft(line[i:], "`"))
-			switch {
-			case codeRun == 0:
-				codeRun = n
-			case codeRun == n:
-				codeRun = 0
-			}
-			b.WriteString(line[i : i+n])
-			i += n
-			continue
-		case codeRun > 0:
+		case inSpan[i]:
 		case line[i] == '[':
 			opened = append(opened, i > 0 && line[i-1] == '!')
 		case line[i] == ']':

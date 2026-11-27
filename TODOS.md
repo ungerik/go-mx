@@ -878,6 +878,30 @@ the docs-site PR to keep it to one change.
 **Priority:** P3
 **Depends on:** None
 
+### Close the blind spots of the docs site build checks
+
+**What:** Three checks of the site build that pass things they should not:
+`checkLinks` reads only double-quoted `href`/`src`, so a root-absolute
+`action`, `formaction`, `hx-*` URL or `srcset` goes unchecked (the form
+snapshots post to `action="/admin/profile"`, stopped only by
+`onsubmit="return false"`); `discoverPages` refuses two pages published as one
+file but not a page colliding with a generated file (`docs/examples/index.md`,
+`docs/shadcn/gallery/index.md`, `docs/sitemap.xml`); and
+`snapshot.InsertAfterStartTags` ends the start tag at the first `>`, which an
+attribute value such as a Tailwind `[&>form]:flex` class can contain.
+
+**Why:** Each lets a broken page be published without the build failing.
+None is triggered by the repository today.
+
+**Context:** `tools/gen-docs-site/linkcheck.go`, `tools/gen-docs-site/pages.go`
+and `build.go`, `internal/snapshot/snapshot.go`. Found by the adversarial
+review of the docs-site PR, deferred to keep that PR to its change. A
+neutral `action` in the form snapshots would come with the stricter check.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### Live examples on the documentation site
 
 **What:** Decide whether the example servers get a live deployment linked
