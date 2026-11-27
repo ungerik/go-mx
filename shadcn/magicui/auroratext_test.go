@@ -1,6 +1,7 @@
 package magicui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -29,6 +30,10 @@ func TestAuroraTextOptions(t *testing.T) {
 		`data-slot="aurora-text" style="--aurora-text-gradient:linear-gradient(135deg, red, blue, red);--aurora-text-duration:2.5s"`,
 		`class="relative [--aurora-text-gradient:`, `[--aurora-text-duration:10s] inline"`,
 	)
+	// Speed only sets --aurora-text-duration, so the animation has to read it.
+	if !regexp.MustCompile(`--animate-aurora: aurora var\(--aurora-text-duration`).MatchString(CSS) {
+		t.Error("--animate-aurora should take its duration from --aurora-text-duration")
+	}
 	if err := renderErr(t, AuroraText(AuroraTextOptions{Colors: []string{"red;x:y"}}, "x")); err == nil {
 		t.Error("an invalid color should be a render error")
 	}

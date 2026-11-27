@@ -53,6 +53,8 @@ func TestBorderBeamOptions(t *testing.T) {
 			t.Errorf("caller gradient should replace %s", replaced)
 		}
 	}
+	// Reverse alone, without an InitialOffset, still runs the beam backwards.
+	mustContain(t, render(t, BorderBeam(BorderBeamOptions{Reverse: true})), "--border-beam-from:100%")
 	if renderErr(t, BorderBeam(BorderBeamOptions{ColorFrom: "red;x:y"})) == nil {
 		t.Error("invalid color accepted")
 	}

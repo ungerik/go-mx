@@ -29,7 +29,7 @@ func TestSafari(t *testing.T) {
 	}
 
 	out = render(t, Safari(SafariOptions{VideoSrc: "/v.mp4", ID: "win"}))
-	mustContain(t, out, `src="/v.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata"`)
+	mustContain(t, out, safariScreenClasses, `src="/v.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata"`)
 	if strings.Contains(out, "11px") {
 		t.Error("the video has no rounded bottom upstream")
 	}

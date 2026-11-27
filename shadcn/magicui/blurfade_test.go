@@ -29,13 +29,17 @@ func TestBlurFadeOptions(t *testing.T) {
 	}, html.Class("mb-4"), html.Style("color:red"), "x"))
 	mustContain(t, out, `class="animate-blur-fade-in-view `, ` mb-4"`,
 		`style="--blur-fade-duration:1s;--blur-fade-delay:0.29s;--blur-fade-blur:10px;--blur-fade-x:20px;--blur-fade-y:0px;color:red"`)
-	// A direction alone sets both axes, so the class defaults of a vertical
-	// entrance do not leak into a horizontal one.
-	for dir, want := range map[Direction]string{
-		DirectionUp:    `style="--blur-fade-x:0px;--blur-fade-y:6px"`,
-		DirectionRight: `style="--blur-fade-x:-6px;--blur-fade-y:0px"`,
+	// A direction or an offset alone sets both axes, so the class defaults
+	// of a vertical entrance do not leak into a horizontal one.
+	for _, tc := range []struct {
+		opts BlurFadeOptions
+		want string
+	}{
+		{BlurFadeOptions{Direction: DirectionUp}, `style="--blur-fade-x:0px;--blur-fade-y:6px"`},
+		{BlurFadeOptions{Direction: DirectionRight}, `style="--blur-fade-x:-6px;--blur-fade-y:0px"`},
+		{BlurFadeOptions{Offset: 20}, `style="--blur-fade-x:0px;--blur-fade-y:-20px"`},
 	} {
-		mustContain(t, render(t, BlurFade(BlurFadeOptions{Direction: dir})), want)
+		mustContain(t, render(t, BlurFade(tc.opts)), tc.want)
 	}
 	// A caller class replaces a default class instead of competing with it.
 	out = render(t, BlurFade(BlurFadeOptions{}, html.Class("[--blur-fade-y:12px]")))

@@ -31,7 +31,8 @@ func TestIphoneMedia(t *testing.T) {
 		`<rect x="21.25" y="19.25" width="389.5" height="843.5" rx="55.75" ry="55.75" fill="black">`,
 	)
 	out = render(t, Iphone(IphoneOptions{Src: "/screen.png", VideoSrc: "/v.mp4", ID: "phone"}))
-	mustContain(t, out, `<video class="block size-full object-cover" src="/v.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata">`)
+	mustContain(t, out, iphoneScreenClasses,
+		`<video class="block size-full object-cover" src="/v.mp4" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline" preload="metadata">`)
 	if strings.Contains(out, "<img") {
 		t.Error("VideoSrc should take precedence over Src")
 	}
