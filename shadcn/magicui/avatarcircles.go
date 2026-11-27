@@ -10,7 +10,8 @@ import (
 // AvatarCircle is one avatar of [AvatarCircles]: the image and the profile
 // it links to.
 type AvatarCircle struct {
-	// ImageURL is the avatar image.
+	// ImageURL is the avatar image. It is required: an empty ImageURL
+	// makes Render return an error.
 	ImageURL string
 	// ProfileURL is the page the avatar links to, opened in a new tab.
 	ProfileURL string
@@ -39,9 +40,8 @@ func AvatarCircles(opts AvatarCirclesOptions, attribsChildren ...any) *mx.Elemen
 			html.HRef(avatar.ProfileURL),
 			html.Target("_blank"),
 			html.Rel("noopener", "noreferrer"),
-			html.Img(
+			html.Img(avatar.ImageURL,
 				html.Class("h-10 w-10 rounded-full border-2 border-white dark:border-gray-800"),
-				html.Src(avatar.ImageURL),
 				html.Width(40),
 				html.Height(40),
 				html.Alt("Avatar "+strconv.Itoa(i+1)),

@@ -54,3 +54,15 @@ func TestSelectCallerAttrsPassThrough(t *testing.T) {
 		}
 	}
 }
+
+// Value: protects=a label passed in attribsChildren wins over the SelectGroup
+// label parameter and is written once; fails_when=SelectGroup appends the
+// parameter label although the caller set one; why_new=TestSelectComposition
+// passes only the parameter; seam=none; no_claim=does not cover how browsers
+// render an optgroup label.
+func TestSelectGroupCallerLabelWins(t *testing.T) {
+	out := render(t, SelectGroup("Param", html.LabelAttr("Caller"), SelectOption("a", "A")))
+	if strings.Count(out, `label="Caller"`) != 1 || strings.Contains(out, "Param") {
+		t.Errorf("want exactly the caller's label: %s", out)
+	}
+}

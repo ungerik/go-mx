@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -347,14 +348,20 @@ func TestGeneratedLinesCoverEveryRenderingPath(t *testing.T) {
 		"log-multiline", // a stack trace
 		"log-text",      // a plain-text line
 		"log-level-info", "log-level-warn", "log-level-error", "log-level-debug",
-		"log-level-undefined",            // a level the theme does not define
-		"<img class=\"log-level-image\"", // a level rendered as an icon
+		"log-level-undefined", // a level the theme does not define
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the generator never produced %q", want)
 		}
 	}
+	// A level rendered as an icon: the class sits on the <img>, after the src
+	// that html.Img writes first.
+	if !levelImage.MatchString(out) {
+		t.Errorf("the generator never produced an <img> with class %q", "log-level-image")
+	}
 }
+
+var levelImage = regexp.MustCompile(`<img src="data:[^"]*" class="log-level-image"`)
 
 func TestGeneratedLinesAreParsableRecords(t *testing.T) {
 	// A generated JSON line that does not parse would silently fall back to the

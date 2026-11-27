@@ -32,7 +32,7 @@ func blurFadeGallery(id string, opts magicui.BlurFadeOptions) mx.Component {
 	for idx, imageURL := range images {
 		opts.Delay = 250*time.Millisecond + time.Duration(idx)*50*time.Millisecond
 		photos = append(photos, magicui.BlurFade(opts,
-			html.ImgSrc(imageURL, html.Class("mb-4 size-full rounded-lg object-contain"), html.Alt(fmt.Sprintf("Random stock image %d", idx+1))),
+			html.Img(imageURL, html.Class("mb-4 size-full rounded-lg object-contain"), html.Alt(fmt.Sprintf("Random stock image %d", idx+1))),
 		))
 	}
 	return html.Section(html.ID(id), html.Div(photos...))

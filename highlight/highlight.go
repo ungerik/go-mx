@@ -1,3 +1,5 @@
+//go:generate go -C ../tools tool go-enum ../highlight/$GOFILE
+
 // Package highlight turns Go source code into syntax-highlighted output built
 // from go-mx components.
 //
@@ -39,13 +41,14 @@
 package highlight
 
 import (
+	"fmt"
 	"go/scanner"
 	"go/token"
 )
 
 // TokenClass is the semantic category of a token. It is also used, with the
 // [Highlighter] prefix, as the CSS class name of a highlighted token's <span>.
-type TokenClass string
+type TokenClass string //#enum
 
 const (
 	// ClassPlain is the zero value: text that is not highlighted (whitespace
@@ -75,6 +78,84 @@ const (
 	// ClassIdent is any other identifier.
 	ClassIdent TokenClass = "ident"
 )
+
+// Valid indicates if t is any of the valid values for TokenClass
+func (t TokenClass) Valid() bool {
+	switch t {
+	case
+		ClassPlain,
+		ClassKeyword,
+		ClassType,
+		ClassFunction,
+		ClassBuiltin,
+		ClassConstant,
+		ClassString,
+		ClassNumber,
+		ClassComment,
+		ClassOperator,
+		ClassPunctuation,
+		ClassIdent:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for TokenClass
+func (t TokenClass) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type highlight.TokenClass", t)
+	}
+	return nil
+}
+
+// ValidOr returns t if it is any of the valid values for TokenClass, else defaultVal
+func (t TokenClass) ValidOr(defaultVal TokenClass) TokenClass {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for TokenClass
+func (TokenClass) Enums() []TokenClass {
+	return []TokenClass{
+		ClassPlain,
+		ClassKeyword,
+		ClassType,
+		ClassFunction,
+		ClassBuiltin,
+		ClassConstant,
+		ClassString,
+		ClassNumber,
+		ClassComment,
+		ClassOperator,
+		ClassPunctuation,
+		ClassIdent,
+	}
+}
+
+// EnumStrings returns all valid values for TokenClass as strings
+func (TokenClass) EnumStrings() []string {
+	return []string{
+		"",
+		"keyword",
+		"type",
+		"function",
+		"builtin",
+		"constant",
+		"string",
+		"number",
+		"comment",
+		"operator",
+		"punctuation",
+		"ident",
+	}
+}
+
+// String implements the fmt.Stringer interface for TokenClass
+func (t TokenClass) String() string {
+	return string(t)
+}
 
 // Token is a single classified slice of the source. The concatenation of the
 // Text of every token returned by [TokenizeGo] equals the original source.

@@ -1,3 +1,5 @@
+//go:generate go -C tools tool go-enum ../$GOFILE
+
 package mx
 
 import (
@@ -386,7 +388,7 @@ const MaxDateTimeLen = 64
 
 // DateTimeProblem is what is wrong with a submitted date or time
 // ([DateTimeError]).
-type DateTimeProblem int
+type DateTimeProblem int //#enum
 
 const (
 	// DateTimeNotInFormat is text that is no value of the input type.
@@ -399,6 +401,55 @@ const (
 	// midnight, such as min=22:00,max=06:00: after max and before min.
 	DateTimeOutsideRange
 )
+
+// Valid indicates if d is any of the valid values for DateTimeProblem
+func (d DateTimeProblem) Valid() bool {
+	switch d {
+	case
+		DateTimeNotInFormat,
+		DateTimeTooEarly,
+		DateTimeTooLate,
+		DateTimeOutsideRange:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if d is none of the valid values for DateTimeProblem
+func (d DateTimeProblem) Validate() error {
+	if !d.Valid() {
+		return fmt.Errorf("invalid value %#v for type mx.DateTimeProblem", d)
+	}
+	return nil
+}
+
+// ValidOr returns d if it is any of the valid values for DateTimeProblem, else defaultVal
+func (d DateTimeProblem) ValidOr(defaultVal DateTimeProblem) DateTimeProblem {
+	if d.Valid() {
+		return d
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for DateTimeProblem
+func (DateTimeProblem) Enums() []DateTimeProblem {
+	return []DateTimeProblem{
+		DateTimeNotInFormat,
+		DateTimeTooEarly,
+		DateTimeTooLate,
+		DateTimeOutsideRange,
+	}
+}
+
+// EnumStrings returns all valid values for DateTimeProblem as strings
+func (DateTimeProblem) EnumStrings() []string {
+	return []string{
+		"0",
+		"1",
+		"2",
+		"3",
+	}
+}
 
 // DateTimeError is the validation error of a submitted date or time, which
 // [DateTimeFormatError] and [CheckDateTimeRange] return. Its Error and

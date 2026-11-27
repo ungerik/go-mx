@@ -130,10 +130,10 @@ func TestLLMsTxtWriteTo(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLLMsTxtHandleHTTP(t *testing.T) {
+func TestLLMsTxtServeHTTP(t *testing.T) {
 	llms := exampleLLMsTxt()
 	response := httptest.NewRecorder()
-	llms.HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.LLMsTxtPath, nil))
+	llms.ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.LLMsTxtPath, nil))
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Equal(t, mx.ContentTypeMarkdown, response.Header().Get("Content-Type"))
@@ -146,19 +146,19 @@ func TestLLMsTxtHandleHTTP(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, web.LLMsTxtPath, nil)
 	request.Header.Set("If-None-Match", etag)
 	response = httptest.NewRecorder()
-	llms.HandleHTTP(response, request)
+	llms.ServeHTTP(response, request)
 	require.Equal(t, http.StatusNotModified, response.Code)
 
 	// ...and a changed one is.
 	llms.Summary = "Changed."
 	response = httptest.NewRecorder()
-	llms.HandleHTTP(response, request)
+	llms.ServeHTTP(response, request)
 	require.Equal(t, http.StatusOK, response.Code)
 	require.NotEqual(t, etag, response.Header().Get("ETag"))
 
 	t.Run("invalid", func(t *testing.T) {
 		response := httptest.NewRecorder()
-		(&web.LLMsTxt{}).HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.LLMsTxtPath, nil))
+		(&web.LLMsTxt{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.LLMsTxtPath, nil))
 		require.Equal(t, http.StatusInternalServerError, response.Code)
 	})
 }

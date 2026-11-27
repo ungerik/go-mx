@@ -72,13 +72,13 @@ func main() {
         html.H1("Hello, go-mx"),
         html.P("Type-safe HTML, rendered in Go — no templates."),
     )
-    http.HandleFunc("/", page.HandleHTTP)
+    http.Handle("/", page)
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
-`html.NewDocument` returns an `*html.Document` whose `HandleHTTP` method is a
-plain `http.HandlerFunc`. It renders the `<!DOCTYPE html>`, `<head>` and `<body>`
+`html.NewDocument` returns an `*html.Document`, which is an `http.Handler`
+through its `ServeHTTP` method. It renders the `<!DOCTYPE html>`, `<head>` and `<body>`
 for you with an escaping, indenting writer.
 
 ## Core concepts
@@ -98,9 +98,15 @@ your own types all satisfy it.
 void elements take only attributes:
 
 ```go
-html.Div(html.Class("container"), html.P("Hello"))   // <div class="container"><p>Hello</p></div>
-html.Img(html.Src("/logo.png"), html.Alt("Logo"))    // void: no children
+html.Div(html.Class("container"), html.P("Hello"))     // <div class="container"><p>Hello</p></div>
+html.Input(html.Name("q"), html.Placeholder("Search")) // void: no children
 ```
+
+Where the HTML spec requires an attribute, the constructor takes it as the
+first argument: `html.Img("/logo.png", html.Alt("Logo"))`, likewise
+`Track(src, …)`, `OptGroup(label, …)`, `Data(value, …)`, `Map(name, …)` and
+`BDo(dir, …)`. The argument is the only source of that attribute, and a value
+the spec forbids, such as an empty `src`, makes `Render` return an error.
 
 **Children conversion.** Children are converted at render-build time: a `string`
 becomes escaped text, a `Component` passes through, a `func` is wrapped, `nil`

@@ -137,20 +137,20 @@ branch is lost: the chain renders `C`, or `B` for `ElseIf(true, B)`.
 **Priority:** P1
 **Depends on:** None
 
-### Serve every handler type through `ServeHTTP`
+### Finish making the HTTP surface consistent
 
-**What:** Rename `HandleHTTP` to `ServeHTTP` on `html.Document`,
-`xml.Document`, `web.Robots`, `Sitemap`, `SitemapIndex` and `LLMsTxt`; delete
-`html.Serve`, `xml.Serve` and `Document.Serve`; make
+**What:** Delete `html.Serve`, `xml.Serve` and `Document.Serve`; make
 `ComponentHTTPHandler` use the default writer for a nil `WriterFactory`;
 give the handler constructors one header parameter shape; rename
 `RespondNonContextError` and `mx.Middleware` after their purpose.
 
-**Why:** Only `ServeHTTP` makes a type an `http.Handler`; the `Serve` helpers
-start a server without timeouts; `ComponentHTTPHandler(c, nil, nil)` answers
-every request with 500.
+**Why:** The `Serve` helpers start a server without timeouts;
+`ComponentHTTPHandler(c, nil, nil)` answers every request with 500.
 
-**Context:** V1-AUDIT.md §2 C5 and §3.6 W7.
+**Context:** V1-AUDIT.md §2 C5 and §3.6 W7. The first part of C5, renaming
+`HandleHTTP` to `ServeHTTP` on `html.Document`, `xml.Document`, `web.Robots`,
+`Sitemap`, `SitemapIndex` and `LLMsTxt` so each is an `http.Handler`, is done
+(2026-11-27).
 
 **Effort:** S
 **Priority:** P1
@@ -942,6 +942,18 @@ would freeze it as it is; V1-AUDIT.md §1 and §3.6 W5.
 **Depends on:** None
 
 ## Completed
+
+### `BDo` rejects only the typed `DirAuto`
+
+**What:** `html.BDo` rejected `html.DirAuto` passed as a typed attribute, but
+`dir="auto"` given as an `mx.Attribute`, a `ConstAttrib("dir=auto")` or an
+`mx.Attribs` map still rendered.
+
+**Resolution:** the `dir` parameter is now the element's only `dir`
+attribute: a value other than `DirLTR`/`DirRTL` (the empty `Dir` included) is
+an `mx.ErrAttribf`, and any other `dir` among the attributes fails as a
+duplicate. `Img`, `Track`, `OptGroup`, `Data` and `Map` follow the same rule
+for their required attribute.
 
 ### Pin the Tailwind browser build the demo pages load
 
@@ -2047,7 +2059,7 @@ a handler that strips `.md` itself.
 **Effort:** S
 **Priority:** P3
 **Depends on:** None
-**Completed:** 2026-11-01 — `Site.LLMsTxtOptions` and `Site.MarkdownAlternates` make `RegisterRoutes` serve llms.txt (`Site.HandleLLMsTxt`) and the `.md` alternates, each with an exact route registered from the sources; each request looks the page up again and checks that it is public. A page path added after registration has no route until the routes are registered again.
+**Completed:** 2026-11-01 — `Site.LLMsTxtOptions` and `Site.MarkdownAlternates` make `RegisterRoutes` serve llms.txt (`Site.ServeLLMsTxt`) and the `.md` alternates, each with an exact route registered from the sources; each request looks the page up again and checks that it is public. A page path added after registration has no route until the routes are registered again.
 
 ### `list_pages` returns every public page at once
 
@@ -2393,7 +2405,7 @@ require; the 500 path predates the hook. Found in the review of the hook.
 **Effort:** S
 **Priority:** P2
 **Depends on:** None
-**Completed:** 2026-11-01 — `clientGone` replaces `isContextError`: a context error counts as a
+**Completed:** 2026-11-01 — `clientGone` (now `isClientGoneError`) replaces `isContextError`: a context error counts as a
 disconnect only while the request's context is done, in `ReportHiddenError`
 and the 500 and SSE error paths.
 

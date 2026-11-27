@@ -990,7 +990,7 @@ func TestValidateField_SensitiveMaskOnce(t *testing.T) {
 	r := &record{Code: quotingCode(long)}
 	for visit := range ReflectFormFields(r) {
 		beh := FieldBehavior{Validate: func(FieldPath, reflect.StructField, reflect.Value) error { return errors.New("short") }}
-		errs := validateField(withoutReports(t.Context()), visit, beh, visit.Path, long, false)
+		errs := validateField(contextWithoutReports(t.Context()), visit, beh, visit.Path, long, false)
 		if len(errs) != 1 || errs[0].Error() != "not a valid value" {
 			t.Errorf("errors %q, want the mask once", errs)
 		}

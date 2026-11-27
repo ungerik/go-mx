@@ -1,3 +1,5 @@
+//go:generate go -C tools tool go-enum ../$GOFILE
+
 package mx
 
 import (
@@ -122,11 +124,11 @@ func DriverValueType(t reflect.Type) bool {
 
 // TextProblem names why an input cannot hold a stored text unchanged
 // ([DriverValueTextProblem]).
-type TextProblem int
+type TextProblem int //#enum
 
 const (
 	// TextProblemNUL is a NUL character, which a browser replaces.
-	TextProblemNUL TextProblem = iota + 1
+	TextProblemNUL TextProblem = 1 + iota
 	// TextProblemInvalidUTF8 is text that is not valid UTF-8, such as
 	// binary bytes, which a browser replaces.
 	TextProblemInvalidUTF8
@@ -134,6 +136,52 @@ const (
 	// one-line text input.
 	TextProblemLineBreak
 )
+
+// Valid indicates if t is any of the valid values for TextProblem
+func (t TextProblem) Valid() bool {
+	switch t {
+	case
+		TextProblemNUL,
+		TextProblemInvalidUTF8,
+		TextProblemLineBreak:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if t is none of the valid values for TextProblem
+func (t TextProblem) Validate() error {
+	if !t.Valid() {
+		return fmt.Errorf("invalid value %#v for type mx.TextProblem", t)
+	}
+	return nil
+}
+
+// ValidOr returns t if it is any of the valid values for TextProblem, else defaultVal
+func (t TextProblem) ValidOr(defaultVal TextProblem) TextProblem {
+	if t.Valid() {
+		return t
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for TextProblem
+func (TextProblem) Enums() []TextProblem {
+	return []TextProblem{
+		TextProblemNUL,
+		TextProblemInvalidUTF8,
+		TextProblemLineBreak,
+	}
+}
+
+// EnumStrings returns all valid values for TextProblem as strings
+func (TextProblem) EnumStrings() []string {
+	return []string{
+		"1",
+		"2",
+		"3",
+	}
+}
 
 // DriverValueTextProblem reports why an input cannot show the text a
 // database/sql value ([DriverValueType]) holds unchanged, and whether it

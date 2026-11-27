@@ -124,7 +124,9 @@ func NativeSelectOption(value string, attribsChildren ...any) *mx.Element {
 // NativeSelectOptGroup renders an <optgroup> of a [NativeSelect]. label is the
 // group's heading, which the element is invalid without.
 func NativeSelectOptGroup(label string, attribsChildren ...any) *mx.Element {
-	e := html.OptGroup(attribsChildren...)
+	// Not html.OptGroup, which always writes its label parameter: here a
+	// label in attribsChildren wins over the parameter.
+	e := html.Element("optgroup", attribsChildren...)
 	if e.AttribIndex("label") < 0 {
 		e.Attribs = append(e.Attribs, html.LabelAttr(label))
 	}

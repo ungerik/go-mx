@@ -160,9 +160,9 @@ func TestRobotsValidate(t *testing.T) {
 	}
 }
 
-func TestRobotsHandleHTTP(t *testing.T) {
+func TestRobotsServeHTTP(t *testing.T) {
 	response := httptest.NewRecorder()
-	web.AllowAllRobots().HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.RobotsTxtPath, nil))
+	web.AllowAllRobots().ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.RobotsTxtPath, nil))
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Equal(t, mx.ContentTypePlainText, response.Header().Get("Content-Type"))
@@ -186,12 +186,12 @@ func TestRobotsStringError(t *testing.T) {
 	require.Contains(t, robots.String(), "!ERROR: ")
 }
 
-func TestRobotsHandleHTTPInvalid(t *testing.T) {
+func TestRobotsServeHTTPInvalid(t *testing.T) {
 	// Serving a broken robots.txt is worse than serving none: crawlers would
 	// act on rules the site never described.
 	robots := &web.Robots{Groups: []web.RobotsGroup{{Disallow: []string{"admin/"}}}}
 	response := httptest.NewRecorder()
-	robots.HandleHTTP(response, httptest.NewRequest(http.MethodGet, web.RobotsTxtPath, nil))
+	robots.ServeHTTP(response, httptest.NewRequest(http.MethodGet, web.RobotsTxtPath, nil))
 
 	require.Equal(t, http.StatusInternalServerError, response.Code)
 }

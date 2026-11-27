@@ -64,7 +64,7 @@ func writeFragment(path string, comp mx.Component) error {
 }
 
 // writePage renders doc to path, creating parent directories as needed. It uses
-// the same indenting writer as the server's [html.Document.HandleHTTP], so the
+// the same indenting writer as the server's [html.Document.ServeHTTP], so the
 // static output matches the served pages byte for byte.
 func writePage(path string, doc *html.Document) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

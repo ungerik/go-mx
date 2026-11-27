@@ -353,7 +353,7 @@ func renderEventData(ctx context.Context, factory WriterFactory, comp Component)
 // stripped: a cancellation is often what caused err, and the report should
 // still reach a client that is still reading.
 func (r *SSEResponse) SendError(ctx context.Context, err error) error {
-	message, ok := hiddenErrorText(ctx, err, "Internal Server Error")
+	message, ok := reportAndHideError(ctx, err, "Internal Server Error")
 	if !ok {
 		return nil
 	}

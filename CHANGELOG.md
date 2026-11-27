@@ -52,6 +52,11 @@ API is still free to change.
   seed for the log view.
 - **`cmd/shadcn-gallery -home`** links the gallery's sidebar back to the home
   page of the site it is published in.
+- **More closed sets are go-enum types**: `mx.FieldKind`,
+  `mx.DateTimeProblem`, `mx.OptionPreface`, `mx.TextProblem`,
+  `highlight.TokenClass` and `doc.Strike` get the generated `Valid`,
+  `Validate`, `ValidOr`, `Enums` and `EnumStrings` methods (`TokenClass` also
+  `String`), like the other enum types of go-mx.
 
 - **`shadcn/magicui`, a port of Magic UI.** 41 components of
   [Magic UI](https://magicui.design) (the animated effects built on
@@ -228,7 +233,7 @@ API is still free to change.
   backtick, `<` or trailing backslash in a link title, a parenthesis or
   backslash in a URL or a context opening a heading, quote, code or HTML block
   would add a heading, a link or a summary nobody wrote, or swallow the
-  sections after it, so each is an error instead of a file. `HandleHTTP` serves it with an ETag
+  sections after it, so each is an error instead of a file. `ServeHTTP` serves it with an ETag
   derived from the content. `Site.LLMsTxt` builds one from the public pages
   with a Markdown alternate, grouped by `Page.Type`.
 - **`html.JSONLD`** embeds structured data as a
@@ -577,7 +582,7 @@ API is still free to change.
   the `hx.SSE*` attributes, `shadcn.StickToBottom` and `logview`.
 - **`Site.RegisterRoutes` can serve llms.txt and the Markdown alternates.**
   Set `Site.LLMsTxtOptions` to serve the llms.txt of `Site.LLMsTxt` at
-  `/llms.txt` below the BaseURL (also available as the `Site.HandleLLMsTxt`
+  `/llms.txt` below the BaseURL (also available as the `Site.ServeLLMsTxt`
   handler), and `Site.MarkdownAlternates` to serve every public Markdown
   page's alternate at its `MarkdownPath`, with a content hash as ETag. Both
   are opt-in. Each alternate gets an exact route when `RegisterRoutes` runs,
@@ -750,6 +755,25 @@ API is still free to change.
   operating system's setting. Without a saved choice the demo pages now follow
   the system instead of starting light. Footnote references show in brackets,
   as on GitHub.
+- **`HandleHTTP` is renamed to `ServeHTTP`** on `html.Document`,
+  `xml.Document`, `web.Robots`, `web.Sitemap`, `web.SitemapIndex` and
+  `web.LLMsTxt`, so each is an `http.Handler`: register one with
+  `mux.Handle(pattern, doc)` instead of `mux.HandleFunc(pattern, doc.HandleHTTP)`.
+- **`Site.HandleLLMsTxt`, `HandleRobotsTxt` and `HandleSitemapXML` are
+  renamed to `ServeLLMsTxt`, `ServeRobotsTxt` and `ServeSitemapXML`**, the
+  prefix of the other methods that write a response (`ServeMarkdown`,
+  `ServeHTTP`); `Handle` is what a mux calls registering a handler.
+- **`html` constructors take the attribute their element requires as the
+  first argument**: `Img(src, …)`, `Track(src, …)`, `OptGroup(label, …)`,
+  `Data(value, …)`, `Map(name, …)` and `BDo(dir, …)`. The argument is the
+  element's only source of that attribute: the same attribute passed again
+  among the others makes `Render` fail as a duplicate. A value the spec does
+  not allow makes `Render` return an error: an empty `src` of `Img` or
+  `Track` (also next to a `SrcSet`), a `Map` name that is empty or holds
+  ASCII whitespace, and a `BDo` dir other than `DirLTR` or `DirRTL`.
+  `OptGroup` and `Data` render an empty argument as an empty attribute. So
+  the `ThumbnailSrc` of `magicui.HeroVideoDialog` and the `ImageURL` of a
+  `magicui.AvatarCircle` are required now.
 - **`shadcn/magicui` components left at their defaults write no `style`
   attribute.** A Content-Security-Policy without `'unsafe-inline'` in
   `style-src` makes the browser ignore every `style` attribute, and every
@@ -1078,6 +1102,8 @@ API is still free to change.
 
 ### Removed
 
+- **`html.ImgSrc`**: `html.Img(src, …)` takes the required `src` as its first
+  argument.
 - **The committed gallery and the Jekyll configuration.** `docs/shadcn/gallery/`
   is no longer committed and the `Gallery up to date` CI job is gone: the
   documentation site build writes the gallery and fails when it does not

@@ -60,11 +60,11 @@ page := html.NewDocument("Dashboard",
     html.H1("Dashboard"),
     html.P("Welcome back."),
 )
-http.HandleFunc("/", page.HandleHTTP) // HandleHTTP is an http.HandlerFunc
+http.Handle("/", page) // *html.Document is an http.Handler
 log.Fatal(http.ListenAndServe(":8080", nil))
 ```
 
-`HandleHTTP` renders with an indenting, escaping writer and sets
+`ServeHTTP` renders with an indenting, escaping writer and sets
 `Content-Type: text/html; charset=utf-8`. For a one-document program,
 `page.Serve(":8080")` is even shorter. To serve any component (not a full
 document), use `html.Serve(addr, component)`.
@@ -106,7 +106,7 @@ Closed-keyword attributes are typed enums; use the named constant:
 
 ```go
 html.Div(html.DirRTL, html.SpellCheckFalse)
-html.Img(html.Src("/a.png"), html.LoadingLazy, html.DecodingAsync)
+html.Img("/a.png", html.LoadingLazy, html.DecodingAsync)
 html.Form(html.MethodPOST, html.EncTypeMultipartFormData)
 ```
 
@@ -265,7 +265,7 @@ w := mx.NewCheckedWriter(os.Stdout).WithIndent("", "  ")
 html.NewDocument("Demo", html.H1("Hi")).Render(context.Background(), w)
 ```
 
-`Document.HandleHTTP` and `html.Serve` already indent with two spaces. Drop
+`Document.ServeHTTP` and `html.Serve` already indent with two spaces. Drop
 `WithIndent` for compact, single-line output (smaller payloads in production).
 
 ## See also

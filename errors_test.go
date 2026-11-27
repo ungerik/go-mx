@@ -20,8 +20,8 @@ import (
 func TestRespondNonContextError_HidesTheDetailByDefault(t *testing.T) {
 	// The 500 half of the policy [SSEResponse.SendError] now shares: an internal
 	// error reaches the client as a status, never as the message that names a
-	// host, a query or a file path. Both reporters read the same
-	// hiddenErrorText, so the response side needs its own test or the
+	// host, a query or a file path. Both reporters call the same
+	// reportAndHideError, so the response side needs its own test or the
 	// shared helper is only ever checked through the stream.
 	rec := httptest.NewRecorder()
 	RespondNonContextError(rec, httptest.NewRequest(http.MethodGet, "/", nil), errs.New("connection to 10.0.0.4 refused"))

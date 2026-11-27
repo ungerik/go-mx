@@ -139,7 +139,8 @@ type HeroVideoDialogOptions struct {
 	// VideoSrc is the URL of the embedded video player, e.g. a YouTube
 	// /embed/ URL, loaded in an <iframe>.
 	VideoSrc string
-	// ThumbnailSrc is the image shown with the play button.
+	// ThumbnailSrc is the image shown with the play button. It is
+	// required: an empty ThumbnailSrc makes Render return an error.
 	ThumbnailSrc string
 	// ThumbnailAlt is the thumbnail's alt text; empty means
 	// "Video thumbnail".
@@ -179,8 +180,7 @@ func HeroVideoDialog(opts HeroVideoDialogOptions, attribsChildren ...any) *mx.El
 	trigger := shadcn.DialogTrigger(id,
 		html.Class("group relative cursor-pointer border-0 bg-transparent p-0"),
 		mx.NewAttrib("aria-label", "Play video"),
-		html.Img(
-			html.Src(opts.ThumbnailSrc),
+		html.Img(opts.ThumbnailSrc,
 			html.Alt(or(opts.ThumbnailAlt, "Video thumbnail")),
 			html.Width(1920),
 			html.Height(1080),

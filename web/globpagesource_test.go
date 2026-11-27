@@ -201,7 +201,7 @@ func TestGlobPageSourceToSitemap(t *testing.T) {
 	require.Equal(t, []string{"https://example.com/hello", "https://example.com/page"}, locs)
 
 	response := httptest.NewRecorder()
-	site.HandleSitemapXML(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
+	site.ServeSitemapXML(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Contains(t, response.Body.String(), "<loc>https://example.com/hello</loc>")
 }

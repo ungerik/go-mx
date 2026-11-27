@@ -75,7 +75,7 @@ func TestItemGroup(t *testing.T) {
 }
 
 func TestItemMediaImageVariant(t *testing.T) {
-	out := render(t, ItemMedia(ItemMediaImage, html.Img(html.Src("/a.png"), html.Alt(""))))
+	out := render(t, ItemMedia(ItemMediaImage, html.Img("/a.png", html.Alt(""))))
 	if !strings.Contains(out, "overflow-hidden") || !strings.Contains(out, `data-variant="image"`) {
 		t.Errorf("image variant missing classes: %s", out)
 	}

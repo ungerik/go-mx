@@ -29,6 +29,7 @@ task recipes see:
 
 - [Relationship to the `mx` package](#relationship-to-the-mx-package)
 - [Elements](#elements)
+  - [Required attributes come first](#required-attributes-come-first)
 - [Convenience constructors](#convenience-constructors)
 - [Children](#children)
 - [Attributes](#attributes)
@@ -83,8 +84,8 @@ attributes and children together as variadic `any`; **void elements** (those
 that cannot have children, like `<img>` or `<br>`) take only `mx.Attrib`:
 
 ```go
-html.Div(html.Class("container"), html.P("Hello"))  // <div class="container"><p>Hello</p></div>
-html.Img(html.Src("/logo.png"), html.Alt("Logo"))   // void: attributes only, self-closing
+html.Div(html.Class("container"), html.P("Hello"))     // <div class="container"><p>Hello</p></div>
+html.Input(html.Name("q"), html.Placeholder("Search")) // void: attributes only, self-closing
 ```
 
 Constructors return `*mx.Element`. Arguments are sorted at build time: anything
@@ -115,6 +116,39 @@ via `type="1"`, `"a"`, `"A"`, `"i"`, and `"I"`.
 Elements deprecated in HTML5 (`<center>`, `<font>`, `<marquee>`, …) are
 intentionally left out; they remain as commented-out source so the omission is
 explicit.
+
+### Required attributes come first
+
+Where the HTML spec requires one attribute on an element, its constructor
+takes that attribute as a typed first argument before the variadic, so a call
+can't forget it:
+
+| Constructor              | Required attribute | Example                                          |
+|--------------------------|--------------------|--------------------------------------------------|
+| `Img(src, attribs...)`   | `src`              | `Img("/logo.png", Alt("Logo"))`                  |
+| `Track(src, attribs...)` | `src`              | `Track("/en.vtt", KindSubtitles, SrcLang("en"))` |
+| `OptGroup(label, …)`     | `label`            | `OptGroup("Fruits", Option("Apple"))`            |
+| `Data(value, …)`         | `value`            | `Data("398", "Mini Ketchup")`                    |
+| `Map(name, …)`           | `name`             | `Map("floors", Area(…))`, used by `Img(…, UseMap("#floors"))` |
+| `BDo(dir, …)`            | `dir`              | `BDo(DirRTL, "Hello")`                           |
+
+The argument is the element's only source of that attribute: the same
+attribute passed again among the others makes `Render` fail with a duplicate
+attribute error. A value the spec does not allow is a render error too: an
+empty `src` of `Img` or `Track` (a `SrcSet` does not replace the `src` of an
+`<img>`), a `Map` name that is empty or holds ASCII whitespace, and any `BDo`
+direction but `DirLTR` and `DirRTL` (`<bdo>` overrides the direction, so
+`DirAuto` and the empty `Dir` are invalid). `OptGroup` and `Data` render an
+empty argument as an empty attribute, which the spec allows.
+
+Elements whose attribute is optional or depends on the context keep the plain
+variadic: `A` (an `<a>` without `href` is a placeholder link), `Script` and
+`IFrame` (inline content or `srcdoc` instead of `src`), and `Source` (`src`
+inside `<audio>`/`<video>`, `srcset` inside `<picture>`). `Meter`, `Object`
+and `Link` require attributes but keep the variadic too: a `<meter>` value is
+a number with no empty value to leave out, a `<link>` needs `rel` as well as
+`href`, and `<object>` is rarely used. For `<a>` and the common `<link>` and
+`<script>` forms, the convenience constructors below take the URL first.
 
 ## Convenience constructors
 
@@ -152,7 +186,7 @@ is the media-element preload attribute enum.
 
 A companion family in `elements.go` bakes the single most common attribute into
 the element you reach for most — an element plus its `class` or `id`, an `<a>`
-plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
+plus its `href`, a `<label>` plus its `for` — so
 `DivClass("card", …)` replaces `Div(Class("card"), …)`:
 
 | Function                          | Renders                              |
@@ -163,7 +197,6 @@ plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
 | `PClass(classes, …)`              | `<p class="…">`                      |
 | `H1Class(classes, …)` … `H6Class` | `<h1 class="…">` … `<h6 class="…">`  |
 | `AHRef(url, …)`                   | `<a href="…">`                       |
-| `ImgSrc(url, …)`                  | `<img src="…">` (void)               |
 | `LabelFor(id, …)`                 | `<label for="…">`                    |
 
 ## Children
@@ -259,7 +292,7 @@ constants are used directly as attributes:
 
 ```go
 html.Div(html.DirRTL, html.SpellCheckFalse)
-html.Img(html.Src("/a.png"), html.LoadingLazy, html.DecodingAsync)
+html.Img("/a.png", html.LoadingLazy, html.DecodingAsync)
 html.Form(html.MethodPOST, html.EncTypeMultipartFormData)
 ```
 
@@ -498,7 +531,7 @@ Serving:
 
 | Method / function                 | What it does                          |
 |-----------------------------------|---------------------------------------|
-| `(*Document).HandleHTTP`          | An `http.HandlerFunc`: renders the page with an indenting `CheckedWriter` |
+| `(*Document).ServeHTTP`           | Makes `*Document` an `http.Handler`: renders the page with an indenting `CheckedWriter` |
 | `(*Document).Serve(addr)`         | `ListenAndServe` serving just this document |
 | `Serve(addr, component)`          | `ListenAndServe` for any `mx.Component` |
 | `DOCTYPE`                         | The `<!DOCTYPE html>` `Raw` constant  |
@@ -512,7 +545,7 @@ page := html.NewDocument("Hello",
     html.H1("Hello, go-mx"),
     html.P("Type-safe HTML, rendered in Go — no templates."),
 )
-http.HandleFunc("/", page.HandleHTTP)
+http.Handle("/", page)
 log.Fatal(http.ListenAndServe(":8080", nil))
 ```
 

@@ -666,7 +666,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	index := func(w http.ResponseWriter, r *http.Request) {
-		page(reg, "", "Components", indexContent(reg)).HandleHTTP(w, r)
+		page(reg, "", "Components", indexContent(reg)).ServeHTTP(w, r)
 	}
 	mux.HandleFunc("GET /{$}", index)
 	mux.HandleFunc("GET /index.html", index)
@@ -688,7 +688,7 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		page(reg, d.Slug, d.Title, componentContent(d)).HandleHTTP(w, r)
+		page(reg, d.Slug, d.Title, componentContent(d)).ServeHTTP(w, r)
 	}
 	mux.HandleFunc("GET /components/{slug}", component)
 	mux.HandleFunc("GET /components/{slug}/index.html", component)

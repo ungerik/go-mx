@@ -538,7 +538,7 @@ func TestSiteSitemapSourceError(t *testing.T) {
 	require.ErrorContains(t, err, "source unavailable")
 
 	response := httptest.NewRecorder()
-	site.HandleSitemapXML(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
+	site.ServeSitemapXML(response, httptest.NewRequest(http.MethodGet, web.DefaultSitemapPath, nil))
 	require.Equal(t, http.StatusInternalServerError, response.Code)
 }
 

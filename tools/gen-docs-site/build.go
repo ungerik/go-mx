@@ -167,8 +167,8 @@ func build(ctx context.Context, cfg config) error {
 		name    string
 		handler http.HandlerFunc
 	}{
-		{web.DefaultSitemapPath, site.HandleSitemapXML},
-		{web.LLMsTxtPath, site.HandleLLMsTxt},
+		{web.DefaultSitemapPath, site.ServeSitemapXML},
+		{web.LLMsTxtPath, site.ServeLLMsTxt},
 	} {
 		if err := writeResponse(f.handler, filepath.Join(cfg.Out, strings.TrimPrefix(f.name, "/"))); err != nil {
 			return fmt.Errorf("%s: %w", f.name, err)
