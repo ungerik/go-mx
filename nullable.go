@@ -128,7 +128,7 @@ type TextProblem int //#enum
 
 const (
 	// TextProblemNUL is a NUL character, which a browser replaces.
-	TextProblemNUL TextProblem = iota + 1
+	TextProblemNUL TextProblem = 1 + iota
 	// TextProblemInvalidUTF8 is text that is not valid UTF-8, such as
 	// binary bytes, which a browser replaces.
 	TextProblemInvalidUTF8
