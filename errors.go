@@ -403,10 +403,9 @@ func isClientGoneError(ctx context.Context, err error) bool {
 // reportAndHideError reports err, an error not meant for the client
 // ([ReportHiddenError]), and returns the text the client is shown in its
 // place: generic, or the error's own text when [RevealInternalServerErrors]
-// is set. ok is false
-// for a context.Canceled or context.DeadlineExceeded while ctx is done,
-// which is neither shown nor reported, because the client that would read it
-// has disconnected ([isClientGoneError]).
+// is set. ok is false for a context.Canceled or context.DeadlineExceeded
+// while ctx is done, which is neither shown nor reported, because the client
+// that would read it has disconnected ([isClientGoneError]).
 //
 // It is the policy of the 500s go-mx answers ([RespondNonContextError],
 // respondLoadError) and of [SSEResponse.SendError] (which sends the text as
