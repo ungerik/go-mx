@@ -164,7 +164,7 @@ The gallery shows each of them with its Go source:
 
 - **BorderBeam** — `BorderBeam(opts BorderBeamOptions, attribsChildren ...any)`: a beam of light circling the border of its positioned parent, a keyframe on `offset-distance` along `offset-path: rect(…)` that honors Reverse, Delay, InitialOffset, Duration, Size, the colors and BorderWidth. The caller's attributes go to the beam, as upstream's `className`. The beam's width and the corner radius of its path both read `--border-beam-size`, so resize it with Size or `[--border-beam-size:80px]`: a `size-*` class resizes the beam but not its path. Upstream's `transition` prop (a custom motion easing) is not ported.
 - **GlareHover** — `GlareHover(opts GlareHoverOptions, attribsChildren ...any)`: a diagonal `::before` glare that sweeps across on hover, pure CSS. An `Angle` of 0 means -45; pass 360 for 0°.
-- **ShineBorder** — `ShineBorder(opts ShineBorderOptions, attribsChildren ...any)`: an absolutely positioned layer drawing an animated shine along the border of its positioned parent in one or more `ShineColors`.
+- **ShineBorder** — `ShineBorder(opts ShineBorderOptions, attribsChildren ...any)`: an absolutely positioned layer drawing an animated shine along the border of its positioned parent in one or more `ShineColors`. The ring's width is the padding `--border-width` sets, so change it with BorderWidth or `[--border-width:2px]`: a caller `p-*` class does not change it.
 
 ### Backgrounds
 
