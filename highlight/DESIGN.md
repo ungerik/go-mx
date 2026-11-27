@@ -11,7 +11,7 @@ needs three things that pull in different directions:
 1. **Highlighted markup** that fits the component model, not a wall of
    string-concatenated `<span>`s.
 2. **The go-mx source that produces that markup.** go-mx's whole pitch is "write
-   HTML as Go", so a docs site wants to show the `html.Pre(html.Span(...))` code
+   HTML as Go", so a docs site wants to show the `html.PreClass(html.SpanClass(...))` code
    a snippet compiles to, not just the rendered output.
 3. **Theme independence.** The same highlighted page should restyle from light
    to dark without re-tokenizing or re-rendering.

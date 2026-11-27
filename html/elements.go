@@ -496,7 +496,7 @@ func Legend(attribsChildren ...any) *mx.Element { return Element("legend", attri
 // LI creates an <li> list item within an OL, UL, or Menu.
 func LI(attribsChildren ...any) *mx.Element { return Element("li", attribsChildren...) }
 
-// LIClass creates a <li> with the given space separated class names
+// LIClass creates an <li> with the given space separated class names
 // as a shortcut for LI(Class(classes), attribsChildren...).
 func LIClass(classes string, attribsChildren ...any) *mx.Element {
 	return Element("li", append([]any{Class(classes)}, attribsChildren...)...)
@@ -802,7 +802,7 @@ func Track(src string, attribs ...mx.Attrib) *mx.Element {
 // UL creates a <ul> unordered list of LI items.
 func UL(attribsChildren ...any) *mx.Element { return Element("ul", attribsChildren...) }
 
-// ULClass creates an <ul> with the given space separated class names
+// ULClass creates a <ul> with the given space separated class names
 // as a shortcut for UL(Class(classes), attribsChildren...).
 func ULClass(classes string, attribsChildren ...any) *mx.Element {
 	return Element("ul", append([]any{Class(classes)}, attribsChildren...)...)

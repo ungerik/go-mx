@@ -4,7 +4,7 @@
 // It highlights a sample Go file two ways and shows both, side by side:
 //
 //   - the highlighted HTML of the sample, and
-//   - the Go source (html.Pre/Code/Span calls) that highlight.GoSource
+//   - the Go source (html.PreClass/Code/SpanClass calls) that highlight.GoSource
 //     generates to build that same HTML — itself highlighted.
 //
 // The theme's CSS is emitted into the page <head>. Switch themes with the

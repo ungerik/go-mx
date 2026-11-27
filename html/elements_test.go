@@ -31,8 +31,8 @@ func TestAHRef(t *testing.T) {
 }
 
 // TestClassConstructors covers the class shortcuts of the layout, list,
-// code, form, button, label and table elements: the class comes first, followed by the other attributes and the
-// children in the order passed.
+// code, form, button, label and table elements: the class comes first,
+// followed by the other attributes and the children in the order passed.
 func TestClassConstructors(t *testing.T) {
 	tests := []struct {
 		name string
