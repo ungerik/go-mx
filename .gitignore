@@ -34,3 +34,7 @@
 # Coding-agent scratch space: task attachments, handoff notes, cross-agent
 # collaboration files. Local to a checkout and never part of the library.
 .context/
+
+# The documentation site, written by `go -C tools run ./gen-docs-site -out ../_site`
+# and deployed by .github/workflows/pages.yml; never committed.
+/_site/

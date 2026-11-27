@@ -40,6 +40,11 @@ jobs:
     - name: Build tools module
       run: go build -C tools ./...
 
+    # -short skips TestBuildRepository, the full site build with the gallery
+    # and the example snapshots: the Pages workflow runs that build itself.
+    - name: Test tools module
+      run: go test -C tools -short ./...
+
     # The go-enum methods are committed next to their //#enum types; -validate
     # fails if any are missing or outdated. ../... covers the root module but
     # stops at nested modules, so each of them gets its own run.
@@ -47,29 +52,3 @@ jobs:
       run: |
         go -C tools tool go-enum -validate ../...
         go -C tools tool go-enum -validate ../mcp/...
-
-  gallery:
-    name: Gallery up to date
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.27'
-
-    # Regenerate the committed docs/shadcn/gallery and fail if it drifts from the Go
-    # source. Must match the command in docs/_config.yml byte for byte.
-    - name: Regenerate gallery
-      run: go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
-
-    - name: Fail if docs/shadcn/gallery is out of date
-      run: |
-        git add -A docs/shadcn/gallery
-        if ! git diff --cached --quiet -- docs/shadcn/gallery; then
-          echo "::error::docs/shadcn/gallery is out of date. Regenerate locally and commit:"
-          echo "  go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight"
-          git diff --cached -- docs/shadcn/gallery
-          exit 1
-        fi

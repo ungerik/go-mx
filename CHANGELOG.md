@@ -15,6 +15,31 @@ API is still free to change.
 
 ### Added
 
+- **The documentation site is rendered by go-mx and deployed from CI.**
+  `tools/gen-docs-site` (in the `tools` module, so goldmark stays out of the
+  library's `go.mod`) renders every Markdown file of the repository — the
+  `docs/` guides at their existing URLs, every package README, the design
+  notes and this changelog below `/repo/` — with goldmark and the GitHub
+  Flavored Markdown extensions into pages built from `html` and `shadcn` in
+  the component gallery's theme, Go code highlighted server-side by
+  `highlight`. Links between Markdown files become relative links between the
+  pages, links to other files go to GitHub, and a link that resolves to
+  nothing fails the build, as does any broken internal link or fragment of the
+  written site. Next to the pages it writes the gallery, static snapshots of
+  the example servers, the reference PDFs of the `pdf` golden tests, and
+  through `web` a `sitemap.xml`, an `llms.txt` and a Markdown alternate of
+  every page. The new `Pages` workflow builds it on every pull request and
+  deploys it to <https://ungerik.github.io/go-mx/> on every push to `main`.
+- **Example servers write static snapshots.** `cmd/example-form`,
+  `cmd/example-sse`, `cmd/example-logstream` and `cmd/highlight-demo` take
+  `-snapshot DIR`: they fetch their own pages from their handler and write
+  them as static files for the documentation site, each with a note that it is
+  a snapshot and the `go run` command of the live version. The streaming
+  examples show the state their stream ends in: the finished transcript, and
+  a fixed batch of log lines generated from the seed.
+- **`cmd/shadcn-gallery -home`** links the gallery's sidebar back to the home
+  page of the site it is published in.
+
 - **`shadcn/magicui`, a port of Magic UI.** 41 components of
   [Magic UI](https://magicui.design) (the animated effects built on
   shadcn/ui's tokens), transcribed from `magicuidesign/magicui` at
@@ -719,6 +744,15 @@ API is still free to change.
   BorderBeam's width and the corner radius of its path both read
   `--border-beam-size`, and its border width is inherited from the parent,
   since the caller's classes go to the beam.
+
+- **The gallery's theme moved to `internal/shadcntheme`.** The shadcn/ui
+  new-york-v4 `theme.css` the tutorials tell readers to copy is now
+  `internal/shadcntheme/theme.css` (was `cmd/shadcn-gallery/theme.css`), next
+  to the `<head>` wiring the gallery and the documentation site share. The
+  gallery's output is unchanged apart from its demo links: the breadcrumb,
+  attachment, marker and trace examples link `#` instead of paths that do not
+  exist on a static host.
+
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
   with `Cn`, set one `data-slot`, dedupe attributes), formerly the unexported
@@ -1013,6 +1047,12 @@ API is still free to change.
   meant for the user.
 
 ### Removed
+
+- **The committed gallery and the Jekyll configuration.** `docs/shadcn/gallery/`
+  is no longer committed and the `Gallery up to date` CI job is gone: the
+  documentation site build writes the gallery and fails when it does not
+  build. `docs/_config.yml` went with Jekyll; `docs/` holds only the Markdown
+  sources now.
 
 - **The `fpdf` and `wordpress` nested modules moved to their own
   repositories.** `github.com/ungerik/go-mx/fpdf` is now

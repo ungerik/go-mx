@@ -1,10 +1,12 @@
 // Package tools pins the build-time tooling used to maintain go-mx — the
 // ungerik/go-enum code generator for the methods of the //#enum types in
-// every module of the repository, and gen-stdoptions, which generates the
-// stdoptions data from Unicode CLDR (go generate ./stdoptions) — in a
-// separate nested module. Keeping them here means go-enum, golang.org/x/text
-// and their dependency trees are not part of the shipped
-// github.com/ungerik/go-mx module that library consumers import.
+// every module of the repository, gen-stdoptions, which generates the
+// stdoptions data from Unicode CLDR (go generate ./stdoptions), and
+// gen-docs-site, which renders the documentation site with goldmark and go-mx
+// (go -C tools run ./gen-docs-site -out ../_site) — in a separate nested
+// module. Keeping them here means go-enum, golang.org/x/text, goldmark and
+// their dependency trees are not part of the shipped github.com/ungerik/go-mx
+// module that library consumers import. The module is never tagged.
 //
 // Generation is driven by //go:generate directives in the packages that define
 // enums, e.g. in svg:

@@ -852,6 +852,67 @@ head, or the file-name fallback the `.txt` case uses.
 **Priority:** P3
 **Depends on:** None
 
+## docs site
+
+### Compile the site's Tailwind CSS in CI instead of in the browser
+
+**What:** Run the Tailwind v4 standalone CLI in the `Pages` workflow over the
+generated HTML and link the compiled stylesheet, instead of loading
+`@tailwindcss/browser` from jsDelivr on every page of the documentation site
+and the gallery.
+
+**Why:** The browser build compiles the theme and every class at runtime: the
+site depends on a CDN script, shows a brief unstyled first paint, and runs
+the Tailwind compiler on every page view. The site is a showcase of
+server-rendered HTML, so it should not need client-side CSS compilation.
+
+**Context:** `internal/shadcntheme.Head` emits the `text/tailwindcss` style
+block and the CDN script for both `cmd/shadcn-gallery` and
+`tools/gen-docs-site`. The standalone CLI is a single binary, so no npm is
+needed; `magicui.CSS` and the docs' prose rules (`docsCSS` in
+`tools/gen-docs-site/layout.go`) are Tailwind input too. A `-tailwind` mode of
+both commands could emit a `<link>` instead of the style block. Deferred from
+the docs-site PR to keep it to one change.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### Pin the Tailwind browser build the demo pages load
+
+**What:** Load `@tailwindcss/browser` at an exact version with an SRI hash,
+the way `hx.ScriptFromCDN` loads htmx.
+
+**Why:** `shadcntheme.TailwindBrowserURL` is `@tailwindcss/browser@4`, a
+floating major: a new minor release changes the gallery and the docs site
+without a commit, and nothing checks the script's integrity.
+
+**Context:** `internal/shadcntheme/shadcntheme.go`; `hx/htmx.go` and its
+`MX_CHECK_CDN` test are the pattern. Moot if the CSS is compiled in CI (the
+item above).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Live examples on the documentation site
+
+**What:** Decide whether the example servers get a live deployment linked
+from the site, next to their static snapshots.
+
+**Why:** GitHub Pages serves files only, so the snapshots cannot show what the
+examples are about: submitting the reflected form, the SSE chat arriving token
+by token, the log stream's search and reconnect. A reader has to clone the
+repository and `go run` them.
+
+**Context:** `tools/gen-docs-site/examples.go` lists the snapshots; each
+snapshot's note carries the `go run` command. A host for long-lived SSE
+connections costs money and needs abuse limits.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
 ## doc
 
 ### Finish or delete the unfinished `doc` package before v1.0?

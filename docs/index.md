@@ -26,8 +26,11 @@ html.Div(html.Class("card"),
   over Server-Sent Events: `mx.SSEResponse`, `mx.KeyedID`, the `hx.SSE*`
   attributes, `shadcn.StickToBottom` and the `logview` log viewer.
 - **[Component gallery](shadcn/gallery/)** — every ported shadcn/ui and Magic UI component, rendered
-  server-side in Go and shown next to its source. A pre-rendered static copy of
-  the live `cmd/shadcn-gallery` app.
+  server-side in Go and shown next to its source. A static copy of the live
+  `cmd/shadcn-gallery` app, written when this site is built.
+- **[Examples](examples/)** — static snapshots of the example servers (a
+  reflected form, a streamed chat, a log viewer, the syntax highlighter) and
+  reference PDFs of the `pdf` packages.
 - **[shadcn package docs](shadcn/)** — a tutorial, task-oriented how-to guides,
   and the full component reference for the `shadcn` package.
 - **[Magic UI docs](shadcn/magicui/)** — a tutorial, how-to guides and the

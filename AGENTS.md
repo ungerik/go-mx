@@ -17,6 +17,10 @@ go test ./html/...
 # Run a single test
 go test -run TestFunctionName ./...
 
+# The tools module: gen-docs-site and gen-stdoptions; -short skips the full
+# site build (gallery and example snapshots), which the Pages workflow runs
+go test -C tools -short ./...
+
 # After changing an htmx version or hash in hx/htmx.go: check the SRI hashes
 # against the CDN (needs network, so it is skipped unless MX_CHECK_CDN is set)
 MX_CHECK_CDN=1 go test ./hx -run TestScriptFromCDNIntegrity
@@ -55,24 +59,36 @@ go -C tools tool go-enum ../...
 
 ## Documentation site
 
-The docs site at <https://ungerik.github.io/go-mx/> is a Jekyll site served by
-GitHub Pages from `docs/` on `main`. Markdown pages (`docs/index.md`, the `html`,
-`shadcn`, `shadcn/magicui` and `hx` tutorial/how-to/reference pages, `docs/web/knowledge-layer.md`) are rendered by Jekyll; the
-component gallery under `docs/shadcn/gallery/` (served at
-`/go-mx/shadcn/gallery/`) is **pre-rendered static HTML, committed to the repo**,
-including the month fragments under `fragments/` that its calendars load
-through `MonthURL`.
+The docs site at <https://ungerik.github.io/go-mx/> is built by go-mx itself
+and deployed from GitHub Actions (`.github/workflows/pages.yml`); nothing of
+it is committed. `tools/gen-docs-site` (in the `tools` module, so goldmark
+stays out of the root `go.mod`) renders every Markdown file of the repository
+with goldmark into pages built from `html` and `shadcn` in the gallery's
+theme (`internal/shadcntheme`), Go code blocks highlighted by `highlight`:
+`docs/**` at the URLs Jekyll used to serve (`docs/html/tutorial.md` →
+`/html/tutorial`), every other `*.md` below `/repo/` (`html/README.md` →
+`/repo/html/`), except `TODOS.md`, `V1-AUDIT.md`, `AGENTS.md`, `CLAUDE.md`
+and `testdata/`. Links between Markdown files become relative page links,
+links to other repository files go to GitHub, and a link that resolves to
+nothing fails the build. It also writes the component gallery (`go run
+./cmd/shadcn-gallery -static-highlight -home …`) to `/shadcn/gallery/`, a
+static snapshot of each example server (their `-snapshot DIR` mode,
+`snapshot.go` next to `main.go`, helpers in `internal/snapshot`) to
+`/examples/`, the reference PDFs of the pdf golden tests, and through `web`
+`sitemap.xml`, `llms.txt` and a `.md` alternate of every page, then checks
+every internal link and fragment of the output.
 
-Regenerate the gallery after changing any `shadcn` component or
-`cmd/shadcn-gallery/examples/*.go`:
+Build and look at the site locally (the output directory is emptied first,
+which the command only does for a directory an earlier build wrote):
 
 ```bash
-go run ./cmd/shadcn-gallery -out docs/shadcn/gallery -static-highlight
+go -C tools run ./gen-docs-site -out ../_site
 ```
 
-The `Gallery up to date` CI job (`.github/workflows/go.yml`) runs this exact
-command and fails if the committed output drifts, so commit the regenerated
-files together with the source change.
+Pull requests run the same build in the `Pages` workflow; a push to `main`
+deploys it. A new example command gets a `-snapshot` mode and an entry in
+`examples` in `tools/gen-docs-site/examples.go`; a new Markdown file is picked
+up on its own.
 
 ## Project Overview
 
