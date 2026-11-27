@@ -62,7 +62,7 @@ func ShineBorder(opts ShineBorderOptions, attribsChildren ...any) *mx.Element {
 	root := html.Div(append([]any{ariaHidden}, attribsChildren...)...)
 	return finish(root, "shine-border",
 		"[--border-width:1px] [--duration:14s] bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)] bg-size-[300%_300%] "+
-			"shine-border-mask p-(--border-width) "+
+			"shine-border-mask "+
 			"motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]",
 		style,
 	)

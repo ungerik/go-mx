@@ -90,6 +90,10 @@ browser ignore every `style` attribute. Most components need none:
   `html.Class("[--shimmer-color:#3b82f6] [--speed:1.5s]")` rather than
   `ShimmerButtonOptions{ShimmerColor: "#3b82f6", ShimmerDuration: 1500 * time.Millisecond}`.
   Tailwind has to find the class in your source, so write it as a literal.
+  One value lives on an element your classes do not reach: BorderBeam passes
+  your attributes to the beam, not to the border around it, so set its
+  border width on the BorderBeam's parent (`[--border-beam-width:2px]`),
+  which the border inherits.
 - **15 components write a `style` attribute even at their defaults**, because
   a value differs from element to element: an index per item, segment or
   letter (AnimatedList, Ripple, SpinningText, Text3DFlip, TextAnimate,
@@ -100,7 +104,7 @@ browser ignore every `style` attribute. Most components need none:
   without those values, so they do not look as intended: the items of an
   AnimatedList, for example, enter together instead of one after another.
 
-`csp_test.go` holds the package to this: a component outside that list that
+`TestDefaultsWithoutStyleAttribute` in `magicui_test.go` holds the package to this: a component outside that list that
 writes a `style` attribute with its defaults fails it.
 
 ## Differences from upstream
@@ -139,7 +143,7 @@ The gallery shows each of them with its Go source:
 - **AnimatedGradientText** — `AnimatedGradientText(opts AnimatedGradientTextOptions, attribsChildren ...any)`: text filled with a gradient that keeps flowing from `ColorFrom` through `ColorTo`; `Speed` scales `--bg-size`.
 - **AnimatedShinyText** — `AnimatedShinyText(opts AnimatedShinyTextOptions, attribsChildren ...any)`: muted text swept by a glare `ShimmerWidth` pixels wide. Under reduced motion the glare rests outside the text.
 - **AuroraText** — `AuroraText(opts AuroraTextOptions, attribsChildren ...any)`: text filled with a swirling gradient of `Colors`, one cycle every 10s divided by `Speed`, with an sr-only copy for screen readers. Every attribute goes to the root span (upstream passes on only `className`).
-- **ComicText** — `ComicText(opts ComicTextOptions, attribsChildren ...any)`: comic-book lettering (Bangers font stack, halftone fill, black outline, skew) that pops in once; the motion spring is a CSS keyframe with upstream's cubic-bezier. Any children are accepted, not only a string.
+- **ComicText** — `ComicText(opts ComicTextOptions, attribsChildren ...any)`: comic-book lettering (Bangers font stack, halftone fill, black outline, skew) that pops in once; the motion spring is a CSS keyframe with upstream's cubic-bezier. Any children are accepted, not only a string. FontSize (the `--comic-text-font-size` variable) scales the outline with the text; a caller `text-*` size class replaces the font size but leaves the outline at FontSize's width.
 - **KineticText** — `KineticText(opts KineticTextOptions, attribsChildren ...any)`: `opts.Text` as one aria-hidden span per letter plus an sr-only copy, in the element chosen by `As`; the letter under the pointer swells to weight 900 with a stroke, by CSS transitions. The text is split into code points, not UTF-16 units.
 - **LineShadowText** — `LineShadowText(opts LineShadowTextOptions, attribsChildren ...any)`: text with a moving hatched shadow in `ShadowColor`, in the element chosen by `As`. The children must be strings, because they also fill `data-text`.
 - **SparklesText** — `SparklesText(opts SparklesTextOptions, attribsChildren ...any)`: bold text with stars twinkling at positions drawn from `Seed`. The sparkles keep their places (upstream moves each one every 5–15s with `setInterval`) and are hidden under reduced motion.
@@ -158,7 +162,7 @@ The gallery shows each of them with its Go source:
 
 ### Borders and highlights
 
-- **BorderBeam** — `BorderBeam(opts BorderBeamOptions, attribsChildren ...any)`: a beam of light circling the border of its positioned parent, a keyframe on `offset-distance` along `offset-path: rect(…)` that honors Reverse, Delay, InitialOffset, Duration, Size, the colors and BorderWidth. The caller's attributes go to the beam, as upstream's `className`. Upstream's `transition` prop (a custom motion easing) is not ported.
+- **BorderBeam** — `BorderBeam(opts BorderBeamOptions, attribsChildren ...any)`: a beam of light circling the border of its positioned parent, a keyframe on `offset-distance` along `offset-path: rect(…)` that honors Reverse, Delay, InitialOffset, Duration, Size, the colors and BorderWidth. The caller's attributes go to the beam, as upstream's `className`. The beam's width and the corner radius of its path both read `--border-beam-size`, so resize it with Size or `[--border-beam-size:80px]`: a `size-*` class resizes the beam but not its path. Upstream's `transition` prop (a custom motion easing) is not ported.
 - **GlareHover** — `GlareHover(opts GlareHoverOptions, attribsChildren ...any)`: a diagonal `::before` glare that sweeps across on hover, pure CSS. An `Angle` of 0 means -45; pass 360 for 0°.
 - **ShineBorder** — `ShineBorder(opts ShineBorderOptions, attribsChildren ...any)`: an absolutely positioned layer drawing an animated shine along the border of its positioned parent in one or more `ShineColors`.
 

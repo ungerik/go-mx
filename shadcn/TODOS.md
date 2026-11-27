@@ -137,7 +137,7 @@ children set by a small script.
 ### 15 components need a style attribute under a strict CSP
 
 **What:** Give the components that still write a `style` attribute at their
-defaults (`needStyleAttribute` in `magicui/csp_test.go`) a way to work under a
+defaults (`needStyleAttribute` in `magicui/magicui_test.go`) a way to work under a
 Content-Security-Policy without `'unsafe-inline'` in `style-src`. They need a
 value per element: an index (AnimatedList, Ripple, SpinningText, Text3DFlip,
 TextAnimate, TextReveal, WordRotate), a seeded position (LightRays, Meteors,

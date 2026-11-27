@@ -214,6 +214,9 @@ names the 15 components that need a `style` attribute anyway.
 
 3. Write the class as a literal in your Go source, so Tailwind finds it and
    generates its rule.
+4. For a BorderBeam's border width, put the class on the BorderBeam's parent
+   (`[--border-beam-width:2px]`): the BorderBeam's own classes go to the
+   beam, not to the border around it.
 
 ### Verification
 

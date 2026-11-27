@@ -713,9 +713,12 @@ API is still free to change.
   under such a policy where the option does not. The 15 that still need one,
   for an index, a seeded position or a computed value per element, are listed
   in `shadcn/magicui/README.md` under "Strict Content-Security-Policy", and
-  `csp_test.go` fails for any other. A caller class now also beats a
-  component's default where the inline default used to win (the width of a
-  BorderBeam, the background of a GlareHover, ComicText's lettering).
+  a test in `magicui_test.go` fails for any other. A caller class now also
+  beats a component's default where the inline default used to win (the
+  background of a GlareHover, ComicText's lettering and font size). A
+  BorderBeam's width and the corner radius of its path both read
+  `--border-beam-size`, and its border width is inherited from the parent,
+  since the caller's classes go to the beam.
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
   with `Cn`, set one `data-slot`, dedupe attributes), formerly the unexported

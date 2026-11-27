@@ -1,7 +1,7 @@
 /* Aurora Text */
 @theme inline {
-  /* One cycle takes the gradient copy's --aurora-text-duration, which is
-     10s / Speed. */
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
   --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {

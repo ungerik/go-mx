@@ -9,7 +9,7 @@ import (
 // (#EF4444) on yellow (#FACC15), a black outline of 0.35px per rem of font
 // size, and a hard black and red drop shadow. One literal, so Tailwind finds
 // every class in the source.
-const comicTextClasses = "[--comic-text-font-size:5] [font-size:calc(var(--comic-text-font-size)*1rem)] " +
+const comicTextClasses = "[--comic-text-font-size:5] text-[length:calc(var(--comic-text-font-size)*1rem)] " +
 	"[font-family:Bangers,Comic_Sans_MS,Impact,sans-serif] font-black uppercase [transform:skewX(-10deg)] " +
 	"[-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000] " +
 	"[filter:drop-shadow(5px_5px_0px_#000000)_drop-shadow(3px_3px_0px_#EF4444)] " +

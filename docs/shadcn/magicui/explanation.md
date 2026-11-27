@@ -93,7 +93,10 @@ redefine one of Tailwind's own animations that `shadcn` components rely on.
 left at its default is a class on the element, so a component at its
 defaults needs no `style` attribute, which a strict Content-Security-Policy
 would drop, and each component's root resets the values it reads, so a
-nested component of the same kind does not inherit them. Colors and lengths
+nested component of the same kind does not inherit them. The one exception
+is BorderBeam's border width, which the border inherits from the
+BorderBeam's parent, because the caller's classes go to the beam inside it.
+Colors and lengths
 from options that are set go into `style` as custom properties. A value that could end the declaration or
 load a resource (`;`, braces, angle brackets, quotes, backslashes, comment
 delimiters, unbalanced parentheses or brackets, `url(`) makes the component

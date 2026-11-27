@@ -67,8 +67,10 @@ func BlurFade(opts BlurFadeOptions, attribsChildren ...any) *mx.Element {
 	if opts.Duration > 0 {
 		duration = seconds(opts.Duration, 0)
 	}
-	if opts.Delay > 0 {
-		delay = seconds(40*time.Millisecond+opts.Delay, 0)
+	if opts.Delay != 0 {
+		// A negative Delay shortens upstream's 40ms base delay; one that
+		// cancels it falls back to the base.
+		delay = seconds(40*time.Millisecond+opts.Delay, 40*time.Millisecond)
 	}
 	style, err := styleVars(
 		"--blur-fade-duration", duration,

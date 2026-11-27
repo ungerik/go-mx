@@ -44,6 +44,13 @@ func TestBlurFadeOptions(t *testing.T) {
 	}
 }
 
+func TestBlurFadeNegativeDelay(t *testing.T) {
+	// A negative Delay shortens the 40ms base delay, as upstream's sum does;
+	// one that cancels it falls back to the base.
+	mustContain(t, render(t, BlurFade(BlurFadeOptions{Delay: -20 * time.Millisecond})), `style="--blur-fade-delay:0.02s"`)
+	mustContain(t, render(t, BlurFade(BlurFadeOptions{Delay: -time.Second})), `style="--blur-fade-delay:0.04s"`)
+}
+
 func TestBlurFadeInvalidBlur(t *testing.T) {
 	if err := renderErr(t, BlurFade(BlurFadeOptions{Blur: "red;x:y"})); err == nil {
 		t.Error("an unsafe blur value rendered without error")

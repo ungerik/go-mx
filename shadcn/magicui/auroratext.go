@@ -19,11 +19,13 @@ type AuroraTextOptions struct {
 	Speed float64
 }
 
-// auroraTextGradientClasses style the gradient copy of an [AuroraText],
-// with upstream's default colors and its 10s cycle as classes. One literal,
-// so Tailwind finds every class in the source.
-const auroraTextGradientClasses = "animate-aurora relative bg-size-[200%_auto] bg-clip-text text-transparent [-webkit-text-fill-color:transparent] " +
-	"bg-[linear-gradient(135deg,#FF0080,#7928CA,#0070F3,#38bdf8,#FF0080)] [--aurora-text-duration:10s]"
+// auroraTextClasses are the root classes of an [AuroraText]: upstream's
+// default colors and its 10s cycle as the variables the gradient copy reads.
+// They sit on the root, where the caller's classes go, so a caller class
+// such as [--aurora-text-duration:5s] replaces them. One literal, so
+// Tailwind finds every class in the source.
+const auroraTextClasses = "relative inline-block " +
+	"[--aurora-text-gradient:linear-gradient(135deg,#FF0080,#7928CA,#0070F3,#38bdf8,#FF0080)] [--aurora-text-duration:10s]"
 
 // AuroraText renders its children as text filled with a slowly swirling,
 // tilting color gradient. The children are rendered twice: once sr-only
@@ -43,9 +45,9 @@ func AuroraText(opts AuroraTextOptions, attribsChildren ...any) *mx.Element {
 			return mx.NewErrElement(err)
 		}
 	}
-	// The defaults are in auroraTextGradientClasses, so the component left at
-	// them needs no style attribute (see "Strict Content-Security-Policy" in
-	// the README); only the options set go into style.
+	// The defaults are in auroraTextClasses, so the component left at them
+	// needs no style attribute (see "Strict Content-Security-Policy" in the
+	// README); only the options set go into the root's style.
 	var gradient, duration string
 	if len(opts.Colors) > 0 {
 		gradient = "linear-gradient(135deg, " + strings.Join(opts.Colors, ", ") + ", " + opts.Colors[0] + ")"
@@ -53,22 +55,21 @@ func AuroraText(opts AuroraTextOptions, attribsChildren ...any) *mx.Element {
 	if opts.Speed > 0 {
 		duration = num(10/opts.Speed) + "s"
 	}
-	gradientStyle, err := styleVars(
-		"background-image", gradient,
+	style, err := styleVars(
+		"--aurora-text-gradient", gradient,
 		"--aurora-text-duration", duration,
 	)
 	if err != nil {
 		return mx.NewErrElement(err)
 	}
-	copyAttribs := []any{html.Class(auroraTextGradientClasses), ariaHidden}
-	if gradientStyle != "" {
-		copyAttribs = append(copyAttribs, html.Style(gradientStyle))
-	}
 	root := html.Span(attribsChildren...)
 	children := anys(root.Children)
 	root.Children = []mx.Component{
 		html.Span(append([]any{html.Class("sr-only")}, children...)...),
-		html.Span(append(copyAttribs, children...)...),
+		html.Span(append([]any{
+			html.Class("animate-aurora relative bg-size-[200%_auto] bg-(image:--aurora-text-gradient) bg-clip-text text-transparent [-webkit-text-fill-color:transparent]"),
+			ariaHidden,
+		}, children...)...),
 	}
-	return finish(root, "aurora-text", "relative inline-block", "")
+	return finish(root, "aurora-text", auroraTextClasses, style)
 }

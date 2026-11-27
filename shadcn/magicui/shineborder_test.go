@@ -1,6 +1,7 @@
 package magicui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -14,12 +15,22 @@ func TestShineBorderDefault(t *testing.T) {
 		`data-slot="shine-border"`, `aria-hidden="true"`,
 		"[--border-width:1px] [--duration:14s]",
 		"bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)]",
-		"shine-border-mask", "p-(--border-width)",
+		"shine-border-mask",
 		"motion-safe:animate-shine", "rounded-[inherit]",
 	)
 	if strings.Contains(out, "style=") {
 		t.Errorf("the defaults need no style attribute: %s", out)
 	}
+}
+
+func TestShineBorderPaddingInUtility(t *testing.T) {
+	// The ring's width is the padding the mask cuts out, so it lives in the
+	// shine-border-mask utility where a caller's p-* class cannot drop it.
+	if !regexp.MustCompile(`@utility shine-border-mask \{[^}]*padding: var\(--border-width\);`).MatchString(CSS) {
+		t.Error("shine-border-mask should set padding: var(--border-width)")
+	}
+	out := render(t, ShineBorder(ShineBorderOptions{BorderWidth: 3}, html.Class("p-2")))
+	mustContain(t, out, "shine-border-mask", "--border-width:3px")
 }
 
 func TestShineBorderOptions(t *testing.T) {
