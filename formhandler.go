@@ -313,7 +313,7 @@ func ReflectFormHandlerRedirecting[T any](
 			if cmd := repeatableCommand(r); cmd != "" && isRepeatableCommand(target, d, cmd) {
 				// The command saves nothing and shows no error, so the errors
 				// of this parse, which the next save reports, are not reported.
-				parseAndValidate(target, d, r.WithContext(withoutReports(r.Context())), origins)
+				parseAndValidate(target, d, r.WithContext(contextWithoutReports(r.Context())), origins)
 				formMsg := ""
 				if sensitiveTextPosted(target, requestFormValues(r)) {
 					formMsg = FormTextsFromContext(r.Context()).RetypeSensitive
@@ -1421,7 +1421,7 @@ func writeFormResponse(w http.ResponseWriter, r *http.Request, comp Component) {
 // message and reports it to [ReportError]. The detailed error stays
 // server-side unless [RevealInternalServerErrors] is true.
 func respondLoadError(w http.ResponseWriter, r *http.Request, err error) {
-	if msg, ok := hiddenErrorText(r.Context(), err, "failed to load record"); ok {
+	if msg, ok := reportAndHideError(r.Context(), err, "failed to load record"); ok {
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
 }

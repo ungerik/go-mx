@@ -324,7 +324,7 @@ func ReportHiddenError(ctx context.Context, err error) {
 		ctx = context.Background()
 	}
 	report := ReportError
-	if report == nil || err == nil || clientGone(ctx, err) || ctx.Value(unreportedKey{}) != nil {
+	if report == nil || err == nil || isClientGoneError(ctx, err) || ctx.Value(unreportedKey{}) != nil {
 		return
 	}
 	report(context.WithoutCancel(ctx), err)
@@ -351,12 +351,12 @@ func MaskSensitiveError(ctx context.Context, err error, mask string) error {
 }
 
 // unreportedKey marks a context whose hidden errors [ReportHiddenError] does
-// not report (see [withoutReports]).
+// not report (see [contextWithoutReports]).
 type unreportedKey struct{}
 
-// withoutReports returns ctx marked so that [ReportHiddenError] reports
+// contextWithoutReports returns ctx marked so that [ReportHiddenError] reports
 // nothing, for a parse whose errors are discarded.
-func withoutReports(ctx context.Context) context.Context {
+func contextWithoutReports(ctx context.Context) context.Context {
 	return context.WithValue(ctx, unreportedKey{}, true)
 }
 
@@ -389,31 +389,32 @@ func reportHiddenParts(ctx context.Context, err error) {
 	}
 }
 
-// clientGone reports whether err is the cancellation of ctx, the request's
+// isClientGoneError reports whether err is the cancellation of ctx, the request's
 // context: a context.Canceled or context.DeadlineExceeded while ctx is done,
 // which go-mx takes for a client that has disconnected. A deadline a call
 // set for itself, such as a database query under context.WithTimeout, or a
 // cancel of its own, as fan-out results collected after one give, fails
 // with the same errors while the client still waits: that is an error of
 // the server.
-func clientGone(ctx context.Context, err error) bool {
+func isClientGoneError(ctx context.Context, err error) bool {
 	return ctx != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded))
 }
 
-// hiddenErrorText returns the text the client is shown in place of err, an
-// error not meant for it, and reports err ([ReportHiddenError]): generic, or
-// the error's own text when [RevealInternalServerErrors] is set. ok is false
+// reportAndHideError reports err, an error not meant for the client
+// ([ReportHiddenError]), and returns the text the client is shown in its
+// place: generic, or the error's own text when [RevealInternalServerErrors]
+// is set. ok is false
 // for a context.Canceled or context.DeadlineExceeded while ctx is done,
 // which is neither shown nor reported, because the client that would read it
-// has disconnected ([clientGone]).
+// has disconnected ([isClientGoneError]).
 //
 // It is the policy of the 500s go-mx answers ([RespondNonContextError],
 // respondLoadError) and of [SSEResponse.SendError] (which sends the text as
 // an in-band event, because by then the 200 is committed), so they cannot
 // drift apart. [FormErrorText] reveals and reports the same way, but always
 // returns a text, because the form is re-rendered either way.
-func hiddenErrorText(ctx context.Context, err error, generic string) (text string, ok bool) {
-	if clientGone(ctx, err) {
+func reportAndHideError(ctx context.Context, err error, generic string) (shown string, ok bool) {
+	if isClientGoneError(ctx, err) {
 		return "", false
 	}
 	ReportHiddenError(ctx, err)
@@ -436,7 +437,7 @@ func RespondNonContextError(w http.ResponseWriter, r *http.Request, err error) {
 	if r != nil {
 		ctx = r.Context()
 	}
-	if message, ok := hiddenErrorText(ctx, err, "Internal Server Error"); ok {
+	if message, ok := reportAndHideError(ctx, err, "Internal Server Error"); ok {
 		http.Error(w, message, http.StatusInternalServerError)
 	}
 }

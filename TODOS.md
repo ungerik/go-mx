@@ -2393,7 +2393,7 @@ require; the 500 path predates the hook. Found in the review of the hook.
 **Effort:** S
 **Priority:** P2
 **Depends on:** None
-**Completed:** 2026-11-01 — `clientGone` replaces `isContextError`: a context error counts as a
+**Completed:** 2026-11-01 — `clientGone` (now `isClientGoneError`) replaces `isContextError`: a context error counts as a
 disconnect only while the request's context is done, in `ReportHiddenError`
 and the 500 and SSE error paths.
 
