@@ -144,8 +144,8 @@ go-mx is a strong fit when most of these are true:
 - **Content, docs, and marketing sites** where SEO and fast first paint
   matter. The [go-mx documentation site](index.md) is one: its pages, the
   component gallery and the example snapshots are rendered by go-mx from the
-  repository's Markdown on every push, with a sitemap, an `llms.txt` and a
-  Markdown version of each page from the `web` package.
+  repository's Markdown on every push to `main`, with a sitemap, an
+  `llms.txt` and a Markdown version of each page from the `web` package.
 - **You are already a Go shop** and want one language end-to-end, no separate
   frontend build/deploy, and no JS supply chain to audit.
 - **Security/compliance pressure** makes minimizing the client-side

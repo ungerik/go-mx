@@ -413,8 +413,8 @@ proven in this port):
 
 **Step 5 — everything else is unchanged**: signature conventions,
 `StyleSlot(e, "<slot>", base)`, `data-slot` names (upstream kept them),
-`…Classes` helpers, gallery example + regeneration
-(`go run ./cmd/shadcn-gallery …`, see CLAUDE.md).
+`…Classes` helpers, gallery example (published by the documentation site
+build, nothing to regenerate or commit).
 
 Note: the new style sheets use a few `cn-` utility tokens beyond
 component parts (e.g. `cn-font-heading` on titles) — resolve them from the

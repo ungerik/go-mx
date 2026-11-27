@@ -14,7 +14,9 @@ nested modules moved to their own repositories,
 [`go-mx-wordpress`](https://github.com/ungerik/go-mx-wordpress); `pdf`'s parity
 test reads its own `testdata/legacy_reference.pdf`; `hx` loads htmx 2.0.11, with
 an opt-in test of the CDN integrity hashes, and the htmx 2 vs. htmx 4 decision
-is tracked in [`TODOS.md`](TODOS.md).
+is tracked in [`TODOS.md`](TODOS.md); the component gallery is no longer
+committed (the documentation site, gallery included, is built by the `Pages`
+workflow), so `docs/` holds only Markdown and needs no `go.mod` of its own.
 
 The actionable items and the open decisions of this audit are tracked in
 [`TODOS.md`](TODOS.md) under `## v1.0 release` (the `hx` items under `## hx`,
@@ -77,7 +79,6 @@ a new major in August 2026.
 | `mcp` | **Nested module, renamed `webmcp`** (directory, path, package) | The package name collides with the SDK's `mcp`, so every user has to alias it. |
 | `doc`, `doc/dbdoc` | **Delete** | Unused; `doc.Text.Render` panics on a nil `DefaultRenderer`; `db:"line_hight"` typo. |
 | `cmd/mx.go` | **Delete** | A stub CLI that only prints "gen-routes" or "jsx-to-mx". |
-| `docs/` | **Add `docs/go.mod`** | 5.2 MB (5.1 MB of gallery) of the root module's tracked files ship in every `go get`. |
 
 **The lockstep catch.** Nested modules isolate *dependencies*, not *versions*,
 as long as every module is tagged in lockstep (the policy at the top of
@@ -91,8 +92,9 @@ version, so every layout move has to land before the first tag.
 
 The split moves `cmd/shadcn-gallery`, `cmd/example-form` and `cmd/example-sse`
 into the shadcn module (otherwise root → shadcn → root), gives `webmcp`
-replace + placeholder pairs for both root and `web`, and changes the "Gallery up
-to date" CI job and the Tailwind `@source` path.
+replace + placeholder pairs for both root and `web`, and changes the
+documentation site build (`tools/gen-docs-site` runs the gallery and the
+example servers by their root-module paths) and the Tailwind `@source` path.
 
 ---
 
@@ -365,7 +367,8 @@ casing, `StyleElem`), `xml` is ready after H5.
    `shadcn/formdecider_test.go`). Set `go 1.26.0` to support both maintained Go
    releases, put the uuid cases behind `//go:build go1.27` (or use a local test
    type), test 1.26 and 1.27 in CI, and update the README's "Requires Go 1.27".
-2. **CI** builds, tests, validates the enums and checks gallery drift. Missing:
+2. **CI** builds, tests, validates the enums and builds the documentation
+   site. Missing:
    `go vet`, staticcheck, `-race`, govulncheck, the same for each nested module,
    and after the tag `apidiff`/`gorelease` against the latest tag on every pull
    request, so the v1 promise is checked by a machine.
@@ -381,12 +384,10 @@ casing, `StyleElem`), `xml` is ready after H5.
    which htmx, Tailwind and shadcn baselines are bound.
 7. **Deletions**: `cmd/mx.go`, `doc/`, and commented-out code
    (`funccomponent.go`, `errors.go:439-447`, `paths.go:50-52`).
-8. **Module zip**: a `docs/go.mod` keeps the 5.1 MB gallery out of every
-   `go get`.
-9. **LICENSE** in every nested module.
-10. **Tagging**: the root as `v1.0.0`, the nested modules per D1; `tools/` is
-    never tagged.
-11. **AGENTS.md / README** follow-ups after the layout change (package list, the
+8. **LICENSE** in every nested module.
+9. **Tagging**: the root as `v1.0.0`, the nested modules per D1; `tools/` is
+   never tagged.
+10. **AGENTS.md / README** follow-ups after the layout change (package list, the
     browser-test claim, the `doc` mention, "Nothing is tagged yet").
 
 ---
@@ -419,5 +420,5 @@ casing, `StyleElem`), `xml` is ready after H5.
 6. `shadcn` S2-S10 (if it ships at v1).
 7. `pdf` P1-P11 (if it ships at v1).
 8. `web` W1-W12.
-9. Hygiene items 1-11.
+9. Hygiene items 1-10.
 10. Tag, and record the apidiff baseline.

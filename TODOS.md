@@ -30,8 +30,9 @@ before the first tag.
 
 **Context:** V1-AUDIT.md §1 and D1. The split moves `cmd/shadcn-gallery`,
 `cmd/example-form` and `cmd/example-sse` into the shadcn module, adds
-replace + placeholder pairs, and changes the gallery CI job and the Tailwind
-`@source` path. `logview` stays in the root module only after it drops its
+replace + placeholder pairs, and changes the documentation site build
+(`tools/gen-docs-site/examples.go` runs the gallery and the example servers by
+their root-module paths) and the Tailwind `@source` path. `logview` stays in the root module only after it drops its
 `shadcn` import; `shadcn/clsx` can move to `shadcn/internal/clsx`.
 
 **Effort:** S to decide; L to split
@@ -387,8 +388,7 @@ module, and after the tag `apidiff`/`gorelease` against the latest tag; add
 `func Example`s for the main entry points; raise `svg`, `pdf` and `html` above
 60% coverage; replace the `[Unreleased]` changelog with a short `[1.0.0]`
 entry; write the compatibility statement; give every nested module a LICENSE;
-add `docs/go.mod` so the gallery stays out of the module zip; delete `cmd/mx.go`
-and the commented-out code.
+delete `cmd/mx.go` and the commented-out code.
 
 **Why:** These make the v1 promise checkable and the first release readable.
 

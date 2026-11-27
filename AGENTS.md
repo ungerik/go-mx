@@ -92,7 +92,8 @@ go -C tools run ./gen-docs-site -out ../_site
 Pull requests run the same build in the `Pages` workflow; a push to `main`
 deploys it. A new example command gets a `-snapshot` mode and an entry in
 `examples` in `tools/gen-docs-site/examples.go`; a new Markdown file is picked
-up on its own.
+up on its own, and so is any other file below `docs/` (an image, a download),
+published at the same path.
 
 ## Project Overview
 
