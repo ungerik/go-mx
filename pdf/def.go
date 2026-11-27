@@ -1,3 +1,5 @@
+//go:generate go -C ../tools tool go-enum ../pdf/$GOFILE
+
 // Copyright ©2023 The go-pdf Authors. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -277,13 +279,64 @@ type FontLoader interface {
 }
 
 // OutputIntentSubtype any of the pre defined types below or a value defined by ISO 32000 extension.
-type OutputIntentSubtype string
+type OutputIntentSubtype string //#enum
 
 const (
 	OutputIntent_GTS_PDFX  OutputIntentSubtype = "GTS_PDFX"
 	OutputIntent_GTS_PDFA1 OutputIntentSubtype = "GTS_PDFA1"
 	OutputIntent_GTS_PDFE1 OutputIntentSubtype = "GTS_PDFE1"
 )
+
+// Valid indicates if o is any of the valid values for OutputIntentSubtype
+func (o OutputIntentSubtype) Valid() bool {
+	switch o {
+	case
+		OutputIntent_GTS_PDFX,
+		OutputIntent_GTS_PDFA1,
+		OutputIntent_GTS_PDFE1:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if o is none of the valid values for OutputIntentSubtype
+func (o OutputIntentSubtype) Validate() error {
+	if !o.Valid() {
+		return fmt.Errorf("invalid value %#v for type pdf.OutputIntentSubtype", o)
+	}
+	return nil
+}
+
+// ValidOr returns o if it is any of the valid values for OutputIntentSubtype, else defaultVal
+func (o OutputIntentSubtype) ValidOr(defaultVal OutputIntentSubtype) OutputIntentSubtype {
+	if o.Valid() {
+		return o
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for OutputIntentSubtype
+func (OutputIntentSubtype) Enums() []OutputIntentSubtype {
+	return []OutputIntentSubtype{
+		OutputIntent_GTS_PDFX,
+		OutputIntent_GTS_PDFA1,
+		OutputIntent_GTS_PDFE1,
+	}
+}
+
+// EnumStrings returns all valid values for OutputIntentSubtype as strings
+func (OutputIntentSubtype) EnumStrings() []string {
+	return []string{
+		"GTS_PDFX",
+		"GTS_PDFA1",
+		"GTS_PDFE1",
+	}
+}
+
+// String implements the fmt.Stringer interface for OutputIntentSubtype
+func (o OutputIntentSubtype) String() string {
+	return string(o)
+}
 
 // OutputIntent defines an output intent with name and ICC color profile.
 type OutputIntent struct {

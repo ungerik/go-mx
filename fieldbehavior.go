@@ -1,8 +1,11 @@
+//go:generate go -C tools tool go-enum ../$GOFILE
+
 package mx
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"mime/multipart"
 	"net/http"
@@ -40,7 +43,7 @@ func (p FieldPath) Append(name string) FieldPath {
 // may share a kind (e.g. FieldKindString covers text/email/url/tel/etc.
 // — the [FormTag].Widget override or the type's [FormWidgetHint]
 // disambiguates).
-type FieldKind int
+type FieldKind int //#enum
 
 const (
 	// FieldKindUnknown is the zero value and means the field was not
@@ -127,6 +130,91 @@ const (
 	// kind instead).
 	FieldKindCatchAll
 )
+
+// Valid indicates if k is any of the valid values for FieldKind
+func (k FieldKind) Valid() bool {
+	switch k {
+	case
+		FieldKindUnknown,
+		FieldKindSkip,
+		FieldKindHidden,
+		FieldKindString,
+		FieldKindTextarea,
+		FieldKindNumber,
+		FieldKindBool,
+		FieldKindDateTime,
+		FieldKindFile,
+		FieldKindEnum,
+		FieldKindEnumSet,
+		FieldKindSection,
+		FieldKindNested,
+		FieldKindRepeatable,
+		FieldKindInline,
+		FieldKindCatchAll:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if k is none of the valid values for FieldKind
+func (k FieldKind) Validate() error {
+	if !k.Valid() {
+		return fmt.Errorf("invalid value %#v for type mx.FieldKind", k)
+	}
+	return nil
+}
+
+// ValidOr returns k if it is any of the valid values for FieldKind, else defaultVal
+func (k FieldKind) ValidOr(defaultVal FieldKind) FieldKind {
+	if k.Valid() {
+		return k
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for FieldKind
+func (FieldKind) Enums() []FieldKind {
+	return []FieldKind{
+		FieldKindUnknown,
+		FieldKindSkip,
+		FieldKindHidden,
+		FieldKindString,
+		FieldKindTextarea,
+		FieldKindNumber,
+		FieldKindBool,
+		FieldKindDateTime,
+		FieldKindFile,
+		FieldKindEnum,
+		FieldKindEnumSet,
+		FieldKindSection,
+		FieldKindNested,
+		FieldKindRepeatable,
+		FieldKindInline,
+		FieldKindCatchAll,
+	}
+}
+
+// EnumStrings returns all valid values for FieldKind as strings
+func (FieldKind) EnumStrings() []string {
+	return []string{
+		"0",
+		"1",
+		"2",
+		"3",
+		"4",
+		"5",
+		"6",
+		"7",
+		"8",
+		"9",
+		"10",
+		"11",
+		"12",
+		"13",
+		"14",
+		"15",
+	}
+}
 
 // KeepsStoredWhenBlank reports whether a form:"sensitive" field of this
 // kind keeps its stored value when submitted blank: a text, number or date

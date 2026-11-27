@@ -1,3 +1,5 @@
+//go:generate go -C ../tools tool go-enum ../pdf/$GOFILE
+
 package pdf
 
 import "fmt"
@@ -92,12 +94,55 @@ var (
 
 // colorMode selects between plain RGB and named spot color state on the
 // renderer.
-type colorMode int
+type colorMode int //#enum
 
 const (
 	colorModeRGB colorMode = iota
 	colorModeSpot
 )
+
+// Valid indicates if c is any of the valid values for colorMode
+func (c colorMode) Valid() bool {
+	switch c {
+	case
+		colorModeRGB,
+		colorModeSpot:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if c is none of the valid values for colorMode
+func (c colorMode) Validate() error {
+	if !c.Valid() {
+		return fmt.Errorf("invalid value %#v for type pdf.colorMode", c)
+	}
+	return nil
+}
+
+// ValidOr returns c if it is any of the valid values for colorMode, else defaultVal
+func (c colorMode) ValidOr(defaultVal colorMode) colorMode {
+	if c.Valid() {
+		return c
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for colorMode
+func (colorMode) Enums() []colorMode {
+	return []colorMode{
+		colorModeRGB,
+		colorModeSpot,
+	}
+}
+
+// EnumStrings returns all valid values for colorMode as strings
+func (colorMode) EnumStrings() []string {
+	return []string{
+		"0",
+		"1",
+	}
+}
 
 // colorState holds the renderer's internal draw/fill/text color state.
 type colorState struct {

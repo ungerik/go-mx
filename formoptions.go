@@ -1,7 +1,10 @@
+//go:generate go -C tools tool go-enum ../$GOFILE
+
 package mx
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"slices"
 )
@@ -9,7 +12,7 @@ import (
 // OptionPreface is the extra control a reflected option field renders
 // ahead of its option list. The zero value, [OptionPrefaceNone], renders
 // nothing.
-type OptionPreface int
+type OptionPreface int //#enum
 
 const (
 	// OptionPrefaceNone renders nothing before the options.
@@ -42,6 +45,61 @@ const (
 	// boundary, the same way a select clears a value the list no longer offers.
 	OptionPrefaceValuesUnavailable
 )
+
+// Valid indicates if p is any of the valid values for OptionPreface
+func (p OptionPreface) Valid() bool {
+	switch p {
+	case
+		OptionPrefaceNone,
+		OptionPrefaceUnavailable,
+		OptionPrefaceChoose,
+		OptionPrefaceEmpty,
+		OptionPrefaceClear,
+		OptionPrefaceValuesUnavailable:
+		return true
+	}
+	return false
+}
+
+// Validate returns an error if p is none of the valid values for OptionPreface
+func (p OptionPreface) Validate() error {
+	if !p.Valid() {
+		return fmt.Errorf("invalid value %#v for type mx.OptionPreface", p)
+	}
+	return nil
+}
+
+// ValidOr returns p if it is any of the valid values for OptionPreface, else defaultVal
+func (p OptionPreface) ValidOr(defaultVal OptionPreface) OptionPreface {
+	if p.Valid() {
+		return p
+	}
+	return defaultVal
+}
+
+// Enums returns all valid values for OptionPreface
+func (OptionPreface) Enums() []OptionPreface {
+	return []OptionPreface{
+		OptionPrefaceNone,
+		OptionPrefaceUnavailable,
+		OptionPrefaceChoose,
+		OptionPrefaceEmpty,
+		OptionPrefaceClear,
+		OptionPrefaceValuesUnavailable,
+	}
+}
+
+// EnumStrings returns all valid values for OptionPreface as strings
+func (OptionPreface) EnumStrings() []string {
+	return []string{
+		"0",
+		"1",
+		"2",
+		"3",
+		"4",
+		"5",
+	}
+}
 
 // RemovesValue reports whether saving the field drops the stored value
 // that p says the option list does not offer, which renderers tell the
