@@ -9,7 +9,7 @@ import (
 // GoSource highlights Go source and returns, instead of HTML, the Go source
 // code that builds that highlighted markup with the html package. It is a
 // generator: the returned code is not the input echoed back but a tree of
-// html.Pre / html.Code / html.Span calls.
+// html.PreClass / html.Code / html.SpanClass calls.
 //
 // For the input
 //
@@ -17,14 +17,14 @@ import (
 //
 // it returns roughly
 //
-//	html.Pre(html.Class("hl"),
+//	html.PreClass("hl",
 //		html.Code(
-//			html.Span(html.Class("hl-keyword"), "func"),
+//			html.SpanClass("hl-keyword", "func"),
 //			" ",
-//			html.Span(html.Class("hl-function"), "main"),
-//			html.Span(html.Class("hl-punctuation"), "()"),
+//			html.SpanClass("hl-function", "main"),
+//			html.SpanClass("hl-punctuation", "()"),
 //			" ",
-//			html.Span(html.Class("hl-punctuation"), "{}"),
+//			html.SpanClass("hl-punctuation", "{}"),
 //		),
 //	)
 //
@@ -42,22 +42,23 @@ func (h *Highlighter) GoSource(src string) string {
 	return strings.TrimPrefix(string(formatted), "_ = ")
 }
 
-// goSourceExpr builds the unformatted html.Pre(...) expression. Every child is
-// placed on its own line with a trailing comma so gofmt produces the indented,
-// multi-line layout (gofmt never breaks a single line into several itself).
+// goSourceExpr builds the unformatted html.PreClass(...) expression. Every
+// child is placed on its own line with a trailing comma so gofmt produces the
+// indented, multi-line layout (gofmt never breaks a single line into several
+// itself).
 func (h *Highlighter) goSourceExpr(tokens []Token) string {
 	prefix := h.prefix()
 	var b strings.Builder
-	b.WriteString("html.Pre(html.Class(")
+	b.WriteString("html.PreClass(")
 	b.WriteString(strconv.Quote(h.BlockClass()))
-	b.WriteString("),\nhtml.Code(\n")
+	b.WriteString(",\nhtml.Code(\n")
 	for _, it := range h.items(tokens) {
 		if it.Class == ClassPlain {
 			b.WriteString(strconv.Quote(it.Text))
 		} else {
-			b.WriteString("html.Span(html.Class(")
+			b.WriteString("html.SpanClass(")
 			b.WriteString(strconv.Quote(prefix + string(it.Class)))
-			b.WriteString("), ")
+			b.WriteString(", ")
 			b.WriteString(strconv.Quote(it.Text))
 			b.WriteString(")")
 		}

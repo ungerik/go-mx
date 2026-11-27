@@ -28,7 +28,7 @@ stream; everything downstream is a projection of that stream.
 ```
                        ┌─ Component / Inline / HTML ─► mx.Component  ─► <pre><span>…
   src ─► TokenizeGo ─►  │
-        []Token         └─ GoSource ──────────────────► string       ─► html.Pre(html.Span(…))
+        []Token         └─ GoSource ──────────────────► string       ─► html.PreClass(html.SpanClass(…))
 
   Theme ─► CSS / StyleElement ─► .hl-keyword { color: … }   (independent of the above)
 ```
@@ -115,8 +115,8 @@ the default is just lean.
 
 ### The `GoSource` backend and gofmt
 
-`GoSource` walks the same tokens and prints `html.Pre(...)` calls. Two details
-make the output clean:
+`GoSource` walks the same tokens and prints `html.PreClass(...)` calls. Two
+details make the output clean:
 
 - **Each child on its own line.** gofmt normalizes indentation but never breaks
   a single-line call into multiple lines, so the generator emits the newlines

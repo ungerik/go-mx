@@ -143,15 +143,15 @@ code := highlight.GoSource(src)
 returns gofmt-formatted Go source that reproduces the markup above:
 
 ```go
-html.Pre(html.Class("hl"),
+html.PreClass("hl",
 	html.Code(
-		html.Span(html.Class("hl-keyword"), "func"),
+		html.SpanClass("hl-keyword", "func"),
 		" ",
-		html.Span(html.Class("hl-function"), "main"),
+		html.SpanClass("hl-function", "main"),
 		"() { fmt.",
-		html.Span(html.Class("hl-function"), "Println"),
+		html.SpanClass("hl-function", "Println"),
 		"(",
-		html.Span(html.Class("hl-string"), "\"hi\""),
+		html.SpanClass("hl-string", "\"hi\""),
 		") }",
 	),
 )

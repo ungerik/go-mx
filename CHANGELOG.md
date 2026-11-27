@@ -751,6 +751,10 @@ API is still free to change.
 
 ### Changed
 
+- **`highlight.GoSource` generates the class shortcuts.** The Go source it
+  emits builds the block with `html.PreClass("hl", …)` and each token with
+  `html.SpanClass("hl-keyword", …)` instead of `html.Pre(html.Class(…), …)`
+  and `html.Span(html.Class(…), …)`. The markup it builds is unchanged.
 - **`shadcn.SidebarMenuButton` given an `href` is a link.** It renders an
   `<a>` instead of a `<button>`, upstream's `asChild` navigation item, so a
   sidebar menu can navigate without a script.
