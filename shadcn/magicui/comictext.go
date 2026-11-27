@@ -13,7 +13,7 @@ const comicTextClasses = "[--comic-text-font-size:5] text-[length:calc(var(--com
 	"[font-family:Bangers,Comic_Sans_MS,Impact,sans-serif] font-black uppercase [transform:skewX(-10deg)] " +
 	"[-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000] " +
 	"[filter:drop-shadow(5px_5px_0px_#000000)_drop-shadow(3px_3px_0px_#EF4444)] " +
-	"bg-[#FACC15] bg-[radial-gradient(circle_at_1px_1px,#EF4444_1px,transparent_0)] bg-size-[8px_8px] bg-clip-text [-webkit-text-fill-color:transparent] " +
+	"bg-[#FACC15] bg-[radial-gradient(circle_at_1px_1px,#EF4444_1px,transparent_0)] bg-size-[8px_8px] bg-clip-text [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] " +
 	"text-center select-none animate-comic-text-pop"
 
 // ComicTextOptions configures a [ComicText]. The zero value is upstream's

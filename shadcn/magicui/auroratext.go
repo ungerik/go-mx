@@ -67,7 +67,7 @@ func AuroraText(opts AuroraTextOptions, attribsChildren ...any) *mx.Element {
 	root.Children = []mx.Component{
 		html.Span(append([]any{html.Class("sr-only")}, children...)...),
 		html.Span(append([]any{
-			html.Class("animate-aurora relative bg-size-[200%_auto] bg-(image:--aurora-text-gradient) bg-clip-text text-transparent [-webkit-text-fill-color:transparent]"),
+			html.Class("animate-aurora relative bg-size-[200%_auto] bg-(image:--aurora-text-gradient) bg-clip-text [-webkit-background-clip:text] text-transparent [-webkit-text-fill-color:transparent]"),
 			ariaHidden,
 		}, children...)...),
 	}

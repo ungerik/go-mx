@@ -13,7 +13,7 @@ func TestAuroraTextDefault(t *testing.T) {
 	mustContain(t, out,
 		`data-slot="aurora-text"`, "relative inline-block", `class="sr-only"`, "animate-aurora",
 		"[--aurora-text-gradient:linear-gradient(135deg,#FF0080,#7928CA,#0070F3,#38bdf8,#FF0080)] [--aurora-text-duration:10s]",
-		"bg-(image:--aurora-text-gradient)", "[-webkit-text-fill-color:transparent]",
+		"bg-(image:--aurora-text-gradient)", "[-webkit-background-clip:text]", "[-webkit-text-fill-color:transparent]",
 	)
 	if strings.Contains(out, "style=") {
 		t.Errorf("the defaults need no style attribute: %s", out)

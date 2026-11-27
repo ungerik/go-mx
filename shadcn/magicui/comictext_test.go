@@ -13,7 +13,7 @@ func TestComicText(t *testing.T) {
 		`data-slot="comic-text"`, "text-center select-none animate-comic-text-pop",
 		"[--comic-text-font-size:5] text-[length:calc(var(--comic-text-font-size)*1rem)]", "[font-family:Bangers,Comic_Sans_MS,Impact,sans-serif]",
 		"[-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000]", "[transform:skewX(-10deg)]",
-		"drop-shadow(3px_3px_0px_#EF4444)", "bg-[#FACC15]", "bg-[radial-gradient(", "[-webkit-text-fill-color:transparent]", ">BOOM!</div>",
+		"drop-shadow(3px_3px_0px_#EF4444)", "bg-[#FACC15]", "bg-[radial-gradient(", "[-webkit-background-clip:text]", "[-webkit-text-fill-color:transparent]", ">BOOM!</div>",
 	)
 	if strings.Contains(out, "style=") {
 		t.Errorf("the default size needs no style attribute: %s", out)

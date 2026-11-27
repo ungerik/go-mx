@@ -25,9 +25,10 @@ func TestShineBorderDefault(t *testing.T) {
 
 func TestShineBorderPaddingInUtility(t *testing.T) {
 	// The ring's width is the padding the mask cuts out, so it lives in the
-	// shine-border-mask utility where a caller's p-* class cannot drop it.
-	if !regexp.MustCompile(`@utility shine-border-mask \{[^}]*padding: var\(--border-width\);`).MatchString(CSS) {
-		t.Error("shine-border-mask should set padding: var(--border-width)")
+	// shine-border-mask utility where Cn keeps it beside a caller's p-* class,
+	// under a doubled class that outranks p-*, which Tailwind sorts later.
+	if !regexp.MustCompile(`@utility shine-border-mask \{[^}]*&\.shine-border-mask \{\s*padding: var\(--border-width\);`).MatchString(CSS) {
+		t.Error("shine-border-mask should set padding: var(--border-width) under &.shine-border-mask")
 	}
 	out := render(t, ShineBorder(ShineBorderOptions{BorderWidth: 3}, html.Class("p-2")))
 	mustContain(t, out, "shine-border-mask", "--border-width:3px")
