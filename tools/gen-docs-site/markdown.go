@@ -11,7 +11,6 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
@@ -24,13 +23,12 @@ import (
 
 // newMarkdown returns the Markdown converter of the site: CommonMark with the
 // GitHub Flavored Markdown extensions (tables, task lists, strikethrough,
-// autolinks), heading ids for anchors, raw HTML passed through (the Markdown
-// is the repository's own), footnotes as GitHub renders them, and code blocks
-// rendered by codeBlockRenderer.
+// autolinks), raw HTML passed through (the Markdown is the repository's
+// own), footnotes as GitHub renders them, and code blocks rendered by
+// codeBlockRenderer. renderMarkdown gives the headings their ids.
 func newMarkdown() goldmark.Markdown {
 	return goldmark.New(
 		goldmark.WithExtensions(extension.GFM, extension.Footnote),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithRendererOptions(
 			gmhtml.WithUnsafe(),
 			// Below the default 1000, so it replaces the default
@@ -44,19 +42,29 @@ func newMarkdown() goldmark.Markdown {
 // resolved by links and rewritten relative to the page's file.
 func renderMarkdown(page *Page, links *resolver) (string, error) {
 	md := newMarkdown()
-	ctx := parser.NewContext(parser.WithIDs(newGitHubIDs()))
-	doc := md.Parser().Parse(text.NewReader(page.Body), parser.WithContext(ctx))
+	doc := md.Parser().Parse(text.NewReader(page.Body))
+	ids := newGitHubIDs()
 	var errs []error
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 		var dest *[]byte
+		image := false
 		switch n := n.(type) {
+		case *ast.Heading:
+			// GitHub derives the id from the rendered text of the heading,
+			// not its Markdown line, which goldmark's auto ids read: the
+			// text of "Events ([sse.go](sse.go))" is "Events (sse.go)".
+			if _, ok := n.AttributeString("id"); !ok {
+				n.SetAttributeString("id", ids.Generate([]byte(plainText(n, page.Body)), ast.KindHeading))
+			}
+			return ast.WalkContinue, nil
 		case *ast.Link:
 			dest = &n.Destination
 		case *ast.Image:
 			dest = &n.Destination
+			image = true
 		default:
 			return ast.WalkContinue, nil
 		}
@@ -65,7 +73,14 @@ func renderMarkdown(page *Page, links *resolver) (string, error) {
 			errs = append(errs, err)
 			return ast.WalkContinue, nil
 		}
-		*dest = []byte(t.relativeTo(page.File()))
+		link := t.relativeTo(page.File())
+		if image {
+			// A blob URL is GitHub's page about the file, not the file.
+			if rest, ok := strings.CutPrefix(link, repoURL+"blob/"); ok {
+				link = repoURL + "raw/" + rest
+			}
+		}
+		*dest = []byte(link)
 		return ast.WalkContinue, nil
 	})
 	if err := errors.Join(errs...); err != nil {
@@ -82,16 +97,17 @@ func renderMarkdown(page *Page, links *resolver) (string, error) {
 // rendered Markdown file, so the fragments the READMEs link to work on the
 // site too: the heading text lower-cased, letters, digits, "-" and "_" kept,
 // each space a "-", everything else dropped, and a "-1", "-2", … appended to
-// a repeated id. It implements goldmark's parser.IDs.
+// a repeated id. Its Generate and Put have the signatures of goldmark's
+// parser.IDs.
 type gitHubIDs struct {
 	used map[string]int
 }
 
 func newGitHubIDs() *gitHubIDs { return &gitHubIDs{used: make(map[string]int)} }
 
-// Generate returns the id of a heading with the Markdown text value. The
-// text still holds the inline markup, whose punctuation is dropped like any
-// other, so "Build with `html`" becomes "build-with-html".
+// Generate returns the id of a heading with the text value, the heading's
+// plain text (see plainText). Punctuation left in it, such as a backtick, is
+// dropped like any other, so "Build with `html`" becomes "build-with-html".
 func (g *gitHubIDs) Generate(value []byte, kind ast.NodeKind) []byte {
 	var b strings.Builder
 	for _, r := range strings.TrimSpace(string(value)) {

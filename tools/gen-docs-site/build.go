@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"iter"
 	"net/http"
 	"net/http/httptest"
@@ -52,6 +53,8 @@ func build(ctx context.Context, cfg config) error {
 		if err := writeGallery(cfg.Root, cfg.Out, cfg.Log); err != nil {
 			return err
 		}
+	} else if err := writeGalleryPlaceholder(cfg.Out); err != nil {
+		return err
 	}
 	if cfg.Examples {
 		if err := writeSnapshots(cfg.Root, cfg.Out, cfg.Log); err != nil {
@@ -59,6 +62,9 @@ func build(ctx context.Context, cfg config) error {
 		}
 	}
 	if err := copyPDFs(cfg.Root, cfg.Out); err != nil {
+		return err
+	}
+	if err := copyDocsAssets(cfg.Root, cfg.Out); err != nil {
 		return err
 	}
 
@@ -256,11 +262,20 @@ func writeDocument(site *web.Site, doc *html.Document, page *web.Page, file stri
 	if err := site.AddPageMetadata(doc, page); err != nil {
 		return err
 	}
-	var buf bytes.Buffer
-	if err := doc.Render(context.Background(), mx.NewCheckedWriter(&buf).WithIndent("", "  ")); err != nil {
+	data, err := renderDocument(doc)
+	if err != nil {
 		return err
 	}
-	return writeFile(file, buf.Bytes())
+	return writeFile(file, data)
+}
+
+// renderDocument renders doc indented by two spaces.
+func renderDocument(doc *html.Document) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := doc.Render(context.Background(), mx.NewCheckedWriter(&buf).WithIndent("", "  ")); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // writeResponse writes the body of handler's response to a GET request to
@@ -272,6 +287,41 @@ func writeResponse(handler http.HandlerFunc, file string) error {
 		return fmt.Errorf("status %d: %s", recorder.Code, recorder.Body)
 	}
 	return writeFile(file, recorder.Body.Bytes())
+}
+
+// copyDocsAssets copies every file below docs/ that is not Markdown (images,
+// downloads) to the same path in the site, as the Jekyll site published them,
+// so a page links its assets in the site rather than on GitHub. Directories
+// beginning with "." or "_" are skipped like in discoverPages.
+func copyDocsAssets(root, out string) error {
+	docs := filepath.Join(root, "docs")
+	err := filepath.WalkDir(docs, func(file string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if name := entry.Name(); file != docs && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(file), ".md") || strings.HasPrefix(entry.Name(), ".") {
+			return nil
+		}
+		rel, err := filepath.Rel(docs, file)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		return writeFile(filepath.Join(out, rel), data)
+	})
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // writeFile writes data to file, creating its directory.

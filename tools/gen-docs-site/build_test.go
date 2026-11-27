@@ -178,3 +178,22 @@ func TestBuildRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestBuildWithoutGallery builds the fixture with -gallery=false, whose
+// documentation links the gallery: the placeholder keeps those links valid.
+func TestBuildWithoutGallery(t *testing.T) {
+	root := fixtureRepo(t)
+	writeFiles(t, root, map[string]string{
+		"docs/shadcn/index.md": "# shadcn\n\nSee the [gallery](gallery/).\n",
+		"docs/img/logo.svg":    "<svg/>",
+		"docs/logo.md":         "# Logo\n\n![logo](img/logo.svg)\n",
+	})
+	out := filepath.Join(t.TempDir(), "site")
+	if err := build(t.Context(), config{Root: root, Out: out, BaseURL: "https://example.org/", Check: true, Log: io.Discard}); err != nil {
+		t.Fatal(err)
+	}
+	// The asset below docs/ is published next to the page, as Jekyll did.
+	if _, err := os.Stat(filepath.Join(out, "img", "logo.svg")); err != nil {
+		t.Error("the docs asset was not copied")
+	}
+}

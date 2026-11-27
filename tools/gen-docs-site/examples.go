@@ -129,6 +129,24 @@ func writeGallery(root, out string, log io.Writer) error {
 	return runGo(root, log, "run", "./cmd/shadcn-gallery", "-out", dir, "-static-highlight", "-home", home)
 }
 
+// writeGalleryPlaceholder writes the gallery index of a build without the
+// gallery (-gallery=false), so the documentation's links to the gallery still
+// resolve and pass the link check.
+func writeGalleryPlaceholder(out string) error {
+	file := galleryDir + "/index.html"
+	doc := html.NewDocument("Component gallery · go-mx",
+		html.P("The component gallery is not part of this build of the site (-gallery=false). ",
+			html.AHRef(relativeURL(file, "index.html"), "Back to the documentation"),
+		),
+	)
+	doc.Lang = "en"
+	page, err := renderDocument(doc)
+	if err != nil {
+		return err
+	}
+	return writeFile(filepath.Join(out, filepath.FromSlash(file)), page)
+}
+
 // writeSnapshots writes the static snapshot of every example into the site.
 func writeSnapshots(root, out string, log io.Writer) error {
 	for _, ex := range examples {

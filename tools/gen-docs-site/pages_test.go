@@ -167,3 +167,13 @@ func TestShorten(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestDiscoverPagesCollision(t *testing.T) {
+	root := t.TempDir()
+	// docs/repo/notes.md keeps its docs/ URL /repo/notes, which is also
+	// the page of the repository file NOTES.md.
+	writeFiles(t, root, map[string]string{"NOTES.md": "# a\n", "docs/repo/notes.md": "# b\n"})
+	if _, err := discoverPages(root); err == nil || !strings.Contains(err.Error(), "both published as repo/notes.html") {
+		t.Errorf("two files published as one page did not fail: %v", err)
+	}
+}

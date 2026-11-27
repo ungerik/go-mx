@@ -37,6 +37,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -58,6 +59,11 @@ func main() {
 			log.Fatal(err)
 		}
 		*root = found
+	}
+	// The absolute links of the Markdown alternates append the page path to
+	// the base URL, which therefore has to end in a slash.
+	if !strings.HasSuffix(*baseURL, "/") {
+		*baseURL += "/"
 	}
 	err := build(context.Background(), config{
 		Root:     *root,

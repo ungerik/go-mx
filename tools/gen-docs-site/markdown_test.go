@@ -38,6 +38,10 @@ func TestRenderMarkdown(t *testing.T) {
 		"```",
 		"",
 		"<details><summary>raw</summary>kept</details>",
+		"",
+		"### Events ([element.go](element.go))",
+		"",
+		"![diagram](element.go)",
 	}, "\n"))
 	got, err := renderMarkdown(page, r)
 	if err != nil {
@@ -57,6 +61,12 @@ func TestRenderMarkdown(t *testing.T) {
 		// Other languages plain, still escaped.
 		`<code class="language-sh">echo &apos;&lt;b&gt;&apos;`,
 		"<details><summary>raw</summary>kept</details>",
+		// The id of the heading's text, as GitHub makes it, not of its
+		// Markdown line with the link destination.
+		`<h3 id="events-elementgo">`,
+		// An image of the repository comes from GitHub's raw URL, not
+		// from the page about the file.
+		`<img src="` + repoURL + `raw/main/html/element.go"`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("rendered HTML misses %q", want)

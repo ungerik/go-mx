@@ -23,7 +23,9 @@ type fileDates struct {
 // time; see datesOf for the fallback.
 func gitDates(root string) map[string]fileDates {
 	dates := make(map[string]fileDates)
-	cmd := exec.Command("git", "log", "--format=%x00%cI", "--name-only", "--", "*.md")
+	// core.quotePath=false keeps a non-ASCII path as it is instead of
+	// quoting it with octal escapes, which would never match a page source.
+	cmd := exec.Command("git", "-c", "core.quotePath=false", "log", "--format=%x00%cI", "--name-only", "--", "*.md")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {

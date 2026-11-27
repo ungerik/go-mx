@@ -119,6 +119,16 @@ func discoverPages(root string, skip ...string) ([]*Page, error) {
 	if err != nil {
 		return nil, err
 	}
+	// pagePath lower-cases the files outside docs/ and makes a README the
+	// page of its directory, so two files can map to one page; the second
+	// would silently overwrite the first.
+	files := make(map[string]string, len(pages))
+	for _, p := range pages {
+		if other, ok := files[p.File()]; ok {
+			return nil, fmt.Errorf("%s and %s are both published as %s", other, p.Source, p.File())
+		}
+		files[p.File()] = p.Source
+	}
 	sortPages(pages)
 	return pages, nil
 }
