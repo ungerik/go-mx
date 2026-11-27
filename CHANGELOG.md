@@ -765,11 +765,15 @@ API is still free to change.
   `ServeHTTP`); `Handle` is what a mux calls registering a handler.
 - **`html` constructors take the attribute their element requires as the
   first argument**: `Img(src, …)`, `Track(src, …)`, `OptGroup(label, …)`,
-  `Data(value, …)`, `Map(name, …)` and `BDo(dir, …)`. `html.ImgSrc` is
-  removed; `html.Img(src)` replaces it. An empty argument renders no
-  attribute, for one passed among the other attributes (an `Img` with only a
-  `SrcSet`). `BDo` takes the typed `Dir`, and `DirAuto`, which `<bdo>` does
-  not allow, makes `Render` return an error.
+  `Data(value, …)`, `Map(name, …)` and `BDo(dir, …)`. The argument is the
+  element's only source of that attribute: the same attribute passed again
+  among the others makes `Render` fail as a duplicate. A value the spec does
+  not allow makes `Render` return an error: an empty `src` of `Img` or
+  `Track` (also next to a `SrcSet`), a `Map` name that is empty or holds
+  ASCII whitespace, and a `BDo` dir other than `DirLTR` or `DirRTL`.
+  `OptGroup` and `Data` render an empty argument as an empty attribute. So
+  the `ThumbnailSrc` of `magicui.HeroVideoDialog` and the `ImageURL` of a
+  `magicui.AvatarCircle` are required now.
 - **`shadcn/magicui` components left at their defaults write no `style`
   attribute.** A Content-Security-Policy without `'unsafe-inline'` in
   `style-src` makes the browser ignore every `style` attribute, and every
@@ -1098,6 +1102,8 @@ API is still free to change.
 
 ### Removed
 
+- **`html.ImgSrc`**: `html.Img(src, …)` takes the required `src` as its first
+  argument.
 - **The committed gallery and the Jekyll configuration.** `docs/shadcn/gallery/`
   is no longer committed and the `Gallery up to date` CI job is gone: the
   documentation site build writes the gallery and fails when it does not

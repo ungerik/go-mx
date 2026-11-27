@@ -1,6 +1,8 @@
 package html
 
 import (
+	"strings"
+
 	"github.com/ungerik/go-mx"
 )
 
@@ -59,20 +61,17 @@ func BDi(attribsChildren ...any) *mx.Element { return Element("bdi", attribsChil
 
 // BDo creates a <bdo> element that displays its text in the direction dir,
 // overriding the Unicode bidirectional algorithm. dir must be DirLTR or
-// DirRTL; DirAuto is not allowed on <bdo> and makes Render return an error,
-// also when it is passed in attribsChildren. An empty dir renders no dir
-// attribute, for a dir passed in attribsChildren.
+// DirRTL: any other value, DirAuto and the empty Dir included, makes Render
+// return an error. The dir parameter is the element's only dir attribute;
+// another dir in attribsChildren makes Render fail as a duplicate.
 func BDo(dir Dir, attribsChildren ...any) *mx.Element {
-	if dir != "" {
+	switch dir {
+	case DirLTR, DirRTL:
 		attribsChildren = append([]any{dir}, attribsChildren...)
+	default:
+		attribsChildren = append([]any{mx.ErrAttribf("dir", "bdo dir must be %q or %q, not %q", DirLTR, DirRTL, dir)}, attribsChildren...)
 	}
-	e := Element("bdo", attribsChildren...)
-	for i, a := range e.Attribs {
-		if a == DirAuto {
-			e.Attribs[i] = mx.ErrAttribf("dir", "bdo dir must be %q or %q, not %q", DirLTR, DirRTL, DirAuto)
-		}
-	}
-	return e
+	return Element("bdo", attribsChildren...)
 }
 
 // Blockquote creates a <blockquote> element for an extended quotation.
@@ -141,12 +140,11 @@ func ColGroup(attribsChildren ...any) *mx.Element {
 // Content was an obsolete Shadow DOM v0 feature that was never standardized; use Slot instead.
 
 // Data creates a <data> element linking its content to the machine-readable
-// value. An empty value renders no value attribute, for a value passed in
-// attribsChildren.
+// value. The value parameter is the element's only value attribute, rendered
+// also when empty; another value in attribsChildren makes Render fail as a
+// duplicate.
 func Data(value string, attribsChildren ...any) *mx.Element {
-	if value != "" {
-		attribsChildren = append([]any{mx.NewAttrib("value", value)}, attribsChildren...)
-	}
+	attribsChildren = append([]any{mx.NewAttrib("value", value)}, attribsChildren...)
 	return Element("data", attribsChildren...)
 }
 
@@ -295,14 +293,23 @@ func I(attribsChildren ...any) *mx.Element { return Element("i", attribsChildren
 func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
 
 // Img creates a void <img> element that embeds the image at the URL src.
-// It takes only attributes and has no children. An empty src renders no src
-// attribute, for an image whose source comes from attribs instead (a SrcSet,
-// or a Src computed elsewhere). (Image is the SVG element; use Img for HTML.)
+// It takes only attributes and has no children. The spec requires a
+// non-empty src also next to a SrcSet, so an empty src makes Render return an
+// error. The src parameter is the element's only src attribute; another src
+// in attribs makes Render fail as a duplicate. (Image is the SVG element; use
+// Img for HTML.)
 func Img(src string, attribs ...mx.Attrib) *mx.Element {
-	if src != "" {
-		attribs = mx.PrependAttrib("src", src, attribs)
+	return VoidElement("img", prependRequiredURL("img", "src", src, attribs)...)
+}
+
+// prependRequiredURL returns attribs with the URL attribute name=value of the
+// element elem placed first, or with an mx.ErrAttrib in its place when value
+// is empty, which the spec does not allow for a required URL attribute.
+func prependRequiredURL(elem, name, value string, attribs []mx.Attrib) []mx.Attrib {
+	if value == "" {
+		return append([]mx.Attrib{mx.ErrAttribf(name, "%s %s must not be empty", elem, name)}, attribs...)
 	}
-	return VoidElement("img", attribs...)
+	return mx.PrependAttrib(name, value, attribs)
 }
 
 // Input creates a void <input> form control element. It takes only attributes
@@ -448,10 +455,15 @@ func Link(attribs ...mx.Attrib) *mx.Element { return VoidElement("link", attribs
 func Main(attribsChildren ...any) *mx.Element { return Element("main", attribsChildren...) }
 
 // Map creates a <map> element defining an image map together with its Area
-// children. An Img refers to it by name with UseMap("#"+name). An empty name
-// renders no name attribute, for a name passed in attribsChildren.
+// children. An Img refers to it by name with UseMap("#"+name). The spec
+// requires a name that is not empty and holds no ASCII whitespace; any other
+// name makes Render return an error. The name parameter is the element's only
+// name attribute; another name in attribsChildren makes Render fail as a
+// duplicate.
 func Map(name string, attribsChildren ...any) *mx.Element {
-	if name != "" {
+	if name == "" || strings.ContainsAny(name, "\t\n\f\r ") {
+		attribsChildren = append([]any{mx.ErrAttribf("name", "map name must be non-empty without ASCII whitespace, not %q", name)}, attribsChildren...)
+	} else {
 		attribsChildren = append([]any{Name(name)}, attribsChildren...)
 	}
 	return Element("map", attribsChildren...)
@@ -522,12 +534,11 @@ func OLUpperRoman(attribsChildren ...any) *mx.Element {
 }
 
 // OptGroup creates an <optgroup> element grouping related Option items within
-// a Select under the heading label. An empty label renders no label attribute,
-// for a label passed in attribsChildren.
+// a Select under the heading label. The label parameter is the element's only
+// label attribute, rendered also when empty; another label in attribsChildren
+// makes Render fail as a duplicate.
 func OptGroup(label string, attribsChildren ...any) *mx.Element {
-	if label != "" {
-		attribsChildren = append([]any{LabelAttr(label)}, attribsChildren...)
-	}
+	attribsChildren = append([]any{LabelAttr(label)}, attribsChildren...)
 	return Element("optgroup", attribsChildren...)
 }
 
@@ -671,13 +682,12 @@ func TR(attribsChildren ...any) *mx.Element { return Element("tr", attribsChildr
 
 // Track creates a void <track> element supplying the timed text track
 // (subtitles, captions) at the URL src for Audio or Video. It takes only
-// attributes and has no children. An empty src renders no src attribute, for
-// a src passed in attribs.
+// attributes and has no children. The spec requires a non-empty src, so an
+// empty src makes Render return an error. The src parameter is the element's
+// only src attribute; another src in attribs makes Render fail as a
+// duplicate.
 func Track(src string, attribs ...mx.Attrib) *mx.Element {
-	if src != "" {
-		attribs = mx.PrependAttrib("src", src, attribs)
-	}
-	return VoidElement("track", attribs...)
+	return VoidElement("track", prependRequiredURL("track", "src", src, attribs)...)
 }
 
 // UL creates a <ul> unordered list of LI items.

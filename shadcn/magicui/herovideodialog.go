@@ -139,7 +139,8 @@ type HeroVideoDialogOptions struct {
 	// VideoSrc is the URL of the embedded video player, e.g. a YouTube
 	// /embed/ URL, loaded in an <iframe>.
 	VideoSrc string
-	// ThumbnailSrc is the image shown with the play button.
+	// ThumbnailSrc is the image shown with the play button. It is
+	// required: an empty ThumbnailSrc makes Render return an error.
 	ThumbnailSrc string
 	// ThumbnailAlt is the thumbnail's alt text; empty means
 	// "Video thumbnail".

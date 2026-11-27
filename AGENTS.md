@@ -143,14 +143,17 @@ html.Div(html.Class("container"), html.P("Hello"))
 // Void elements take only Attrib (no children allowed)
 html.Input(html.Name("q"), html.Placeholder("Search"))
 
-// An attribute the HTML spec requires is the first argument; empty omits it
+// An attribute the HTML spec requires is the first argument and its only source
 html.Img("/logo.png", html.Alt("Logo"))
 ```
 
 Constructors with a required first argument: `Img(src)`, `Track(src)`,
-`OptGroup(label)`, `Data(value)`, `Map(name)`, `BDo(dir Dir)` (`DirAuto` is a
-render error). A new element whose spec requires one attribute follows the
-same pattern; see `html/README.md` "Required attributes come first".
+`OptGroup(label)`, `Data(value)`, `Map(name)`, `BDo(dir Dir)`. The same
+attribute among the others is a duplicate-attribute render error, and so is a
+value the spec forbids (empty `src`, empty or whitespace `Map` name, a `BDo`
+dir other than `DirLTR`/`DirRTL`), deferred with `mx.ErrAttribf`. A new
+element whose spec requires one attribute follows the same pattern; see
+`html/README.md` "Required attributes come first".
 
 **Attribs before children**: in every `attribsChildren ...any` constructor
 (`html.Div`, `NewElement`, the `shadcn` components, …) always pass attributes

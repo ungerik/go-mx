@@ -2,6 +2,7 @@ package html
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,54 +30,76 @@ func TestAHRef(t *testing.T) {
 	}
 }
 
-func TestImg(t *testing.T) {
-	tests := []struct {
-		name string
-		got  string
-		want string
-	}{
-		{"src first", Img("/a.png", Alt("A")).String(), `<img src='/a.png' alt='A'/>`},
-		// An empty src leaves the source to attribs, here a srcset.
-		{"empty src renders no src", Img("", SrcSet("/a.png 1x, /a@2x.png 2x")).String(), `<img srcset='/a.png 1x, /a@2x.png 2x'/>`},
-		{"empty src without attribs", Img("").String(), `<img/>`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, tt.got)
-		})
-	}
-}
-
+// TestRequiredAttribConstructors covers the constructors that take the
+// attribute their element requires as the first parameter: the parameter is
+// the element's only such attribute, a value the spec does not allow makes
+// Render return an error, and the same attribute passed again among the
+// attributes makes Render fail as a duplicate.
 func TestRequiredAttribConstructors(t *testing.T) {
-	tests := []struct {
+	valid := []struct {
 		name string
-		got  string
+		elem *mx.Element
 		want string
 	}{
-		{"Track", Track("/en.vtt", SrcLang("en")).String(), `<track src='/en.vtt' srclang='en'/>`},
-		{"Track empty src", Track("").String(), `<track/>`},
-		{"OptGroup", OptGroup("Fruits", Option("Apple")).String(), `<optgroup label='Fruits'><option>Apple</option></optgroup>`},
-		{"OptGroup empty label", OptGroup("", LabelAttr("Fruits")).String(), `<optgroup label='Fruits'></optgroup>`},
-		{"Data", Data("398", "Mini Ketchup").String(), `<data value='398'>Mini Ketchup</data>`},
-		{"Data empty value", Data("", "x").String(), `<data>x</data>`},
-		{"Map", Map("floors", Area(ShapeDefault)).String(), `<map name='floors'><area shape='default'/></map>`},
-		{"Map empty name", Map("").String(), `<map></map>`},
-		{"BDo", BDo(DirRTL, "Hello").String(), `<bdo dir='rtl'>Hello</bdo>`},
-		{"BDo empty dir", BDo("", DirLTR, "Hello").String(), `<bdo dir='ltr'>Hello</bdo>`},
+		{"Img", Img("/a.png", Alt("A")), `<img src="/a.png" alt="A"/>`},
+		{"Img with SrcSet", Img("/a.png", SrcSet("/a.png 1x, /a@2x.png 2x")), `<img src="/a.png" srcset="/a.png 1x, /a@2x.png 2x"/>`},
+		{"Track", Track("/en.vtt", SrcLang("en")), `<track src="/en.vtt" srclang="en"/>`},
+		{"OptGroup", OptGroup("Fruits", Option("Apple")), `<optgroup label="Fruits"><option>Apple</option></optgroup>`},
+		// The spec allows an empty label and an empty value, so they render.
+		{"OptGroup empty label", OptGroup("", Option("Apple")), `<optgroup label=""><option>Apple</option></optgroup>`},
+		{"Data", Data("398", "Mini Ketchup"), `<data value="398">Mini Ketchup</data>`},
+		{"Data empty value", Data("", "x"), `<data value="">x</data>`},
+		{"Map", Map("floors", Area(ShapeDefault)), `<map name="floors"><area shape="default"/></map>`},
+		{"BDo ltr", BDo(DirLTR, "Hello"), `<bdo dir="ltr">Hello</bdo>`},
+		{"BDo rtl", BDo(DirRTL, "Hello"), `<bdo dir="rtl">Hello</bdo>`},
 	}
-	for _, tt := range tests {
+	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, tt.got)
+			var b strings.Builder
+			require.NoError(t, tt.elem.Render(t.Context(), mx.NewCheckedWriter(&b)))
+			require.Equal(t, tt.want, b.String())
 		})
 	}
-}
 
-func TestBDoRejectsDirAuto(t *testing.T) {
-	// <bdo> overrides the direction, so it needs an explicit one, whether
-	// DirAuto comes as the dir parameter or among the attributes.
-	for _, bdo := range []*mx.Element{BDo(DirAuto, "Hello"), BDo("", DirAuto, "Hello")} {
-		err := bdo.Render(t.Context(), mx.NewCheckedWriter(io.Discard))
-		require.Error(t, err)
+	invalid := []struct {
+		name    string
+		elem    *mx.Element
+		wantErr string
+	}{
+		{"Img empty src", Img(""), "img src must not be empty"},
+		// A srcset does not replace the required src.
+		{"Img empty src with SrcSet", Img("", SrcSet("/a.png 1x")), "img src must not be empty"},
+		{"Track empty src", Track(""), "track src must not be empty"},
+		{"Map empty name", Map(""), `map name must be non-empty without ASCII whitespace, not ""`},
+		{"Map name with space", Map("floor plan"), `not "floor plan"`},
+		{"Map name with tab", Map("floor\tplan"), `not "floor\tplan"`},
+		{"Map name with newline", Map("floor\n"), `not "floor\n"`},
+		{"Map name with form feed", Map("\ffloor"), `not "\ffloor"`},
+		{"Map name with carriage return", Map("floor\r"), `not "floor\r"`},
+		// <bdo> overrides the direction, so it needs an explicit one.
+		{"BDo auto", BDo(DirAuto, "Hello"), `bdo dir must be "ltr" or "rtl", not "auto"`},
+		{"BDo empty", BDo("", "Hello"), `not ""`},
+		{"BDo unknown", BDo("up", "Hello"), `not "up"`},
+		// The parameter is the only source of the attribute: the same
+		// attribute among the others is a duplicate. An invalid parameter
+		// fails with its own error before the duplicate is reached.
+		{"Img duplicate src", Img("/a.png", Src("/b.png")), "duplicate attribute"},
+		{"Track duplicate src", Track("/en.vtt", Src("/de.vtt")), "duplicate attribute"},
+		{"OptGroup duplicate label", OptGroup("Fruits", LabelAttr("Obst")), "duplicate attribute"},
+		{"OptGroup empty and label", OptGroup("", LabelAttr("Fruits")), "duplicate attribute"},
+		{"Data duplicate value", Data("1", mx.NewAttrib("value", "2"), "x"), "duplicate attribute"},
+		{"Map duplicate name", Map("a", Name("b")), "duplicate attribute"},
+		{"BDo duplicate dir", BDo(DirLTR, DirRTL, "Hello"), "duplicate attribute"},
+		{"BDo empty and dir", BDo("", DirLTR, "Hello"), `not ""`},
+		// The forms a typed DirAuto check would miss.
+		{"BDo dir auto as Attribute", BDo(DirLTR, mx.NewAttrib("dir", "auto"), "Hello"), "duplicate attribute"},
+		{"BDo dir auto as ConstAttrib", BDo(DirLTR, mx.ConstAttrib("dir=auto"), "Hello"), "duplicate attribute"},
+	}
+	for _, tt := range invalid {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.elem.Render(t.Context(), mx.NewCheckedWriter(io.Discard))
+			require.ErrorContains(t, err, tt.wantErr)
+		})
 	}
 }
 

@@ -132,11 +132,14 @@ can't forget it:
 | `Map(name, …)`           | `name`             | `Map("floors", Area(…))`, used by `Img(…, UseMap("#floors"))` |
 | `BDo(dir, …)`            | `dir`              | `BDo(DirRTL, "Hello")`                           |
 
-An empty argument renders no attribute, for a value passed among the other
-attributes instead: `Img("", SrcSet("/a.png 1x, /a@2x.png 2x"))` renders an
-`<img>` with only a `srcset`. `BDo` takes the typed `Dir`; `DirAuto` is not
-allowed on `<bdo>`, which overrides the direction, so it makes `Render` return
-an error.
+The argument is the element's only source of that attribute: the same
+attribute passed again among the others makes `Render` fail with a duplicate
+attribute error. A value the spec does not allow is a render error too: an
+empty `src` of `Img` or `Track` (a `SrcSet` does not replace the `src` of an
+`<img>`), a `Map` name that is empty or holds ASCII whitespace, and any `BDo`
+direction but `DirLTR` and `DirRTL` (`<bdo>` overrides the direction, so
+`DirAuto` and the empty `Dir` are invalid). `OptGroup` and `Data` render an
+empty argument as an empty attribute, which the spec allows.
 
 Elements whose attribute is optional or depends on the context keep the plain
 variadic: `A` (an `<a>` without `href` is a placeholder link), `Script` and

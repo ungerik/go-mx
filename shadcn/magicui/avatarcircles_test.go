@@ -23,4 +23,8 @@ func TestAvatarCircles(t *testing.T) {
 	if out := render(t, AvatarCircles(AvatarCirclesOptions{})); strings.Contains(out, "+") {
 		t.Errorf("no +N circle without NumPeople: %s", out)
 	}
+	// The image is required, like the src of every html.Img.
+	if renderErr(t, AvatarCircles(AvatarCirclesOptions{Avatars: []AvatarCircle{{ProfileURL: "https://example.com/a"}}})) == nil {
+		t.Error("empty ImageURL accepted")
+	}
 }

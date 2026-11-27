@@ -10,7 +10,8 @@ import (
 // AvatarCircle is one avatar of [AvatarCircles]: the image and the profile
 // it links to.
 type AvatarCircle struct {
-	// ImageURL is the avatar image.
+	// ImageURL is the avatar image. It is required: an empty ImageURL
+	// makes Render return an error.
 	ImageURL string
 	// ProfileURL is the page the avatar links to, opened in a new tab.
 	ProfileURL string

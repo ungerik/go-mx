@@ -38,7 +38,7 @@ func TestHeroVideoDialogAnimationStyles(t *testing.T) {
 		HeroVideoFade:           "scale-100 starting:open:scale-100",
 		"bogus":                 "scale-50 starting:open:scale-50",
 	} {
-		out := render(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv", AnimationStyle: style}))
+		out := render(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv", AnimationStyle: style, ThumbnailSrc: "/thumb.png"}))
 		mustContain(t, out, want)
 	}
 	for _, style := range HeroVideoAnimationStyle("").Enums() {
@@ -49,15 +49,21 @@ func TestHeroVideoDialogAnimationStyles(t *testing.T) {
 }
 
 func TestHeroVideoDialogCaller(t *testing.T) {
-	out := render(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv", ThumbnailAlt: "Hero"}, html.Class("block dark:hidden")))
+	out := render(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv", ThumbnailSrc: "/thumb.png", ThumbnailAlt: "Hero"}, html.Class("block dark:hidden")))
 	mustContain(t, out, `class="relative block dark:hidden"`, `alt="Hero"`)
 	// An invalid id renders an error like the other magicui ID options,
 	// instead of reaching shadcn's id check, which panics by default.
-	if renderErr(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "bad id"})) == nil {
-		t.Error("invalid dialog id accepted")
+	err := renderErr(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "bad id", ThumbnailSrc: "/thumb.png"}))
+	if err == nil || !strings.Contains(err.Error(), "bad id") {
+		t.Errorf("invalid dialog id: got error %v, want one naming the id", err)
+	}
+	// The thumbnail is required, like the src of every html.Img.
+	if renderErr(t, HeroVideoDialog(HeroVideoDialogOptions{ID: "hv"})) == nil {
+		t.Error("empty ThumbnailSrc accepted")
 	}
 	// Without an ID every dialog gets its own.
-	a, b := render(t, HeroVideoDialog(HeroVideoDialogOptions{})), render(t, HeroVideoDialog(HeroVideoDialogOptions{}))
+	a := render(t, HeroVideoDialog(HeroVideoDialogOptions{ThumbnailSrc: "/thumb.png"}))
+	b := render(t, HeroVideoDialog(HeroVideoDialogOptions{ThumbnailSrc: "/thumb.png"}))
 	if a == b {
 		t.Error("two dialogs without ID share an id")
 	}
