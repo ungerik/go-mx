@@ -19,6 +19,11 @@ API is still free to change.
   Monokai editor theme, next to the GitHub-like `LightTheme` and `DarkTheme`.
   The documentation site colors its code blocks with `LightTheme` in light
   mode and `OneMonokaiTheme` in dark mode.
+- **`highlight.ParseVSCodeTheme` and `LoadVSCodeTheme`** turn a VS Code color
+  theme file (as VS Code and Cursor theme extensions ship it, JSON with
+  comments) into a `highlight.Theme`, following `include` chains. Each token
+  class takes the color the theme gives the matching scope of VS Code's Go
+  grammar; colors must be hex values, so a theme file cannot inject CSS.
 - **The documentation site is rendered by go-mx and deployed from CI.**
   `tools/gen-docs-site` (in the `tools` module, so goldmark stays out of the
   library's `go.mod`) renders every Markdown file of the repository — the

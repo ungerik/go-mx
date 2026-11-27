@@ -15,7 +15,7 @@ terms are reproduced below.
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
 | [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go`, `logview/theme.go` (color values only) | MIT |
-| [One Monokai](https://github.com/azemoh/vscode-one-monokai)           | `highlight/theme.go` (color values only) | MIT |
+| [One Monokai](https://github.com/azemoh/vscode-one-monokai)           | `highlight/theme.go` (color values), `highlight/testdata/onemonokai-color-theme.json` (theme file, test fixture) | MIT |
 | [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf)                       | `pdf/` engine (inlined source) | MIT |
 | [Unicode CLDR](https://github.com/unicode-org/cldr-json)              | `stdoptions/cldrdata.go` (generated data) | Unicode-3.0 |
 
@@ -419,7 +419,9 @@ SOFTWARE.
 ## One Monokai
 
 `highlight/theme.go` reuses the color values of the One Monokai editor theme
-for its `OneMonokaiTheme`. The highlighting engine itself is original to this
+for its `OneMonokaiTheme`, and `highlight/testdata/onemonokai-color-theme.json`
+is the theme file of version 0.5.2, unchanged, which the tests of
+`ParseVSCodeTheme` load. The highlighting engine itself is original to this
 project.
 
 ```

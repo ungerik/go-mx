@@ -168,6 +168,20 @@ Built-in themes: `LightTheme` and `DarkTheme` (GitHub-like palettes) and
 `OneMonokaiTheme` (the dark One Monokai editor theme). Pass `""` to match the
 default `hl-` class prefix.
 
+Any VS Code color theme (the `*-color-theme.json` file of a VS Code or Cursor
+theme extension) loads as a `Theme` too:
+
+```go
+theme, err := highlight.ParseVSCodeTheme(data)
+// or, following the theme's "include" chain:
+theme, err = highlight.LoadVSCodeTheme(os.DirFS(dir), "themes/x-color-theme.json")
+```
+
+The token classes take the colors the theme's TextMate rules give the scopes
+of VS Code's Go grammar, so the result is close to the editor but not exact:
+the scopes are finer than the token classes, and language-server colors
+(`semanticTokenColors`) are ignored. Colors must be hex values.
+
 ## Customizing
 
 ```go
