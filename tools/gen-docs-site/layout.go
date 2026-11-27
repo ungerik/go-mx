@@ -56,6 +56,21 @@ func buildNav(pages []*Page, examples navSection) []navSection {
 // Tailwind input, compiled with the theme, so it uses the shadcn tokens and
 // follows the dark mode.
 const docsCSS = /*css*/ `
+/* The dark mode, halfway from shadcn's neutral greys toward One Monokai's
+   blue-grey backgrounds (the theme of the code blocks): page #0a0a0a and
+   #282c34, sidebar and floating surfaces #171717 and #21252b, hovered and
+   current items #262626 and #2f333d. theme.css stays shadcn's own. */
+.dark {
+  --background: #191b1f;
+  --card: #1c1e21;
+  --popover: #1c1e21;
+  --sidebar: #1c1e21;
+  --secondary: #2a2c32;
+  --muted: #2a2c32;
+  --accent: #2a2c32;
+  --sidebar-accent: #2a2c32;
+  --primary-foreground: #1c1e21;
+}
 .prose-mx { @apply text-base leading-7; }
 .prose-mx > :first-child { @apply mt-0; }
 .prose-mx h1 { @apply mt-0 mb-6 scroll-m-20 text-3xl font-bold tracking-tight text-balance; }
