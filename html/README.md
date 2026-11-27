@@ -196,6 +196,23 @@ plus its `href`, a `<label>` plus its `for` — so
 | `SpanClass(classes, …)`           | `<span class="…">`                   |
 | `PClass(classes, …)`              | `<p class="…">`                      |
 | `H1Class(classes, …)` … `H6Class` | `<h1 class="…">` … `<h6 class="…">`  |
+| `MainClass(classes, …)`           | `<main class="…">`                   |
+| `HeaderClass(classes, …)`         | `<header class="…">`                 |
+| `FooterClass(classes, …)`         | `<footer class="…">`                 |
+| `NavClass(classes, …)`            | `<nav class="…">`                    |
+| `SectionClass(classes, …)`        | `<section class="…">`                |
+| `ArticleClass(classes, …)`        | `<article class="…">`                |
+| `AsideClass(classes, …)`          | `<aside class="…">`                  |
+| `ULClass(classes, …)`             | `<ul class="…">`                     |
+| `OLClass(classes, …)`             | `<ol class="…">`                     |
+| `LIClass(classes, …)`             | `<li class="…">`                     |
+| `PreClass(classes, …)`            | `<pre class="…">`                    |
+| `CodeClass(classes, …)`           | `<code class="…">`                   |
+| `FormClass(classes, …)`           | `<form class="…">`                   |
+| `ButtonClass(classes, …)`         | `<button class="…">` (no type)       |
+| `LabelClass(classes, …)`          | `<label class="…">`                  |
+| `TableClass(classes, …)`          | `<table class="…">`                  |
+| `TRClass`, `THClass`, `TDClass`   | `<tr class="…">`, `<th …>`, `<td …>` |
 | `AHRef(url, …)`                   | `<a href="…">`                       |
 | `LabelFor(id, …)`                 | `<label for="…">`                    |
 

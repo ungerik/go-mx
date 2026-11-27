@@ -30,6 +30,47 @@ func TestAHRef(t *testing.T) {
 	}
 }
 
+// TestClassConstructors covers the class shortcuts of the layout, list,
+// code, form, button, label and table elements: the class comes first, followed by the other attributes and the
+// children in the order passed.
+func TestClassConstructors(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"main", MainClass("mx-auto", "Content").String(), `<main class='mx-auto'>Content</main>`},
+		{"header", HeaderClass("sticky top-0", "Title").String(), `<header class='sticky top-0'>Title</header>`},
+		{"footer", FooterClass("border-t", "Footer").String(), `<footer class='border-t'>Footer</footer>`},
+		{"nav", NavClass("flex", "Links").String(), `<nav class='flex'>Links</nav>`},
+		{"section", SectionClass("mb-10", "Part").String(), `<section class='mb-10'>Part</section>`},
+		{"article", ArticleClass("prose", "Text").String(), `<article class='prose'>Text</article>`},
+		{"aside", AsideClass("w-64", "Sidebar").String(), `<aside class='w-64'>Sidebar</aside>`},
+		{"ul", ULClass("list-none", LI("Item")).String(), `<ul class='list-none'><li>Item</li></ul>`},
+		{"ol", OLClass("list-decimal", LI("Item")).String(), `<ol class='list-decimal'><li>Item</li></ol>`},
+		{"li", LIClass("mt-3", "Item").String(), `<li class='mt-3'>Item</li>`},
+		{"pre", PreClass("hl", "x := 1").String(), `<pre class='hl'>x := 1</pre>`},
+		{"code", CodeClass("language-go", "x").String(), `<code class='language-go'>x</code>`},
+		{"form", FormClass("space-y-4", ID("login")).String(), `<form class='space-y-4' id='login'></form>`},
+		{"button", ButtonClass("btn", "Save").String(), `<button class='btn'>Save</button>`},
+		{"label", LabelClass("text-sm", For("email"), "Email").String(), `<label class='text-sm' for='email'>Email</label>`},
+		{"table", TableClass("w-full", TR(TD("1"))).String(), `<table class='w-full'><tr><td>1</td></tr></table>`},
+		{"tr", TRClass("border-b", TD("1")).String(), `<tr class='border-b'><td>1</td></tr>`},
+		{"th", THClass("text-left", "Name").String(), `<th class='text-left'>Name</th>`},
+		{"td", TDClass("p-2", "1").String(), `<td class='p-2'>1</td>`},
+		{
+			"attribs and children after the class",
+			NavClass("mt-2", Attrib("aria-label", "Documentation"), A("Home")).String(),
+			`<nav class='mt-2' aria-label='Documentation'><a>Home</a></nav>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}
+
 // TestRequiredAttribConstructors covers the constructors that take the
 // attribute their element requires as the first parameter: the parameter is
 // the element's only such attribute, a value the spec does not allow makes

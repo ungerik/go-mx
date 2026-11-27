@@ -15,6 +15,13 @@ API is still free to change.
 
 ### Added
 
+- **Class shortcuts like `DivClass` for the elements that nearly always carry
+  a class**: the layout elements (`html.MainClass`, `HeaderClass`,
+  `FooterClass`, `NavClass`, `SectionClass`, `ArticleClass`, `AsideClass`),
+  lists (`ULClass`, `OLClass`, `LIClass`), code (`PreClass`, `CodeClass`),
+  form parts (`FormClass`, `ButtonClass`, `LabelClass`) and tables
+  (`TableClass`, `TRClass`, `THClass`, `TDClass`), so `MainClass("mx-auto", …)`
+  replaces `Main(Class("mx-auto"), …)`.
 - **`highlight.OneMonokaiTheme`**, a dark theme with the colors of the One
   Monokai editor theme, next to the GitHub-like `LightTheme` and `DarkTheme`.
   The documentation site colors its code blocks with `LightTheme` in light
