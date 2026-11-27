@@ -25,10 +25,10 @@ func TestGoSourceIsValidGo(t *testing.T) {
 func TestGoSourceContent(t *testing.T) {
 	out := GoSource("func main() {}\n")
 	wants := []string{
-		`html.Pre(html.Class("hl"),`,
+		`html.PreClass("hl",`,
 		`html.Code(`,
-		`html.Span(html.Class("hl-keyword"), "func"),`,
-		`html.Span(html.Class("hl-function"), "main"),`,
+		`html.SpanClass("hl-keyword", "func"),`,
+		`html.SpanClass("hl-function", "main"),`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(out, want) {

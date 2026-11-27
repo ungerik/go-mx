@@ -65,8 +65,7 @@ func (h *Highlighter) Lines(tokens []Token) []mx.Components {
 // Component highlights Go source and returns it as a
 // <pre class="hl"><code>…</code></pre> block element.
 func (h *Highlighter) Component(src string) *mx.Element {
-	return html.Pre(
-		html.Class(h.BlockClass()),
+	return html.PreClass(h.BlockClass(),
 		html.Code(h.Components(TokenizeGo(src))),
 	)
 }
@@ -74,8 +73,7 @@ func (h *Highlighter) Component(src string) *mx.Element {
 // Inline highlights Go source for inline use and returns a <code class="hl">
 // element without the <pre> wrapper.
 func (h *Highlighter) Inline(src string) *mx.Element {
-	return html.Code(
-		html.Class(h.BlockClass()),
+	return html.CodeClass(h.BlockClass(),
 		h.Components(TokenizeGo(src)),
 	)
 }

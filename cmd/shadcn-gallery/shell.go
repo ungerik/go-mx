@@ -113,7 +113,7 @@ import { codeToHtml } from 'https://esm.sh/shiki@1';
 // a main column holding the current page's content.
 func layout(reg *Registry, currentSlug string, content mx.Component) mx.Component {
 	return html.DivClass("flex min-h-screen",
-		html.Aside(html.Class("w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground"),
+		html.AsideClass("w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground",
 			html.DivClass("sticky top-0 flex h-screen flex-col",
 				html.DivClass("flex items-center justify-between border-b px-4 py-3",
 					html.AHRef(link(currentSlug, "index.html"), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
@@ -126,12 +126,12 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 						html.Class("block border-b px-4 py-2 text-xs text-muted-foreground hover:text-foreground"),
 						"← go-mx documentation"),
 				),
-				html.Nav(html.Class("flex-1 space-y-0.5 overflow-y-auto p-3"),
+				html.NavClass("flex-1 space-y-0.5 overflow-y-auto p-3",
 					sidebarLinks(reg, currentSlug),
 				),
 			),
 		),
-		html.Main(html.Class("min-w-0 flex-1"),
+		html.MainClass("min-w-0 flex-1",
 			html.DivClass("mx-auto max-w-3xl px-8 py-10",
 				content,
 			),
@@ -198,7 +198,7 @@ func componentContent(d *ComponentDoc) mx.Component {
 // preview and the Go source that produced it.
 func previewBlock(slug string, ex Example) mx.Component {
 	id := tabID(slug, ex.Name)
-	return html.Section(html.Class("mb-10"),
+	return html.SectionClass("mb-10",
 		html.H3Class("mb-3 text-sm font-medium text-muted-foreground", ex.Name),
 		shadcn.Tabs(id,
 			shadcn.TabsList(
@@ -235,9 +235,9 @@ func codeBlock(source string) mx.Component {
 // with Shiki's themed output (see head). The language-go class is both Shiki's
 // selector and its language hint.
 func dynamicCodeBlock(source string) mx.Component {
-	return html.Pre(
-		html.Class("mt-2 overflow-x-auto rounded-md p-4 text-sm leading-relaxed bg-zinc-950 text-zinc-50"),
-		html.Code(html.Class("language-go"), source),
+	return html.PreClass(
+		"mt-2 overflow-x-auto rounded-md p-4 text-sm leading-relaxed bg-zinc-950 text-zinc-50",
+		html.CodeClass("language-go", source),
 	)
 }
 
@@ -247,8 +247,7 @@ func dynamicCodeBlock(source string) mx.Component {
 // supplies the background, padding and rounding, so only the mt-2 spacing that
 // matches the dynamic block is added here.
 func staticCodeBlock(source string) mx.Component {
-	return html.Pre(
-		html.Class(highlight.Default.BlockClass()+" mt-2"),
+	return html.PreClass(highlight.Default.BlockClass()+" mt-2",
 		html.Code(highlight.Default.Components(highlight.TokenizeGo(source))),
 	)
 }

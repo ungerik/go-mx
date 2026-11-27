@@ -22,7 +22,7 @@
 //     and the rest render as plain escaped text. [Highlighter.GoSource]
 //     instead emits Go source code that, using the html package, builds that
 //     same markup; it is a generator, not an echo of the input, so feeding it
-//     "func main() {}" returns a tree of html.Pre(...) calls.
+//     "func main() {}" returns a tree of html.PreClass(...) calls.
 //
 // Colors live in a separate [Theme] that emits a CSS stylesheet, so the same
 // HTML works with any theme. Use [LightTheme], [DarkTheme] or
@@ -32,7 +32,7 @@
 //	import "github.com/ungerik/go-mx/highlight"
 //
 //	block := highlight.Component(src)             // *mx.Element: <pre><code>…</code></pre>
-//	code  := highlight.GoSource(src)              // string: html.Pre(...) Go source
+//	code  := highlight.GoSource(src)              // string: html.PreClass(...) Go source
 //	style := highlight.LightTheme.StyleElement("") // <style>…</style>
 //
 // Render the markup with a non-indenting writer (the default

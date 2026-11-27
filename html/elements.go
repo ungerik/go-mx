@@ -41,8 +41,20 @@ func Area(attribs ...mx.Attrib) *mx.Element { return VoidElement("area", attribs
 // Article creates an <article> element for self-contained, independently distributable content.
 func Article(attribsChildren ...any) *mx.Element { return Element("article", attribsChildren...) }
 
+// ArticleClass creates an <article> with the given space separated class names
+// as a shortcut for Article(Class(classes), attribsChildren...).
+func ArticleClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("article", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // Aside creates an <aside> element for content tangentially related to the surrounding content.
 func Aside(attribsChildren ...any) *mx.Element { return Element("aside", attribsChildren...) }
+
+// AsideClass creates an <aside> with the given space separated class names
+// as a shortcut for Aside(Class(classes), attribsChildren...).
+func AsideClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("aside", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Audio creates an <audio> element for embedding sound content.
 func Audio(attribsChildren ...any) *mx.Element { return Element("audio", attribsChildren...) }
@@ -97,6 +109,13 @@ func Br(attribs ...mx.Attrib) *mx.Element { return VoidElement("br", attribs...)
 // Use SubmitButton, ResetButton, or ButtonButton to set the type explicitly.
 func Button(attribsChildren ...any) *mx.Element { return Element("button", attribsChildren...) }
 
+// ButtonClass creates a <button> with the given space separated class names
+// as a shortcut for Button(Class(classes), attribsChildren...). Like Button
+// it sets no type, so inside a form it submits the form; see Button.
+func ButtonClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("button", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // SubmitButton is a <button type="submit"> that submits its form when activated.
 func SubmitButton(attribsChildren ...any) *mx.Element {
 	return Element("button", append([]any{Type("submit")}, attribsChildren...)...)
@@ -125,6 +144,12 @@ func Cite(attribsChildren ...any) *mx.Element { return Element("cite", attribsCh
 
 // Code creates a <code> element marking a fragment of computer code.
 func Code(attribsChildren ...any) *mx.Element { return Element("code", attribsChildren...) }
+
+// CodeClass creates a <code> with the given space separated class names
+// as a shortcut for Code(Class(classes), attribsChildren...).
+func CodeClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("code", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Col creates a void <col> element defining a column within a ColGroup.
 // It takes only attributes and has no children.
@@ -213,8 +238,20 @@ func Figure(attribsChildren ...any) *mx.Element { return Element("figure", attri
 // Footer creates a <footer> element for the footer of its nearest sectioning content.
 func Footer(attribsChildren ...any) *mx.Element { return Element("footer", attribsChildren...) }
 
+// FooterClass creates a <footer> with the given space separated class names
+// as a shortcut for Footer(Class(classes), attribsChildren...).
+func FooterClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("footer", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // Form creates a <form> element for submitting user input to a server.
 func Form(attribsChildren ...any) *mx.Element { return Element("form", attribsChildren...) }
+
+// FormClass creates a <form> with the given space separated class names
+// as a shortcut for Form(Class(classes), attribsChildren...).
+func FormClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("form", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // H1 creates an <h1> top-level section heading.
 func H1(attribsChildren ...any) *mx.Element { return Element("h1", attribsChildren...) }
@@ -275,6 +312,12 @@ func Head(attribsChildren ...any) *mx.Element { return Element("head", attribsCh
 
 // Header creates a <header> element for introductory content of its nearest sectioning content.
 func Header(attribsChildren ...any) *mx.Element { return Element("header", attribsChildren...) }
+
+// HeaderClass creates a <header> with the given space separated class names
+// as a shortcut for Header(Class(classes), attribsChildren...).
+func HeaderClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("header", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // HGroup creates an <hgroup> element grouping a heading with associated tagline paragraphs.
 func HGroup(attribsChildren ...any) *mx.Element { return Element("hgroup", attribsChildren...) }
@@ -435,6 +478,12 @@ func Kbd(attribsChildren ...any) *mx.Element { return Element("kbd", attribsChil
 // Label creates a <label> element captioning a form control via its for attribute or by wrapping it.
 func Label(attribsChildren ...any) *mx.Element { return Element("label", attribsChildren...) }
 
+// LabelClass creates a <label> with the given space separated class names
+// as a shortcut for Label(Class(classes), attribsChildren...).
+func LabelClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("label", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // LabelFor creates a <label> bound to the control with the given id
 // as a shortcut for Label(For(id), attribsChildren...).
 func LabelFor(id string, attribsChildren ...any) *mx.Element {
@@ -447,12 +496,24 @@ func Legend(attribsChildren ...any) *mx.Element { return Element("legend", attri
 // LI creates an <li> list item within an OL, UL, or Menu.
 func LI(attribsChildren ...any) *mx.Element { return Element("li", attribsChildren...) }
 
+// LIClass creates an <li> with the given space separated class names
+// as a shortcut for LI(Class(classes), attribsChildren...).
+func LIClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("li", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // Link creates a void <link> element relating the document to external resources such as stylesheets.
 // It takes only attributes and has no children.
 func Link(attribs ...mx.Attrib) *mx.Element { return VoidElement("link", attribs...) }
 
 // Main creates the <main> element wrapping the dominant content of the document body.
 func Main(attribsChildren ...any) *mx.Element { return Element("main", attribsChildren...) }
+
+// MainClass creates a <main> with the given space separated class names
+// as a shortcut for Main(Class(classes), attribsChildren...).
+func MainClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("main", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Map creates a <map> element defining an image map together with its Area
 // children. An Img refers to it by name with UseMap("#"+name). The spec
@@ -487,6 +548,12 @@ func Meter(attribsChildren ...any) *mx.Element { return Element("meter", attribs
 // Nav creates a <nav> element for a section of major navigation links.
 func Nav(attribsChildren ...any) *mx.Element { return Element("nav", attribsChildren...) }
 
+// NavClass creates a <nav> with the given space separated class names
+// as a shortcut for Nav(Class(classes), attribsChildren...).
+func NavClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("nav", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // NoEmbed creates an obsolete <noembed> element; provide fallback content via Object instead.
 func NoEmbed(attribsChildren ...any) *mx.Element { return Element("noembed", attribsChildren...) }
 
@@ -506,6 +573,12 @@ func Object(attribsChildren ...any) *mx.Element { return Element("object", attri
 // Use OLDecimal, OLLowerAlpha, OLUpperAlpha, OLLowerRoman, or OLUpperRoman to set
 // the marker type explicitly via the attribute.
 func OL(attribsChildren ...any) *mx.Element { return Element("ol", attribsChildren...) }
+
+// OLClass creates an <ol> with the given space separated class names
+// as a shortcut for OL(Class(classes), attribsChildren...).
+func OLClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("ol", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // OLDecimal is an <ol type="1"> with decimal number markers (1, 2, 3, …) — the
 // same markers as a bare OL, but with the type attribute set explicitly.
@@ -565,6 +638,12 @@ func Picture(attribsChildren ...any) *mx.Element { return Element("picture", att
 // Pre creates a <pre> element whose text is rendered preformatted, preserving whitespace.
 func Pre(attribsChildren ...any) *mx.Element { return Element("pre", attribsChildren...) }
 
+// PreClass creates a <pre> with the given space separated class names
+// as a shortcut for Pre(Class(classes), attribsChildren...).
+func PreClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("pre", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // Progress creates a <progress> element displaying the completion progress of a task (a gauge).
 func Progress(attribsChildren ...any) *mx.Element {
 	return mx.NewElement("progress", attribsChildren...)
@@ -603,6 +682,12 @@ func Search(attribsChildren ...any) *mx.Element { return Element("search", attri
 
 // Section creates a <section> element for a standalone thematic grouping of content.
 func Section(attribsChildren ...any) *mx.Element { return Element("section", attribsChildren...) }
+
+// SectionClass creates a <section> with the given space separated class names
+// as a shortcut for Section(Class(classes), attribsChildren...).
+func SectionClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("section", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Select creates a <select> element offering a menu of Option choices.
 func Select(attribsChildren ...any) *mx.Element { return Element("select", attribsChildren...) }
@@ -646,11 +731,23 @@ func Sup(attribsChildren ...any) *mx.Element { return Element("sup", attribsChil
 // Table creates a <table> element presenting data in rows and columns.
 func Table(attribsChildren ...any) *mx.Element { return Element("table", attribsChildren...) }
 
+// TableClass creates a <table> with the given space separated class names
+// as a shortcut for Table(Class(classes), attribsChildren...).
+func TableClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("table", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // TBody creates a <tbody> element grouping the body rows of a Table.
 func TBody(attribsChildren ...any) *mx.Element { return Element("tbody", attribsChildren...) }
 
 // TD creates a <td> standard data cell within a Table row.
 func TD(attribsChildren ...any) *mx.Element { return Element("td", attribsChildren...) }
+
+// TDClass creates a <td> with the given space separated class names
+// as a shortcut for TD(Class(classes), attribsChildren...).
+func TDClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("td", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // TemplateElem creates a <template> element holding markup that is not rendered until cloned by script.
 func TemplateElem(attribsChildren ...any) *mx.Element {
@@ -668,6 +765,12 @@ func TFoot(attribsChildren ...any) *mx.Element { return Element("tfoot", attribs
 // TH creates a <th> header cell within a Table row.
 func TH(attribsChildren ...any) *mx.Element { return Element("th", attribsChildren...) }
 
+// THClass creates a <th> with the given space separated class names
+// as a shortcut for TH(Class(classes), attribsChildren...).
+func THClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("th", append([]any{Class(classes)}, attribsChildren...)...)
+}
+
 // THead creates a <thead> element grouping the header rows of a Table.
 func THead(attribsChildren ...any) *mx.Element { return Element("thead", attribsChildren...) }
 
@@ -679,6 +782,12 @@ func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", att
 
 // TR creates a <tr> table row holding TD or TH cells.
 func TR(attribsChildren ...any) *mx.Element { return Element("tr", attribsChildren...) }
+
+// TRClass creates a <tr> with the given space separated class names
+// as a shortcut for TR(Class(classes), attribsChildren...).
+func TRClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("tr", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Track creates a void <track> element supplying the timed text track
 // (subtitles, captions) at the URL src for Audio or Video. It takes only
@@ -692,6 +801,12 @@ func Track(src string, attribs ...mx.Attrib) *mx.Element {
 
 // UL creates a <ul> unordered list of LI items.
 func UL(attribsChildren ...any) *mx.Element { return Element("ul", attribsChildren...) }
+
+// ULClass creates a <ul> with the given space separated class names
+// as a shortcut for UL(Class(classes), attribsChildren...).
+func ULClass(classes string, attribsChildren ...any) *mx.Element {
+	return Element("ul", append([]any{Class(classes)}, attribsChildren...)...)
+}
 
 // Var creates a <var> element marking a variable in a mathematical expression or program.
 func Var(attribsChildren ...any) *mx.Element { return Element("var", attribsChildren...) }

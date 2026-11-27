@@ -168,7 +168,7 @@ func (c *Config) pretty(fields []field) *mx.Element {
 		}
 		comps = append(comps, c.prettyPair(f.key, f.val, 0))
 	}
-	return html.Pre(html.Class(c.class(ClassPretty)), comps)
+	return html.PreClass(c.class(ClassPretty), comps)
 }
 
 // prettyPair renders "key=value" at the given depth of an expanded record.
@@ -393,7 +393,7 @@ func (c *Config) multiline(s string) mx.Component {
 		// that starts with a blank line needs one more to keep it.
 		text = "\n" + text
 	}
-	return html.Pre(html.Class(c.class(ClassMultiline)), mx.Text(text))
+	return html.PreClass(c.class(ClassMultiline), mx.Text(text))
 }
 
 // normalizeNewlines makes every line break an LF. The SSE transport already

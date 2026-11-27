@@ -15,6 +15,13 @@ API is still free to change.
 
 ### Added
 
+- **Class shortcuts like `DivClass` for the elements that nearly always carry
+  a class**: the layout elements (`html.MainClass`, `HeaderClass`,
+  `FooterClass`, `NavClass`, `SectionClass`, `ArticleClass`, `AsideClass`),
+  lists (`ULClass`, `OLClass`, `LIClass`), code (`PreClass`, `CodeClass`),
+  form parts (`FormClass`, `ButtonClass`, `LabelClass`) and tables
+  (`TableClass`, `TRClass`, `THClass`, `TDClass`), so `MainClass("mx-auto", …)`
+  replaces `Main(Class("mx-auto"), …)`.
 - **`highlight.OneMonokaiTheme`**, a dark theme with the colors of the One
   Monokai editor theme, next to the GitHub-like `LightTheme` and `DarkTheme`.
   The documentation site colors its code blocks with `LightTheme` in light
@@ -744,6 +751,10 @@ API is still free to change.
 
 ### Changed
 
+- **`highlight.GoSource` generates the class shortcuts.** The Go source it
+  emits builds the block with `html.PreClass("hl", …)` and each token with
+  `html.SpanClass("hl-keyword", …)` instead of `html.Pre(html.Class(…), …)`
+  and `html.Span(html.Class(…), …)`. The markup it builds is unchanged.
 - **`shadcn.SidebarMenuButton` given an `href` is a link.** It renders an
   `<a>` instead of a `<button>`, upstream's `asChild` navigation item, so a
   sidebar menu can navigate without a script.

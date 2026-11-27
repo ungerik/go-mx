@@ -54,7 +54,7 @@ func writeFormPage(snap *snapshot.Options, name, form string) error {
 		return html.AHRef(href, html.Class(shadcn.ButtonClasses(variant, shadcn.SizeSM)), label)
 	}
 	doc := html.NewDocument("go-mx form example",
-		html.Main(html.Class("mx-auto max-w-2xl px-6 py-10"),
+		html.MainClass("mx-auto max-w-2xl px-6 py-10",
 			html.H1Class("text-2xl font-semibold tracking-tight", "Reflected form"),
 			html.PClass("mt-2 text-sm text-muted-foreground",
 				"mx.ReflectFormHandler renders a Profile struct through shadcn.FieldDecider. ",
