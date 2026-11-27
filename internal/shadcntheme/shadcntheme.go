@@ -51,7 +51,11 @@ const TailwindBrowserIntegrity = "sha384-t+qLIxS5zM/KF99/doWY+dxTsavdvgayaZt8A9n
 // and is persisted (so it carries forward like using the toggle). It defines
 // mxSetTheme(choice), which [ModeToggle] calls and [ToggleScript] uses
 // indirectly through the saved value.
-const InitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(p==='system')localStorage.removeItem('theme');var m=matchMedia('(prefers-color-scheme: dark)');window.mxApplyTheme=function(){var t=localStorage.theme;document.documentElement.classList.toggle('dark',t==='dark'||(t!=='light'&&m.matches))};window.mxSetTheme=function(t){if(t==='system')localStorage.removeItem('theme');else localStorage.theme=t;mxApplyTheme()};m.addEventListener('change',mxApplyTheme);mxApplyTheme()}catch(e){}`
+//
+// It runs in a function scope: inline scripts share the page's global scope,
+// and a top-level variable would collide with another script's, such as the
+// shadcn Sidebar's.
+const InitScript = /*js*/ `(function(){try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(p==='system')localStorage.removeItem('theme');var m=matchMedia('(prefers-color-scheme: dark)');window.mxApplyTheme=function(){var t=localStorage.theme;document.documentElement.classList.toggle('dark',t==='dark'||(t!=='light'&&m.matches))};window.mxSetTheme=function(t){if(t==='system')localStorage.removeItem('theme');else localStorage.theme=t;mxApplyTheme()};m.addEventListener('change',mxApplyTheme);mxApplyTheme()}catch(e){}})()`
 
 // ToggleScript is the onclick handler of a theme toggle button: it flips the
 // dark class on the root element and saves the choice for [InitScript].

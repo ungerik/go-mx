@@ -27,7 +27,10 @@ const (
 	sidebarWidthIcon = "3rem"
 )
 
-const sidebarScript = /*js*/ `if(!window.sidebarToggle){window.sidebarToggle=function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var c=w.dataset.state==='collapsed';w.dataset.state=c?'expanded':'collapsed';document.cookie='sidebar_state='+c+';path=/;max-age=604800';};document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&(e.key==='b'||e.key==='B')){e.preventDefault();window.sidebarToggle();}});var w=document.querySelector('[data-slot=sidebar-wrapper]');var m=document.cookie.match(/sidebar_state=(true|false)/);if(w&&m&&m[1]==='false')w.dataset.state='collapsed';}`
+// sidebarScript keeps its variables in a function scope: inline scripts share
+// the page's global scope, where a top-level w or m would overwrite another
+// script's.
+const sidebarScript = /*js*/ `if(!window.sidebarToggle){window.sidebarToggle=function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var c=w.dataset.state==='collapsed';w.dataset.state=c?'expanded':'collapsed';document.cookie='sidebar_state='+c+';path=/;max-age=604800';};document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&(e.key==='b'||e.key==='B')){e.preventDefault();window.sidebarToggle();}});(function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var m=document.cookie.match(/sidebar_state=(true|false)/);if(w&&m&&m[1]==='false')w.dataset.state='collapsed';})();}`
 
 // SidebarProvider is the flex wrapper around the [Sidebar] and [SidebarInset].
 // It defaults to data-state="expanded" and sets the sidebar width variables.
