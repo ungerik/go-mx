@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 )
@@ -76,7 +76,7 @@ func (o *Options) Write(name, page string) error {
 	}
 	page, err = InsertAfterStartTags(page, "<body", note, 1)
 	if err != nil {
-		return fmt.Errorf("snapshot %s: %w", name, err)
+		return errs.Errorf("snapshot %s: %w", name, err)
 	}
 	path := filepath.Join(o.Dir, filepath.FromSlash(name))
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -91,7 +91,7 @@ func (o *Options) Write(name, page string) error {
 // because the examples bring different stylesheets or none.
 func (o *Options) Note() (string, error) {
 	if o.Command == "" {
-		return "", fmt.Errorf("snapshot: Options.Command is empty")
+		return "", errs.New("snapshot: Options.Command is empty")
 	}
 	codeStyle := html.Style("font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#fef3c7;padding:0 .25em;border-radius:.25em")
 	linkStyle := html.Style("color:#92400e;text-decoration:underline")
@@ -142,7 +142,7 @@ func serve(handler http.Handler, request *http.Request) (string, error) {
 		return "", err
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("snapshot: %s %s: status %d: %s", request.Method, request.URL, response.StatusCode, bytes.TrimSpace(body))
+		return "", errs.Errorf("snapshot: %s %s: status %d: %s", request.Method, request.URL, response.StatusCode, bytes.TrimSpace(body))
 	}
 	return string(body), nil
 }
@@ -152,7 +152,7 @@ func serve(handler http.Handler, request *http.Request) (string, error) {
 // publishing an unedited page.
 func Edit(page, old, new string, n int) (string, error) {
 	if count := strings.Count(page, old); count != n {
-		return "", fmt.Errorf("snapshot: want %d occurrences of %q, found %d", n, old, count)
+		return "", errs.Errorf("snapshot: want %d occurrences of %q, found %d", n, old, count)
 	}
 	return strings.ReplaceAll(page, old, new), nil
 }
@@ -163,7 +163,7 @@ func Edit(page, old, new string, n int) (string, error) {
 // unless marker occurs exactly n times or a tag it is in has no end.
 func InsertAfterStartTags(page, marker, content string, n int) (string, error) {
 	if count := strings.Count(page, marker); count != n {
-		return "", fmt.Errorf("snapshot: want %d occurrences of %q, found %d", n, marker, count)
+		return "", errs.Errorf("snapshot: want %d occurrences of %q, found %d", n, marker, count)
 	}
 	var b strings.Builder
 	rest := page
@@ -171,7 +171,7 @@ func InsertAfterStartTags(page, marker, content string, n int) (string, error) {
 		i := strings.Index(rest, marker)
 		end := strings.IndexByte(rest[i:], '>')
 		if end < 0 {
-			return "", fmt.Errorf("snapshot: the tag of %q has no end", marker)
+			return "", errs.Errorf("snapshot: the tag of %q has no end", marker)
 		}
 		cut := i + end + 1
 		b.WriteString(rest[:cut])

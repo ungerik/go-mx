@@ -60,7 +60,8 @@ func TestNote(t *testing.T) {
 
 func TestWrite(t *testing.T) {
 	o := &Options{Dir: t.TempDir(), Command: "cmd/example-x"}
-	if err := o.Write("sub/page.html", `<html><body class="x"><p>hi</p></body></html>`); err != nil {
+	if err := o.Write("sub/page.html",
+		/*html*/ `<html><body class="x"><p>hi</p></body></html>`); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(o.Dir, "sub", "page.html"))
@@ -68,7 +69,8 @@ func TestWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(data)
-	if !strings.HasPrefix(page, `<html><body class="x"><div role="note"`) || !strings.HasSuffix(page, "<p>hi</p></body></html>") {
+	wantPrefix := /*html*/ `<html><body class="x"><div role="note"`
+	if !strings.HasPrefix(page, wantPrefix) || !strings.HasSuffix(page, "<p>hi</p></body></html>") {
 		t.Errorf("note not right after <body>:\n%s", page)
 	}
 
@@ -78,11 +80,11 @@ func TestWrite(t *testing.T) {
 }
 
 func TestEdit(t *testing.T) {
-	got, err := Edit(`<a href="/x">1</a><a href="/x">2</a>`, `href="/x"`, `href="x.html"`, 2)
+	got, err := Edit( /*html*/ `<a href="/x">1</a><a href="/x">2</a>`, `href="/x"`, `href="x.html"`, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `<a href="x.html">1</a><a href="x.html">2</a>`; got != want {
+	if want := /*html*/ `<a href="x.html">1</a><a href="x.html">2</a>`; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
 	if _, err := Edit("abc", "x", "y", 1); err == nil {
@@ -94,12 +96,12 @@ func TestEdit(t *testing.T) {
 }
 
 func TestInsertAfterStartTags(t *testing.T) {
-	page := `<div data-a="">x</div><div data-a="">y</div>`
+	page := /*html*/ `<div data-a="">x</div><div data-a="">y</div>`
 	got, err := InsertAfterStartTags(page, `data-a=""`, "<b>!</b>", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `<div data-a=""><b>!</b>x</div><div data-a=""><b>!</b>y</div>`; got != want {
+	if want := /*html*/ `<div data-a=""><b>!</b>x</div><div data-a=""><b>!</b>y</div>`; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
 	if _, err := InsertAfterStartTags(page, `data-a=""`, "", 1); err == nil {

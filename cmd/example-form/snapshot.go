@@ -39,7 +39,10 @@ func writeSnapshot(snap *snapshot.Options, handler http.Handler) error {
 
 // writeFormPage writes the page holding form to name.
 func writeFormPage(snap *snapshot.Options, name, form string) error {
-	form, err := snapshot.Edit(form, `<form method="post"`, `<form onsubmit="return false" method="post"`, 1)
+	form, err := snapshot.Edit(form,
+		/*html*/ `<form method="post"`,
+		/*html*/ `<form onsubmit="return false" method="post"`,
+		1)
 	if err != nil {
 		return err
 	}
