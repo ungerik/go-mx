@@ -15,6 +15,7 @@ terms are reproduced below.
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge)           | `shadcn/twmerge/`         | MIT |
 | [class-variance-authority](https://github.com/joe-bell/cva)           | `shadcn/cva/`             | Apache-2.0 |
 | [primer/github-vscode-theme](https://github.com/primer/github-vscode-theme) | `highlight/theme.go`, `logview/theme.go` (color values only) | MIT |
+| [Primer Octicons](https://github.com/primer/octicons)                  | `tools/gen-docs-site/layout.go` (the `mark-github` path, the GitHub logo) | MIT |
 | [One Monokai](https://github.com/azemoh/vscode-one-monokai)           | `highlight/theme.go` (color values), `highlight/testdata/onemonokai-color-theme.json` (theme file, test fixture) | MIT |
 | [go-pdf/fpdf](https://codeberg.org/go-pdf/fpdf)                       | `pdf/` engine (inlined source) | MIT |
 | [Unicode CLDR](https://github.com/unicode-org/cldr-json)              | `stdoptions/cldrdata.go` (generated data) | Unicode-3.0 |
@@ -394,6 +395,38 @@ highlighting engine itself is original to this project.
 MIT License
 
 Copyright (c) 2020 Primer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## Primer Octicons
+
+`tools/gen-docs-site/layout.go` draws the GitHub logo of the documentation
+site's header with the path data of the `mark-github` icon of
+[Primer Octicons](https://github.com/primer/octicons) 19.43.0.
+
+```
+MIT License
+
+Copyright (c) 2026 GitHub Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
