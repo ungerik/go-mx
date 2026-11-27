@@ -190,14 +190,13 @@ func codeBlock(lang, code string) mx.Component {
 	if lang != "" {
 		attribs = append(attribs, html.Class("language-"+lang))
 	}
-	return html.Pre(html.Class(highlight.Default.BlockClass()+" code-plain"), html.Code(append(attribs, code)...))
+	return html.PreClass(highlight.Default.BlockClass()+" code-plain", html.Code(append(attribs, code)...))
 }
 
 // highlightedGo renders Go source highlighted by the highlight package, as
 // the gallery's static code blocks are.
 func highlightedGo(code string) mx.Component {
-	return html.Pre(
-		html.Class(highlight.Default.BlockClass()),
+	return html.PreClass(highlight.Default.BlockClass(),
 		html.Code(highlight.Default.Components(highlight.TokenizeGo(code))),
 	)
 }

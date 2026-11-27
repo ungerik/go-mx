@@ -225,7 +225,7 @@ func examplesContent(withGallery, withExamples bool) mx.Component {
 				shadcn.CardContent(
 					html.DivClass("flex flex-wrap gap-2", pages),
 					html.PClass("mt-4 text-sm text-muted-foreground",
-						"Live: ", html.Code(html.Class("rounded bg-muted px-1.5 py-0.5 font-mono text-xs"), "go run ./"+ex.Command),
+						"Live: ", html.CodeClass("rounded bg-muted px-1.5 py-0.5 font-mono text-xs", "go run ./"+ex.Command),
 						" · ", html.AHRef(repoURL+"tree/main/"+ex.Command, linkClass, "Source"),
 					),
 				),
@@ -234,7 +234,7 @@ func examplesContent(withGallery, withExamples bool) mx.Component {
 	}
 	var pdfs mx.Components
 	for _, pdf := range referencePDFs {
-		pdfs = append(pdfs, html.LI(html.Class("mt-3"),
+		pdfs = append(pdfs, html.LIClass("mt-3",
 			html.AHRef(link(path.Join(examplesDir, pdf.Name)), linkClass, pdf.Title),
 			html.Span(html.Class("text-muted-foreground"), " — ", pdf.Description, " Rendered by "),
 			html.AHRef(repoURL+"blob/main/"+pdf.Test, linkClass, html.Code(pdf.Test)),
@@ -264,6 +264,6 @@ func examplesContent(withGallery, withExamples bool) mx.Component {
 		html.H2Class("mt-12 text-2xl font-semibold tracking-tight", "PDF documents"),
 		html.PClass("mt-4 leading-7",
 			"The reference documents of the golden tests of the pdf packages, rendered by go-mx's own PDF engine."),
-		html.UL(html.Class("mt-2"), pdfs),
+		html.ULClass("mt-2", pdfs),
 	)
 }

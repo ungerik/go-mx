@@ -170,8 +170,8 @@ func main() {
 }
 
 func hero() mx.Component {
-    return html.Section(
-        html.Class("relative flex min-h-screen flex-col items-center justify-center gap-8 overflow-hidden bg-background p-8"),
+    return html.SectionClass(
+        "relative flex min-h-screen flex-col items-center justify-center gap-8 overflow-hidden bg-background p-8",
         magicui.Meteors(magicui.MeteorsOptions{Seed: 1}),
         html.Div(html.Class("rounded-full border bg-muted"),
             magicui.AnimatedShinyText(magicui.AnimatedShinyTextOptions{},

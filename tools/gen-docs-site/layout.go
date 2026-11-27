@@ -139,7 +139,7 @@ func shell(nav []navSection, file, title string, content mx.Component) *html.Doc
 					siteHeader(file, "theme-menu-small"),
 					html.Details(html.Class("px-4 pb-3"),
 						html.Summary(html.Class("cursor-pointer text-sm font-medium"), "Menu"),
-						html.Nav(html.Class("mt-2"), html.Attrib("aria-label", "Documentation"), navLinks(nav, file)),
+						html.NavClass("mt-2", html.Attrib("aria-label", "Documentation"), navLinks(nav, file)),
 					),
 				),
 				html.DivClass("hidden px-4 pt-3 lg:flex", shadcn.SidebarTrigger()),
@@ -261,11 +261,11 @@ func navLinks(nav []navSection, file string) mx.Component {
 // alternate.
 func markdownContent(page *Page, body, markdownFile string) mx.Component {
 	return mx.Components{
-		html.Article(html.Class("prose-mx"),
+		html.ArticleClass("prose-mx",
 			mx.If(!page.hasH1, html.H1(page.Title)),
 			html.Raw(body),
 		),
-		html.Footer(html.Class("mt-16 flex flex-wrap gap-x-6 gap-y-2 border-t pt-6 text-sm text-muted-foreground"),
+		html.FooterClass("mt-16 flex flex-wrap gap-x-6 gap-y-2 border-t pt-6 text-sm text-muted-foreground",
 			html.AHRef(repoURL+"blob/main/"+page.Source, html.Class("hover:text-foreground"), "View ", html.Code(page.Source), " on GitHub"),
 			html.AHRef(relativeURL(page.File(), markdownFile), html.Class("hover:text-foreground"), html.Attrib("type", "text/markdown"), "Markdown version"),
 		),
