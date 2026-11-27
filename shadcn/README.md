@@ -974,8 +974,10 @@ recipe cannot submit a value, so here it is a form field (below).
   `SidebarGroup*` / `SidebarMenu*` / `SidebarSeparator` (~18 parts). The
   expand ↔ icon-collapse state lives in a `data-state` on the wrapper; one
   shared `sidebarToggle` script persists it to the `sidebar_state` cookie,
-  restores it on load and binds Cmd/Ctrl+B. The floating/inset variants and
-  the mobile-becomes-Sheet behavior are not reproduced.
+  restores it on load and binds Cmd/Ctrl+B. `SidebarMenuButton` given an
+  `href` is an `<a>`, the navigation link upstream renders with `asChild`.
+  The floating/inset variants and the mobile-becomes-Sheet behavior are not
+  reproduced.
 
 ## Post-restructure components (July 2026)
 

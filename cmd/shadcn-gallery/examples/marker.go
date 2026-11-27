@@ -19,7 +19,7 @@ func MarkerDemo() mx.Component {
 			shadcn.MarkerIcon(shadcn.Spinner()),
 			shadcn.MarkerContent(html.Class("animate-pulse"), "Thinking…"),
 		),
-		shadcn.Marker("", html.HRef("#marker"),
+		shadcn.Marker("", html.HRef("#"),
 			shadcn.MarkerIcon(iconClock()),
 			shadcn.MarkerContent("Marker as a link"),
 		),
@@ -43,7 +43,7 @@ func MarkerSeparatorDemo() mx.Component {
 			shadcn.MarkerContent("Conversation compacted"),
 		),
 		shadcn.Marker(shadcn.MarkerSeparator,
-			shadcn.MarkerContent("With a ", html.A(html.HRef("#marker"), "link to learn more")),
+			shadcn.MarkerContent("With a ", html.A(html.HRef("#"), "link to learn more")),
 		),
 	)
 }

@@ -27,7 +27,10 @@ const (
 	sidebarWidthIcon = "3rem"
 )
 
-const sidebarScript = /*js*/ `if(!window.sidebarToggle){window.sidebarToggle=function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var c=w.dataset.state==='collapsed';w.dataset.state=c?'expanded':'collapsed';document.cookie='sidebar_state='+c+';path=/;max-age=604800';};document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&(e.key==='b'||e.key==='B')){e.preventDefault();window.sidebarToggle();}});var w=document.querySelector('[data-slot=sidebar-wrapper]');var m=document.cookie.match(/sidebar_state=(true|false)/);if(w&&m&&m[1]==='false')w.dataset.state='collapsed';}`
+// sidebarScript keeps its variables in a function scope: inline scripts share
+// the page's global scope, where a top-level w or m would overwrite another
+// script's.
+const sidebarScript = /*js*/ `if(!window.sidebarToggle){window.sidebarToggle=function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var c=w.dataset.state==='collapsed';w.dataset.state=c?'expanded':'collapsed';document.cookie='sidebar_state='+c+';path=/;max-age=604800';};document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&(e.key==='b'||e.key==='B')){e.preventDefault();window.sidebarToggle();}});(function(){var w=document.querySelector('[data-slot=sidebar-wrapper]');var m=document.cookie.match(/sidebar_state=(true|false)/);if(w&&m&&m[1]==='false')w.dataset.state='collapsed';})();}`
 
 // SidebarProvider is the flex wrapper around the [Sidebar] and [SidebarInset].
 // It defaults to data-state="expanded" and sets the sidebar width variables.
@@ -124,12 +127,15 @@ func SidebarMenuItem(attribsChildren ...any) *mx.Element {
 	return StyleSlot(html.Element("li", attribsChildren...), "sidebar-menu-item", "group/menu-item relative")
 }
 
-// SidebarMenuButton is the clickable nav button. Mark the current item active
-// with html.DataAttr("active", "true"). A leading icon stays visible when the
+// SidebarMenuButton is the clickable nav button. Given an href it is a link,
+// the <a> upstream renders with asChild for a navigation item. Mark the
+// current item active with html.DataAttr("active", "true") (and
+// aria-current="page" on a link). A leading icon stays visible when the
 // sidebar collapses; the label clips.
 func SidebarMenuButton(attribsChildren ...any) *mx.Element {
 	e := html.Button(attribsChildren...)
-	if e.AttribIndex("type") < 0 {
+	e.Name = renderTag(e, "button")
+	if e.Name == "button" && e.AttribIndex("type") < 0 {
 		e.Attribs = append(e.Attribs, html.Type("button"))
 	}
 	return StyleSlot(e, "sidebar-menu-button",

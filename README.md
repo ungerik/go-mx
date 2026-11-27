@@ -20,8 +20,11 @@ see [docs/why-go-mx.md](docs/why-go-mx.md).
 
 - **[Documentation site](https://ungerik.github.io/go-mx/)** — overview, the
   `html`, `shadcn`, `shadcn/magicui` and `hx` tutorials and how-to guides, the
-  public knowledge layer guide, and the rendered component gallery. (GitHub Pages, served from
-  [`docs/`](docs/).)
+  public knowledge layer guide, every package README, the rendered component
+  gallery and static snapshots of the example servers. Rendered by go-mx itself
+  from the Markdown in [`docs/`](docs/) and the READMEs by
+  [`tools/gen-docs-site`](tools/gen-docs-site/main.go), and deployed to GitHub
+  Pages from CI.
 - **[Component gallery](https://ungerik.github.io/go-mx/shadcn/gallery/)** — every
   ported shadcn/ui and Magic UI component shown next to its Go source. Built by
   [`cmd/shadcn-gallery`](cmd/shadcn-gallery/README.md), which also serves it

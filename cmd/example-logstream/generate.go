@@ -205,7 +205,12 @@ func encode(s string) string {
 	return string(b)
 }
 
-func stamp() string { return time.Now().Format("2006-01-02T15:04:05.000Z07:00") }
+func stamp() string { return now().Format("2006-01-02T15:04:05.000Z07:00") }
+
+// now is the clock the generated time stamps read. The static snapshot
+// replaces it with a fixed one, so the published lines do not change with the
+// day the site is built (see snapshot.go).
+var now = time.Now
 
 func pick(rnd *rand.Rand, options ...string) string {
 	return options[rnd.IntN(len(options))]

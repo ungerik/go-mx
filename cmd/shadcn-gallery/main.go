@@ -14,6 +14,7 @@
 //	go run ./cmd/shadcn-gallery                      # serve on http://localhost:8080
 //	go run ./cmd/shadcn-gallery -out ./dist          # write static files to ./dist, then exit
 //	go run ./cmd/shadcn-gallery -static-highlight …   # either mode, highlighting the Code tab server-side
+//	go run ./cmd/shadcn-gallery -home ../../index.html …   # link back to the site the gallery is part of
 //
 // In both modes -static-highlight chooses server-side (highlight package) over
 // client-side (Shiki) Code-tab highlighting. The pages link to each other with
@@ -650,6 +651,8 @@ func main() {
 		"if set, write the gallery as static HTML files into this directory and exit, instead of serving")
 	flag.BoolVar(&staticHighlight, "static-highlight", false,
 		"highlight the Code tab server-side with the highlight package instead of client-side Shiki")
+	flag.StringVar(&homeHref, "home", "",
+		"if set, the sidebar links to this home page of the site the gallery is published in, a URL relative to the gallery index (e.g. ../../index.html)")
 	flag.Parse()
 
 	reg := NewRegistry(docs())

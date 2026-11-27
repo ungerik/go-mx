@@ -143,8 +143,8 @@ Every replacement above gives something up:
   `shadcn/TODOS.md` is limited to effects CSS cannot express, such as
   following the pointer or drawing on a canvas.
 - **Draw randomness in the browser** with a tiny inline script. It would keep
-  sparkles moving, but give up deterministic markup, which caching and the
-  gallery's golden output rely on.
+  sparkles moving, but give up deterministic markup, which caching and
+  golden-file tests rely on.
 
 ## Related
 

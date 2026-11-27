@@ -30,8 +30,9 @@ before the first tag.
 
 **Context:** V1-AUDIT.md §1 and D1. The split moves `cmd/shadcn-gallery`,
 `cmd/example-form` and `cmd/example-sse` into the shadcn module, adds
-replace + placeholder pairs, and changes the gallery CI job and the Tailwind
-`@source` path. `logview` stays in the root module only after it drops its
+replace + placeholder pairs, and changes the documentation site build
+(`tools/gen-docs-site/examples.go` runs the gallery and the example servers by
+their root-module paths) and the Tailwind `@source` path. `logview` stays in the root module only after it drops its
 `shadcn` import; `shadcn/clsx` can move to `shadcn/internal/clsx`.
 
 **Effort:** S to decide; L to split
@@ -387,8 +388,7 @@ module, and after the tag `apidiff`/`gorelease` against the latest tag; add
 `func Example`s for the main entry points; raise `svg`, `pdf` and `html` above
 60% coverage; replace the `[Unreleased]` changelog with a short `[1.0.0]`
 entry; write the compatibility statement; give every nested module a LICENSE;
-add `docs/go.mod` so the gallery stays out of the module zip; delete `cmd/mx.go`
-and the commented-out code.
+delete `cmd/mx.go` and the commented-out code.
 
 **Why:** These make the v1 promise checkable and the first release readable.
 
@@ -852,6 +852,74 @@ head, or the file-name fallback the `.txt` case uses.
 **Priority:** P3
 **Depends on:** None
 
+## docs site
+
+### Compile the site's Tailwind CSS in CI instead of in the browser
+
+**What:** Run the Tailwind v4 standalone CLI in the `Pages` workflow over the
+generated HTML and link the compiled stylesheet, instead of loading
+`@tailwindcss/browser` from jsDelivr on every page of the documentation site
+and the gallery.
+
+**Why:** The browser build compiles the theme and every class at runtime: the
+site depends on a CDN script, shows a brief unstyled first paint, and runs
+the Tailwind compiler on every page view. The site is a showcase of
+server-rendered HTML, so it should not need client-side CSS compilation.
+
+**Context:** `internal/shadcntheme.Head` emits the `text/tailwindcss` style
+block and the CDN script for both `cmd/shadcn-gallery` and
+`tools/gen-docs-site`. The standalone CLI is a single binary, so no npm is
+needed; `magicui.CSS` and the docs' prose rules (`docsCSS` in
+`tools/gen-docs-site/layout.go`) are Tailwind input too. A `-tailwind` mode of
+both commands could emit a `<link>` instead of the style block. Deferred from
+the docs-site PR to keep it to one change.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** None
+
+### Close the blind spots of the docs site build checks
+
+**What:** Three checks of the site build that pass things they should not:
+`checkLinks` reads only double-quoted `href`/`src`, so a root-absolute
+`action`, `formaction`, `hx-*` URL or `srcset` goes unchecked (the form
+snapshots post to `action="/admin/profile"`, stopped only by
+`onsubmit="return false"`); `discoverPages` refuses two pages published as one
+file but not a page colliding with a generated file (`docs/examples/index.md`,
+`docs/shadcn/gallery/index.md`, `docs/sitemap.xml`); and
+`snapshot.InsertAfterStartTags` ends the start tag at the first `>`, which an
+attribute value such as a Tailwind `[&>form]:flex` class can contain.
+
+**Why:** Each lets a broken page be published without the build failing.
+None is triggered by the repository today.
+
+**Context:** `tools/gen-docs-site/linkcheck.go`, `tools/gen-docs-site/pages.go`
+and `build.go`, `internal/snapshot/snapshot.go`. Found by the adversarial
+review of the docs-site PR, deferred to keep that PR to its change. A
+neutral `action` in the form snapshots would come with the stricter check.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
+### Live examples on the documentation site
+
+**What:** Decide whether the example servers get a live deployment linked
+from the site, next to their static snapshots.
+
+**Why:** GitHub Pages serves files only, so the snapshots cannot show what the
+examples are about: submitting the reflected form, the SSE chat arriving token
+by token, the log stream's search and reconnect. A reader has to clone the
+repository and `go run` them.
+
+**Context:** `tools/gen-docs-site/examples.go` lists the snapshots; each
+snapshot's note carries the `go run` command. A host for long-lived SSE
+connections costs money and needs abuse limits.
+
+**Effort:** M
+**Priority:** P4
+**Depends on:** None
+
 ## doc
 
 ### Finish or delete the unfinished `doc` package before v1.0?
@@ -874,6 +942,24 @@ would freeze it as it is; V1-AUDIT.md §1 and §3.6 W5.
 **Depends on:** None
 
 ## Completed
+
+### Pin the Tailwind browser build the demo pages load
+
+**What:** Load `@tailwindcss/browser` at an exact version with an SRI hash,
+the way `hx.ScriptFromCDN` loads htmx.
+
+**Why:** `shadcntheme.TailwindBrowserURL` is `@tailwindcss/browser@4`, a
+floating major: a new minor release changes the gallery and the docs site
+without a commit, and nothing checks the script's integrity.
+
+**Context:** `internal/shadcntheme/shadcntheme.go`; `hx/htmx.go` and its
+`MX_CHECK_CDN` test are the pattern. Moot if the CSS is compiled in CI (the
+item above).
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+**Completed:** 2026-11-27 — `shadcntheme.TailwindBrowserURL` loads 4.3.5 at an exact URL with `TailwindBrowserIntegrity` and anonymous crossorigin; `TestTailwindBrowserIntegrity` checks the hash when `MX_CHECK_CDN` is set.
 
 ### `NewDocument` repeats `NewElement`'s argument sorting
 

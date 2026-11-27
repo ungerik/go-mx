@@ -10,9 +10,9 @@ import (
 func BreadcrumbDemo() mx.Component {
 	return shadcn.Breadcrumb(
 		shadcn.BreadcrumbList(
-			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("/"), "Home")),
+			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("#"), "Home")),
 			shadcn.BreadcrumbSeparator(),
-			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("/components"), "Components")),
+			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("#"), "Components")),
 			shadcn.BreadcrumbSeparator(),
 			shadcn.BreadcrumbItem(shadcn.BreadcrumbPage("Breadcrumb")),
 		),
@@ -23,11 +23,11 @@ func BreadcrumbDemo() mx.Component {
 func BreadcrumbWithEllipsis() mx.Component {
 	return shadcn.Breadcrumb(
 		shadcn.BreadcrumbList(
-			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("/"), "Home")),
+			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("#"), "Home")),
 			shadcn.BreadcrumbSeparator(),
 			shadcn.BreadcrumbItem(shadcn.BreadcrumbEllipsis()),
 			shadcn.BreadcrumbSeparator(),
-			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("/components"), "Components")),
+			shadcn.BreadcrumbItem(shadcn.BreadcrumbLink(html.HRef("#"), "Components")),
 			shadcn.BreadcrumbSeparator(),
 			shadcn.BreadcrumbItem(shadcn.BreadcrumbPage("Breadcrumb")),
 		),

@@ -16,7 +16,7 @@ func AttachmentDemo() mx.Component {
 				shadcn.AttachmentTitle("quarterly-report.pdf"),
 				shadcn.AttachmentDescription("PDF · 2.4 MB"),
 			),
-			shadcn.AttachmentTrigger(html.HRef("#attachment"), html.Attrib("aria-label", "Open quarterly-report.pdf")),
+			shadcn.AttachmentTrigger(html.HRef("#"), html.Attrib("aria-label", "Open quarterly-report.pdf")),
 		),
 		shadcn.Attachment(shadcn.AttachmentUploading, "", "",
 			shadcn.AttachmentMedia("", shadcn.Spinner()),

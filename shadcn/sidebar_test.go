@@ -71,3 +71,16 @@ func TestSidebarComposition(t *testing.T) {
 		}
 	}
 }
+
+// TestSidebarMenuButtonLink checks that a menu button given an href is a link,
+// as upstream's asChild navigation item, without the type a button gets.
+func TestSidebarMenuButtonLink(t *testing.T) {
+	link := render(t, SidebarMenuButton(html.HRef("/docs"), "Docs"))
+	if !strings.HasPrefix(link, "<a ") || strings.Contains(link, "type=") || !strings.Contains(link, `href="/docs"`) {
+		t.Errorf("not a link: %s", link)
+	}
+	button := render(t, SidebarMenuButton("Run"))
+	if !strings.HasPrefix(button, "<button ") || !strings.Contains(button, `type="button"`) {
+		t.Errorf("not a button: %s", button)
+	}
+}

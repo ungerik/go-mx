@@ -1,12 +1,12 @@
 package main
 
 import (
-	_ "embed"
 	"strings"
 
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/highlight"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/internal/shadcntheme"
 	"github.com/ungerik/go-mx/shadcn"
 	"github.com/ungerik/go-mx/shadcn/magicui"
 )
@@ -34,12 +34,11 @@ func link(currentSlug, path string) string {
 	return "../../" + path
 }
 
-// themeCSS is the shadcn/ui new-york-v4 globals.css, injected into a
-// <style type="text/tailwindcss"> block that the @tailwindcss/browser CDN build
-// compiles at runtime. See theme.css for the full note.
-//
-//go:embed theme.css
-var themeCSS string
+// homeHref is the relative href from the gallery index to the home page of
+// the site the gallery is published in, set once from the -home flag in main.
+// Empty (the default) leaves the link out, as for the gallery served on its
+// own.
+var homeHref string
 
 // page builds the full HTML document for one gallery route: the shared <head>
 // (Tailwind CDN + theme), then the sidebar-and-main layout around content.
@@ -53,9 +52,11 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 }
 
 // head wires up the <head> of the page of d (nil for the index), no build
-// step. Tailwind v4 is always loaded via @tailwindcss/browser: the theme
-// tokens (see tailwindInput) go in a <style type="text/tailwindcss"> block,
-// and the script compiles them plus the classes it finds in the live DOM.
+// step. Tailwind v4 is always loaded via @tailwindcss/browser
+// ([shadcntheme.Head], shared with the documentation site): the theme tokens
+// go in a <style type="text/tailwindcss"> block, plus magicui.CSS on a Magic
+// UI page (see extraCSS), and the script compiles them plus the classes it
+// finds in the live DOM.
 //
 // The Code tab's highlighting is wired here too and depends on staticHighlight:
 //
@@ -67,11 +68,7 @@ func page(reg *Registry, currentSlug, title string, content mx.Component) *html.
 //     <span class="hl-…"> markup staticCodeBlock already rendered server-side;
 //     no client-side script and no CDN dependency for the code blocks.
 func head(d *ComponentDoc) mx.Component {
-	comps := mx.Components{
-		html.ScriptJS(themeInitScript),
-		html.Element("style", html.Type("text/tailwindcss"), html.Raw(tailwindInput(d))),
-		html.ScriptSrc("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"),
-	}
+	comps := shadcntheme.Head(extraCSS(d)...)
 	if staticHighlight {
 		// The code blocks render with a dark background regardless of page
 		// theme (matching the dynamic Shiki block), so the dark theme is used.
@@ -82,22 +79,14 @@ func head(d *ComponentDoc) mx.Component {
 	return comps
 }
 
-// tailwindInput is the Tailwind CSS input of a page: the theme, plus
-// magicui.CSS on a Magic UI page, the only pages that use its animations.
-func tailwindInput(d *ComponentDoc) string {
+// extraCSS is the Tailwind CSS input a page adds to the theme: magicui.CSS on
+// a Magic UI page, the only pages that use its animations.
+func extraCSS(d *ComponentDoc) []string {
 	if d != nil && d.Group == magicUIGroup {
-		return themeCSS + "\n" + magicui.CSS
+		return []string{magicui.CSS}
 	}
-	return themeCSS
+	return nil
 }
-
-// themeInitScript applies the light/dark choice before the body renders, so the
-// preference carries across full-page navigations with no flash of the wrong
-// mode. It runs synchronously during head parsing. Precedence: a ?theme=dark or
-// ?theme=light query param wins and is persisted (so it carries forward like
-// using the toggle); otherwise the value saved by the sidebar Theme toggle (see
-// layout) is used.
-const themeInitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}`
 
 // shikiScript highlights every Go code block in the browser with Shiki
 // (https://shiki.style, MIT) loaded from a pinned ESM CDN, using its bundled
@@ -129,8 +118,13 @@ func layout(reg *Registry, currentSlug string, content mx.Component) mx.Componen
 				html.DivClass("flex items-center justify-between border-b px-4 py-3",
 					html.AHRef(link(currentSlug, "index.html"), html.Class("text-sm font-semibold"), "shadcn · go-mx"),
 					shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM,
-						html.OnClick("localStorage.theme=document.documentElement.classList.toggle('dark')?'dark':'light'"),
+						html.OnClick(shadcntheme.ToggleScript),
 						"Theme"),
+				),
+				mx.If(homeHref != "",
+					html.AHRef(link(currentSlug, homeHref),
+						html.Class("block border-b px-4 py-2 text-xs text-muted-foreground hover:text-foreground"),
+						"← go-mx documentation"),
 				),
 				html.Nav(html.Class("flex-1 space-y-0.5 overflow-y-auto p-3"),
 					sidebarLinks(reg, currentSlug),

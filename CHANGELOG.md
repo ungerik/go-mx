@@ -15,6 +15,44 @@ API is still free to change.
 
 ### Added
 
+- **`highlight.OneMonokaiTheme`**, a dark theme with the colors of the One
+  Monokai editor theme, next to the GitHub-like `LightTheme` and `DarkTheme`.
+  The documentation site colors its code blocks with `LightTheme` in light
+  mode and `OneMonokaiTheme` in dark mode.
+- **`highlight.ParseVSCodeTheme` and `LoadVSCodeTheme`** turn a VS Code color
+  theme file (as VS Code and Cursor theme extensions ship it, JSON with
+  comments) into a `highlight.Theme`. `LoadVSCodeTheme` reads the file from
+  an `fs.FS` and follows its `include` chain; `ParseVSCodeTheme` takes the
+  bytes of a theme without one and rejects a file that has one. Each token
+  class takes the color the theme gives the matching scope of VS Code's Go
+  grammar; colors must be hex values, so a theme file cannot inject CSS.
+- **The documentation site is rendered by go-mx and deployed from CI.**
+  `tools/gen-docs-site` (in the `tools` module, so goldmark stays out of the
+  library's `go.mod`) renders every Markdown file of the repository — the
+  `docs/` guides at their existing URLs, every package README, the design
+  notes and this changelog below `/repo/` — with goldmark and the GitHub
+  Flavored Markdown extensions into pages built from `html` and `shadcn` in
+  the component gallery's theme, Go code highlighted server-side by
+  `highlight`. Links between Markdown files become relative links between the
+  pages, links to other files go to GitHub, and a link that resolves to
+  nothing fails the build, as does any broken internal link or fragment of the
+  written site. Next to the pages it writes the gallery, static snapshots of
+  the example servers, the reference PDFs of the `pdf` golden tests, and
+  through `web` a `sitemap.xml`, an `llms.txt` and a Markdown alternate of
+  every page. The new `Pages` workflow builds it on every pull request and
+  deploys it to <https://ungerik.github.io/go-mx/> on every push to `main`.
+- **Example servers write static snapshots.** `cmd/example-form`,
+  `cmd/example-sse`, `cmd/example-logstream` and `cmd/highlight-demo` take
+  `-snapshot DIR`: they fetch their own pages from their handler and write
+  them as static files for the documentation site, each with a note that it is
+  a snapshot and the `go run` command of the live version; `-snapshot-index`
+  links that note to the page listing all examples. The streaming
+  examples show the state their stream ends in, which is the finished
+  transcript for the chat and a fixed batch of log lines generated from the
+  seed for the log view.
+- **`cmd/shadcn-gallery -home`** links the gallery's sidebar back to the home
+  page of the site it is published in.
+
 - **`shadcn/magicui`, a port of Magic UI.** 41 components of
   [Magic UI](https://magicui.design) (the animated effects built on
   shadcn/ui's tokens), transcribed from `magicuidesign/magicui` at
@@ -701,6 +739,17 @@ API is still free to change.
 
 ### Changed
 
+- **`shadcn.SidebarMenuButton` given an `href` is a link.** It renders an
+  `<a>` instead of a `<button>`, upstream's `asChild` navigation item, so a
+  sidebar menu can navigate without a script.
+- **The documentation site uses the shadcn Sidebar and a mode toggle.** Its
+  navigation is `shadcn.Sidebar` with the site's own classes merged over the
+  defaults (prominent group labels, a sticky column that collapses out of
+  sight), and the theme button became shadcn/ui's mode toggle: a sun or moon
+  icon opening a menu with Light, Dark and System, where System follows the
+  operating system's setting. Without a saved choice the demo pages now follow
+  the system instead of starting light. Footnote references show in brackets,
+  as on GitHub.
 - **`shadcn/magicui` components left at their defaults write no `style`
   attribute.** A Content-Security-Policy without `'unsafe-inline'` in
   `style-src` makes the browser ignore every `style` attribute, and every
@@ -719,6 +768,21 @@ API is still free to change.
   BorderBeam's width and the corner radius of its path both read
   `--border-beam-size`, and its border width is inherited from the parent,
   since the caller's classes go to the beam.
+
+- **The gallery and the documentation site share one theme head.**
+  `theme.css`, the shadcn/ui new-york-v4 stylesheet the tutorials tell readers
+  to copy, is now `internal/shadcntheme/theme.css` (was
+  `cmd/shadcn-gallery/theme.css`), next to the `<head>` wiring both use. That
+  head loads Tailwind's browser build at a pinned version (4.3.5) with a
+  Subresource Integrity hash instead of the floating `@4` tag, so a new
+  Tailwind release can no longer restyle the demo pages without a commit.
+  The gallery's output is otherwise unchanged apart from its demo links and
+  one command: the breadcrumb examples link `#` instead of the root paths `/`
+  and `/components`, which do not exist where the gallery is published, the
+  attachment, marker and trace examples link `#` instead of a fragment of
+  their own name, and the floating `CodeBlock` example shows the gallery
+  command writing to `./dist`.
+
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
   with `Cn`, set one `data-slot`, dedupe attributes), formerly the unexported
@@ -1014,6 +1078,12 @@ API is still free to change.
 
 ### Removed
 
+- **The committed gallery and the Jekyll configuration.** `docs/shadcn/gallery/`
+  is no longer committed and the `Gallery up to date` CI job is gone: the
+  documentation site build writes the gallery and fails when it does not
+  build. `docs/_config.yml` went with Jekyll; `docs/` holds only the Markdown
+  sources now.
+
 - **The `fpdf` and `wordpress` nested modules moved to their own
   repositories.** `github.com/ungerik/go-mx/fpdf` is now
   [`github.com/ungerik/go-mx-fpdf`](https://github.com/ungerik/go-mx-fpdf) and
@@ -1039,6 +1109,13 @@ API is still free to change.
 
 ### Fixed
 
+- **`shadcn.Sidebar`'s script no longer leaks global variables.** Its
+  restore-on-load part declared a top-level `var w` and `var m`, which share
+  the page's global scope with every other inline script, so a page script
+  using either name was overwritten. On the documentation site, which uses
+  both, every choice in the mode toggle threw. The script now keeps its
+  variables in a function scope, and a headless Chrome test runs it next to
+  the theme script.
 - **`magicui.WarpBackground` clips its tunnel.** Its class
   `[clipPath:inset(0)]`, the React style key carried over from upstream, is
   no CSS property, so Tailwind generated nothing for it; it is

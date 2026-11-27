@@ -27,6 +27,9 @@
 //     resumes from the next event — so the transcript completes exactly once.
 //     If resumption were broken the whole transcript would appear twice, which
 //     is what a stream without event ids does on every dropped connection.
+//
+// With -snapshot DIR it writes a static page of the finished transcript
+// instead of serving (see snapshot.go); the documentation site publishes it.
 package main
 
 import (
@@ -35,12 +38,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/domonda/go-errs"
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/html"
 	"github.com/ungerik/go-mx/hx"
+	"github.com/ungerik/go-mx/internal/snapshot"
 	"github.com/ungerik/go-mx/shadcn"
 )
 
@@ -175,16 +180,23 @@ func streamSteps() []mx.Component {
 	// process, which is what makes resuming into it work at all. mx.UniqueID
 	// could not do this: its counter yields a different id every render, and
 	// restarts from scratch when the process does.
-	steps = append(steps, html.Div(
-		html.Style("margin-bottom:.5rem"),
-		html.Strong("assistant: "),
-		html.Span(mx.KeyedID(replyKey)),
-	))
+	steps = append(steps, reply())
 	target := "#" + mx.KeyedIDValue(replyKey)
 	for _, token := range replyTokens {
 		steps = append(steps, html.Span(hx.SwapOOB(hx.SwapBeforeEnd, target), token))
 	}
 	return steps
+}
+
+// reply renders the assistant message the reply tokens are appended to,
+// holding the tokens given: none when the stream sends it, all of them in the
+// end state the static snapshot shows (see snapshot.go).
+func reply(tokens ...string) mx.Component {
+	return html.Div(
+		html.Style("margin-bottom:.5rem"),
+		html.Strong("assistant: "),
+		html.Span(mx.KeyedID(replyKey), strings.Join(tokens, "")),
+	)
 }
 
 // dropIndex is the step -drop cuts the connection after: midway through the
@@ -278,20 +290,32 @@ func streamHandler(fail, drop bool) http.HandlerFunc {
 	}
 }
 
+// newHandler serves the page at / and the stream at /stream.
+func newHandler(fail, drop bool) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stream", streamHandler(fail, drop))
+	mux.HandleFunc("/", mx.ComponentHTTPHandler(page(), mx.DefaultWriterFactory,
+		http.Header{"Content-Type": {mx.ContentTypeHTML}}))
+	return mux
+}
+
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	fail := flag.Bool("fail", false, "report an in-band error mid-stream instead of finishing")
 	drop := flag.Bool("drop", false, "cut the first connection mid-reply, so the browser reconnects and resumes")
+	snap := snapshot.RegisterFlags(flag.CommandLine, "cmd/example-sse")
 	flag.Parse()
+
+	if snap.Enabled() {
+		if err := writeSnapshot(snap, newHandler(false, false)); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	// What the client is shown a generic text for, the server logs.
 	mx.ReportError = func(_ context.Context, err error) { log.Printf("hidden from the client: %v", err) }
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/stream", streamHandler(*fail, *drop))
-	mux.HandleFunc("/", mx.ComponentHTTPHandler(page(), mx.DefaultWriterFactory,
-		http.Header{"Content-Type": {mx.ContentTypeHTML}}))
-
 	log.Printf("listening on %s", *addr)
-	log.Fatal(http.ListenAndServe(*addr, mux))
+	log.Fatal(http.ListenAndServe(*addr, newHandler(*fail, *drop)))
 }

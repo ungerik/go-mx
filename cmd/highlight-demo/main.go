@@ -13,6 +13,9 @@
 //	go run ./cmd/highlight-demo
 //
 // Then browse to http://localhost:8080.
+//
+// With -snapshot DIR it writes the page in both themes as static files
+// instead of serving (see snapshot.go); the documentation site publishes them.
 package main
 
 import (
@@ -23,6 +26,7 @@ import (
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/highlight"
 	"github.com/ungerik/go-mx/html"
+	"github.com/ungerik/go-mx/internal/snapshot"
 )
 
 // sample is the Go source highlighted on the demo page.
@@ -46,7 +50,15 @@ func main() {
 
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
+	snap := snapshot.RegisterFlags(flag.CommandLine, "cmd/highlight-demo")
 	flag.Parse()
+
+	if snap.Enabled() {
+		if err := writeSnapshot(snap); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	http.HandleFunc("/", handle)
 

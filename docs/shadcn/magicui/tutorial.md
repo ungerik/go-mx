@@ -88,7 +88,7 @@ The components emit Tailwind v4 classes on shadcn's theme tokens. Two pieces of
 CSS turn them into a moving page:
 
 - **The shadcn theme.** Copy
-  [`cmd/shadcn-gallery/theme.css`](https://github.com/ungerik/go-mx/blob/main/cmd/shadcn-gallery/theme.css)
+  [`internal/shadcntheme/theme.css`](https://github.com/ungerik/go-mx/blob/main/internal/shadcntheme/theme.css)
   from the go-mx repo into your project as `theme.css`. It is shadcn's
   `globals.css`: the `--background`, `--primary`, … tokens.
 - **`magicui.CSS`.** A Go string constant in the package holding every

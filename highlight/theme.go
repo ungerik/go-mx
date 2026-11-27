@@ -135,3 +135,28 @@ var DarkTheme = Theme{
 		ClassIdent:       {Color: "#c9d1d9"},
 	},
 }
+
+// OneMonokaiTheme is the dark color scheme of the One Monokai editor theme
+// (https://github.com/azemoh/vscode-one-monokai, MIT licensed), One Dark's
+// background with Monokai's token colors. Its colors are mapped onto the
+// token classes the way the editor colors Go: keywords and operators red,
+// predeclared types and values cyan, function names green, strings gold and
+// numbers purple; only the color values are reused.
+var OneMonokaiTheme = Theme{
+	Name:       "one-monokai",
+	Background: "#282c34",
+	Foreground: "#abb2bf",
+	Styles: map[TokenClass]Style{
+		ClassKeyword:     {Color: "#e06c75"},
+		ClassType:        {Color: "#56b6c2"},
+		ClassFunction:    {Color: "#98c379"},
+		ClassBuiltin:     {Color: "#98c379"},
+		ClassConstant:    {Color: "#56b6c2"},
+		ClassString:      {Color: "#e5c07b"},
+		ClassNumber:      {Color: "#c678dd"},
+		ClassComment:     {Color: "#676f7d"},
+		ClassOperator:    {Color: "#e06c75"},
+		ClassPunctuation: {Color: "#abb2bf"},
+		ClassIdent:       {Color: "#abb2bf"},
+	},
+}
