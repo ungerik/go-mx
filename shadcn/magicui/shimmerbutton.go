@@ -37,13 +37,19 @@ type ShimmerButtonOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func ShimmerButton(opts ShimmerButtonOptions, attribsChildren ...any) *mx.Element {
+	// The defaults are classes, so a ShimmerButton left at them needs no
+	// style attribute (see "Strict Content-Security-Policy" in the README);
+	// only the options set go into style.
+	var speed string
+	if opts.ShimmerDuration > 0 {
+		speed = seconds(opts.ShimmerDuration, 0)
+	}
 	style, err := styleVars(
-		"--spread", "90deg",
-		"--shimmer-color", or(opts.ShimmerColor, "#ffffff"),
-		"--shimmer-button-radius", or(opts.BorderRadius, "100px"),
-		"--speed", seconds(opts.ShimmerDuration, 3*time.Second),
-		"--cut", or(opts.ShimmerSize, "0.05em"),
-		"--bg", or(opts.Background, "rgba(0, 0, 0, 1)"),
+		"--shimmer-color", opts.ShimmerColor,
+		"--shimmer-button-radius", opts.BorderRadius,
+		"--speed", speed,
+		"--cut", opts.ShimmerSize,
+		"--bg", opts.Background,
 	)
 	if err != nil {
 		return mx.NewErrElement(err)
@@ -78,7 +84,8 @@ func ShimmerButton(opts ShimmerButtonOptions, attribsChildren ...any) *mx.Elemen
 		),
 	)
 	return finish(root, "shimmer-button",
-		"group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--shimmer-button-radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px",
+		"[--spread:90deg] [--shimmer-color:#ffffff] [--shimmer-button-radius:100px] [--speed:3s] [--cut:0.05em] [--bg:rgba(0,0,0,1)] "+
+			"group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--shimmer-button-radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px",
 		style,
 	)
 }

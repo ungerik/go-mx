@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,21 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. The padding is the ring's width (the mask
+   cuts out the content box), so it is here too, where Cn keeps it beside a
+   caller's p-* class. Tailwind sorts p-* after this rule, so the padding
+   doubles the class to outrank it, as the inline padding did. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  &.shine-border-mask {
+    padding: var(--border-width);
+  }
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +635,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1028,31 +1059,31 @@
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <section id="photos">
                       <div class="columns-2 gap-4 sm:columns-3">
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.29s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.29s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/1/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 1"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.34s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.34s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/2/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 2"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.39s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.39s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/3/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 3"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.44s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.44s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/4/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 4"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.49s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.49s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/5/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 5"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.54s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.54s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/6/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 6"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.59s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.59s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/7/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 7"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.64s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.64s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/8/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 8"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.69s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in-view">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.69s" class="animate-blur-fade-in-view [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/9/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 9"/>
                         </div>
                       </div>
@@ -1076,31 +1107,31 @@
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <section id="photos-on-load">
                       <div class="columns-2 gap-4 sm:columns-3">
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.29s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.29s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/1/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 1"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.34s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.34s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/2/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 2"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.39s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.39s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/3/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 3"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.44s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.44s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/4/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 4"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.49s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.49s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/5/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 5"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.54s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.54s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/6/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 6"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.59s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.59s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/7/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 7"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.64s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.64s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/8/600/800" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 8"/>
                         </div>
-                        <div data-slot="blur-fade" style="--blur-fade-duration:0.4s;--blur-fade-delay:0.69s;--blur-fade-blur:6px;--blur-fade-y:-6px" class="animate-blur-fade-in">
+                        <div data-slot="blur-fade" style="--blur-fade-delay:0.69s" class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]">
                           <img src="https://picsum.photos/seed/9/800/600" class="mb-4 size-full rounded-lg object-contain" alt="Random stock image 9"/>
                         </div>
                       </div>

@@ -138,7 +138,7 @@ type LineShadowTextOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func LineShadowText(opts LineShadowTextOptions, attribsChildren ...any) *mx.Element {
-	style, err := styleVars("--shadow-color", or(opts.ShadowColor, "black"))
+	style, err := styleVars("--shadow-color", opts.ShadowColor)
 	if err != nil {
 		return mx.NewErrElement(err)
 	}
@@ -152,7 +152,7 @@ func LineShadowText(opts LineShadowTextOptions, attribsChildren ...any) *mx.Elem
 	}
 	root.Attribs = append(root.Attribs, html.DataAttr("text", text))
 	return finish(root, "line-shadow-text",
-		"relative z-0 inline-flex after:absolute after:top-[0.04em] after:left-[0.04em] after:content-[attr(data-text)] after:bg-[linear-gradient(45deg,transparent_45%,var(--shadow-color)_45%,var(--shadow-color)_55%,transparent_0)] after:-z-10 after:bg-size-[0.06em_0.06em] after:bg-clip-text after:text-transparent after:animate-line-shadow",
+		"[--shadow-color:black] relative z-0 inline-flex after:absolute after:top-[0.04em] after:left-[0.04em] after:content-[attr(data-text)] after:bg-[linear-gradient(45deg,transparent_45%,var(--shadow-color)_45%,var(--shadow-color)_55%,transparent_0)] after:-z-10 after:bg-size-[0.06em_0.06em] after:bg-clip-text after:text-transparent after:animate-line-shadow",
 		style,
 	)
 }

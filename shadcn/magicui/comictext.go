@@ -5,6 +5,17 @@ import (
 	"github.com/ungerik/go-mx/html"
 )
 
+// comicTextClasses are the lettering of a [ComicText]: red halftone dots
+// (#EF4444) on yellow (#FACC15), a black outline of 0.35px per rem of font
+// size, and a hard black and red drop shadow. One literal, so Tailwind finds
+// every class in the source.
+const comicTextClasses = "[--comic-text-font-size:5] text-[length:calc(var(--comic-text-font-size)*1rem)] " +
+	"[font-family:Bangers,Comic_Sans_MS,Impact,sans-serif] font-black uppercase [transform:skewX(-10deg)] " +
+	"[-webkit-text-stroke:calc(var(--comic-text-font-size)*0.35px)_#000000] " +
+	"[filter:drop-shadow(5px_5px_0px_#000000)_drop-shadow(3px_3px_0px_#EF4444)] " +
+	"bg-[#FACC15] bg-[radial-gradient(circle_at_1px_1px,#EF4444_1px,transparent_0)] bg-size-[8px_8px] bg-clip-text [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] " +
+	"text-center select-none animate-comic-text-pop"
+
 // ComicTextOptions configures a [ComicText]. The zero value is upstream's
 // default size of 5rem.
 type ComicTextOptions struct {
@@ -26,24 +37,12 @@ type ComicTextOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func ComicText(opts ComicTextOptions, attribsChildren ...any) *mx.Element {
-	const dotColor = "#EF4444"
-	const backgroundColor = "#FACC15"
-	fontSize := or(opts.FontSize, 5)
-	// No caller value reaches these declarations except the number fontSize,
-	// so they need no checkCSSValue (which would reject the quoted font
-	// names).
-	style := "font-size:" + num(fontSize) + "rem" +
-		";font-family:'Bangers', 'Comic Sans MS', 'Impact', sans-serif" +
-		";font-weight:900" +
-		";-webkit-text-stroke:" + px(fontSize*0.35) + " #000000" +
-		";transform:skewX(-10deg)" +
-		";text-transform:uppercase" +
-		";filter:drop-shadow(5px 5px 0px #000000) drop-shadow(3px 3px 0px " + dotColor + ")" +
-		";background-color:" + backgroundColor +
-		";background-image:radial-gradient(circle at 1px 1px, " + dotColor + " 1px, transparent 0)" +
-		";background-size:8px 8px" +
-		";background-clip:text" +
-		";-webkit-background-clip:text" +
-		";-webkit-text-fill-color:transparent"
-	return finish(html.Div(attribsChildren...), "comic-text", "text-center select-none animate-comic-text-pop", style)
+	// The lettering is comicTextClasses, with the size in
+	// --comic-text-font-size, so a ComicText at its default size needs no
+	// style attribute (see "Strict Content-Security-Policy" in the README).
+	var style string
+	if opts.FontSize != 0 {
+		style = "--comic-text-font-size:" + num(opts.FontSize)
+	}
+	return finish(html.Div(attribsChildren...), "comic-text", comicTextClasses, style)
 }

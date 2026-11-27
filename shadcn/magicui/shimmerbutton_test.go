@@ -12,7 +12,7 @@ func TestShimmerButtonDefault(t *testing.T) {
 	out := render(t, ShimmerButton(ShimmerButtonOptions{}, "Shimmer"))
 	mustContain(t, out,
 		`data-slot="shimmer-button"`, `type="button"`,
-		`--spread:90deg;--shimmer-color:#ffffff;--shimmer-button-radius:100px;--speed:3s;--cut:0.05em;--bg:rgba(0, 0, 0, 1)`,
+		"[--spread:90deg] [--shimmer-color:#ffffff] [--shimmer-button-radius:100px] [--speed:3s] [--cut:0.05em] [--bg:rgba(0,0,0,1)]",
 		"animate-shimmer-slide", "animate-spin-around", "[background:var(--bg)]", "inset-(--cut)",
 	)
 	// The label sits between the spark and the highlight, as upstream.

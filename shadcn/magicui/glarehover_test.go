@@ -11,8 +11,8 @@ import (
 func TestGlareHoverDefault(t *testing.T) {
 	out := render(t, GlareHover(GlareHoverOptions{}, html.Class("rounded-xl"), "card"))
 	mustContain(t, out, `data-slot="glare-hover"`,
-		`style="--gh-angle:-45deg;--gh-duration:650ms;--gh-size:250%;--gh-rgba:rgba(255,255,255,0.5);background:#000"`,
-		"relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent",
+		"[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000]",
+		"relative grid size-fit cursor-pointer place-items-center overflow-hidden",
 		"before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)]",
 		"before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out",
 		"hover:before:[background-position:100%_100%,0_0]", "rounded-xl", ">card</div>")
@@ -35,6 +35,9 @@ func TestGlareHoverOptions(t *testing.T) {
 	}
 	out = render(t, GlareHover(GlareHoverOptions{Color: "oklch(0.7 0.1 200)"}))
 	mustContain(t, out, "--gh-rgba:oklch(0.7 0.1 200)")
+	// Opacity without Color applies to the default white glare.
+	out = render(t, GlareHover(GlareHoverOptions{Opacity: 0.25}))
+	mustContain(t, out, "--gh-rgba:rgba(255,255,255,0.25)")
 }
 
 func TestGlareHoverInvalid(t *testing.T) {

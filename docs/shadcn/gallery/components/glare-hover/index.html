@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,21 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. The padding is the ring's width (the mask
+   cuts out the content box), so it is here too, where Cn keeps it beside a
+   caller's p-* class. Tailwind sorts p-* after this rule, so the padding
+   doubles the class to outrank it, as the inline padding did. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  &.shine-border-mask {
+    padding: var(--border-width);
+  }
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +635,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1026,7 +1057,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-glare-hover-demo-panel-preview" aria-labelledby="tab-glare-hover-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
-                    <div data-slot="glare-hover" style="--gh-angle:-45deg;--gh-duration:600ms;--gh-size:250%;--gh-rgba:rgba(255,255,255,0.5);background:#000" class="relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-xl">
+                    <div data-slot="glare-hover" style="--gh-duration:600ms" class="[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000] relative grid size-fit cursor-pointer place-items-center overflow-hidden before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-xl">
                       <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-[340px]">
                         <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
                           <div class="flex items-center justify-between">
@@ -1120,7 +1151,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-glare-hover-cta-panel-preview" aria-labelledby="tab-glare-hover-cta-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
-                    <div data-slot="glare-hover" style="--gh-angle:-45deg;--gh-duration:700ms;--gh-size:250%;--gh-rgba:rgba(80,80,80,0.5);background:#000" class="relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-xl">
+                    <div data-slot="glare-hover" style="--gh-duration:700ms;--gh-rgba:rgba(80,80,80,0.5)" class="[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000] relative grid size-fit cursor-pointer place-items-center overflow-hidden before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-xl">
                       <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-full text-center">
                         <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
                           <p class="text-muted-foreground text-xs font-medium tracking-widest uppercase">14-day free trial · No card required</p>
@@ -1163,7 +1194,7 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-glare-hover-alerts-panel-preview" aria-labelledby="tab-glare-hover-alerts-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div class="flex flex-col gap-3">
-                      <div data-slot="glare-hover" style="--gh-angle:-45deg;--gh-duration:550ms;--gh-size:250%;--gh-rgba:rgba(255,255,255,0.25);background:#000" class="relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-lg">
+                      <div data-slot="glare-hover" style="--gh-duration:550ms;--gh-rgba:rgba(255,255,255,0.25)" class="[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000] relative grid size-fit cursor-pointer place-items-center overflow-hidden before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] rounded-lg">
                         <div data-slot="alert" role="alert" class="relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&amp;>svg]:size-4 [&amp;>svg]:translate-y-0.5 [&amp;>svg]:text-current bg-card text-card-foreground [&amp;>svg~*]:pl-10">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0"></path>
@@ -1174,7 +1205,7 @@
                           <div data-slot="alert-description" class="col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&amp;_p]:leading-relaxed">Your plan expires in 3 days. Renew to keep access.</div>
                         </div>
                       </div>
-                      <div data-slot="glare-hover" style="--gh-angle:-45deg;--gh-duration:550ms;--gh-size:250%;--gh-rgba:rgba(255,96,112,0.25);background:#000" class="relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] w-full rounded-lg">
+                      <div data-slot="glare-hover" style="--gh-duration:550ms;--gh-rgba:rgba(255,96,112,0.25)" class="[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000] relative grid size-fit cursor-pointer place-items-center overflow-hidden before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] w-full rounded-lg">
                         <div data-slot="alert" role="alert" class="relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&amp;>svg]:size-4 [&amp;>svg]:translate-y-0.5 text-destructive *:data-[slot=alert-description]:text-destructive/90 [&amp;>svg]:text-current bg-background [&amp;>svg~*]:pl-10">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path>
@@ -1185,7 +1216,7 @@
                           <div data-slot="alert-description" class="col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&amp;_p]:leading-relaxed">Check your card details and try again.</div>
                         </div>
                       </div>
-                      <div data-slot="glare-hover" style="--gh-angle:-45deg;--gh-duration:550ms;--gh-size:250%;--gh-rgba:rgba(96,255,112,0.25);background:#000" class="relative grid size-fit cursor-pointer place-items-center overflow-hidden bg-transparent before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] w-full rounded-lg">
+                      <div data-slot="glare-hover" style="--gh-duration:550ms;--gh-rgba:rgba(96,255,112,0.25)" class="[--gh-angle:-45deg] [--gh-duration:650ms] [--gh-size:250%] [--gh-rgba:rgba(255,255,255,0.5)] bg-[#000] relative grid size-fit cursor-pointer place-items-center overflow-hidden before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-no-repeat before:content-[''] before:[background-image:linear-gradient(var(--gh-angle),transparent_60%,var(--gh-rgba)_70%,transparent,transparent_100%)] before:[background-size:var(--gh-size)_var(--gh-size),100%_100%] before:[background-position:-100%_-100%,0_0] before:transition-[background-position] before:duration-[var(--gh-duration)] before:ease-in-out hover:before:[background-position:100%_100%,0_0] w-full rounded-lg">
                         <div data-slot="alert" role="alert" class="relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&amp;>svg]:size-4 [&amp;>svg]:translate-y-0.5 [&amp;>svg]:text-current bg-card text-card-foreground [&amp;>svg~*]:pl-10">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="stroke-emerald-500">
                             <path d="M21.801 10A10 10 0 1 1 17 3.335"></path>

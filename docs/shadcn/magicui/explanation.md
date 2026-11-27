@@ -89,8 +89,15 @@ must be switched off in a reduced-motion block, every `@keyframes` must be
 used, every `animate-*` class in the Go source must be defined, and none may
 redefine one of Tailwind's own animations that `shadcn` components rely on.
 
-**Options that become CSS are validated.** Colors and lengths from options go
-into `style` as custom properties. A value that could end the declaration or
+**Defaults are classes; options that become CSS are validated.** An option
+left at its default is a class on the element, so a component at its
+defaults needs no `style` attribute, which a strict Content-Security-Policy
+would drop, and each component's root resets the values it reads, so a
+nested component of the same kind does not inherit them. The one exception
+is BorderBeam's border width, which the border inherits from the
+BorderBeam's parent, because the caller's classes go to the beam inside it.
+Colors and lengths
+from options that are set go into `style` as custom properties. A value that could end the declaration or
 load a resource (`;`, braces, angle brackets, quotes, backslashes, comment
 delimiters, unbalanced parentheses or brackets, `url(`) makes the component
 render an error instead.

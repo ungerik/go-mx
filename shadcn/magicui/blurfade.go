@@ -44,22 +44,38 @@ type BlurFadeOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func BlurFade(opts BlurFadeOptions, attribsChildren ...any) *mx.Element {
-	offset := or(opts.Offset, 6)
+	// The defaults are classes on the root, so a BlurFade left at them needs
+	// no style attribute (see "Strict Content-Security-Policy" in the
+	// README), and each root resets them, so a nested BlurFade does not
+	// inherit its parent's. Only the options set go into style.
 	var x, y string
-	switch opts.Direction.ValidOr(DirectionDown) {
-	case DirectionDown:
-		y = px(-offset)
-	case DirectionUp:
-		y = px(offset)
-	case DirectionRight:
-		x = px(-offset)
-	case DirectionLeft:
-		x = px(offset)
+	if opts.Offset != 0 || opts.Direction != "" {
+		offset := or(opts.Offset, 6)
+		x, y = "0px", "0px"
+		switch opts.Direction.ValidOr(DirectionDown) {
+		case DirectionDown:
+			y = px(-offset)
+		case DirectionUp:
+			y = px(offset)
+		case DirectionRight:
+			x = px(-offset)
+		case DirectionLeft:
+			x = px(offset)
+		}
+	}
+	var duration, delay string
+	if opts.Duration > 0 {
+		duration = seconds(opts.Duration, 0)
+	}
+	if opts.Delay != 0 {
+		// A negative Delay shortens upstream's 40ms base delay; one that
+		// cancels it falls back to the base.
+		delay = seconds(40*time.Millisecond+opts.Delay, 40*time.Millisecond)
 	}
 	style, err := styleVars(
-		"--blur-fade-duration", seconds(opts.Duration, 400*time.Millisecond),
-		"--blur-fade-delay", seconds(40*time.Millisecond+opts.Delay, 40*time.Millisecond),
-		"--blur-fade-blur", or(opts.Blur, "6px"),
+		"--blur-fade-duration", duration,
+		"--blur-fade-delay", delay,
+		"--blur-fade-blur", opts.Blur,
 		"--blur-fade-x", x,
 		"--blur-fade-y", y,
 	)
@@ -70,5 +86,7 @@ func BlurFade(opts BlurFadeOptions, attribsChildren ...any) *mx.Element {
 	if opts.InView {
 		animation = "animate-blur-fade-in-view"
 	}
-	return finish(html.Div(attribsChildren...), "blur-fade", animation, style)
+	return finish(html.Div(attribsChildren...), "blur-fade",
+		animation+" [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]",
+		style)
 }

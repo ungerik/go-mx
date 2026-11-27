@@ -76,7 +76,7 @@ func WarpBackground(opts WarpBackgroundOptions, attribsChildren ...any) *mx.Elem
 	rnd := newRand(opts.Seed)
 
 	tunnel := html.Div(ariaHidden, html.Style(style), html.Class(
-		"@container-[size] pointer-events-none absolute top-0 left-0 size-full overflow-hidden [clipPath:inset(0)] perspective-(--perspective) transform-3d"))
+		"@container-[size] pointer-events-none absolute top-0 left-0 size-full overflow-hidden [clip-path:inset(0)] perspective-(--perspective) transform-3d"))
 	cellsPerSide := math.Floor(100 / beamSize)
 	step := cellsPerSide / float64(beamsPerSide)
 	for _, sideClasses := range warpBackgroundSides {

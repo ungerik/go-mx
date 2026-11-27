@@ -10,11 +10,11 @@ import (
 func TestLineShadowText(t *testing.T) {
 	out := render(t, LineShadowText(LineShadowTextOptions{}, html.Class("italic"), "Fast"))
 	mustContain(t, out,
-		`<span `, `data-slot="line-shadow-text"`, `data-text="Fast"`, `style="--shadow-color:black"`,
+		`<span `, `data-slot="line-shadow-text"`, `data-text="Fast"`, "[--shadow-color:black]",
 		"after:content-[attr(data-text)]", "after:animate-line-shadow", "italic", ">Fast</span>",
 	)
 	out = render(t, LineShadowText(LineShadowTextOptions{ShadowColor: "white", As: LineShadowTextH2}, "a<", "b"))
-	mustContain(t, out, "<h2 ", `data-text="a&lt;b"`, "--shadow-color:white")
+	mustContain(t, out, "<h2 ", `data-text="a&lt;b"`, `style="--shadow-color:white"`)
 	if !strings.HasSuffix(out, "</h2>") {
 		t.Errorf("want an h2: %s", out)
 	}

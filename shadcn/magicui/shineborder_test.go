@@ -1,6 +1,8 @@
 package magicui
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,11 +13,25 @@ func TestShineBorderDefault(t *testing.T) {
 	out := render(t, ShineBorder(ShineBorderOptions{}))
 	mustContain(t, out,
 		`data-slot="shine-border"`, `aria-hidden="true"`,
-		"--border-width:1px;--duration:14s;",
-		"radial-gradient(transparent,transparent, #000000,transparent,transparent)",
-		"mask-composite:exclude", "-webkit-mask-composite:xor", "padding:var(--border-width)",
+		"[--border-width:1px] [--duration:14s]",
+		"bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)]",
+		"shine-border-mask",
 		"motion-safe:animate-shine", "rounded-[inherit]",
 	)
+	if strings.Contains(out, "style=") {
+		t.Errorf("the defaults need no style attribute: %s", out)
+	}
+}
+
+func TestShineBorderPaddingInUtility(t *testing.T) {
+	// The ring's width is the padding the mask cuts out, so it lives in the
+	// shine-border-mask utility where Cn keeps it beside a caller's p-* class,
+	// under a doubled class that outranks p-*, which Tailwind sorts later.
+	if !regexp.MustCompile(`@utility shine-border-mask \{[^}]*&\.shine-border-mask \{\s*padding: var\(--border-width\);`).MatchString(CSS) {
+		t.Error("shine-border-mask should set padding: var(--border-width) under &.shine-border-mask")
+	}
+	out := render(t, ShineBorder(ShineBorderOptions{BorderWidth: 3}, html.Class("p-2")))
+	mustContain(t, out, "shine-border-mask", "--border-width:3px")
 }
 
 func TestShineBorderOptions(t *testing.T) {

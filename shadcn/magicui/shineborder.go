@@ -32,36 +32,38 @@ type ShineBorderOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func ShineBorder(opts ShineBorderOptions, attribsChildren ...any) *mx.Element {
-	colors := opts.ShineColors
-	if len(colors) == 0 {
-		colors = []string{"#000000"}
-	}
-	for _, c := range colors {
+	for _, c := range opts.ShineColors {
 		if err := checkCSSValue("ShineColors", c); err != nil {
 			return mx.NewErrElement(err)
 		}
 	}
-	borderWidth := opts.BorderWidth
-	if borderWidth <= 0 {
-		borderWidth = 1
+	// The defaults and the fixed declarations are classes, so a ShineBorder
+	// left at its defaults needs no style attribute (see "Strict
+	// Content-Security-Policy" in the README); only the options set go into
+	// style.
+	var borderWidth, duration, gradient string
+	if opts.BorderWidth > 0 {
+		borderWidth = px(opts.BorderWidth)
+	}
+	if opts.Duration > 0 {
+		duration = seconds(opts.Duration, 0)
+	}
+	if len(opts.ShineColors) > 0 {
+		gradient = "radial-gradient(transparent,transparent, " + strings.Join(opts.ShineColors, ",") + ",transparent,transparent)"
 	}
 	style, err := styleVars(
-		"--border-width", px(borderWidth),
-		"--duration", seconds(opts.Duration, 14*time.Second),
-		"background-image", "radial-gradient(transparent,transparent, "+strings.Join(colors, ",")+",transparent,transparent)",
-		"background-size", "300% 300%",
-		"mask", "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-		"-webkit-mask", "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-		"-webkit-mask-composite", "xor",
-		"mask-composite", "exclude",
-		"padding", "var(--border-width)",
+		"--border-width", borderWidth,
+		"--duration", duration,
+		"background-image", gradient,
 	)
 	if err != nil {
 		return mx.NewErrElement(err)
 	}
 	root := html.Div(append([]any{ariaHidden}, attribsChildren...)...)
 	return finish(root, "shine-border",
-		"motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]",
+		"[--border-width:1px] [--duration:14s] bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)] bg-size-[300%_300%] "+
+			"shine-border-mask "+
+			"motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]",
 		style,
 	)
 }

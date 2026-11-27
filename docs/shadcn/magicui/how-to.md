@@ -11,6 +11,7 @@ rendered a Magic UI component before; if not, start with the
 
 - [Build the Magic UI CSS for production](#build-the-magic-ui-css-for-production)
 - [Change the speed or spacing of an animation](#change-the-speed-or-spacing-of-an-animation)
+- [Use the components under a strict Content-Security-Policy](#use-the-components-under-a-strict-content-security-policy)
 - [Play an entrance when it scrolls into view](#play-an-entrance-when-it-scrolls-into-view)
 - [Give a link the rainbow button look](#give-a-link-the-rainbow-button-look)
 - [Render the same markup on every request](#render-the-same-markup-on-every-request)
@@ -169,7 +170,10 @@ magicui.Marquee(magicui.MarqueeOptions{},
 ```
 
 A `style` attribute also wins over the component's own declarations: the
-component writes its variables first and your `style` after them.
+component writes its variables first and your `style` after them. A
+Content-Security-Policy without `'unsafe-inline'` in `style-src` drops every
+`style` attribute, options included; under one, use classes (see the next
+guide).
 
 ```go
 magicui.ShimmerButton(magicui.ShimmerButtonOptions{}, html.Style("--speed:1s"), "Join the beta")
@@ -180,6 +184,46 @@ magicui.ShimmerButton(magicui.ShimmerButtonOptions{}, html.Style("--speed:1s"), 
 Render the component and look at its root element: your class appears after
 the component's (`… flex-row [--duration:20s] [--gap:2rem]`) and replaces its
 `[--duration:40s] [--gap:1rem]`; your `style` declarations come last.
+
+---
+
+## Use the components under a strict Content-Security-Policy
+
+A site whose `Content-Security-Policy` has `style-src 'self'` (no
+`'unsafe-inline'`) loads CSS only from its stylesheets, and the browser
+ignores every `style` attribute. A component left at its defaults writes
+none, so it works as it is; the
+[reference](https://github.com/ungerik/go-mx/blob/main/shadcn/magicui/README.md#strict-content-security-policy)
+names the 15 components that need a `style` attribute anyway.
+
+### Steps
+
+1. Leave the options that take CSS values at their zero values: an option
+   that is set goes into `style`.
+2. Set the value with a class instead: the variable or property the option
+   sets, as a Tailwind arbitrary property. It replaces the component's
+   default class, merged with `shadcn.Cn`.
+
+   ```go
+   // Instead of ShimmerButtonOptions{ShimmerColor: "#3b82f6", ShimmerDuration: 1500 * time.Millisecond}:
+   magicui.ShimmerButton(magicui.ShimmerButtonOptions{},
+       html.Class("[--shimmer-color:#3b82f6] [--speed:1.5s]"),
+       "Join the beta",
+   )
+   ```
+
+3. Write the class as a literal in your Go source, so Tailwind finds it and
+   generates its rule.
+4. For a BorderBeam's border width, put the class on the BorderBeam's parent
+   (`[--border-beam-width:2px]`): the BorderBeam's own classes go to the
+   beam, not to the border around it.
+
+### Verification
+
+Render the component: its elements carry no `style` attribute, and the root's
+class list has your `[--shimmer-color:#3b82f6]` in place of the default
+`[--shimmer-color:#ffffff]`. In the browser, the console shows no
+Content-Security-Policy violation for a style attribute.
 
 ---
 

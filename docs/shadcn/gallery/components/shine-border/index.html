@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,21 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. The padding is the ring's width (the mask
+   cuts out the content box), so it is here too, where Cn keeps it beside a
+   caller's p-* class. Tailwind sorts p-* after this rule, so the padding
+   doubles the class to outrank it, as the inline padding did. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  &.shine-border-mask {
+    padding: var(--border-width);
+  }
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +635,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1027,7 +1058,7 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-shine-border-demo-panel-preview" aria-labelledby="tab-shine-border-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm relative w-full max-w-[350px] overflow-hidden">
-                      <div data-slot="shine-border" aria-hidden="true" style="--border-width:1px;--duration:14s;background-image:radial-gradient(transparent,transparent, #A07CFE,#FE8FB5,#FFBE7B,transparent,transparent);background-size:300% 300%;mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:var(--border-width)" class="motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]"></div>
+                      <div data-slot="shine-border" aria-hidden="true" style="background-image:radial-gradient(transparent,transparent, #A07CFE,#FE8FB5,#FFBE7B,transparent,transparent)" class="[--border-width:1px] [--duration:14s] bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)] bg-size-[300%_300%] shine-border-mask motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]"></div>
                       <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
                         <div data-slot="card-title" class="leading-none font-semibold">Login</div>
                         <div data-slot="card-description" class="text-muted-foreground text-sm">Enter your credentials to access your account</div>
@@ -1069,7 +1100,7 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-shine-border-monochrome-panel-preview" aria-labelledby="tab-shine-border-monochrome-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm relative overflow-hidden">
-                      <div data-slot="shine-border" aria-hidden="true" style="--border-width:1px;--duration:14s;background-image:radial-gradient(transparent,transparent, var(--foreground),transparent,transparent);background-size:300% 300%;mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:var(--border-width)" class="motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]"></div>
+                      <div data-slot="shine-border" aria-hidden="true" style="background-image:radial-gradient(transparent,transparent, var(--foreground),transparent,transparent)" class="[--border-width:1px] [--duration:14s] bg-[radial-gradient(transparent,transparent,#000000,transparent,transparent)] bg-size-[300%_300%] shine-border-mask motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position]"></div>
                       <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
                         <div data-slot="card-title" class="leading-none font-semibold">Login</div>
                         <div data-slot="card-description" class="text-muted-foreground text-sm">Enter your credentials to access your account</div>

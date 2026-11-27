@@ -21,14 +21,14 @@ type AnimatedShinyTextOptions struct {
 //
 // Needs [CSS] in the app's Tailwind input.
 func AnimatedShinyText(opts AnimatedShinyTextOptions, attribsChildren ...any) *mx.Element {
-	width := opts.ShimmerWidth
-	if width <= 0 {
-		width = 100
+	var style string
+	if opts.ShimmerWidth > 0 {
+		style = "--shiny-width:" + px(opts.ShimmerWidth)
 	}
 	return finish(html.Span(attribsChildren...), "animated-shiny-text",
-		"mx-auto max-w-md text-neutral-600/70 dark:text-neutral-400/70 "+
+		"[--shiny-width:100px] mx-auto max-w-md text-neutral-600/70 dark:text-neutral-400/70 "+
 			"animate-shiny-text bg-size-[var(--shiny-width)_100%] bg-clip-text bg-position-[0_0] bg-no-repeat [transition:background-position_1s_cubic-bezier(.6,.6,0,1)_infinite] "+
 			"bg-linear-to-r from-transparent via-black/80 via-50% to-transparent dark:via-white/80",
-		"--shiny-width:"+px(width),
+		style,
 	)
 }

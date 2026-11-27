@@ -37,7 +37,8 @@ This documentation follows the [Diátaxis](https://diataxis.fr) framework.
 
 - **[Magic UI how-to guides](how-to.html)**: build the CSS for production
   (with the Tailwind `@source` line the Go module cache needs), change speeds
-  and gaps, play entrances on scroll, give a link the rainbow button look,
+  and gaps, use the components under a strict Content-Security-Policy, play
+  entrances on scroll, give a link the rainbow button look,
   render the same markup on every request, check reduced motion, and fix a
   component that renders an error.
 
@@ -46,7 +47,8 @@ This documentation follows the [Diátaxis](https://diataxis.fr) framework.
 The component reference lives in the package README, next to the code:
 
 - **[Magic UI package reference](https://github.com/ungerik/go-mx/blob/main/shadcn/magicui/README.md)**:
-  setup, the React-to-Go component model, and every component's signature
+  setup, the React-to-Go component model, which components need a `style`
+  attribute under a strict Content-Security-Policy, and every component's signature
   and options, grouped into text effects, buttons, borders, backgrounds,
   motion and layout, data and media, and device mockups.
 - **[Differences from upstream](https://github.com/ungerik/go-mx/blob/main/shadcn/magicui/README.md#differences-from-upstream)**:

@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,21 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. The padding is the ring's width (the mask
+   cuts out the content box), so it is here too, where Cn keeps it beside a
+   caller's p-* class. Tailwind sorts p-* after this rule, so the padding
+   doubles the class to outrank it, as the inline padding did. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  &.shine-border-mask {
+    padding: var(--border-width);
+  }
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +635,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1027,7 +1058,7 @@
                 <div data-slot="tabs-content" role="tabpanel" id="tab-line-shadow-text-demo-panel-preview" aria-labelledby="tab-line-shadow-text-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
                     <h1 class="text-5xl leading-none font-semibold tracking-tighter text-balance sm:text-6xl md:text-7xl lg:text-8xl">Ship 
-                      <span data-slot="line-shadow-text" data-text="Fast" style="--shadow-color:var(--foreground)" class="relative z-0 inline-flex after:absolute after:top-[0.04em] after:left-[0.04em] after:content-[attr(data-text)] after:bg-[linear-gradient(45deg,transparent_45%,var(--shadow-color)_45%,var(--shadow-color)_55%,transparent_0)] after:-z-10 after:bg-size-[0.06em_0.06em] after:bg-clip-text after:text-transparent after:animate-line-shadow italic">Fast</span>
+                      <span data-slot="line-shadow-text" data-text="Fast" style="--shadow-color:var(--foreground)" class="[--shadow-color:black] relative z-0 inline-flex after:absolute after:top-[0.04em] after:left-[0.04em] after:content-[attr(data-text)] after:bg-[linear-gradient(45deg,transparent_45%,var(--shadow-color)_45%,var(--shadow-color)_55%,transparent_0)] after:-z-10 after:bg-size-[0.06em_0.06em] after:bg-clip-text after:text-transparent after:animate-line-shadow italic">Fast</span>
                     </h1>
                   </div>
                 </div>

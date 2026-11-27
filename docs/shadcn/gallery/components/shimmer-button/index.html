@@ -224,7 +224,9 @@
 
 /* Aurora Text */
 @theme inline {
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  /* One cycle takes --aurora-text-duration, 10s / Speed, which the
+     gradient copy inherits from the AuroraText root. */
+  --animate-aurora: aurora var(--aurora-text-duration, 10s) ease-in-out infinite alternate;
 
   @keyframes aurora {
     0% {
@@ -590,6 +592,21 @@
 }
 
 /* Shine Border */
+/* The ring mask in one rule: as separate utilities the mask shorthand could
+   come after mask-composite in the stylesheet and reset it, and the shine
+   would fill the whole element. The padding is the ring's width (the mask
+   cuts out the content box), so it is here too, where Cn keeps it beside a
+   caller's p-* class. Tailwind sorts p-* after this rule, so the padding
+   doubles the class to outrank it, as the inline padding did. */
+@utility shine-border-mask {
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  &.shine-border-mask {
+    padding: var(--border-width);
+  }
+}
 @theme inline {
   --animate-shine: shine var(--duration) infinite linear;
 
@@ -618,6 +635,20 @@
   syntax: "<percentage>";
   inherits: true;
   initial-value: -100%;
+}
+/* The label's mask and the border shine, as utilities rather than style
+   attributes, which a Content-Security-Policy without 'unsafe-inline'
+   refuses. */
+@utility shiny-button-label {
+  mask-image: linear-gradient(-75deg, var(--primary) calc(var(--shiny-button-x) + 20%), transparent calc(var(--shiny-button-x) + 30%), var(--primary) calc(var(--shiny-button-x) + 100%));
+}
+@utility shiny-button-shine {
+  mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
+  background-image: linear-gradient(-75deg,
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 20%),
+    color-mix(in oklab, var(--primary) 50%, transparent) calc(var(--shiny-button-x) + 25%),
+    color-mix(in oklab, var(--primary) 10%, transparent) calc(var(--shiny-button-x) + 100%));
 }
 @theme inline {
   /* The pop is upstream's scale spring (stiffness 200, damping 5, mass 0.5)
@@ -1026,7 +1057,7 @@
                 </div>
                 <div data-slot="tabs-content" role="tabpanel" id="tab-shimmer-button-demo-panel-preview" aria-labelledby="tab-shimmer-button-demo-tab-preview" data-tabs-value="preview" tabindex="0" class="flex-1 outline-none">
                   <div class="mt-2 flex min-h-[220px] items-center justify-center rounded-md border p-10">
-                    <button data-slot="shimmer-button" type="button" style="--spread:90deg;--shimmer-color:#ffffff;--shimmer-button-radius:100px;--speed:3s;--cut:0.05em;--bg:rgba(0, 0, 0, 1)" class="group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--shimmer-button-radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px shadow-2xl">
+                    <button data-slot="shimmer-button" type="button" class="[--spread:90deg] [--shimmer-color:#ffffff] [--shimmer-button-radius:100px] [--speed:3s] [--cut:0.05em] [--bg:rgba(0,0,0,1)] group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--shimmer-button-radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px shadow-2xl">
                       <div class="-z-30 blur-[2px] @container-[size] absolute inset-0 overflow-visible" aria-hidden="true">
                         <div class="animate-shimmer-slide absolute inset-0 aspect-[1] h-[100cqh] rounded-none [mask:none]">
                           <div class="animate-spin-around absolute -inset-full w-auto [translate:0_0] rotate-0 [background:conic-gradient(from_calc(270deg-(var(--spread)*0.5)),transparent_0,var(--shimmer-color)_var(--spread),transparent_var(--spread))]"></div>

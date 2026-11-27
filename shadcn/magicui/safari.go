@@ -99,6 +99,12 @@ type SafariOptions struct {
 	ID string
 }
 
+// safariScreenClasses place the screen's image or video in the window: the
+// screen constants above as percentages of the window, written out as one
+// literal so Tailwind finds the classes (TestDeviceScreenClasses checks them
+// against the constants).
+const safariScreenClasses = "left-[0.0831255195344971%] top-[6.905710491367861%] w-[99.75062344139651%] h-[92.96148738379813%]"
+
 // Safari renders a mockup of a Safari browser window as an SVG frame scaled
 // to the width of its container, with an optional image or video as the page
 // content. The SVG paths are upstream's, the frame is aria-hidden, and the
@@ -114,21 +120,15 @@ func Safari(opts SafariOptions, attribsChildren ...any) *mx.Element {
 	children := root.Children
 	root.Children = nil
 	hasMedia := opts.VideoSrc != "" || opts.ImageSrc != ""
-	screenStyle := "left:" + devicePercent(safariScreenX, safariWidth) +
-		";top:" + devicePercent(safariScreenY, safariHeight) +
-		";width:" + devicePercent(safariScreenWidth, safariWidth) +
-		";height:" + devicePercent(safariScreenHeight, safariHeight)
 	switch {
 	case opts.VideoSrc != "":
 		root.Children = append(root.Children, html.Div(
-			html.Class("pointer-events-none absolute z-0 overflow-hidden"),
-			html.Style(screenStyle),
+			html.Class("pointer-events-none absolute z-0 overflow-hidden", safariScreenClasses),
 			deviceVideo(opts.VideoSrc, "block size-full object-cover", true),
 		))
 	case opts.ImageSrc != "":
 		root.Children = append(root.Children, html.Div(
-			html.Class("pointer-events-none absolute z-0 overflow-hidden"),
-			html.Style(screenStyle+";border-radius:0 0 11px 11px"),
+			html.Class("pointer-events-none absolute z-0 overflow-hidden [border-radius:0_0_11px_11px]", safariScreenClasses),
 			html.Img(html.Src(opts.ImageSrc), html.Alt(""), html.Class("block size-full object-cover object-top")),
 		))
 	}
@@ -180,13 +180,12 @@ func Safari(opts SafariOptions, attribsChildren ...any) *mx.Element {
 		svg.ViewBox(0, 0, safariWidth, safariHeight),
 		svg.Fill("none"),
 		svg.XMLNS,
-		svg.Class("absolute inset-0 z-10 size-full"),
-		svg.Style("transform:translateZ(0)"),
+		svg.Class("absolute inset-0 z-10 size-full [transform:translateZ(0)]"),
 		ariaHidden,
 	}, append(defs, group)...)...))
 	root.Children = append(root.Children, children...)
-	return finish(root, "safari", "relative inline-block w-full align-middle leading-none",
-		"aspect-ratio:"+num(safariWidth)+"/"+num(safariHeight))
+	// aspect-[1203/753] is safariWidth/safariHeight, written out for Tailwind.
+	return finish(root, "safari", "relative inline-block w-full aspect-[1203/753] align-middle leading-none", "")
 }
 
 // safariIcon is one gray toolbar glyph of the Safari window.

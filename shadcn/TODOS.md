@@ -134,6 +134,61 @@ that only the first copy is interactive, or `tabindex="-1"` on focusable
 children set by a small script.
 **Effort:** S · **Priority:** P3 · **Depends on:** nothing.
 
+### 15 components need a style attribute under a strict CSP
+
+**What:** Give the components that still write a `style` attribute at their
+defaults (`needStyleAttribute` in `magicui/magicui_test.go`) a way to work under a
+Content-Security-Policy without `'unsafe-inline'` in `style-src`. They need a
+value per element: an index (AnimatedList, Ripple, SpinningText, Text3DFlip,
+TextAnimate, TextReveal, WordRotate), a seeded position (LightRays, Meteors,
+SparklesText, WarpBackground), a computed value (OrbitingCircles,
+AnimatedCircularProgressBar, ProgressiveBlur) or an id in `url()`
+(Backlight). Candidate: a collector in the render context that turns each
+distinct set of declarations into a class (`mxs-<hash>`) and the app serves
+the collected rules as a stylesheet from its own origin, or as a `<style>`
+with a nonce. For the indexes alone, `sibling-index()` would do it in CSS
+once Firefox and Safari ship it.
+**Why:** under such a policy these components render without those values:
+an AnimatedList's items enter together, and the seeded components lose
+their scattered positions.
+**Context:** the other 26 components carry their defaults as classes since
+the strict-CSP change. A collector touches the root package (a document
+renders its head before its body, so the stylesheet link needs a two-pass
+render or a route keyed by the hash) and needs a decision on how apps serve
+it.
+**Effort:** M · **Priority:** P3 · **Depends on:** nothing.
+
+### Loose ends of the strict-CSP class defaults
+
+**What:** Five small gaps the review of the strict-CSP change left open:
+1. AnimatedGradientText, AnimatedShinyText and LineShadowText use
+   `bg-clip-text` alone. Tailwind emits `-webkit-background-clip` only under
+   `--minify`/`--optimize`, so an unminified build shows Chrome 111–119 a
+   gradient box instead of gradient text. AuroraText and ComicText already add
+   `[-webkit-background-clip:text]`.
+2. ComicText's `-webkit-text-stroke` reads `--comic-text-font-size`, so a
+   caller `text-*` class that replaces the font size keeps a stroke sized for
+   5rem. An `em` stroke (`0.021875em`, the same 0.35px per rem) would follow
+   the actual size.
+3. `--border-beam-width`, set on a BorderBeam's parent as the docs advise
+   under a strict CSP, also reaches nested BorderBeams left at 1px.
+4. An option set to its default value (`BlurFadeOptions{Direction:
+   DirectionDown}`, GlareHover `Color: "#ffffff"`) still writes a `style`
+   attribute, which a strict CSP reports as a violation.
+5. The padding rule in `@utility shine-border-mask` doubles the class by
+   name (`&.shine-border-mask`), so a variant such as `md:shine-border-mask`
+   alone gets the mask but not the ring padding; `&&` would double whichever
+   class matched.
+**Why:** each is a visible difference from the inline styles of before:
+an ungradiented text box, a smeared outline, a thicker nested border, CSP
+reports for a component that looks default.
+**Context:** found by the pre-landing review of PR #54 and left as notes
+there; none is a regression a test catches. Also worth a README sentence:
+the defaults now live in Tailwind's `@layer utilities`, so an app's
+unlayered element rules (`div { padding: 0 }`) beat them where the inline
+styles used to win.
+**Effort:** S · **Priority:** P3 · **Depends on:** nothing.
+
 ---
 
 ## Calendar and DatePicker follow-ups

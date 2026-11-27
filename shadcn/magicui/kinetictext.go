@@ -138,7 +138,6 @@ func KineticText(opts KineticTextOptions, attribsChildren ...any) *mx.Element {
 	}
 	root.Children = append(root.Children, html.SpanClass("sr-only", opts.Text))
 	root.Children = append(root.Children, children...)
-	return finish(root, "kinetic-text", "flex flex-wrap font-[300]",
-		"--hover-padding:calc(1em / 12);--text-stroke-width:calc(1em * 125 / 6000)",
-	)
+	return finish(root, "kinetic-text",
+		"flex flex-wrap font-[300] [--hover-padding:calc(1em/12)] [--text-stroke-width:calc(1em*125/6000)]", "")
 }
