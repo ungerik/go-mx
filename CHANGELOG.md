@@ -736,6 +736,17 @@ API is still free to change.
 
 ### Changed
 
+- **`shadcn.SidebarMenuButton` given an `href` is a link.** It renders an
+  `<a>` instead of a `<button>`, upstream's `asChild` navigation item, so a
+  sidebar menu can navigate without a script.
+- **The documentation site uses the shadcn Sidebar and a mode toggle.** Its
+  navigation is `shadcn.Sidebar` with the site's own classes merged over the
+  defaults (prominent group labels, a sticky column that collapses out of
+  sight), and the theme button became shadcn/ui's mode toggle: a sun or moon
+  icon opening a menu with Light, Dark and System, where System follows the
+  operating system's setting. Without a saved choice the demo pages now follow
+  the system instead of starting light. Footnote references show in brackets,
+  as on GitHub.
 - **`shadcn/magicui` components left at their defaults write no `style`
   attribute.** A Content-Security-Policy without `'unsafe-inline'` in
   `style-src` makes the browser ignore every `style` attribute, and every

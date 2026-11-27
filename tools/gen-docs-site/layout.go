@@ -83,40 +83,53 @@ const docsCSS = /*css*/ `
 .prose-mx summary { @apply cursor-pointer font-medium; }
 .prose-mx dt { @apply mt-4 font-semibold; }
 .prose-mx dd { @apply ml-6; }
+.prose-mx sup { @apply text-xs; }
+/* Footnote references in brackets, as GitHub shows them, so adjacent ones
+   read [5][2][6] instead of 526. */
+.prose-mx .footnote-ref { @apply no-underline; }
+.prose-mx .footnote-ref::before { content: "["; }
+.prose-mx .footnote-ref::after { content: "]"; }
+.prose-mx .footnotes { @apply mt-12 text-sm text-muted-foreground; }
 `
 
 // shell renders a page of the site in file (relative to the site root): the
 // head shared with the gallery (shadcntheme.Head) plus the prose styles and
-// the light and dark highlight themes of the code blocks, and the sidebar navigation
-// around content. The document is returned unrendered, so the caller can add
-// the page metadata.
+// the light and dark highlight themes of the code blocks, and the shadcn
+// Sidebar navigation around content. The document is returned unrendered, so
+// the caller can add the page metadata.
 func shell(nav []navSection, file, title string, content mx.Component) *html.Document {
 	if title != "go-mx" {
 		title += " · go-mx"
 	}
 	doc := html.NewDocument(title,
-		html.DivClass("flex min-h-screen",
-			html.Aside(html.Class("hidden w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block"),
-				html.DivClass("sticky top-0 flex h-screen flex-col",
-					siteHeader(file),
-					html.Nav(html.Class("flex-1 overflow-y-auto p-3"), html.Attrib("aria-label", "Documentation"),
-						navLinks(nav, file),
-					),
+		shadcn.SidebarProvider(
+			// The site's own styling over shadcn's: the sidebar stays in
+			// view while the page scrolls, and collapses out of sight
+			// rather than to an icon strip, since the navigation has no
+			// icons. Below lg it is hidden like upstream's, whose mobile
+			// Sheet the port does not have.
+			shadcn.Sidebar(html.Class("sticky top-0 hidden h-svh self-start lg:flex group-data-[state=collapsed]/sidebar-wrapper:w-0 group-data-[state=collapsed]/sidebar-wrapper:border-r-0"),
+				shadcn.SidebarHeader(html.Class("gap-0 p-0"), siteHeader(file, "theme-menu")),
+				shadcn.SidebarContent(
+					html.Nav(html.Attrib("aria-label", "Documentation"), sidebarNav(nav, file)),
 				),
 			),
-			html.DivClass("min-w-0 flex-1",
-				// Below lg the sidebar is hidden and the navigation folds
-				// into a disclosure at the top, no script needed.
+			// The window scrolls, not the inset, so the sticky sidebar and
+			// fragment links work as on any page.
+			shadcn.SidebarInset(html.Class("min-w-0 overflow-visible"),
+				// Below lg the navigation folds into a disclosure at the top,
+				// no script needed.
 				html.DivClass("border-b bg-sidebar text-sidebar-foreground lg:hidden",
-					siteHeader(file),
+					siteHeader(file, "theme-menu-small"),
 					html.Details(html.Class("px-4 pb-3"),
 						html.Summary(html.Class("cursor-pointer text-sm font-medium"), "Menu"),
 						html.Nav(html.Class("mt-2"), html.Attrib("aria-label", "Documentation"), navLinks(nav, file)),
 					),
 				),
+				html.DivClass("hidden px-4 pt-3 lg:flex", shadcn.SidebarTrigger()),
 				// The column grows with the window and is capped only on
 				// wide screens, where longer lines would get hard to read.
-				html.Main(html.Class("mx-auto max-w-6xl px-6 py-10 lg:px-10"),
+				html.DivClass("mx-auto w-full max-w-6xl px-6 py-10 lg:px-10 lg:pt-4",
 					content,
 				),
 			),
@@ -148,21 +161,46 @@ func codeThemeCSS() string {
 }
 
 // siteHeader is the site title linking home, a link to the repository, and
-// the theme toggle.
-func siteHeader(file string) mx.Component {
+// the light/dark/system mode toggle, whose menu gets the id themeMenuID: the
+// header is in the page twice, in the sidebar and above the content on small
+// screens.
+func siteHeader(file, themeMenuID string) mx.Component {
 	return html.DivClass("flex items-center justify-between gap-2 border-b px-4 py-3",
 		html.AHRef(relativeURL(file, "index.html"), html.Class("text-sm font-semibold"), "go-mx"),
 		html.DivClass("flex items-center gap-1",
 			html.AHRef(repoURL, html.Class(shadcn.ButtonClasses(shadcn.ButtonGhost, shadcn.SizeSM)), "GitHub"),
-			shadcn.Button(shadcn.ButtonOutline, shadcn.SizeSM,
-				html.OnClick(shadcntheme.ToggleScript),
-				"Theme"),
+			shadcntheme.ModeToggle(themeMenuID),
 		),
 	)
 }
 
-// navLinks renders the sections of nav, the link to file marked as the
-// current page.
+// sidebarNav renders the sections of nav as shadcn sidebar groups, the link
+// to file marked as the current page. The group labels are restyled to stand
+// out over the links, which are muted until hovered or current.
+func sidebarNav(nav []navSection, file string) mx.Component {
+	return mx.ForEach(nav, func(s navSection) mx.Component {
+		return shadcn.SidebarGroup(
+			shadcn.SidebarGroupLabel(html.Class("text-sm font-semibold text-sidebar-foreground"), s.Title),
+			shadcn.SidebarGroupContent(
+				shadcn.SidebarMenu(html.Class("gap-0.5"),
+					mx.ForEach(s.Items, func(item navItem) mx.Component {
+						link := []any{
+							html.HRef(relativeURL(file, item.File)),
+							html.Class("py-1.5 text-muted-foreground data-[active=true]:text-sidebar-accent-foreground"),
+						}
+						if item.File == file {
+							link = append(link, html.DataAttr("active", "true"), html.Attrib("aria-current", "page"))
+						}
+						return shadcn.SidebarMenuItem(shadcn.SidebarMenuButton(append(link, item.Title)...))
+					}),
+				),
+			),
+		)
+	})
+}
+
+// navLinks renders the sections of nav as plain links for the menu of small
+// screens, the link to file marked as the current page.
 func navLinks(nav []navSection, file string) mx.Component {
 	return mx.ForEach(nav, func(s navSection) mx.Component {
 		return mx.Components{

@@ -44,7 +44,7 @@ does not exist here.
 | Lower client resource use            | Less memory/CPU; works on low-end devices   |
 | Architectural simplicity             | One language; no duplicated API layer       |
 
-[^dotcms][^newstack][^spa-seo]
+Sources:[^dotcms][^newstack][^spa-seo]
 
 ## Where go-mx is strong
 
