@@ -1,16 +1,13 @@
-//go:generate go -C ../tools tool go-enum ../logview/$GOFILE
-
 package logview
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 )
 
 // kind is the JSON type of a parsed value, which is what its color conveys.
-type kind int //#enum
+type kind int
 
 const (
 	kindString kind = iota
@@ -22,64 +19,6 @@ const (
 	// kindRaw is a value past [Config.MaxDepth], kept as its raw JSON text.
 	kindRaw
 )
-
-// Valid indicates if k is any of the valid values for kind
-func (k kind) Valid() bool {
-	switch k {
-	case
-		kindString,
-		kindNumber,
-		kindBool,
-		kindNull,
-		kindObject,
-		kindArray,
-		kindRaw:
-		return true
-	}
-	return false
-}
-
-// Validate returns an error if k is none of the valid values for kind
-func (k kind) Validate() error {
-	if !k.Valid() {
-		return fmt.Errorf("invalid value %#v for type logview.kind", k)
-	}
-	return nil
-}
-
-// ValidOr returns k if it is any of the valid values for kind, else defaultVal
-func (k kind) ValidOr(defaultVal kind) kind {
-	if k.Valid() {
-		return k
-	}
-	return defaultVal
-}
-
-// Enums returns all valid values for kind
-func (kind) Enums() []kind {
-	return []kind{
-		kindString,
-		kindNumber,
-		kindBool,
-		kindNull,
-		kindObject,
-		kindArray,
-		kindRaw,
-	}
-}
-
-// EnumStrings returns all valid values for kind as strings
-func (kind) EnumStrings() []string {
-	return []string{
-		"0",
-		"1",
-		"2",
-		"3",
-		"4",
-		"5",
-		"6",
-	}
-}
 
 // value is one parsed JSON value. Only the field matching kind is populated.
 type value struct {
