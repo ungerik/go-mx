@@ -57,8 +57,19 @@ func Base(attribs ...mx.Attrib) *mx.Element { return VoidElement("base", attribs
 // BDi creates a <bdi> element isolating a span of text whose directionality may differ.
 func BDi(attribsChildren ...any) *mx.Element { return Element("bdi", attribsChildren...) }
 
-// BDo creates a <bdo> element overriding the text directionality via the dir attribute.
-func BDo(attribsChildren ...any) *mx.Element { return Element("bdo", attribsChildren...) }
+// BDo creates a <bdo> element that displays its text in the direction dir,
+// overriding the Unicode bidirectional algorithm. dir must be DirLTR or
+// DirRTL; DirAuto is not allowed on <bdo> and makes Render return an error.
+// An empty dir renders no dir attribute, for a dir passed in attribsChildren.
+func BDo(dir Dir, attribsChildren ...any) *mx.Element {
+	switch dir {
+	case "":
+		return Element("bdo", attribsChildren...)
+	case DirAuto:
+		return Element("bdo", append([]any{mx.ErrAttribf("dir", "bdo dir must be %q or %q, not %q", DirLTR, DirRTL, dir)}, attribsChildren...)...)
+	}
+	return Element("bdo", append([]any{dir}, attribsChildren...)...)
+}
 
 // Blockquote creates a <blockquote> element for an extended quotation.
 func Blockquote(attribsChildren ...any) *mx.Element {
@@ -125,8 +136,15 @@ func ColGroup(attribsChildren ...any) *mx.Element {
 
 // Content was an obsolete Shadow DOM v0 feature that was never standardized; use Slot instead.
 
-// Data creates a <data> element linking its content to a machine-readable value via the value attribute.
-func Data(attribsChildren ...any) *mx.Element { return Element("data", attribsChildren...) }
+// Data creates a <data> element linking its content to the machine-readable
+// value. An empty value renders no value attribute, for a value passed in
+// attribsChildren.
+func Data(value string, attribsChildren ...any) *mx.Element {
+	if value != "" {
+		attribsChildren = append([]any{mx.NewAttrib("value", value)}, attribsChildren...)
+	}
+	return Element("data", attribsChildren...)
+}
 
 // DataList creates a <datalist> element holding a set of Option suggestions for an Input.
 func DataList(attribsChildren ...any) *mx.Element {
@@ -272,15 +290,15 @@ func I(attribsChildren ...any) *mx.Element { return Element("i", attribsChildren
 // IFrame creates an <iframe> element embedding another HTML page into the current one.
 func IFrame(attribsChildren ...any) *mx.Element { return Element("iframe", attribsChildren...) }
 
-// Img creates a void <img> element that embeds an image via its Src attribute.
-// It takes only attributes and has no children. (Image is the SVG element; use
-// Img for HTML.)
-func Img(attribs ...mx.Attrib) *mx.Element { return VoidElement("img", attribs...) }
-
-// ImgSrc creates a void <img> element loading the image at the given URL
-// as a shortcut for Img(Src(url), attribs...).
-func ImgSrc(url string, attribs ...mx.Attrib) *mx.Element {
-	return VoidElement("img", append([]mx.Attrib{Src(url)}, attribs...)...)
+// Img creates a void <img> element that embeds the image at the URL src.
+// It takes only attributes and has no children. An empty src renders no src
+// attribute, for an image whose source comes from attribs instead (a SrcSet,
+// or a Src computed elsewhere). (Image is the SVG element; use Img for HTML.)
+func Img(src string, attribs ...mx.Attrib) *mx.Element {
+	if src != "" {
+		attribs = mx.PrependAttrib("src", src, attribs)
+	}
+	return VoidElement("img", attribs...)
 }
 
 // Input creates a void <input> form control element. It takes only attributes
@@ -425,8 +443,15 @@ func Link(attribs ...mx.Attrib) *mx.Element { return VoidElement("link", attribs
 // Main creates the <main> element wrapping the dominant content of the document body.
 func Main(attribsChildren ...any) *mx.Element { return Element("main", attribsChildren...) }
 
-// Map creates a <map> element defining an image map together with its Area children.
-func Map(attribsChildren ...any) *mx.Element { return Element("map", attribsChildren...) }
+// Map creates a <map> element defining an image map together with its Area
+// children. An Img refers to it by name with UseMap("#"+name). An empty name
+// renders no name attribute, for a name passed in attribsChildren.
+func Map(name string, attribsChildren ...any) *mx.Element {
+	if name != "" {
+		attribsChildren = append([]any{Name(name)}, attribsChildren...)
+	}
+	return Element("map", attribsChildren...)
+}
 
 // Mark creates a <mark> element highlighting text for reference or relevance.
 func Mark(attribsChildren ...any) *mx.Element { return Element("mark", attribsChildren...) }
@@ -492,9 +517,14 @@ func OLUpperRoman(attribsChildren ...any) *mx.Element {
 	return Element("ol", append([]any{Type("I")}, attribsChildren...)...)
 }
 
-// OptGroup creates an <optgroup> element grouping related Option items within a Select.
-func OptGroup(attribsChildren ...any) *mx.Element {
-	return mx.NewElement("optgroup", attribsChildren...)
+// OptGroup creates an <optgroup> element grouping related Option items within
+// a Select under the heading label. An empty label renders no label attribute,
+// for a label passed in attribsChildren.
+func OptGroup(label string, attribsChildren ...any) *mx.Element {
+	if label != "" {
+		attribsChildren = append([]any{LabelAttr(label)}, attribsChildren...)
+	}
+	return Element("optgroup", attribsChildren...)
 }
 
 // Option creates an <option> item within a Select, OptGroup, or DataList.
@@ -635,9 +665,16 @@ func TitleElem(attribsChildren ...any) *mx.Element { return Element("title", att
 // TR creates a <tr> table row holding TD or TH cells.
 func TR(attribsChildren ...any) *mx.Element { return Element("tr", attribsChildren...) }
 
-// Track creates a void <track> element supplying timed text tracks (subtitles, captions) for
-// Audio or Video. It takes only attributes and has no children.
-func Track(attribs ...mx.Attrib) *mx.Element { return VoidElement("track", attribs...) }
+// Track creates a void <track> element supplying the timed text track
+// (subtitles, captions) at the URL src for Audio or Video. It takes only
+// attributes and has no children. An empty src renders no src attribute, for
+// a src passed in attribs.
+func Track(src string, attribs ...mx.Attrib) *mx.Element {
+	if src != "" {
+		attribs = mx.PrependAttrib("src", src, attribs)
+	}
+	return VoidElement("track", attribs...)
+}
 
 // UL creates a <ul> unordered list of LI items.
 func UL(attribsChildren ...any) *mx.Element { return Element("ul", attribsChildren...) }

@@ -61,7 +61,7 @@ func Iphone(opts IphoneOptions, attribsChildren ...any) *mx.Element {
 	case opts.Src != "":
 		root.Children = append(root.Children, html.Div(
 			html.Class("pointer-events-none absolute z-0 overflow-hidden", iphoneScreenClasses),
-			html.Img(html.Src(opts.Src), html.Alt(""), html.Class("block size-full object-cover object-top")),
+			html.Img(opts.Src, html.Alt(""), html.Class("block size-full object-cover object-top")),
 		))
 	}
 

@@ -750,6 +750,13 @@ API is still free to change.
   operating system's setting. Without a saved choice the demo pages now follow
   the system instead of starting light. Footnote references show in brackets,
   as on GitHub.
+- **`html` constructors take the attribute their element requires as the
+  first argument**: `Img(src, …)`, `Track(src, …)`, `OptGroup(label, …)`,
+  `Data(value, …)`, `Map(name, …)` and `BDo(dir, …)`. `html.ImgSrc` is
+  removed; `html.Img(src)` replaces it. An empty argument renders no
+  attribute, for one passed among the other attributes (an `Img` with only a
+  `SrcSet`). `BDo` takes the typed `Dir`, and `DirAuto`, which `<bdo>` does
+  not allow, makes `Render` return an error.
 - **`shadcn/magicui` components left at their defaults write no `style`
   attribute.** A Content-Security-Policy without `'unsafe-inline'` in
   `style-src` makes the browser ignore every `style` attribute, and every

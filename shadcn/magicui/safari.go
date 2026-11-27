@@ -129,7 +129,7 @@ func Safari(opts SafariOptions, attribsChildren ...any) *mx.Element {
 	case opts.ImageSrc != "":
 		root.Children = append(root.Children, html.Div(
 			html.Class("pointer-events-none absolute z-0 overflow-hidden [border-radius:0_0_11px_11px]", safariScreenClasses),
-			html.Img(html.Src(opts.ImageSrc), html.Alt(""), html.Class("block size-full object-cover object-top")),
+			html.Img(opts.ImageSrc, html.Alt(""), html.Class("block size-full object-cover object-top")),
 		))
 	}
 

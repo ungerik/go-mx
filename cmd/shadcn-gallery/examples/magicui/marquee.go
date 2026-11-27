@@ -27,7 +27,7 @@ func marqueeReviewCard(r marqueeReview) mx.Component {
 			"border-gray-950/[.1] bg-gray-950/[.01] hover:bg-gray-950/[.05]",
 			"dark:border-gray-50/[.1] dark:bg-gray-50/[.10] dark:hover:bg-gray-50/[.15]"),
 		html.DivClass("flex flex-row items-center gap-2",
-			html.ImgSrc(r.Img, html.Class("rounded-full"), html.Width(32), html.Height(32), html.Alt("")),
+			html.Img(r.Img, html.Class("rounded-full"), html.Width(32), html.Height(32), html.Alt("")),
 			html.DivClass("flex flex-col",
 				html.FigCaption(html.Class("text-sm font-medium dark:text-white"), r.Name),
 				html.PClass("text-xs font-medium dark:text-white/40", r.Username),

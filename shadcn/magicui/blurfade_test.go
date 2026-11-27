@@ -9,7 +9,7 @@ import (
 )
 
 func TestBlurFadeDefault(t *testing.T) {
-	out := render(t, BlurFade(BlurFadeOptions{}, html.Img(html.Src("/a.png"))))
+	out := render(t, BlurFade(BlurFadeOptions{}, html.Img("/a.png")))
 	mustContain(t, out, `data-slot="blur-fade"`,
 		`class="animate-blur-fade-in [--blur-fade-duration:0.4s] [--blur-fade-delay:0.04s] [--blur-fade-blur:6px] [--blur-fade-x:0px] [--blur-fade-y:-6px]"`,
 		`<img src="/a.png"/>`)

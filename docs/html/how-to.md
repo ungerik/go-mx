@@ -106,7 +106,7 @@ Closed-keyword attributes are typed enums; use the named constant:
 
 ```go
 html.Div(html.DirRTL, html.SpellCheckFalse)
-html.Img(html.Src("/a.png"), html.LoadingLazy, html.DecodingAsync)
+html.Img("/a.png", html.LoadingLazy, html.DecodingAsync)
 html.Form(html.MethodPOST, html.EncTypeMultipartFormData)
 ```
 

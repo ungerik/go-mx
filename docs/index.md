@@ -98,9 +98,14 @@ your own types all satisfy it.
 void elements take only attributes:
 
 ```go
-html.Div(html.Class("container"), html.P("Hello"))   // <div class="container"><p>Hello</p></div>
-html.Img(html.Src("/logo.png"), html.Alt("Logo"))    // void: no children
+html.Div(html.Class("container"), html.P("Hello"))     // <div class="container"><p>Hello</p></div>
+html.Input(html.Name("q"), html.Placeholder("Search")) // void: no children
 ```
+
+Where the HTML spec requires an attribute, the constructor takes it as the
+first argument: `html.Img("/logo.png", html.Alt("Logo"))`, likewise
+`Track(src, …)`, `OptGroup(label, …)`, `Data(value, …)`, `Map(name, …)` and
+`BDo(dir, …)`. An empty value renders no attribute.
 
 **Children conversion.** Children are converted at render-build time: a `string`
 becomes escaped text, a `Component` passes through, a `func` is wrapped, `nil`

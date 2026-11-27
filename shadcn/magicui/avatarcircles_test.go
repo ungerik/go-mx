@@ -17,7 +17,7 @@ func TestAvatarCircles(t *testing.T) {
 	}, html.Class("z-20")))
 	mustContain(t, out,
 		`data-slot="avatar-circles"`, `class="flex -space-x-4 rtl:space-x-reverse z-20"`,
-		`<a href="https://example.com/a" target="_blank" rel="noopener noreferrer"><img class="h-10 w-10 rounded-full border-2 border-white dark:border-gray-800" src="https://example.com/a.png" width="40" height="40" alt="Avatar 1"/></a>`,
+		`<a href="https://example.com/a" target="_blank" rel="noopener noreferrer"><img src="https://example.com/a.png" class="h-10 w-10 rounded-full border-2 border-white dark:border-gray-800" width="40" height="40" alt="Avatar 1"/></a>`,
 		`alt="Avatar 2"`, `href="">+99</a>`,
 	)
 	if out := render(t, AvatarCircles(AvatarCirclesOptions{})); strings.Contains(out, "+") {

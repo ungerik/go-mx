@@ -46,7 +46,7 @@ func TestAttachment(t *testing.T) {
 
 func TestAttachmentVariants(t *testing.T) {
 	out := render(t, Attachment(AttachmentUploading, AttachmentSizeXS, AttachmentVertical,
-		AttachmentMedia(AttachmentMediaImage, html.Img(html.Src("/a.png"), html.Alt(""))),
+		AttachmentMedia(AttachmentMediaImage, html.Img("/a.png", html.Alt(""))),
 	))
 	for _, want := range []string{
 		`data-state="uploading"`, `data-size="xs"`, `data-orientation="vertical"`,

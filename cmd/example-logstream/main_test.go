@@ -347,8 +347,8 @@ func TestGeneratedLinesCoverEveryRenderingPath(t *testing.T) {
 		"log-multiline", // a stack trace
 		"log-text",      // a plain-text line
 		"log-level-info", "log-level-warn", "log-level-error", "log-level-debug",
-		"log-level-undefined",            // a level the theme does not define
-		"<img class=\"log-level-image\"", // a level rendered as an icon
+		"log-level-undefined",       // a level the theme does not define
+		"class=\"log-level-image\"", // a level rendered as an icon
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the generator never produced %q", want)

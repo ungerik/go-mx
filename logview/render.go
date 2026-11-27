@@ -312,9 +312,8 @@ func (c *Config) levelText(theme Theme, value, display string) (mx.Component, st
 	token := theme.levelToken(value)
 	classes := c.class(ClassLevel) + " " + c.class(ClassLevel) + "-" + token
 	if image := theme.Levels[token].Image; image != "" {
-		return html.SpanClass(classes, html.Img(
+		return html.SpanClass(classes, html.Img(image,
 			html.Class(c.class(ClassLevelImage)),
-			html.Src(image),
 			// The level is the alt text: it is exactly what the image replaced,
 			// so it is what a screen reader should read instead.
 			html.Alt(value),

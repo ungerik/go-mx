@@ -179,8 +179,7 @@ func HeroVideoDialog(opts HeroVideoDialogOptions, attribsChildren ...any) *mx.El
 	trigger := shadcn.DialogTrigger(id,
 		html.Class("group relative cursor-pointer border-0 bg-transparent p-0"),
 		mx.NewAttrib("aria-label", "Play video"),
-		html.Img(
-			html.Src(opts.ThumbnailSrc),
+		html.Img(opts.ThumbnailSrc,
 			html.Alt(or(opts.ThumbnailAlt, "Video thumbnail")),
 			html.Width(1920),
 			html.Height(1080),

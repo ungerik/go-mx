@@ -29,6 +29,7 @@ task recipes see:
 
 - [Relationship to the `mx` package](#relationship-to-the-mx-package)
 - [Elements](#elements)
+  - [Required attributes come first](#required-attributes-come-first)
 - [Convenience constructors](#convenience-constructors)
 - [Children](#children)
 - [Attributes](#attributes)
@@ -83,8 +84,8 @@ attributes and children together as variadic `any`; **void elements** (those
 that cannot have children, like `<img>` or `<br>`) take only `mx.Attrib`:
 
 ```go
-html.Div(html.Class("container"), html.P("Hello"))  // <div class="container"><p>Hello</p></div>
-html.Img(html.Src("/logo.png"), html.Alt("Logo"))   // void: attributes only, self-closing
+html.Div(html.Class("container"), html.P("Hello"))     // <div class="container"><p>Hello</p></div>
+html.Input(html.Name("q"), html.Placeholder("Search")) // void: attributes only, self-closing
 ```
 
 Constructors return `*mx.Element`. Arguments are sorted at build time: anything
@@ -115,6 +116,36 @@ via `type="1"`, `"a"`, `"A"`, `"i"`, and `"I"`.
 Elements deprecated in HTML5 (`<center>`, `<font>`, `<marquee>`, …) are
 intentionally left out; they remain as commented-out source so the omission is
 explicit.
+
+### Required attributes come first
+
+Where the HTML spec requires one attribute on an element, its constructor
+takes that attribute as a typed first argument before the variadic, so a call
+can't forget it:
+
+| Constructor              | Required attribute | Example                                          |
+|--------------------------|--------------------|--------------------------------------------------|
+| `Img(src, attribs...)`   | `src`              | `Img("/logo.png", Alt("Logo"))`                  |
+| `Track(src, attribs...)` | `src`              | `Track("/en.vtt", KindSubtitles, SrcLang("en"))` |
+| `OptGroup(label, …)`     | `label`            | `OptGroup("Fruits", Option("Apple"))`            |
+| `Data(value, …)`         | `value`            | `Data("398", "Mini Ketchup")`                    |
+| `Map(name, …)`           | `name`             | `Map("floors", Area(…))`, used by `Img(…, UseMap("#floors"))` |
+| `BDo(dir, …)`            | `dir`              | `BDo(DirRTL, "Hello")`                           |
+
+An empty argument renders no attribute, for a value passed among the other
+attributes instead: `Img("", SrcSet("/a.png 1x, /a@2x.png 2x"))` renders an
+`<img>` with only a `srcset`. `BDo` takes the typed `Dir`; `DirAuto` is not
+allowed on `<bdo>`, which overrides the direction, so it makes `Render` return
+an error.
+
+Elements whose attribute is optional or depends on the context keep the plain
+variadic: `A` (an `<a>` without `href` is a placeholder link), `Script` and
+`IFrame` (inline content or `srcdoc` instead of `src`), and `Source` (`src`
+inside `<audio>`/`<video>`, `srcset` inside `<picture>`). `Meter`, `Object`
+and `Link` require attributes but keep the variadic too: a `<meter>` value is
+a number with no empty value to leave out, a `<link>` needs `rel` as well as
+`href`, and `<object>` is rarely used. For `<a>` and the common `<link>` and
+`<script>` forms, the convenience constructors below take the URL first.
 
 ## Convenience constructors
 
@@ -152,7 +183,7 @@ is the media-element preload attribute enum.
 
 A companion family in `elements.go` bakes the single most common attribute into
 the element you reach for most — an element plus its `class` or `id`, an `<a>`
-plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
+plus its `href`, a `<label>` plus its `for` — so
 `DivClass("card", …)` replaces `Div(Class("card"), …)`:
 
 | Function                          | Renders                              |
@@ -163,7 +194,6 @@ plus its `href`, an `<img>` plus its `src`, a `<label>` plus its `for` — so
 | `PClass(classes, …)`              | `<p class="…">`                      |
 | `H1Class(classes, …)` … `H6Class` | `<h1 class="…">` … `<h6 class="…">`  |
 | `AHRef(url, …)`                   | `<a href="…">`                       |
-| `ImgSrc(url, …)`                  | `<img src="…">` (void)               |
 | `LabelFor(id, …)`                 | `<label for="…">`                    |
 
 ## Children
@@ -259,7 +289,7 @@ constants are used directly as attributes:
 
 ```go
 html.Div(html.DirRTL, html.SpellCheckFalse)
-html.Img(html.Src("/a.png"), html.LoadingLazy, html.DecodingAsync)
+html.Img("/a.png", html.LoadingLazy, html.DecodingAsync)
 html.Form(html.MethodPOST, html.EncTypeMultipartFormData)
 ```
 

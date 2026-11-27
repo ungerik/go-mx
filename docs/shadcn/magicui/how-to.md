@@ -237,7 +237,7 @@ scroll-driven animations (`animation-timeline: view()`):
 ```go
 // Fade each photo in while it scrolls into view.
 magicui.BlurFade(magicui.BlurFadeOptions{InView: true},
-    html.ImgSrc("/photo.jpg", html.Alt("Our office")),
+    html.Img("/photo.jpg", html.Alt("Our office")),
 )
 
 // Animate a heading in word by word as it scrolls into view.

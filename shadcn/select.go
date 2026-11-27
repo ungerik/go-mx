@@ -37,7 +37,8 @@ func Select(attribsChildren ...any) *mx.Element {
 // <optgroup>. label is the group's heading (a typed parameter because the
 // HTML attribute is load-bearing and the group is invalid without it).
 func SelectGroup(label string, attribsChildren ...any) *mx.Element {
-	e := html.OptGroup(attribsChildren...)
+	// No label here: a label in attribsChildren wins over the parameter.
+	e := html.OptGroup("", attribsChildren...)
 	if e.AttribIndex("label") < 0 {
 		e.Attribs = append(e.Attribs, html.LabelAttr(label))
 	}

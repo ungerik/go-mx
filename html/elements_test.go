@@ -1,9 +1,12 @@
 package html
 
 import (
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ungerik/go-mx"
 )
 
 func TestAHRef(t *testing.T) {
@@ -24,6 +27,54 @@ func TestAHRef(t *testing.T) {
 			require.Equal(t, tt.want, tt.got)
 		})
 	}
+}
+
+func TestImg(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"src first", Img("/a.png", Alt("A")).String(), `<img src='/a.png' alt='A'/>`},
+		// An empty src leaves the source to attribs, here a srcset.
+		{"empty src renders no src", Img("", SrcSet("/a.png 1x, /a@2x.png 2x")).String(), `<img srcset='/a.png 1x, /a@2x.png 2x'/>`},
+		{"empty src without attribs", Img("").String(), `<img/>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}
+
+func TestRequiredAttribConstructors(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"Track", Track("/en.vtt", SrcLang("en")).String(), `<track src='/en.vtt' srclang='en'/>`},
+		{"Track empty src", Track("").String(), `<track/>`},
+		{"OptGroup", OptGroup("Fruits", Option("Apple")).String(), `<optgroup label='Fruits'><option>Apple</option></optgroup>`},
+		{"OptGroup empty label", OptGroup("", LabelAttr("Fruits")).String(), `<optgroup label='Fruits'></optgroup>`},
+		{"Data", Data("398", "Mini Ketchup").String(), `<data value='398'>Mini Ketchup</data>`},
+		{"Data empty value", Data("", "x").String(), `<data>x</data>`},
+		{"Map", Map("floors", Area(ShapeDefault)).String(), `<map name='floors'><area shape='default'/></map>`},
+		{"Map empty name", Map("").String(), `<map></map>`},
+		{"BDo", BDo(DirRTL, "Hello").String(), `<bdo dir='rtl'>Hello</bdo>`},
+		{"BDo empty dir", BDo("", DirLTR, "Hello").String(), `<bdo dir='ltr'>Hello</bdo>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.got)
+		})
+	}
+}
+
+func TestBDoRejectsDirAuto(t *testing.T) {
+	// <bdo> overrides the direction, so it needs an explicit one.
+	err := BDo(DirAuto, "Hello").Render(t.Context(), mx.NewCheckedWriter(io.Discard))
+	require.Error(t, err)
 }
 
 func TestButtonTypeConstructors(t *testing.T) {

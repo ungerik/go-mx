@@ -165,7 +165,7 @@ func TestLineLevelImageReplacesTheText(t *testing.T) {
 	}}}
 	out := render(t, cfg.Line(`{"level":"ERROR","msg":"x"}`))
 	contains(t, out,
-		`<img class="log-level-image" src="/icons/error.png" alt="ERROR"/>`,
+		`<img src="/icons/error.png" class="log-level-image" alt="ERROR"/>`,
 		`class="log-level log-level-error"`,
 	)
 	excludes(t, out, `>ERROR<`)
