@@ -86,3 +86,32 @@ func TestTailwindBrowserIntegrity(t *testing.T) {
 		t.Errorf("%s serves sha384-%s, but TailwindBrowserIntegrity says sha384-%s", TailwindBrowserURL, got, want)
 	}
 }
+
+func TestModeToggle(t *testing.T) {
+	var buf bytes.Buffer
+	if err := ModeToggle("theme-menu").Render(t.Context(), mx.NewCheckedWriter(&buf)); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	for _, want := range []string{
+		`popovertarget="theme-menu"`,
+		`id="theme-menu"`,
+		`aria-label="Theme"`,
+		// The trigger shows the sun in light mode and the moon in dark mode.
+		`lucide lucide-sun dark:hidden`,
+		`lucide lucide-moon hidden dark:block`,
+		"mxSetTheme('light')",
+		"mxSetTheme('dark')",
+		"mxSetTheme('system')",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("mode toggle misses %q", want)
+		}
+	}
+	// The functions the menu calls are the ones InitScript defines.
+	for _, fn := range []string{"window.mxSetTheme=", "window.mxApplyTheme="} {
+		if !strings.Contains(InitScript, fn) {
+			t.Errorf("InitScript does not define %s", fn)
+		}
+	}
+}

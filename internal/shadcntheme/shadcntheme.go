@@ -44,10 +44,14 @@ const TailwindBrowserIntegrity = "sha384-t+qLIxS5zM/KF99/doWY+dxTsavdvgayaZt8A9n
 
 // InitScript applies the light/dark choice before the body renders, so the
 // preference carries across full-page navigations with no flash of the wrong
-// mode. It runs synchronously during head parsing. Precedence: a ?theme=dark or
-// ?theme=light query param wins and is persisted (so it carries forward like
-// using the toggle); otherwise the value saved by [ToggleScript] is used.
-const InitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(localStorage.theme==='dark')document.documentElement.classList.add('dark')}catch(e){}`
+// mode. It runs synchronously during head parsing. The choice is "light",
+// "dark" or, when none is saved, the system's: then the page follows the
+// operating system's prefers-color-scheme, also when it changes while the
+// page is open. A ?theme=dark, ?theme=light or ?theme=system query param wins
+// and is persisted (so it carries forward like using the toggle). It defines
+// mxSetTheme(choice), which [ModeToggle] calls and [ToggleScript] uses
+// indirectly through the saved value.
+const InitScript = /*js*/ `try{var p=new URLSearchParams(location.search).get('theme');if(p==='dark'||p==='light')localStorage.theme=p;if(p==='system')localStorage.removeItem('theme');var m=matchMedia('(prefers-color-scheme: dark)');window.mxApplyTheme=function(){var t=localStorage.theme;document.documentElement.classList.toggle('dark',t==='dark'||(t!=='light'&&m.matches))};window.mxSetTheme=function(t){if(t==='system')localStorage.removeItem('theme');else localStorage.theme=t;mxApplyTheme()};m.addEventListener('change',mxApplyTheme);mxApplyTheme()}catch(e){}`
 
 // ToggleScript is the onclick handler of a theme toggle button: it flips the
 // dark class on the root element and saves the choice for [InitScript].
