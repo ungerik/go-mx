@@ -54,7 +54,7 @@ func buildNav(pages []*Page, examples navSection) []navSection {
 // Tailwind input, compiled with the theme, so it uses the shadcn tokens and
 // follows the dark mode.
 const docsCSS = /*css*/ `
-.prose-mx { @apply text-[0.95rem] leading-7; }
+.prose-mx { @apply text-base leading-7; }
 .prose-mx > :first-child { @apply mt-0; }
 .prose-mx h1 { @apply mt-0 mb-6 scroll-m-20 text-3xl font-bold tracking-tight text-balance; }
 .prose-mx h2 { @apply mt-12 mb-4 scroll-m-20 border-b pb-2 text-2xl font-semibold tracking-tight; }
@@ -71,7 +71,7 @@ const docsCSS = /*css*/ `
 .prose-mx input[type=checkbox] { @apply mr-2 align-middle; }
 .prose-mx blockquote { @apply my-6 border-l-2 pl-6 text-muted-foreground; }
 .prose-mx :not(pre) > code { @apply rounded bg-muted px-[0.3rem] py-[0.15rem] font-mono text-[0.85em]; }
-.prose-mx pre { @apply my-6 overflow-x-auto text-[0.8125rem] leading-relaxed; }
+.prose-mx pre { @apply my-6 overflow-x-auto text-sm leading-relaxed; }
 .prose-mx table { @apply my-6 block w-full overflow-x-auto text-sm; }
 .prose-mx th { @apply border bg-muted/50 px-3 py-2 text-left font-semibold; }
 .prose-mx td { @apply border px-3 py-2 align-top; }
@@ -112,7 +112,9 @@ func shell(nav []navSection, file, title string, content mx.Component) *html.Doc
 						html.Nav(html.Class("mt-2"), html.Attrib("aria-label", "Documentation"), navLinks(nav, file)),
 					),
 				),
-				html.Main(html.Class("mx-auto max-w-3xl px-6 py-10 lg:px-10"),
+				// The column grows with the window and is capped only on
+				// wide screens, where longer lines would get hard to read.
+				html.Main(html.Class("mx-auto max-w-6xl px-6 py-10 lg:px-10"),
 					content,
 				),
 			),
