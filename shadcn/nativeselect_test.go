@@ -48,3 +48,15 @@ func TestNativeSelectSizeSM(t *testing.T) {
 		t.Errorf("small size not applied: %s", out)
 	}
 }
+
+// Value: protects=a label passed in attribsChildren wins over the
+// NativeSelectOptGroup label parameter and is written once;
+// fails_when=NativeSelectOptGroup appends the parameter label although the
+// caller set one; why_new=TestNativeSelect passes only the parameter;
+// seam=none; no_claim=does not cover how browsers render an optgroup label.
+func TestNativeSelectOptGroupCallerLabelWins(t *testing.T) {
+	out := render(t, NativeSelectOptGroup("Param", html.LabelAttr("Caller"), NativeSelectOption("a", "A")))
+	if strings.Count(out, `label="Caller"`) != 1 || strings.Contains(out, "Param") {
+		t.Errorf("want exactly the caller's label: %s", out)
+	}
+}
