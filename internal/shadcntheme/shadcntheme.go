@@ -26,10 +26,21 @@ import (
 //go:embed theme.css
 var CSS string
 
-// TailwindBrowserURL is the @tailwindcss/browser build that compiles the
-// text/tailwindcss style block and the classes it finds in the live DOM at
-// runtime, so the demo sites need no node toolchain.
-const TailwindBrowserURL = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"
+// TailwindBrowserURL is the @tailwindcss/browser 4.3.5 build that compiles
+// the text/tailwindcss style block and the classes it finds in the live DOM
+// at runtime, so the demo sites need no node toolchain. It is pinned to an
+// exact version and loaded with [TailwindBrowserIntegrity], like htmx in the
+// hx package, so neither a new release nor a changed file on the CDN alters
+// the demo pages without a commit.
+const TailwindBrowserURL = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.5/dist/index.global.js"
+
+// TailwindBrowserIntegrity is the Subresource Integrity hash of the file at
+// [TailwindBrowserURL]; change the two together and run
+//
+//	MX_CHECK_CDN=1 go test ./internal/shadcntheme
+//
+// which checks the hash against the CDN.
+const TailwindBrowserIntegrity = "sha384-t+qLIxS5zM/KF99/doWY+dxTsavdvgayaZt8A9ntLsUjEkiXzYl5M3Ij8zVFPL9j"
 
 // InitScript applies the light/dark choice before the body renders, so the
 // preference carries across full-page navigations with no flash of the wrong
@@ -45,12 +56,17 @@ const ToggleScript = /*js*/ `localStorage.theme=document.documentElement.classLi
 // Head returns the head elements of a demo page: [InitScript], a
 // text/tailwindcss style block holding [CSS] followed by each of extraCSS
 // (for example magicui.CSS, or page-specific @apply rules), and the
-// [TailwindBrowserURL] script that compiles it.
+// [TailwindBrowserURL] script that compiles it, checked against
+// [TailwindBrowserIntegrity].
 func Head(extraCSS ...string) mx.Components {
 	return mx.Components{
 		html.ScriptJS(InitScript),
 		html.Element("style", html.Type("text/tailwindcss"), html.Raw(TailwindInput(extraCSS...))),
-		html.ScriptSrc(TailwindBrowserURL),
+		html.Script(
+			html.Src(TailwindBrowserURL),
+			html.Integrity(TailwindBrowserIntegrity),
+			html.CrossOriginAnonymous,
+		),
 	}
 }
 

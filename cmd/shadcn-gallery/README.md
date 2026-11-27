@@ -65,7 +65,10 @@ the shadcn/ui new-york-v4 theme tokens
 ([`internal/shadcntheme/theme.css`](../../internal/shadcntheme/theme.css)) go in a
 `<style type="text/tailwindcss">` block and the
 CDN script compiles them plus the classes it finds in the live DOM at runtime.
-Zero build step; the trade-off is a CDN dependency and a brief first-paint
+The script is pinned to an exact version and loaded with a Subresource
+Integrity hash (`shadcntheme.TailwindBrowserURL` and
+`TailwindBrowserIntegrity`), so a new release cannot change the gallery
+without a commit. Zero build step; the trade-off is a CDN dependency and a brief first-paint
 compile, which is fine for a demo. A production app would run the Tailwind v4
 CLI over the Go source instead.
 

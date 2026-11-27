@@ -25,6 +25,10 @@ go test -C tools -short ./...
 # against the CDN (needs network, so it is skipped unless MX_CHECK_CDN is set)
 MX_CHECK_CDN=1 go test ./hx -run TestScriptFromCDNIntegrity
 
+# The same check for the pinned @tailwindcss/browser build of the demo pages,
+# after changing its version or hash in internal/shadcntheme/shadcntheme.go
+MX_CHECK_CDN=1 go test ./internal/shadcntheme -run TestTailwindBrowserIntegrity
+
 # Build check
 go build ./...
 
