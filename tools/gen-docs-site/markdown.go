@@ -178,8 +178,9 @@ func renderCodeBlock(w util.BufWriter, source []byte, n ast.Node, entering bool)
 
 // codeBlock returns the component of a code block in the language lang (the
 // info string of a fenced block, empty for none): Go highlighted with the
-// highlight package's markup, colored by the dark theme stylesheet in the page
-// head; any other language a plain <pre><code> with the same frame.
+// highlight package's markup, colored by the code theme stylesheet in the
+// page head (see codeThemeCSS); any other language a plain <pre><code> with
+// the same frame.
 func codeBlock(lang, code string) mx.Component {
 	switch lang {
 	case "go", "golang":

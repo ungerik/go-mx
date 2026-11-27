@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/ungerik/go-mx/highlight"
 )
 
 func TestBuildNav(t *testing.T) {
@@ -30,5 +32,27 @@ func TestBuildNav(t *testing.T) {
 	nav = buildNav(pages[:2], examplesNav(false, false))
 	if last := nav[len(nav)-1]; last.Title != "Examples" || len(last.Items) != 1 {
 		t.Errorf("last section %+v", last)
+	}
+}
+
+// TestCodeThemeCSS checks that the code blocks take the light theme's colors
+// by default and the dark theme's below the .dark root, token rules included.
+func TestCodeThemeCSS(t *testing.T) {
+	css := codeThemeCSS()
+	for _, want := range []string{
+		"pre.hl {\n\tbackground-color: " + highlight.LightTheme.Background,
+		".dark pre.hl {\n\tbackground-color: " + highlight.DarkTheme.Background,
+		".hl-keyword { color: " + highlight.LightTheme.Styles[highlight.ClassKeyword].Color,
+		".dark .hl-keyword { color: " + highlight.DarkTheme.Styles[highlight.ClassKeyword].Color,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("code theme misses %q", want)
+		}
+	}
+	// No dark rule may apply outside .dark.
+	for line := range strings.Lines(css[len(highlight.LightTheme.CSS("")):]) {
+		if strings.Contains(line, "{") && !strings.HasPrefix(line, ".dark ") {
+			t.Errorf("dark rule without .dark: %q", line)
+		}
 	}
 }

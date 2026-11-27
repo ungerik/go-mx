@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/ungerik/go-mx"
 	"github.com/ungerik/go-mx/highlight"
 	"github.com/ungerik/go-mx/html"
@@ -85,7 +87,7 @@ const docsCSS = /*css*/ `
 
 // shell renders a page of the site in file (relative to the site root): the
 // head shared with the gallery (shadcntheme.Head) plus the prose styles and
-// the dark highlight theme of the code blocks, and the sidebar navigation
+// the light and dark highlight themes of the code blocks, and the sidebar navigation
 // around content. The document is returned unrendered, so the caller can add
 // the page metadata.
 func shell(nav []navSection, file, title string, content mx.Component) *html.Document {
@@ -124,10 +126,25 @@ func shell(nav []navSection, file, title string, content mx.Component) *html.Doc
 	doc.Meta = map[string]string{"viewport": "width=device-width, initial-scale=1"}
 	doc.HeadCustom = mx.Components{
 		shadcntheme.Head(docsCSS),
-		// The code blocks are dark in both page themes, as in the gallery.
-		highlight.DarkTheme.StyleElement(""),
+		html.StyleElem(codeThemeCSS()),
 	}
 	return doc
+}
+
+// codeThemeCSS is the stylesheet of the code blocks: the colors of
+// highlight.LightTheme, and those of highlight.DarkTheme below the .dark root
+// the theme toggle sets, so code follows the page's mode as it does on GitHub.
+func codeThemeCSS() string {
+	var dark strings.Builder
+	for line := range strings.Lines(highlight.DarkTheme.CSS("")) {
+		// Every rule of the theme starts at the beginning of a line with
+		// its selector, pre.hl or a .hl-… token class.
+		if strings.HasPrefix(line, ".") || strings.HasPrefix(line, "pre.") {
+			dark.WriteString(".dark ")
+		}
+		dark.WriteString(line)
+	}
+	return highlight.LightTheme.CSS("") + dark.String()
 }
 
 // siteHeader is the site title linking home, a link to the repository, and
