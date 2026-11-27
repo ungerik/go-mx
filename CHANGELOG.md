@@ -21,7 +21,9 @@ API is still free to change.
   mode and `OneMonokaiTheme` in dark mode.
 - **`highlight.ParseVSCodeTheme` and `LoadVSCodeTheme`** turn a VS Code color
   theme file (as VS Code and Cursor theme extensions ship it, JSON with
-  comments) into a `highlight.Theme`, following `include` chains. Each token
+  comments) into a `highlight.Theme`. `LoadVSCodeTheme` reads the file from
+  an `fs.FS` and follows its `include` chain; `ParseVSCodeTheme` takes the
+  bytes of a theme without one and rejects a file that has one. Each token
   class takes the color the theme gives the matching scope of VS Code's Go
   grammar; colors must be hex values, so a theme file cannot inject CSS.
 - **The documentation site is rendered by go-mx and deployed from CI.**
@@ -43,7 +45,8 @@ API is still free to change.
   `cmd/example-sse`, `cmd/example-logstream` and `cmd/highlight-demo` take
   `-snapshot DIR`: they fetch their own pages from their handler and write
   them as static files for the documentation site, each with a note that it is
-  a snapshot and the `go run` command of the live version. The streaming
+  a snapshot and the `go run` command of the live version; `-snapshot-index`
+  links that note to the page listing all examples. The streaming
   examples show the state their stream ends in, which is the finished
   transcript for the chat and a fixed batch of log lines generated from the
   seed for the log view.
@@ -773,9 +776,12 @@ API is still free to change.
   head loads Tailwind's browser build at a pinned version (4.3.5) with a
   Subresource Integrity hash instead of the floating `@4` tag, so a new
   Tailwind release can no longer restyle the demo pages without a commit.
-  The gallery's output is otherwise unchanged apart from its demo links: the
-  breadcrumb, attachment, marker and trace examples link `#` instead of paths
-  that do not exist on a static host.
+  The gallery's output is otherwise unchanged apart from its demo links and
+  one command: the breadcrumb examples link `#` instead of the root paths `/`
+  and `/components`, which do not exist where the gallery is published, the
+  attachment, marker and trace examples link `#` instead of a fragment of
+  their own name, and the floating `CodeBlock` example shows the gallery
+  command writing to `./dist`.
 
 - **`shadcn.StyleSlot` is exported.** The helper every `shadcn` component
   finishes its element with (merge the caller's classes over the base classes
@@ -1103,6 +1109,13 @@ API is still free to change.
 
 ### Fixed
 
+- **`shadcn.Sidebar`'s script no longer leaks global variables.** Its
+  restore-on-load part declared a top-level `var w` and `var m`, which share
+  the page's global scope with every other inline script, so a page script
+  using either name was overwritten. On the documentation site, which uses
+  both, every choice in the mode toggle threw. The script now keeps its
+  variables in a function scope, and a headless Chrome test runs it next to
+  the theme script.
 - **`magicui.WarpBackground` clips its tunnel.** Its class
   `[clipPath:inset(0)]`, the React style key carried over from upstream, is
   no CSS property, so Tailwind generated nothing for it; it is

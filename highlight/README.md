@@ -211,6 +211,9 @@ identifiers render as text to keep the markup small.
 ```bash
 go run ./cmd/highlight-demo
 # browse to http://localhost:8080  (add ?theme=dark to switch)
+
+# or write the page in both themes (index.html, dark.html) as static files
+go run ./cmd/highlight-demo -snapshot ./dist
 ```
 
 The demo highlights a sample file, shows the generated `GoSource` output

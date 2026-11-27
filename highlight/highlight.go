@@ -23,8 +23,9 @@
 //     "func main() {}" returns a tree of html.Pre(...) calls.
 //
 // Colors live in a separate [Theme] that emits a CSS stylesheet, so the same
-// HTML works with any theme. Use [LightTheme] or [DarkTheme], or build your
-// own.
+// HTML works with any theme. Use [LightTheme], [DarkTheme] or
+// [OneMonokaiTheme], load a VS Code color theme with [ParseVSCodeTheme] or
+// [LoadVSCodeTheme], or build your own.
 //
 //	import "github.com/ungerik/go-mx/highlight"
 //
